@@ -1,0 +1,30 @@
+# pestifer.scripters: 5u3o_build.namd
+####################### Created Sat Apr 18 15:18:06 2026 #######################
+################################# NAMD script ##################################
+parameters 5u3o_build_minimal.prm
+set temperature 300
+paraTypeCharmm True
+exclude scaled1-4
+oneFourScaling 1.0
+cutoff 10.0
+switching True
+switchdist 9.0
+pairlistdist 11.5
+outputenergies 100
+structure 5u3o_build.psf
+coordinates 5u3o_build.pdb
+temperature $temperature
+nonbondedFreq 1
+fullElectFrequency 2
+stepspercycle 4
+dielectric 80
+timestep 1.0
+rigidbonds none
+langevin True
+langevinDamping 5
+langevinTemp $temperature
+langevinHydrogen False
+outputName 5u3o_build
+dcdfreq 1000
+firsttimestep 0
+run 2000

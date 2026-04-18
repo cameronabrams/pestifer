@@ -1,0 +1,132 @@
+configuration {
+  step         6000
+  dt 1.000000e+00
+  version 2024-06-04
+}
+
+colvar {
+  name GAP00
+  x       5.5843407167928
+}
+
+colvar {
+  name GAP01
+  x       4.7421483359907
+}
+
+colvar {
+  name GAP02
+  x       5.3136449087102
+}
+
+colvar {
+  name GAP03
+  x       6.3209723909029
+}
+
+colvar {
+  name GAP04
+  x        6.078012946376
+}
+
+colvar {
+  name GAP05
+  x       5.2890724205461
+}
+
+colvar {
+  name GAP06
+  x       15.275430644014
+}
+
+colvar {
+  name GAP07
+  x       15.171211131104
+}
+
+colvar {
+  name GAP08
+  x       14.994184556231
+}
+
+restraint {
+  configuration {
+    step 6000
+    name harmonic1
+firstStep            0
+centers   2.00000000000000e+00
+  }
+}
+
+restraint {
+  configuration {
+    step 6000
+    name harmonic2
+firstStep            0
+centers   2.00000000000000e+00
+  }
+}
+
+restraint {
+  configuration {
+    step 6000
+    name harmonic3
+firstStep            0
+centers   2.00000000000000e+00
+  }
+}
+
+restraint {
+  configuration {
+    step 6000
+    name harmonic4
+firstStep            0
+centers   2.00000000000000e+00
+  }
+}
+
+restraint {
+  configuration {
+    step 6000
+    name harmonic5
+firstStep            0
+centers   2.00000000000000e+00
+  }
+}
+
+restraint {
+  configuration {
+    step 6000
+    name harmonic6
+firstStep            0
+centers   2.00000000000000e+00
+  }
+}
+
+restraint {
+  configuration {
+    step 6000
+    name harmonic7
+firstStep            0
+centers   2.00000000000000e+00
+  }
+}
+
+restraint {
+  configuration {
+    step 6000
+    name harmonic8
+firstStep            0
+centers   2.00000000000000e+00
+  }
+}
+
+restraint {
+  configuration {
+    step 6000
+    name harmonic9
+firstStep            0
+centers   2.00000000000000e+00
+  }
+}
+

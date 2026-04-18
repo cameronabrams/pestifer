@@ -68,3 +68,10 @@ class TestStringthings(unittest.TestCase):
         filter_func = parse_filter_expression(expr)
         self.assertTrue(filter_func(MockObject(resname='PO4')))
         self.assertFalse(filter_func(MockObject(resname='PO5')))
+
+        # Atom-only attribute (altloc) on object that lacks it should return False, not raise
+        expr = "altloc == 'B'"
+        filter_func = parse_filter_expression(expr)
+        self.assertTrue(filter_func(MockObject(altloc='B')))
+        self.assertFalse(filter_func(MockObject(altloc='A')))
+        self.assertFalse(filter_func(MockObject(resname='HOH')))  # altloc absent

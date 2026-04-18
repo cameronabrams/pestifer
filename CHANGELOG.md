@@ -2,6 +2,10 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
+## [2.2.4] - 2026-04-18
+
+- Exclusion logic expressions now tolerate atom-only attributes (e.g., `altloc`) on objects that lack them, returning `False` rather than raising an error — so `altloc == 'B'` can be used safely in a `psfgen` source `exclude` list
+
 ## [2.2.3] - 2026-04-17
 
 - Now generates a custom "minimal" CHARMM parameter file customized for every system

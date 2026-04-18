@@ -161,14 +161,15 @@ class Transform(BaseObj):
         """
         return np.array_equal(self.tmat, other.tmat)
 
-    def generate_chainIDmap(self, auChainIDs: list[str], daughters: dict, CM: ChainIDManager):
+    def generate_chainIDmap(self, auChainIDs: list[str], daughters: dict, CM: ChainIDManager,
+                            glycan_segment_parents: dict | None = None):
         """
         Generates a mapping of chain IDs for the transformation.
         This method creates a mapping of chain IDs that this transformation applies to,
         based on the asymmetric unit's chain IDs and the daughters of segments.
         If the transformation is an identity transformation, it applies a "thru map" to the chain IDs.
         Otherwise, it generates a new mapping for the chain IDs.
-        
+
         Parameters
         ----------
         auChainIDs : list
@@ -177,7 +178,11 @@ class Transform(BaseObj):
             A dictionary mapping parent segment IDs to their daughter segment IDs.
         CM : ChainIDManager
             The ChainIDManager instance used to manage chain IDs.
+        glycan_segment_parents : dict, optional
+            Maps glycan segname → parent protein chainID (e.g. 'AG01' → 'A').
+            Used to generate structured image segnames (e.g. AG01→CG01 when A→C).
         """
+        glycan_segment_parents = glycan_segment_parents or {}
         applies_to=self.applies_chainIDs[:]
         for d,v in daughters.items():
             if d in self.applies_chainIDs:
@@ -189,6 +194,13 @@ class Transform(BaseObj):
         else:
             logger.debug(f'Transform gets a new map applied to {applies_to}')
             self.chainIDmap = CM.generate_next_map(auChainIDs, applies_to)
+        # Add structured glycan segname mappings: AG01→CG01 when A→C.
+        for glycan_seg, parent_chain in glycan_segment_parents.items():
+            new_parent = self.chainIDmap.get(parent_chain, parent_chain)
+            suffix = glycan_seg[len(parent_chain):]  # e.g. 'G01' from 'AG01'
+            self.chainIDmap[glycan_seg] = new_parent + suffix
+        if glycan_segment_parents:
+            logger.debug(f'Glycan segname mappings added: { {k: self.chainIDmap[k] for k in glycan_segment_parents} }')
 
 class TransformList(BaseObjList[Transform]):
     """

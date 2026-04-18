@@ -30,7 +30,7 @@ def _default_cases_root() -> Path:
 
 def pytest_addoption(parser: pytest.Parser) -> None:
     """
-    Adds the ``--examples`` and ``--cases-root`` options to pytest CLI.
+    Adds the ``--examples``, ``--cases-root``, and ``--generate-gold`` options to pytest CLI.
     """
     g = parser.getgroup("integration-examples")
     g.addoption(
@@ -45,6 +45,12 @@ def pytest_addoption(parser: pytest.Parser) -> None:
         action="store",
         default=None,
         help="Root directory to discover examples (default: pestifer/resources/examples)"
+    )
+    g.addoption(
+        "--generate-gold",
+        action="store_true",
+        default=False,
+        help="Write gold-standard outputs instead of comparing against them."
     )
 
 def _expand_examples(spec: str) -> list[int]:
@@ -79,16 +85,18 @@ def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
     metafunc.parametrize("case", cases)
 
 @pytest.fixture
-def per_case_dir(case: Case, request: pytest.FixtureRequest) -> Path:
+def per_case_dir(case: Case, request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> Path:
     """
-    Makes a subdirectory under the test module's directory (works with change_test_dir in the top-level conf.py).
-    
-    Example: pkg/tests/integration/test_cli_cases/ex01/
+    Creates ``__test_builds/ex{N}/`` beside the test module and chdirs into it.
+    Uses monkeypatch so the working directory is restored after each test.
     """
+    from pestifer.util._goldenmode import set_generate_gold, set_example_id
     test_module_dir = Path(request.node.fspath).parent.resolve()
     d = test_module_dir / Path('__test_builds') / Example.folder_name_format.format(example_id=case.example_id)
-    os.environ["PESTIFER_PYTEST_GENERATE_GOLD_EXAMPLE_ID"] = str(case.example_id)
     d.mkdir(parents=True, exist_ok=True)
+    set_generate_gold(request.config.getoption("--generate-gold"))
+    set_example_id(case.example_id)
+    monkeypatch.chdir(d)
     return d
 
 @pytest.fixture

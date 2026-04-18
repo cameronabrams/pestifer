@@ -1,0 +1,69 @@
+! Author: Cameron F. Abrams, <cfa22@drexel.edu>
+! Patches created specifically for pestifer
+
+PRES TYRO -1.0  ! deprotonated tyrosine
+                ! charges taken from on Charlie Brooks' tyru
+DELETE ATOM HH
+GROUP
+ATOM CE1   CA     -0.60
+ATOM HE1   HP      0.28
+GROUP
+ATOM CE2   CA     -0.60
+ATOM HE2   HP      0.28
+GROUP
+ATOM CZ    CA      0.40
+ATOM OH    OH1    -0.76
+
+PRES PROD 0.0   ! patch that properly assigns H positions in a down-puckered PRO
+IC N    CA   CB   HB1   1.4585 102.5600  -120.000 109.0200  1.109
+IC N    CA   CB   HB2   1.4585 102.5600  120.000 112.7400  1.109
+IC CA   CB   CG   HG1   1.530 103.715 149.023 113.774 1.109
+IC CA   CB   CG   HG2   1.530 103.715 -87.338 109.570 1.109
+IC CB   CG   CD   HD1   1.519 101.422 -146.202 111.093 1.109
+IC CB   CG   CD   HD2   1.519 101.422 79.641 102.311 1.109
+
+! Undo N and C terminal patches
+
+! very basic cleavage of a peptide bond (only used in testing?)
+PRES CLEV  0.00
+DELETE BOND 1C 2N
+
+! undo CTER patch
+PRES XCTR 0.00
+ATOM C    C       0.51
+ATOM O    O      -0.51
+DELETE ATOM OT1
+DELETE ATOM OT2
+BOND C O
+
+! undo NTER patch
+PRES XNTR 0.00
+ATOM N    NH1    -0.47
+ATOM HN   H       0.31
+ATOM CA   CT1     0.07
+ATOM HA   HB1     0.09
+DELETE ATOM HT1
+DELETE ATOM HT2
+DELETE ATOM HT3
+BOND N HN
+
+PRES XGLP 0.0   ! undo GLYP patch
+ATOM N    NH1    -0.47  !     |
+ATOM HN   H       0.31  !     N-H
+ATOM CA   CT2    -0.02  !     |  
+ATOM HA1  HB2     0.09  !     |  
+ATOM HA2  HB2     0.09  ! HA1-CA-HA2
+DELETE ATOM HT1
+DELETE ATOM HT2
+DELETE ATOM HT3
+BOND N HN
+
+PRES XPRP  0.0 ! undo PROP patch
+ATOM N    N      -0.29  !     |   \ /
+ATOM CD   CP3     0.00  !     N---CD   HG1  ATOM CA   CP1     0.02
+ATOM CA   CP1     0.02  !     |     /  \
+DELETE ATOM HN1
+DELETE ATOM HN2
+
+END
+

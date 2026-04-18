@@ -59,6 +59,7 @@ Detailed explanation of some *selected* common tasks you can use is below.
 
    runtasks/fetch
    runtasks/continuation
+   runtasks/merge
    runtasks/psfgen
    runtasks/validate
    runtasks/pdb2pqr

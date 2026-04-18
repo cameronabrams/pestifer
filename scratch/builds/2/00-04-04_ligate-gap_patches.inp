@@ -1,0 +1,27 @@
+patch XCTR A:156
+patch XNTR A:157
+patch LINK A:155 A:156 A:157 A:158
+patch XCTR C:156
+patch XNTR C:157
+patch LINK C:155 C:156 C:157 C:158
+patch XCTR E:156
+patch XNTR E:157
+patch LINK E:155 E:156 E:157 E:158
+patch XCTR A:378
+patch XNTR A:379
+patch LINK A:377 A:378 A:379 A:380
+patch XCTR C:378
+patch XNTR C:379
+patch LINK C:377 C:378 C:379 C:380
+patch XCTR E:378
+patch XNTR E:379
+patch LINK E:377 E:378 E:379 E:380
+patch XCTR B:57
+patch XNTR B:58
+patch LINK B:56 B:57 B:58 B:59
+patch XCTR D:57
+patch XNTR D:58
+patch LINK D:56 D:57 D:58 D:59
+patch XCTR F:57
+patch XNTR F:58
+patch LINK F:56 F:57 F:58 F:59

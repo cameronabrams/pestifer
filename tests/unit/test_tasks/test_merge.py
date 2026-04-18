@@ -15,7 +15,6 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
 
 from pestifer.core.artifacts import StateArtifacts
 from pestifer.core.config import Config
@@ -237,7 +236,7 @@ class TestResolveErrorStrategy(unittest.TestCase):
 
 # BPTI vacuum build (scratch/builds/1): 1108 atoms, segments A (protein) + B, C
 # (glycan/ion); three DISU patches on segment A.
-_FIXTURES = (Path(__file__).parents[3] / 'scratch' / 'builds' / '1').resolve()
+_FIXTURES = (Path(__file__).parents[3] / 'scratch' / 'builds' / '1' / 'standards').resolve()
 _PSF = '00-01-00_psfgen-build.psf'
 _PDB = '00-01-00_psfgen-build.pdb'
 _N_ATOMS = 1108
@@ -288,7 +287,7 @@ class TestMergeTaskIntegration(unittest.TestCase):
         _translate_pdb(_FIXTURES / _PDB, Path(name) / 'bpti-shifted.pdb')
         os.chdir(name)
 
-    @pytest.mark.slow
+
     def test_merge_two_copies_enumerate(self):
         """Merging BPTI with a translated copy; enumerate resolves collisions and DISU
         remarks from both copies appear in the merged PSF."""
@@ -314,7 +313,7 @@ class TestMergeTaskIntegration(unittest.TestCase):
         for r in _DISU_REMARKS:
             self.assertIn(r, merged_remarks, f'patch remark {r!r} missing from merged PSF')
 
-    @pytest.mark.slow
+
     def test_merge_two_copies_explicit_map(self):
         """Merging BPTI with a translated copy via explicit segname_map; DISU remarks
         for the renamed copy must appear with updated segment names."""
@@ -343,3 +342,32 @@ class TestMergeTaskIntegration(unittest.TestCase):
         for r in _DISU_REMARKS:
             renamed = r.replace('A:', 'AA:')
             self.assertIn(renamed, merged_remarks, f'renamed patch remark {renamed!r} missing')
+
+
+    def test_merge_three_copies(self):
+        """Merging three copies of BPTI (each shifted 100 Å along Z); enumerate resolves
+        collisions and DISU remarks from all three copies appear in the merged PSF."""
+        self._setup_subdir('__test_merge_three_copies')
+        _translate_pdb(_FIXTURES / _PDB, Path('bpti-shifted1.pdb'), dz=100.0)
+        _translate_pdb(_FIXTURES / _PDB, Path('bpti-shifted2.pdb'), dz=200.0)
+        task_list = [{'merge': {
+            'systems': [
+                {'psf': _PSF, 'pdb': _PDB},
+                {'psf': _PSF, 'pdb': 'bpti-shifted1.pdb'},
+                {'psf': _PSF, 'pdb': 'bpti-shifted2.pdb'},
+            ],
+            'collision_strategy': 'enumerate',
+        }}]
+        self.controller.reconfigure_tasks(task_list)
+        self.controller.do_tasks()
+        state: StateArtifacts = self.controller.tasks[0].get_current_artifact('state')
+        self.assertTrue(state.psf.exists())
+        self.assertTrue(state.pdb.exists())
+        merged = PSFContents(state.psf.name)
+        self.assertEqual(len(merged.atoms), 3 * _N_ATOMS)
+        seg_names = {s.segname for s in merged.segments}
+        self.assertEqual(len(seg_names), 9, f'expected 9 unique segment names, got: {seg_names}')
+        # DISU remarks from the first (unmodified) copy must be present
+        merged_remarks = _psf_patch_remarks(state.psf.name)
+        for r in _DISU_REMARKS:
+            self.assertIn(r, merged_remarks, f'patch remark {r!r} missing from merged PSF')

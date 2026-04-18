@@ -449,8 +449,11 @@ class PsfgenScripter(VMDScripter):
         self.addline(f'${selname} set segname {image_seglabel}')
         if is_image:
             self.backup_selection(selname, dataholder=f'{selname}_data')
-            self.addline(f'${selname} set chain {image_seglabel}')
+            image_chainID = chainIDmap.get(segment.chainID, segment.chainID)
+            self.addline(f'${selname} set chain {image_chainID}')
             self.addline(f'${selname} move {transform.write_TcL()}')
+        elif segment.chainID != image_seglabel:
+            self.addline(f'${selname} set chain {segment.chainID}')
         self.addline(f'${selname} set resid [list {" ".join([str(x) for x in resid_list])}]')
         self.addline(f'${selname} writepdb {pdb}')
         self.addline(f'segment {image_seglabel} '+'{')
@@ -630,9 +633,9 @@ class PsfgenScripter(VMDScripter):
             including the selection of atoms and writing the link to a PDB file.
         """
         chainIDmap = transform.chainIDmap
-        seg1 = L.residue1.chainID
+        seg1 = L.segname1 if L.segname1 else L.residue1.chainID
         seg1 = chainIDmap.get(seg1, seg1)
-        seg2 = L.residue2.chainID
+        seg2 = L.segname2 if L.segname2 else L.residue2.chainID
         seg2 = chainIDmap.get(seg2, seg2)
         resid1 = L.residue1.resid
         resid2 = L.residue2.resid

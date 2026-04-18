@@ -80,3 +80,27 @@ class TestAsymmetricUnit(unittest.TestCase):
             ssbonds = obj_manager['topol']['ssbonds']
             self.assertEqual(ssbonds[0].resid1, ResID(5))
             self.assertEqual(ssbonds[0].resid2, ResID(55))
+
+    def test_exclusion_logic_removes_water(self):
+        """Excluding resname == 'HOH' should leave no water segment."""
+        downloads = {
+            'PDB': self.inputs_path / '6pti.pdb',
+            'mmCIF': self.inputs_path / '6pti.cif',
+        }
+        for fmt, filepath in downloads.items():
+            if fmt == 'PDB':
+                pstruct = PDBParser(filepath=filepath, input_format=fmt).parse().parsed
+            else:
+                pstruct = CIFload(Path(filepath))
+            AU = AsymmetricUnit(
+                parsed=pstruct,
+                chainIDmanager=ChainIDManager(format=fmt),
+                objmanager=ObjManager(),
+                sourcespecs={"exclude": ["resname == 'HOH'"]},
+            )
+            segtypes = [s.segtype for s in AU.segments]
+            self.assertNotIn('water', segtypes, f"{fmt}: water segment present after exclusion")
+            self.assertIn('protein', segtypes, f"{fmt}: protein segment missing after exclusion")
+            for seg in AU.segments:
+                for res in seg.residues.data:
+                    self.assertNotEqual(res.resname, 'HOH', f"{fmt}: HOH residue found in segment {seg.segname}")

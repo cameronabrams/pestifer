@@ -12,7 +12,6 @@ import tarfile
 import unittest
 from pathlib import Path
 
-import pytest
 
 from pestifer.core.config import Config
 from pestifer.core.controller import Controller
@@ -64,7 +63,7 @@ class TestDesolvateTask(unittest.TestCase):
         os.chdir(name)
         _extract_from_tarball(_SOLVATED_PSF, _SOLVATED_PDB, _MINIMIZE_DCD)
 
-    @pytest.mark.slow
+
     def test_desolvate_preserves_patch_remarks(self):
         """Desolvating a solvated BPTI system must preserve DISU patch remarks."""
         self._setup_subdir('__test_desolvate_patch_remarks')

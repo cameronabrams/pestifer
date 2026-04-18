@@ -12,6 +12,7 @@ Subattributes:
 
    tasks/fetch
    tasks/continuation
+   tasks/merge
    tasks/psfgen
    tasks/ligate
    tasks/pdb2pqr

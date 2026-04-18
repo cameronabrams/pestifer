@@ -136,22 +136,26 @@ class MergeTask(PsfgenTask):
         for sys in resolved:
             pg.load_project(sys['_use_psf'], sys['_use_pdb'])
 
-        # Carry forward patch remarks from all input PSFs, applying any
-        # segment renames so the provenance stays consistent.
-        seen_patch_remarks: set[str] = set()
+        pg.writescript(self.basename, guesscoord=False, regenerate=False)
+        self.result = pg.runscript(keep_tempfiles=False)
+        if self.result != 0:
+            return self.result
+
+        # psfgen's readpsf carries remarks from input PSFs, but only for
+        # unmodified segment names.  Inject any missing renamed patch remarks
+        # directly into the merged PSF now that it has been written.
+        expected_remarks: list[str] = []
+        seen_remarks: set[str] = set()
         for sys in resolved:
             rename_map = sys['effective_segname_map']
             for remark in self._patch_remarks_from_psf(sys['psf']):
                 if rename_map:
                     remark = self._rename_patch_remark(remark, rename_map)
-                if remark not in seen_patch_remarks:
-                    pg.addline(f'remarks {remark}')
-                    seen_patch_remarks.add(remark)
-
-        pg.writescript(self.basename, guesscoord=False, regenerate=False)
-        self.result = pg.runscript(keep_tempfiles=False)
-        if self.result != 0:
-            return self.result
+                if remark not in seen_remarks:
+                    expected_remarks.append(remark)
+                    seen_remarks.add(remark)
+        if expected_remarks:
+            self._inject_patch_remarks(f'{self.basename}.psf', expected_remarks)
 
         # Register pipeline artifacts.
         self.register(self.basename, key='tcl', artifact_type=PsfgenInputScriptArtifact)
@@ -272,6 +276,45 @@ class MergeTask(PsfgenTask):
     # ------------------------------------------------------------------
     # PSF REMARKS parsing
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _inject_patch_remarks(psf_path: str, expected_remarks: list[str]) -> None:
+        """Ensure every entry in *expected_remarks* appears in the REMARKS header
+        of *psf_path*.
+
+        PSFContents parses the TITLE token window as psflines[fl : l1-1], where
+        l1 is the !NATOM line index, so the line at l1-1 is excluded.  PSF
+        convention is that this excluded line is the single blank separator before
+        each section.  We therefore insert new remarks after the last existing
+        REMARKS line, then reconstruct exactly one blank line before !NATOM.
+        """
+        with open(psf_path) as f:
+            lines = f.readlines()
+        existing: set[str] = set()
+        natom_idx: int | None = None
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if '!NATOM' in stripped:
+                natom_idx = i
+                break
+            if stripped.startswith('REMARKS patch'):
+                existing.add(' '.join(stripped[len('REMARKS '):].split()))
+        if natom_idx is None:
+            return
+        to_add = [r for r in expected_remarks if r not in existing]
+        if not to_add:
+            return
+        # Walk back from !NATOM to find the last non-blank line (the insertion point).
+        insert_after = natom_idx - 1
+        while insert_after > 0 and not lines[insert_after].strip():
+            insert_after -= 1
+        new_lines = lines[:insert_after + 1]
+        for r in to_add:
+            new_lines.append(f'REMARKS {r}\n')
+        new_lines.append('\n')          # exactly one blank separator before !NATOM
+        new_lines.extend(lines[natom_idx:])  # !NATOM and everything after
+        with open(psf_path, 'w') as f:
+            f.writelines(new_lines)
 
     @staticmethod
     def _patch_remarks_from_psf(psf_filename: str) -> list[str]:

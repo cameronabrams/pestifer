@@ -1,0 +1,162 @@
+colvar {
+    name GAP00
+    distance {
+        group1 {
+            atomNumbers { 2473 }
+        }
+        group2 {
+            atomNumbers { 2476 }
+        }
+    }
+}
+colvar {
+    name GAP01
+    distance {
+        group1 {
+            atomNumbers { 13704 }
+        }
+        group2 {
+            atomNumbers { 13707 }
+        }
+    }
+}
+colvar {
+    name GAP02
+    distance {
+        group1 {
+            atomNumbers { 24935 }
+        }
+        group2 {
+            atomNumbers { 24938 }
+        }
+    }
+}
+colvar {
+    name GAP03
+    distance {
+        group1 {
+            atomNumbers { 5813 }
+        }
+        group2 {
+            atomNumbers { 5816 }
+        }
+    }
+}
+colvar {
+    name GAP04
+    distance {
+        group1 {
+            atomNumbers { 17044 }
+        }
+        group2 {
+            atomNumbers { 17047 }
+        }
+    }
+}
+colvar {
+    name GAP05
+    distance {
+        group1 {
+            atomNumbers { 28275 }
+        }
+        group2 {
+            atomNumbers { 28278 }
+        }
+    }
+}
+colvar {
+    name GAP06
+    distance {
+        group1 {
+            atomNumbers { 8109 }
+        }
+        group2 {
+            atomNumbers { 8112 }
+        }
+    }
+}
+colvar {
+    name GAP07
+    distance {
+        group1 {
+            atomNumbers { 19340 }
+        }
+        group2 {
+            atomNumbers { 19343 }
+        }
+    }
+}
+colvar {
+    name GAP08
+    distance {
+        group1 {
+            atomNumbers { 30571 }
+        }
+        group2 {
+            atomNumbers { 30574 }
+        }
+    }
+}
+harmonic {
+    colvars GAP00
+    forceConstant 10
+    centers 36.9998
+    targetCenters 2
+    targetNumSteps 6000
+}
+harmonic {
+    colvars GAP01
+    forceConstant 10
+    centers 34.6214
+    targetCenters 2
+    targetNumSteps 6000
+}
+harmonic {
+    colvars GAP02
+    forceConstant 10
+    centers 36.6658
+    targetCenters 2
+    targetNumSteps 6000
+}
+harmonic {
+    colvars GAP03
+    forceConstant 10
+    centers 41.4365
+    targetCenters 2
+    targetNumSteps 6000
+}
+harmonic {
+    colvars GAP04
+    forceConstant 10
+    centers 42.9115
+    targetCenters 2
+    targetNumSteps 6000
+}
+harmonic {
+    colvars GAP05
+    forceConstant 10
+    centers 43.3313
+    targetCenters 2
+    targetNumSteps 6000
+}
+harmonic {
+    colvars GAP06
+    forceConstant 10
+    centers 79.4247
+    targetCenters 2
+    targetNumSteps 6000
+}
+harmonic {
+    colvars GAP07
+    forceConstant 10
+    centers 80.9246
+    targetCenters 2
+    targetNumSteps 6000
+}
+harmonic {
+    colvars GAP08
+    forceConstant 10
+    centers 82.5396
+    targetCenters 2
+    targetNumSteps 6000
+}

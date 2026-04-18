@@ -120,7 +120,8 @@ class BioAssemb:
             The ChainIDManager instance used to manage chain ID mappings.
         """
         for T in self.transforms.data:
-            T.generate_chainIDmap(AU.segments.segnames, AU.segments.daughters, CM)
+            T.generate_chainIDmap(AU.segments.segnames, AU.segments.daughters, CM,
+                                  glycan_segment_parents=AU.segments.glycan_segment_parents)
 
 class BioAssembList(UserList[BioAssemb]):
     """

@@ -665,7 +665,7 @@ def parse_filter_expression(expr: str):
         elif isinstance(node, ast.Compare):
             # Left side can be Name or Attribute, only support simple Names for now
             if isinstance(node.left, ast.Name):
-                left_val = getattr(obj, node.left.id)
+                left_val = getattr(obj, node.left.id, None)
             else:
                 raise ValueError(f"Unsupported left operand type: {type(node.left)}")
 

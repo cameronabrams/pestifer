@@ -1,0 +1,3 @@
+steps,cpu_time,cpu_per_step,wall_time,wall_per_step,hours_remaining,memory_in_use
+2000,35.1782,0.0350344,37.5634,0.0374169,0.0103936,1.292874
+3000,53.1006,0.0179224,55.8363,0.0182729,0.0,1.292874

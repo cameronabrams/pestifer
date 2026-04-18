@@ -204,18 +204,21 @@ class SegmentList(BaseObjList[Segment]):
         self.segnames = []
         self.counters_by_segtype = {}
         self.daughters = {}
+        self.glycan_segment_parents: dict[str, str] = {}
         self.segtype_of_segname = {}
         self.segtypes_ordered = []
         self.seq_spec = {}
         self.residues: ResidueList = None
         self.chainIDmanager: ChainIDManager = None
         self.psfcompanion: PSFSegmentList = None
+        self.links = None
 
     def describe(self) -> str:
         return f'<SegmentList with {len(self)} segments>'
 
-    def generate_from_residues(self, seq_spec: dict = {}, residues: ResidueList = [], 
-                               chainIDmanager: ChainIDManager = None, psfcompanion: PSFSegmentList = None):
+    def generate_from_residues(self, seq_spec: dict = {}, residues: ResidueList = [],
+                               chainIDmanager: ChainIDManager = None, psfcompanion: PSFSegmentList = None,
+                               links=None):
         """
         Generate a SegmentList from a sequence specification and a list of residues extracted from a structure file.
 
@@ -240,11 +243,50 @@ class SegmentList(BaseObjList[Segment]):
         self.residues = residues
         self.seq_spec = seq_spec
         self.chainIDmanager = chainIDmanager
+        self.links = links
         if psfcompanion is None:
             return self.build_from_only_pdb_data()
         else:
             self.psfcompanion = psfcompanion
             self.build_from_psf_and_pdb_data()
+
+    def _glycan_parent_chain_map(self, glycan_chainIDs: list[str]) -> dict[str, str | None]:
+        """BFS through the link network to find the parent protein chainID for each glycan chainID.
+
+        Returns a dict mapping each glycan chainID to its parent protein chainID, or None
+        if no protein chain is reachable through the link graph (e.g. free oligosaccharides).
+        """
+        if not self.links:
+            return {c: None for c in glycan_chainIDs}
+        glycan_set = set(glycan_chainIDs)
+        # Build chain-level adjacency from residue objects stored in links
+        chain_adj: dict[str, list[tuple[str, str]]] = {}
+        for link in self.links:
+            r1, r2 = link.residue1, link.residue2
+            if r1 is None or r2 is None:
+                continue
+            c1, s1 = r1.chainID, r1.segtype
+            c2, s2 = r2.chainID, r2.segtype
+            chain_adj.setdefault(c1, []).append((c2, s2))
+            chain_adj.setdefault(c2, []).append((c1, s1))
+        parent_map: dict[str, str | None] = {}
+        for gchain in glycan_set:
+            visited: set[str] = {gchain}
+            queue: list[str] = [gchain]
+            found: str | None = None
+            while queue and found is None:
+                current = queue.pop(0)
+                for nb_chain, nb_segtype in chain_adj.get(current, []):
+                    if nb_chain in visited:
+                        continue
+                    if nb_segtype == 'protein':
+                        found = nb_chain
+                        break
+                    if nb_chain in glycan_set:
+                        visited.add(nb_chain)
+                        queue.append(nb_chain)
+            parent_map[gchain] = found
+        return parent_map
 
     def build_from_only_pdb_data(self):
         """ Build the segment list given residues that were populated only from PDB data """
@@ -264,11 +306,32 @@ class SegmentList(BaseObjList[Segment]):
             logger.debug(f'Processing {len(res)} residues of segtype {stype} (out of {len(self.residues)}) in {len(orig_chainIDs)} unique chainIDs')
             orig_res_groups = {chainID: res.filter(lambda x: x.chainID == chainID) for chainID in orig_chainIDs}
             logger.debug(f'Found {len(orig_res_groups)} original chainIDs for segtype {stype}: {list(orig_res_groups.keys())} {list([len(x) for x in orig_res_groups.values()])}')
+            # For glycans, map each original chainID to its parent protein chainID.
+            if stype == 'glycan':
+                parent_chain_map = self._glycan_parent_chain_map(list(orig_res_groups.keys()))
+                glycan_ctr_per_parent: dict[str, int] = {}
             for chainID, c_res in orig_res_groups.items():
                 assert isinstance(c_res, ResidueList), f'ChainID {chainID} residues are not a ResidueList: {type(c_res)}'
-                this_chainID = chainID
-                # c_res=res.filter(chainID=this_chainID)
                 logger.debug(f'-> original chainID {chainID} in {len(c_res)} residues')
+                if stype == 'glycan':
+                    parent_pchain = parent_chain_map.get(chainID)
+                    if parent_pchain is not None:
+                        # Assign the parent protein chainID and a unique counter-based segname.
+                        glycan_ctr_per_parent[parent_pchain] = glycan_ctr_per_parent.get(parent_pchain, 0) + 1
+                        unique_segname = f'{parent_pchain}G{glycan_ctr_per_parent[parent_pchain]:02d}'
+                        c_res.set_chainIDs(parent_pchain)
+                        self.segtype_of_segname[unique_segname] = stype
+                        # Track parent protein chain for transform renaming (e.g. AG01→CG01 when A→C).
+                        self.glycan_segment_parents[unique_segname] = parent_pchain
+                        num_mis = sum([1 for x in c_res if len(x.atoms) == 0])
+                        thisSeg = Segment(c_res, segname=unique_segname, specs=self.seq_spec)
+                        logger.debug(f'Made glycan segment: parent_chain {parent_pchain} segname {thisSeg.segname} ({num_mis} missing)')
+                        self.append(thisSeg)
+                        self.segnames.append(thisSeg.segname)
+                        self.counters_by_segtype[stype] += 1
+                        continue
+                    # No parent protein found (free oligosaccharide) — fall through to default.
+                this_chainID = chainID
                 this_chainID = self.chainIDmanager.check(this_chainID)
                 if this_chainID != chainID:
                     logger.debug(f'{len(c_res)} residues with original chainID {chainID} and segtype {stype} are assigned new daughter chainID {this_chainID}')
@@ -284,7 +347,6 @@ class SegmentList(BaseObjList[Segment]):
                         if chainID in self.seq_spec['build_zero_occupancy_N_termini']:
                             logger.debug(f'-> appending new chainID {this_chainID} to build_zero_occupancy_N_termini due to member {chainID}')
                             self.seq_spec['build_zero_occupancy_N_termini'].insert(self.seq_spec['build_zero_occupancy_N_termini'].index(chainID), this_chainID)
-                        # seq_spec['build_zero_occupancy_C_termini'].remove(chainID)
                 num_mis = sum([1 for x in c_res if len(x.atoms) == 0])
                 thisSeg = Segment(c_res, segname=this_chainID, specs=self.seq_spec)
                 logger.debug(f'Made segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname} ({num_mis} missing)')
@@ -316,6 +378,14 @@ class SegmentList(BaseObjList[Segment]):
             chainID collisions, but each segment should represent only one chainID. """
             self.chainIDmanager.touch(my_chainID)
             self.append(Segment(matching_residues, segname=seg.segname, specs=self.seq_spec, skip_uniquify=True))
+
+    def get_residue_to_segname_map(self) -> dict:
+        """Return a mapping from id(residue) → segname for all residues in all segments."""
+        result = {}
+        for S in self.data:
+            for r in S.residues.data:
+                result[id(r)] = S.segname
+        return result
 
     def collect_residues(self):
         """

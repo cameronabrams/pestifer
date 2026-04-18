@@ -303,7 +303,7 @@ class AsymmetricUnit:
         psfcompanion = None
         if self.psfcontents:
             psfcompanion = self.psfcontents.segments
-        self.segments.generate_from_residues(residues=residues, seq_spec=seq_specs, chainIDmanager=chainIDmanager, psfcompanion=psfcompanion)
+        self.segments.generate_from_residues(residues=residues, seq_spec=seq_specs, chainIDmanager=chainIDmanager, psfcompanion=psfcompanion, links=links)
         # this may have altered chainIDs for some residues.  So we must
         # be sure all mods that are chainID-specific but
         # not inheritable by segments are updated
@@ -316,6 +316,12 @@ class AsymmetricUnit:
         ssbonds.update_attr_from_obj_attr('chainID2', 'residue2', 'chainID')
         links.update_attr_from_obj_attr('chainID1', 'residue1', 'chainID')
         links.update_attr_from_obj_attr('chainID2', 'residue2', 'chainID')
+        res_segname_map = self.segments.get_residue_to_segname_map()
+        for link in links:
+            if link.residue1 is not None:
+                link.segname1 = res_segname_map.get(id(link.residue1), link.residue1.chainID)
+            if link.residue2 is not None:
+                link.segname2 = res_segname_map.get(id(link.residue2), link.residue2.chainID)
         grafts.update_attr_from_objlist_elem_attr('chainID', 'residues', 0, 'chainID')
         logger.debug(f'Segnames in A.U.: {", ".join(self.segments.segnames)}')
         if self.segments.daughters:
