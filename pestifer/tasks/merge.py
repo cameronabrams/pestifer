@@ -325,7 +325,7 @@ class MergeTask(PsfgenTask):
             insert_after -= 1
         new_lines = lines[:insert_after + 1]
         for r in to_add:
-            new_lines.append(f'REMARKS {r}\n')
+            new_lines.append(f' REMARKS {r}\n')
         new_lines.append('\n')          # exactly one blank separator before !NATOM
         new_lines.extend(lines[natom_idx:])  # !NATOM and everything after
         with open(psf_path, 'w') as f:
