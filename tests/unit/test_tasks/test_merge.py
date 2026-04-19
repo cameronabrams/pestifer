@@ -344,6 +344,28 @@ class TestMergeTaskIntegration(unittest.TestCase):
             self.assertIn(renamed, merged_remarks, f'renamed patch remark {renamed!r} missing')
 
 
+    def test_merge_feeds_pipeline(self):
+        """State artifact from merge is correctly consumed by a downstream terminate task."""
+        self._setup_subdir('__test_merge_pipeline')
+        controller = Controller().configure(Config().configure_new())  # terminate=True by default
+        task_list = [{'merge': {
+            'systems': [
+                {'psf': _PSF, 'pdb': _PDB},
+                {'psf': _PSF, 'pdb': 'bpti-shifted.pdb'},
+            ],
+            'collision_strategy': 'enumerate',
+        }}, {'terminate': {
+            'basename': 'merged_bpti',
+            'cleanup': False,
+        }}]
+        controller.reconfigure_tasks(task_list)
+        controller.do_tasks()
+        # terminate.copy_state_to_basename should have written these
+        self.assertTrue(Path('merged_bpti.psf').exists(), 'merged_bpti.psf not found after terminate')
+        self.assertTrue(Path('merged_bpti.pdb').exists(), 'merged_bpti.pdb not found after terminate')
+        merged = PSFContents('merged_bpti.psf')
+        self.assertEqual(len(merged.atoms), 2 * _N_ATOMS)
+
     def test_merge_three_copies(self):
         """Merging three copies of BPTI (each shifted 100 Å along Z); enumerate resolves
         collisions and DISU remarks from all three copies appear in the merged PSF."""
