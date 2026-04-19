@@ -2,6 +2,10 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
+## [2.2.6] - 2026-04-19
+
+- bugfix: stale `pstr()` call on `StateInterval` in loop-declashing debug log replaced with valid attribute access
+
 ## [2.2.5] - 2026-04-18
 
 - bugfix: `merge` task now writes injected PSF REMARKS with a leading space, consistent with psfgen's own output format
