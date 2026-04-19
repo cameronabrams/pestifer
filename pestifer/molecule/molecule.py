@@ -364,7 +364,7 @@ class Molecule:
     #                 is_c_terminus=(S.subsegments.index(b)==(n_subsegs-1))
     #                 is_processible=b.state=='MISSING' and b.num_items()>=min_length
     #                 if is_processible and (not include_c_termini) and is_c_terminus:
-    #                     logger.debug(f'A.U. C-terminal loop {b.pstr()} declashing is skipped')
+    #                     logger.debug(f'A.U. C-terminal loop (state={b.state}, bounds={b.bounds}) declashing is skipped')
     #                     is_processible=False
     #                 if is_processible:
     #                     reslist=[f'{r.resid.resid}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
