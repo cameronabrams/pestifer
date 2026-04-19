@@ -19,7 +19,6 @@ classifiers = [
 ]
 dependencies = [
   "colorist",
-  "docutils>=0.20,<0.22",  # Required for sphinx
   "filelock",
   "fsspec",
   "gputil",
@@ -29,12 +28,14 @@ dependencies = [
   "networkx",
   "numpy>=1.24",
   "pandas",
+  "mmcif-pdbx>=1.1.2",  # pdb2pqr dep (installed --no-deps to avoid docutils conflict)
   "pidibble>=1.5.2",
   "platformdirs",
+  "propka>=3.5",        # pdb2pqr dep
+  "requests",           # pdb2pqr dep
   "progressbar2",
   "pydantic",
   "pyyaml>=6",
-  "sphinx>=8.2.3",
   "scipy",
   "unidiff",
   "ycleptic>=2.0.1",
