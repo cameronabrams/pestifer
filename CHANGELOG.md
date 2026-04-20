@@ -8,6 +8,7 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   - `narrow` (default): glycan blocks start above the maximum protein resid of the parent chain; block size controlled by `sequence.glycans.max_glycan_size` (default 30)
   - `wide`: the root glycan monomer (directly bonded to the protein) gets the protein attachment resid plus `sequence.glycans.wide_shift` (default 3000); subsequent monomers increment by 1 in BFS order from the root (e.g. NAG on ASN 123 → resid 3123, next monomer → 3124)
 - bugfix: `--ncpus` CLI option and `namd.ncpus` config key now correctly override NAMD PE count; the processor-info banner reflects the effective count at startup
+- bugfix: under SLURM, NAMD (CPU/multicore mode) is now launched as `namd3 script.namd` without `charmrun +p N`, allowing Charm++ to read SLURM's CPU affinity binding; passing `+p N` explicitly bypasses SLURM's thread placement and scatters Charm++ worker threads across all NUMA nodes, causing severe startup slowdown on multi-NUMA nodes
 - bugfix: glycan resid block allocation in the `narrow` convention now correctly starts above the parent chain's maximum protein resid rather than from 1, eliminating clashes between glycan and protein resids within the same chainID
 
 ## [2.2.7] - 2026-04-19
