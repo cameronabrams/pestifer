@@ -254,12 +254,17 @@ class Graft(BaseObj):
         for r in self.donor_residues:
             r.set(resid=next_resid)
             next_resid += 1
+        target_chainID = self.residues[0].chainID
         for l in self.donor_external_links.data:
             if l.residue1 in self.index_residues and l.residue2 in self.donor_residues:
                 l.residue1 = self.residues[self.index_residues.index(l.residue1)]
+                l.segname1 = l.residue1.chainID
+                l.segname2 = target_chainID
                 logger.debug(f'  -> external link {str(l)}')
             elif l.residue2 in self.index_residues and l.residue1 in self.donor_residues:
                 l.residue2 = self.residues[self.index_residues.index(l.residue2)]
+                l.segname1 = target_chainID
+                l.segname2 = l.residue2.chainID
                 logger.debug(f'  -> external link {str(l)}')
         return next_resid
 
