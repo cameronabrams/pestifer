@@ -344,7 +344,7 @@ class SegmentList(BaseObjList[Segment]):
             self.counters_by_segtype[stype] = 0
             res = self.residues.filter(lambda x: x.segtype == stype)
             logger.debug(f'Processing {len(res)} residues of segtype {stype} (out of {len(self.residues)})')
-            if stype == 'glycan':
+            if stype == 'glycan' and not self.seq_spec.get('skip_glycan_renaming', False):
                 glycan_cfg = self.seq_spec.get('glycans', {})
                 max_glycan_size = glycan_cfg.get('max_glycan_size', 30)
                 numbering = glycan_cfg.get('numbering', 'narrow')

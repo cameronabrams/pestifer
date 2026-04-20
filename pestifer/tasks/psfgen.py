@@ -524,7 +524,8 @@ class PsfgenTask(VMDTask):
                     this_source = {
                         'source_db': 'rcsb',
                         'source_id': g.source_pdbid,
-                        'file_format': 'PDB'
+                        'file_format': 'PDB',
+                        'sequence': {'skip_glycan_renaming': True}
                     }
                     # the Molecule call below will fetch coordinates for graft pdbs
                     self.molecules[g.source_pdbid] = Molecule(source=this_source)

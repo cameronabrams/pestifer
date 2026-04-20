@@ -2,6 +2,10 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
+## [2.2.10] - 2026-04-20
+
+- bugfix: graft source molecules (e.g., a standalone glycan PDB fetched for grafting) are no longer subjected to glycan chainID/segname/resid reassignment; the original chainIDs and resids are preserved so that `activate()` can correctly locate the source segment by its original chainID
+
 ## [2.2.9] - 2026-04-20
 
 - new feature: two glycan resid numbering conventions are now available via `sequence.glycans.numbering`
