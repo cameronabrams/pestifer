@@ -2,7 +2,7 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
-## [Unreleased]
+## [2.2.8] - 2026-04-20
 
 - new feature: two glycan resid numbering conventions are now available via `sequence.glycans.numbering`
   - `narrow` (default): glycan blocks start above the maximum protein resid of the parent chain; block size controlled by `sequence.glycans.max_glycan_size` (default 30)
