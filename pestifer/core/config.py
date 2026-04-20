@@ -42,12 +42,13 @@ class Config(Yclept):
     basefile : str
         Optional name of the Ycleptic-format base file
     """
-    def __init__(self, userfile='', userdict={}, quiet=False, RM: ResourceManager = None, basefile: str = ''):
+    def __init__(self, userfile='', userdict={}, quiet=False, RM: ResourceManager = None, basefile: str = '', ncpus_override: int = 0):
         self.userfile = userfile
         self.userdict = userdict
         self.quiet = quiet
         self.basefile = basefile
         self.RM = RM
+        self.ncpus_override = ncpus_override
         self.my_processor_info = ''
         self.kwargs_to_scripters = {}
 
@@ -182,6 +183,16 @@ class Config(Yclept):
                 ess = 's' if self.ngpus > 1 else ''
                 retstr += f'; {self.ngpus} gpu{ess}'
 
+        if self.ncpus_override > 0:
+            ncpus = self.ncpus_override
+            retstr += f'; will use {ncpus} PEs (--ncpus override)'
+        else:
+            user_ncpus = self['user']['namd'].get('ncpus', 0)
+            if user_ncpus > 0:
+                ncpus = user_ncpus
+                retstr += f'; will use {ncpus} PEs (config-specified)'
+            else:
+                retstr += f'; will use {ncpus} PEs (auto-detected; override with --ncpus or namd.ncpus in config)'
         self.ncpus = ncpus
         return retstr
 

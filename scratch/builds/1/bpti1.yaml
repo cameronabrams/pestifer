@@ -56,7 +56,7 @@ tasks:
       grid: True
   - terminate:
       basename: my_6pti
-      archive_dir: my_archive
+      artifacts_dir: my_archive
       test_standards:
         standard_path: standards
       package:

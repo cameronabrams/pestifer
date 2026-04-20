@@ -32,6 +32,7 @@ class RunSubcommand(Subcommand):
         self.parser.add_argument('config', type=str, default=None, help='input configuration file in YAML format')
         self.parser.add_argument('--output-dir', type=str, default='./', help='name of output directory relative to CWD (default: %(default)s)')
         self.parser.add_argument('--gpu', default=False, action='store_true', help='force run on GPU')
+        self.parser.add_argument('--ncpus', type=int, default=0, help='number of NAMD processing elements (0 = auto-detect)')
         self.parser.add_argument('--complete-config', default=False, action='store_true', help='write complete config file')
         return self.parser
     
@@ -61,12 +62,9 @@ class RunSubcommand(Subcommand):
                 iix = fil.index(True)
                 configname = f'{cbase}{allowed_extensions[iix]}'
 
-        config = Config(userfile=configname, **kwargs).configure_new()
+        config = Config(userfile=configname, ncpus_override=args.ncpus, **kwargs).configure_new()
         C = Controller().configure(config)
-        logger.debug(f'NAMD global config: {C.tasks[0].provisions["namd_global_config"]}')
         if args.gpu:
-            if not 'namd' in C.config['user']:
-                C.config['user']['namd'] = {}
             C.config['user']['namd']['processor-type'] = 'gpu'
 
         if args.complete_config:

@@ -2,6 +2,14 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
+## [Unreleased]
+
+- new feature: two glycan resid numbering conventions are now available via `sequence.glycans.numbering`
+  - `narrow` (default): glycan blocks start above the maximum protein resid of the parent chain; block size controlled by `sequence.glycans.max_glycan_size` (default 30)
+  - `wide`: the root glycan monomer (directly bonded to the protein) gets the protein attachment resid plus `sequence.glycans.wide_shift` (default 3000); subsequent monomers increment by 1 in BFS order from the root (e.g. NAG on ASN 123 → resid 3123, next monomer → 3124)
+- bugfix: `--ncpus` CLI option and `namd.ncpus` config key now correctly override NAMD PE count; the processor-info banner reflects the effective count at startup
+- bugfix: glycan resid block allocation in the `narrow` convention now correctly starts above the parent chain's maximum protein resid rather than from 1, eliminating clashes between glycan and protein resids within the same chainID
+
 ## [2.2.7] - 2026-04-19
 
 - new feature: all glycan trees (both polymeric and monomeric) now share the chainID of their attached protein chain, each receives a unique segname (`{chainID}G{k:02d}`), and resids are block-allocated per chain in attachment-resid order so each glycan owns a non-overlapping resid range allowing future monomer additions; controlled by new `sequence.glycans.max_glycan_size` parameter (default 30)

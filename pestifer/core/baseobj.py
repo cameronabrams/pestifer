@@ -448,7 +448,7 @@ class BaseObj(BaseModel):
         adict = {k:getattr(self, v) for k, v in matchattr.items()}
         pluckedObj = objList.get(objList.dict_to_condition(adict)) # get returns None, a list of matches, or a single match
         # the only case where we assign is when we get a single match
-        if pluckedObj is not None and type(pluckedObj) != objList:
+        if pluckedObj is not None and type(pluckedObj) != type(objList):
             setattr(self, attr, pluckedObj)
 
     def update_attr_from_obj_attr(self, attr, obj_attr, attr_of_obj_attr):

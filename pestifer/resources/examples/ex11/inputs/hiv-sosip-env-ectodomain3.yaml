@@ -140,7 +140,7 @@ tasks:
       grid: True
   - terminate:
       basename: my_7txd
-      archive_dir: arc
+      artifacts_dir: arc
       package:
         basename: prod_7txd
         state_dir: r2r

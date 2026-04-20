@@ -14,7 +14,9 @@ class TestCharmmffContent(unittest.TestCase):
     def setUpClass(cls):
         logger.debug("Setting up TestCharmmffContent class...")
         resource_path = Path(resources.__file__).parent
-        charmmff_path = resource_path / 'charmmff'
+        charmmff_root = resource_path / 'charmmff'
+        version_dirs = sorted(charmmff_root.iterdir(), key=lambda p: p.stat().st_mtime)
+        charmmff_path = version_dirs[-1]
         cls.C = CHARMMFFContent(charmmff_path, force_rebuild=True)
         logger.debug("tarfilename: " + cls.C.tarfilename)
         logger.debug("Done setting up TestCharmmffContent class...")

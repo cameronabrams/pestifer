@@ -77,7 +77,7 @@ tasks:
       grid: True
   - terminate:
       basename: my_8fae
-      archive_dir: arc
+      artifacts_dir: arc
       package:
         basename: prod_8fae
         state_dir: r2r

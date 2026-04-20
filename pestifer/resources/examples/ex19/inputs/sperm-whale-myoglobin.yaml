@@ -53,7 +53,7 @@ tasks:
         - density
   - terminate:
       basename: my_1mob
-      archive_dir: arc
+      artifacts_dir: arc
       package:
         basename: my_1mob
         state_dir: r2r

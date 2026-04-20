@@ -180,7 +180,7 @@ class TerminateTask(MDTask):
         if not self.specs.get('cleanup', True):
             logger.debug('Cleanup disabled; skipping cleanup step.')
             return 0
-        archive_dir = self.specs.get('archive_dir', 'archive')  
+        archive_dir = self.specs.get('artifacts_dir', self.specs.get('archive_dir', 'artifacts'))
 
         all_file_artifacts: FileArtifactList = self.pipeline.get_all_file_artifacts()
         file_artifacts = FileArtifactList([fa for fa in all_file_artifacts if not fa.keep])

@@ -75,6 +75,7 @@ class BaseTask(ABC):
         self.basename: str = ''
         self.subtaskcount: int = 0
         self.result: int = 0
+        self.duration: float = 0.0
         self.extra_message: str = ''
 
         self.pytest_skip_after_to_terminate = self.specs.get('pytest_skip_after_to_terminate', False)

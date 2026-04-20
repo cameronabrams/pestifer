@@ -78,7 +78,7 @@ tasks:
       grid: True
   - terminate:
       basename: my_6pti
-      archive_dir: my_archive
+      artifacts_dir: my_archive
       package:
         state_dir: my_state
         basename: prod_6pti

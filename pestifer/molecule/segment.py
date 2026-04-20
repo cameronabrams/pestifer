@@ -251,15 +251,20 @@ class SegmentList(BaseObjList[Segment]):
             self.psfcompanion = psfcompanion
             self.build_from_psf_and_pdb_data()
 
-    def _build_glycan_trees(self, all_glycan_residues: list, max_glycan_size: int = 30) -> list[dict]:
+    def _build_glycan_trees(self, all_glycan_residues: list) -> list[dict]:
         """Find connected glycan trees using residue identity, then sort by protein attachment.
 
         Returns a list of dicts sorted by (parent_chainID, parent_resid):
-            {'residues': [Residue, ...], 'parent_chainID': str, 'parent_resid': ResID}
+            {
+                'residues': [Residue, ...],  # BFS-ordered from protein-attached root
+                'parent_chainID': str,
+                'parent_resid': ResID,
+                'root_residue': Residue | None,  # glycan residue directly bonded to protein
+            }
         """
         glycan_ids: dict[int, object] = {id(r): r for r in all_glycan_residues}
         adj: dict[int, list[int]] = {id(r): [] for r in all_glycan_residues}
-        protein_anchor: dict[int, tuple] = {}  # glycan root id → (protein_chainID, protein_resid)
+        protein_anchor: dict[int, tuple] = {}  # glycan node id → (protein_chainID, protein_resid)
 
         if self.links:
             for link in self.links:
@@ -276,34 +281,49 @@ class SegmentList(BaseObjList[Segment]):
                 elif r2_glycan and getattr(r1, 'segtype', '') == 'protein':
                     protein_anchor[id(r2)] = (r1.chainID, r1.resid)
 
+        def _bfs_from(start_id: int) -> list:
+            result, seen, q = [], {start_id}, [start_id]
+            while q:
+                curr = q.pop(0)
+                result.append(glycan_ids[curr])
+                for nb in adj[curr]:
+                    if nb not in seen:
+                        seen.add(nb)
+                        q.append(nb)
+            return result
+
         visited: set[int] = set()
         trees: list[dict] = []
         for r in all_glycan_residues:
             if id(r) in visited:
                 continue
-            component: list = []
-            queue = [id(r)]
-            visited.add(id(r))
-            while queue:
-                curr_id = queue.pop(0)
-                component.append(glycan_ids[curr_id])
-                for nb_id in adj[curr_id]:
-                    if nb_id not in visited:
-                        visited.add(nb_id)
-                        queue.append(nb_id)
+            # first BFS to collect the component from an arbitrary start
+            component = _bfs_from(id(r))
+            for c in component:
+                visited.add(id(c))
+
+            # find the protein-anchored root in this component
+            root_residue = None
             parent_chainID = None
             parent_resid = None
             for c in component:
                 if id(c) in protein_anchor:
+                    root_residue = c
                     parent_chainID, parent_resid = protein_anchor[id(c)]
                     break
-            if parent_chainID is None:
+
+            # re-order from the root so residues are always root-outward
+            if root_residue is not None:
+                component = _bfs_from(id(root_residue))
+            else:
                 parent_chainID = component[0].chainID
                 parent_resid = component[0].resid
+
             trees.append({
                 'residues': component,
                 'parent_chainID': parent_chainID,
                 'parent_resid': parent_resid,
+                'root_residue': root_residue,
             })
 
         trees.sort(key=lambda t: (t['parent_chainID'], t['parent_resid'].resseqnum))
@@ -325,9 +345,20 @@ class SegmentList(BaseObjList[Segment]):
             res = self.residues.filter(lambda x: x.segtype == stype)
             logger.debug(f'Processing {len(res)} residues of segtype {stype} (out of {len(self.residues)})')
             if stype == 'glycan':
-                max_glycan_size = self.seq_spec.get('glycans', {}).get('max_glycan_size', 30)
-                trees = self._build_glycan_trees(list(res.data), max_glycan_size)
-                logger.debug(f'Found {len(trees)} glycan trees')
+                glycan_cfg = self.seq_spec.get('glycans', {})
+                max_glycan_size = glycan_cfg.get('max_glycan_size', 30)
+                numbering = glycan_cfg.get('numbering', 'narrow')
+                wide_shift = glycan_cfg.get('wide_shift', 3000)
+                trees = self._build_glycan_trees(list(res.data))
+                logger.debug(f'Found {len(trees)} glycan trees; numbering={numbering}')
+                # For "narrow": compute max protein resid per chain so glycan blocks start above it
+                if numbering == 'narrow':
+                    protein_max_resid: dict[str, int] = {}
+                    for r in self.residues.data:
+                        if r.segtype == 'protein':
+                            v = r.resid.resseqnum
+                            if r.chainID not in protein_max_resid or v > protein_max_resid[r.chainID]:
+                                protein_max_resid[r.chainID] = v
                 glycan_local_ctr: dict[str, int] = {}
                 for tree in trees:
                     parent_chainID = tree['parent_chainID']
@@ -335,7 +366,11 @@ class SegmentList(BaseObjList[Segment]):
                     glycan_local_ctr[parent_chainID] = glycan_local_ctr.get(parent_chainID, 0) + 1
                     k = glycan_local_ctr[parent_chainID]
                     segname = f'{parent_chainID}G{k:02d}'
-                    base_resid = (k - 1) * max_glycan_size + 1
+                    if numbering == 'wide':
+                        base_resid = tree['parent_resid'].resseqnum + wide_shift
+                    else:  # narrow
+                        parent_max = protein_max_resid.get(parent_chainID, 0)
+                        base_resid = parent_max + (k - 1) * max_glycan_size + 1
                     for i, r in enumerate(component):
                         new_resid = ResID(base_resid + i)
                         r.resid = new_resid

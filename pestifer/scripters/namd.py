@@ -154,7 +154,7 @@ class NAMDScripter(TcLScripter):
         if kwargs.get('single_cpu_only', False):
             use_cpu_count = 1
         elif kwargs.get('local_execution_only', False):
-            use_cpu_count = self.local_ncpus
+            use_cpu_count = min(self.local_ncpus, self.ncpus)
         else:
             use_cpu_count = self.ncpus
         if kwargs.get('single_gpu_only', False):
@@ -163,6 +163,7 @@ class NAMDScripter(TcLScripter):
         else:
             use_gpu_count = self.ngpus
             use_gpu_devices = self.gpu_devices
+        logger.info(f'NAMD using {use_cpu_count} PE(s)')
         if self.namd_type == 'cpu' or kwargs.get('cpu_override', False):
             c = Command(f'{self.charmrun} +p {use_cpu_count} {self.namd} {self.scriptname}')
         elif self.namd_type == 'gpu':

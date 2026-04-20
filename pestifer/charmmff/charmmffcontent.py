@@ -277,7 +277,7 @@ class CHARMMFFContent(CacheableObject):
             return not any(blacklist in name for blacklist in name_blacklist) and any(name.endswith(ext) for ext in extension_whitelist)
         tar_path = self.charmmff_path / tarfilename
         if not tar_path.exists():
-            raise FileNotFoundError(f'CHARMM force field tarball {self.tarfilename} not found in {self.charmmff_path.name}')
+            raise FileNotFoundError(f'CHARMM force field tarball {tarfilename} not found in {self.charmmff_path.name}')
         self.tarfilename = tarfilename  
         logger.debug(f'Loading CHARMM force field tarball {self.tarfilename} from {self.charmmff_path.name}...')
         self.toppar_fs = TarBytesFS.from_file(tar_path, compression='gzip')
