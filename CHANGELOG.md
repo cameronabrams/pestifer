@@ -5,7 +5,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 ## [2.2.10] - 2026-04-20
 
 - bugfix: graft source molecules (e.g., a standalone glycan PDB fetched for grafting) are no longer subjected to glycan chainID/segname/resid reassignment; the original chainIDs and resids are preserved so that `activate()` can correctly locate the source segment by its original chainID
-- bugfix: graft bond patches (`donor_external_links`) now correctly reference psfgen segnames; `segname1`/`segname2` on these links are updated in `set_internal_resids()` to the post-remap target chainID rather than retaining the stale chainIDs from the source PDB
+- bugfix: graft donor residues now go into a dedicated psfgen segment (e.g., `NG01`) instead of being mixed into the protein segment; the segname is computed from the target chain and existing glycan count, consistent with the base molecule glycan naming convention
+- bugfix: graft bond patch segnames now correctly reference the base molecule's psfgen segnames; receiver-side residues are looked up via `res_segname_map`, donor-side residues use the graft's dedicated segname (`graft_segname`), eliminating stale source-PDB chainID references in patch commands
 
 ## [2.2.9] - 2026-04-20
 

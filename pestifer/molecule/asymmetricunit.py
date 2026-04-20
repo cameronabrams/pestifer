@@ -349,6 +349,20 @@ class AsymmetricUnit:
         if self.segments.daughters:
             logger.debug(f'Daughter chains generated: {self.segments.daughters}')
         logger.debug(f'Used chainIDs {chainIDmanager.Used}')
+        # Assign psfgen segnames for each graft's donated residues.
+        # Naming mirrors the base molecule glycan convention: {target_chainID}G{k:02d},
+        # where k starts after the highest existing glycan index on that chain.
+        graft_segname_counters: dict[str, int] = {}
+        for g in grafts.data:
+            parent_chainID = g.chainID
+            existing_count = sum(
+                1 for sn in self.segments.segnames
+                if self.segments.glycan_segment_parents.get(sn) == parent_chainID
+            )
+            k = existing_count + graft_segname_counters.get(parent_chainID, 0) + 1
+            g.graft_segname = f'{parent_chainID}G{k:02d}'
+            graft_segname_counters[parent_chainID] = graft_segname_counters.get(parent_chainID, 0) + 1
+            logger.debug(f'Graft {g.obj_id} donor residues will use psfgen segname {g.graft_segname}')
         # promote sequence numbers in any grafts to avoid collisions
         # and include the graft links in the overall list of links
         next_resid = max([x.resid for x in residues]) + 1
@@ -356,6 +370,14 @@ class AsymmetricUnit:
             next_resid = g.set_internal_resids(next_resid)
             links.extend(g.donor_internal_links)
             links.extend(g.donor_external_links)
+        # Update segnames on graft links: receiver residues look up res_segname_map;
+        # donor residues (absent from map) use the graft's segname.
+        for g in grafts.data:
+            for l in list(g.donor_internal_links.data) + list(g.donor_external_links.data):
+                if l.residue1 is not None:
+                    l.segname1 = res_segname_map.get(id(l.residue1), g.graft_segname)
+                if l.residue2 is not None:
+                    l.segname2 = res_segname_map.get(id(l.residue2), g.graft_segname)
 
         # at this point, we have built the asymmetric unit according to the intention of the 
         # author of the structure AND the intention of the user in excluding certain parts

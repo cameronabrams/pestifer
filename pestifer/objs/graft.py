@@ -30,8 +30,8 @@ class Graft(BaseObj):
     _required_fields = {'chainID', 'target_root',
                         'source_pdbid', 'source_chainID', 'source_root'}
     _optional_fields = {'source_end', 'target_partner', 'source_partner', 'source_end', 'obj_id',
-                        'residues', 'source_molecule', 'source_seg', 'donor_residues', 
-                        'index_residues', 'graft_residues', 'donor_internal_links', 'donor_external_links', 'segfile'}
+                        'residues', 'source_molecule', 'source_seg', 'donor_residues',
+                        'index_residues', 'graft_residues', 'donor_internal_links', 'donor_external_links', 'segfile', 'graft_segname'}
 
     chainID: str = Field(..., description="Chain ID of the target segment in the base molecule")
     target_root: ResID = Field(..., description="Root residue ID of the target segment")
@@ -62,6 +62,7 @@ class Graft(BaseObj):
     donor_internal_links: LinkList | None = Field(None, description="List of internal links associated with the graft")
     donor_external_links: LinkList | None = Field(None, description="List of external links associated with the graft")
     segfile: str | None = Field(None, description="Path to the segment file for the graft")
+    graft_segname: str | None = Field(None, description="Psfgen segment name for the graft's donated residues")
     """
     Optional attributes for a Graft object.
 
@@ -254,17 +255,12 @@ class Graft(BaseObj):
         for r in self.donor_residues:
             r.set(resid=next_resid)
             next_resid += 1
-        target_chainID = self.residues[0].chainID
         for l in self.donor_external_links.data:
             if l.residue1 in self.index_residues and l.residue2 in self.donor_residues:
                 l.residue1 = self.residues[self.index_residues.index(l.residue1)]
-                l.segname1 = l.residue1.chainID
-                l.segname2 = target_chainID
                 logger.debug(f'  -> external link {str(l)}')
             elif l.residue2 in self.index_residues and l.residue1 in self.donor_residues:
                 l.residue2 = self.residues[self.index_residues.index(l.residue2)]
-                l.segname1 = target_chainID
-                l.segname2 = l.residue2.chainID
                 logger.debug(f'  -> external link {str(l)}')
         return next_resid
 
