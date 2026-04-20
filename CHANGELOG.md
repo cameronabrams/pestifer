@@ -2,9 +2,18 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
+## [2.2.7] - 2026-04-19
+
+- new feature: all glycan trees (both polymeric and monomeric) now share the chainID of their attached protein chain, each receives a unique segname (`{chainID}G{k:02d}`), and resids are block-allocated per chain in attachment-resid order so each glycan owns a non-overlapping resid range allowing future monomer additions; controlled by new `sequence.glycans.max_glycan_size` parameter (default 30)
+- new feature: link `resid1`/`resid2` fields are synchronized from residue objects after segment building to keep topology consistent through `prune_topology`
+
 ## [2.2.6] - 2026-04-19
 
 - bugfix: stale `pstr()` call on `StateInterval` in loop-declashing debug log replaced with valid attribute access
+- bugfix: `assign_obj_to_attr` in `BaseObj` now correctly handles multi-match lists — previously used `type(x) != objList` (always `True`) instead of `type(x) != type(objList)`, causing a `ResidueList` to be assigned where a single residue was expected, leading to downstream `AttributeError`
+- bugfix: `prune_topology` in `SegmentList` now uses identity (`is`) rather than equality (`==`) when locating and removing residues — after all glycan chainIDs are remapped to their parent protein chain, glycan residues from different source chains (e.g., chain A NAG1 and chain D NAG1) become value-equal but are distinct objects; using `__eq__` caused the wrong segment's residues to be deleted, breaking the glycan patch application
+- bugfix: `unregister_chain` is no longer called for pruned glycan segments (e.g., GG03) whose `segname` is not a registered chainID — previously raised `KeyError` when a glycan segment was fully pruned by `prune_topology`
+- bugfix: asymmetric-unit builder now detects C-terminal insertions and ensures they are built even when `include_C_termini: False` is set
 
 ## [2.2.5] - 2026-04-18
 

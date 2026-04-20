@@ -483,6 +483,10 @@ attributes:
                     text: parameters controlling how model-built glycans are adjusted, if present
                     type: dict
                     attributes:
+                      - name: max_glycan_size
+                        text: Maximum number of residues per glycan tree; used to block-allocate unique resid ranges so glycans can be extended later without resid conflicts
+                        type: int
+                        default: 30
                       - name: declash
                         text: Specifies how glycan residues are moved to avoid steric clashes
                         type: dict

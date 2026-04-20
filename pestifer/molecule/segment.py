@@ -21,6 +21,7 @@ from ..objs.graft import GraftList
 from ..objs.link import LinkList
 from ..objs.mutation import MutationList
 from ..objs.patch import PatchList
+from ..objs.resid import ResID
 from ..objs.ssbond import SSBondList
 
 from ..psfutil.psfcontents import PSFSegmentList
@@ -250,43 +251,63 @@ class SegmentList(BaseObjList[Segment]):
             self.psfcompanion = psfcompanion
             self.build_from_psf_and_pdb_data()
 
-    def _glycan_parent_chain_map(self, glycan_chainIDs: list[str]) -> dict[str, str | None]:
-        """BFS through the link network to find the parent protein chainID for each glycan chainID.
+    def _build_glycan_trees(self, all_glycan_residues: list, max_glycan_size: int = 30) -> list[dict]:
+        """Find connected glycan trees using residue identity, then sort by protein attachment.
 
-        Returns a dict mapping each glycan chainID to its parent protein chainID, or None
-        if no protein chain is reachable through the link graph (e.g. free oligosaccharides).
+        Returns a list of dicts sorted by (parent_chainID, parent_resid):
+            {'residues': [Residue, ...], 'parent_chainID': str, 'parent_resid': ResID}
         """
-        if not self.links:
-            return {c: None for c in glycan_chainIDs}
-        glycan_set = set(glycan_chainIDs)
-        # Build chain-level adjacency from residue objects stored in links
-        chain_adj: dict[str, list[tuple[str, str]]] = {}
-        for link in self.links:
-            r1, r2 = link.residue1, link.residue2
-            if r1 is None or r2 is None:
+        glycan_ids: dict[int, object] = {id(r): r for r in all_glycan_residues}
+        adj: dict[int, list[int]] = {id(r): [] for r in all_glycan_residues}
+        protein_anchor: dict[int, tuple] = {}  # glycan root id → (protein_chainID, protein_resid)
+
+        if self.links:
+            for link in self.links:
+                r1, r2 = link.residue1, link.residue2
+                if r1 is None or r2 is None:
+                    continue
+                r1_glycan = id(r1) in glycan_ids
+                r2_glycan = id(r2) in glycan_ids
+                if r1_glycan and r2_glycan:
+                    adj[id(r1)].append(id(r2))
+                    adj[id(r2)].append(id(r1))
+                elif r1_glycan and getattr(r2, 'segtype', '') == 'protein':
+                    protein_anchor[id(r1)] = (r2.chainID, r2.resid)
+                elif r2_glycan and getattr(r1, 'segtype', '') == 'protein':
+                    protein_anchor[id(r2)] = (r1.chainID, r1.resid)
+
+        visited: set[int] = set()
+        trees: list[dict] = []
+        for r in all_glycan_residues:
+            if id(r) in visited:
                 continue
-            c1, s1 = r1.chainID, r1.segtype
-            c2, s2 = r2.chainID, r2.segtype
-            chain_adj.setdefault(c1, []).append((c2, s2))
-            chain_adj.setdefault(c2, []).append((c1, s1))
-        parent_map: dict[str, str | None] = {}
-        for gchain in glycan_set:
-            visited: set[str] = {gchain}
-            queue: list[str] = [gchain]
-            found: str | None = None
-            while queue and found is None:
-                current = queue.pop(0)
-                for nb_chain, nb_segtype in chain_adj.get(current, []):
-                    if nb_chain in visited:
-                        continue
-                    if nb_segtype == 'protein':
-                        found = nb_chain
-                        break
-                    if nb_chain in glycan_set:
-                        visited.add(nb_chain)
-                        queue.append(nb_chain)
-            parent_map[gchain] = found
-        return parent_map
+            component: list = []
+            queue = [id(r)]
+            visited.add(id(r))
+            while queue:
+                curr_id = queue.pop(0)
+                component.append(glycan_ids[curr_id])
+                for nb_id in adj[curr_id]:
+                    if nb_id not in visited:
+                        visited.add(nb_id)
+                        queue.append(nb_id)
+            parent_chainID = None
+            parent_resid = None
+            for c in component:
+                if id(c) in protein_anchor:
+                    parent_chainID, parent_resid = protein_anchor[id(c)]
+                    break
+            if parent_chainID is None:
+                parent_chainID = component[0].chainID
+                parent_resid = component[0].resid
+            trees.append({
+                'residues': component,
+                'parent_chainID': parent_chainID,
+                'parent_resid': parent_resid,
+            })
+
+        trees.sort(key=lambda t: (t['parent_chainID'], t['parent_resid'].resseqnum))
+        return trees
 
     def build_from_only_pdb_data(self):
         """ Build the segment list given residues that were populated only from PDB data """
@@ -302,35 +323,41 @@ class SegmentList(BaseObjList[Segment]):
         for stype in self.segtypes_ordered:
             self.counters_by_segtype[stype] = 0
             res = self.residues.filter(lambda x: x.segtype == stype)
-            orig_chainIDs = res.uniqattrs(['chainID'])['chainID']
-            logger.debug(f'Processing {len(res)} residues of segtype {stype} (out of {len(self.residues)}) in {len(orig_chainIDs)} unique chainIDs')
-            orig_res_groups = {chainID: res.filter(lambda x: x.chainID == chainID) for chainID in orig_chainIDs}
-            logger.debug(f'Found {len(orig_res_groups)} original chainIDs for segtype {stype}: {list(orig_res_groups.keys())} {list([len(x) for x in orig_res_groups.values()])}')
-            # For glycans, map each original chainID to its parent protein chainID.
+            logger.debug(f'Processing {len(res)} residues of segtype {stype} (out of {len(self.residues)})')
             if stype == 'glycan':
-                parent_chain_map = self._glycan_parent_chain_map(list(orig_res_groups.keys()))
-                glycan_ctr_per_parent: dict[str, int] = {}
+                max_glycan_size = self.seq_spec.get('glycans', {}).get('max_glycan_size', 30)
+                trees = self._build_glycan_trees(list(res.data), max_glycan_size)
+                logger.debug(f'Found {len(trees)} glycan trees')
+                glycan_local_ctr: dict[str, int] = {}
+                for tree in trees:
+                    parent_chainID = tree['parent_chainID']
+                    component = tree['residues']
+                    glycan_local_ctr[parent_chainID] = glycan_local_ctr.get(parent_chainID, 0) + 1
+                    k = glycan_local_ctr[parent_chainID]
+                    segname = f'{parent_chainID}G{k:02d}'
+                    base_resid = (k - 1) * max_glycan_size + 1
+                    for i, r in enumerate(component):
+                        new_resid = ResID(base_resid + i)
+                        r.resid = new_resid
+                        for a in r.atoms.data:
+                            a.resid = new_resid
+                        r.set_chainID(parent_chainID)
+                    c_res = ResidueList(component)
+                    self.segtype_of_segname[segname] = stype
+                    self.glycan_segment_parents[segname] = parent_chainID
+                    num_mis = sum(1 for x in component if len(x.atoms) == 0)
+                    thisSeg = Segment(c_res, segname=segname, specs=self.seq_spec)
+                    logger.debug(f'Made glycan segment: parent_chain {parent_chainID} segname {segname} k={k} resids {base_resid}-{base_resid+len(component)-1} ({num_mis} missing)')
+                    self.append(thisSeg)
+                    self.segnames.append(segname)
+                    self.counters_by_segtype[stype] += 1
+                continue
+            orig_chainIDs = res.uniqattrs(['chainID'])['chainID']
+            logger.debug(f'Found {len(orig_chainIDs)} unique chainIDs for segtype {stype}: {orig_chainIDs}')
+            orig_res_groups = {chainID: res.filter(lambda x: x.chainID == chainID) for chainID in orig_chainIDs}
             for chainID, c_res in orig_res_groups.items():
                 assert isinstance(c_res, ResidueList), f'ChainID {chainID} residues are not a ResidueList: {type(c_res)}'
                 logger.debug(f'-> original chainID {chainID} in {len(c_res)} residues')
-                if stype == 'glycan':
-                    parent_pchain = parent_chain_map.get(chainID)
-                    if parent_pchain is not None:
-                        # Assign the parent protein chainID and a unique counter-based segname.
-                        glycan_ctr_per_parent[parent_pchain] = glycan_ctr_per_parent.get(parent_pchain, 0) + 1
-                        unique_segname = f'{parent_pchain}G{glycan_ctr_per_parent[parent_pchain]:02d}'
-                        c_res.set_chainIDs(parent_pchain)
-                        self.segtype_of_segname[unique_segname] = stype
-                        # Track parent protein chain for transform renaming (e.g. AG01→CG01 when A→C).
-                        self.glycan_segment_parents[unique_segname] = parent_pchain
-                        num_mis = sum([1 for x in c_res if len(x.atoms) == 0])
-                        thisSeg = Segment(c_res, segname=unique_segname, specs=self.seq_spec)
-                        logger.debug(f'Made glycan segment: parent_chain {parent_pchain} segname {thisSeg.segname} ({num_mis} missing)')
-                        self.append(thisSeg)
-                        self.segnames.append(thisSeg.segname)
-                        self.counters_by_segtype[stype] += 1
-                        continue
-                    # No parent protein found (free oligosaccharide) — fall through to default.
                 this_chainID = chainID
                 this_chainID = self.chainIDmanager.check(this_chainID)
                 if this_chainID != chainID:
@@ -417,7 +444,7 @@ class SegmentList(BaseObjList[Segment]):
         logger.debug(f'Looking for {residue.chainID}_{residue.resid.resid} in all segments {", ".join([S.segname for S in self.data])}')
         for S in self.data:
             logger.debug(f'   -> {residue.chainID}_{residue.resid.resid} in segment {S.segname}')
-            if residue in S.residues:
+            if any(r is residue for r in S.residues):
                 logger.debug(f' found it!')
                 return S
         raise ValueError(f'Residue {residue.chainID}_{residue.resid.resid} not found in any segment!')
@@ -464,26 +491,25 @@ class SegmentList(BaseObjList[Segment]):
                 bad_links.append(link)
 
         if len(bad_links) > 0:
-            Allres, Alllin = ResidueList([]), LinkList([])
+            Alllin = LinkList([])
             for link in bad_links.data:
                 links.remove(link)
                 pruned_objects['links'].append(link)
                 res, lin = link.residue2.get_down_group()
-                Allres.extend(res)
-                Allres.insert(0, link.residue2)
+                to_delete = ResidueList([link.residue2] + list(res))
                 Alllin.extend(lin)
-            if Allres:
-                logger.debug(f'Deleting residues down from and including {str(Allres[0])} due to a mutation')
-                S = self.get_segment_of_residue(Allres[0])
-                logger.debug(f'Segment {S.segname} contains residues that must be deleted because they are downstream (right) of a deleted link.')
-                for r in Allres:
-                    logger.debug(f'...{str(r)}')
-                    S.residues.remove(r)
-                    pruned_objects['residues'].append(r)
-                if len(S.residues) == 0:
-                    logger.debug(f'All residues of {S.segname} are deleted; {S.segname} is deleted')
-                    self.remove(S)
-                    pruned_objects['segments'].append(S)
+                if to_delete:
+                    logger.debug(f'Deleting residues down from and including {str(to_delete[0])} due to a mutation')
+                    S = self.get_segment_of_residue(to_delete[0])
+                    logger.debug(f'Segment {S.segname} contains residues that must be deleted because they are downstream (right) of a deleted link.')
+                    for r in to_delete:
+                        logger.debug(f'...{str(r)}')
+                        S.residues.remove_instance(r)
+                        pruned_objects['residues'].append(r)
+                    if len(S.residues) == 0:
+                        logger.debug(f'All residues of {S.segname} are deleted; {S.segname} is deleted')
+                        self.remove(S)
+                        pruned_objects['segments'].append(S)
             if Alllin:
                 for l in Alllin:
                     links.remove(l)

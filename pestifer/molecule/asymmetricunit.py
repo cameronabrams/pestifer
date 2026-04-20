@@ -300,6 +300,26 @@ class AsymmetricUnit:
         # provide specifications of how to handle sequence issues
         # implied by PDB input
         seq_specs = sourcespecs.get('sequence', {})
+        # Insertions that land beyond the last resolved residue of their chain extend
+        # the C-terminus — they must be built regardless of include_C_termini.
+        if 'insertions' in seqmods and len(seqmods['insertions']) > 0:
+            c_term_ext_chains = []
+            for ins in seqmods['insertions'].data:
+                ins_chainID = ins.chainID
+                ins_resseqnum = ins.resid.resseqnum
+                resolved_res = [r for r in residues.data if r.chainID == ins_chainID and r.segtype == 'protein' and r.resolved]
+                if not resolved_res:
+                    continue
+                max_resolved_resseqnum = max(r.resid.resseqnum for r in resolved_res)
+                if ins_resseqnum >= max_resolved_resseqnum:
+                    if ins_chainID not in c_term_ext_chains:
+                        c_term_ext_chains.append(ins_chainID)
+            if c_term_ext_chains:
+                existing = seq_specs.setdefault('build_zero_occupancy_C_termini', [])
+                for cid in c_term_ext_chains:
+                    if cid not in existing:
+                        existing.append(cid)
+                logger.debug(f'C-terminal insertions detected in chains {c_term_ext_chains}; added to build_zero_occupancy_C_termini')
         psfcompanion = None
         if self.psfcontents:
             psfcompanion = self.psfcontents.segments
@@ -307,15 +327,17 @@ class AsymmetricUnit:
         # this may have altered chainIDs for some residues.  So we must
         # be sure all mods that are chainID-specific but
         # not inheritable by segments are updated
-        # for s in seqadvs:
-        #     if type(s.residue) == ResidueList:
-        #         logger.debug(f'{str(s)}')
         seqadvs.update_attr_from_obj_attr('chainID', 'residue', 'chainID')
         seqadvs.map_attr('dbRes', 'dbRes', {'HIS': 'HSD'})
         ssbonds.update_attr_from_obj_attr('chainID1', 'residue1', 'chainID')
         ssbonds.update_attr_from_obj_attr('chainID2', 'residue2', 'chainID')
         links.update_attr_from_obj_attr('chainID1', 'residue1', 'chainID')
         links.update_attr_from_obj_attr('chainID2', 'residue2', 'chainID')
+        for link in links:
+            if link.residue1 is not None:
+                link.resid1 = link.residue1.resid
+            if link.residue2 is not None:
+                link.resid2 = link.residue2.resid
         res_segname_map = self.segments.get_residue_to_segname_map()
         for link in links:
             if link.residue1 is not None:
@@ -361,8 +383,11 @@ class AsymmetricUnit:
         # logger.debug(f'Pruned objects: {pruned_objects}')
         pruned_segments: SegmentList = pruned_objects.get('segments', [])
         for s in pruned_segments.data:
-            logger.debug(f'Unregistering chainID {s.segname} because this entire segment was pruned')
-            chainIDmanager.unregister_chain(s.segname)
+            if s.segname in chainIDmanager.Used:
+                logger.debug(f'Unregistering chainID {s.segname} because this entire segment was pruned')
+                chainIDmanager.unregister_chain(s.segname)
+            else:
+                logger.debug(f'Pruned segment {s.segname} (chainID={s.chainID}) is a glycan; no chainID to unregister')
 
         # Now any explicitly deleted ssbonds
         topomods = objmanager.get('topol', {})
