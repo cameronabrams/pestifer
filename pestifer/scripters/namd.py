@@ -166,7 +166,7 @@ class NAMDScripter(TcLScripter):
         logger.info(f'NAMD using {use_cpu_count} PE(s)')
         if self.namd_type == 'cpu' or kwargs.get('cpu_override', False):
             if self.slurmvars:
-                c = Command(f'{self.namd} {self.scriptname}')
+                c = Command(f'{self.namd} +p {use_cpu_count} {self.scriptname}')
             else:
                 c = Command(f'{self.charmrun} +p {use_cpu_count} {self.namd} {self.scriptname}')
         elif self.namd_type == 'gpu':
