@@ -359,6 +359,27 @@ class SegmentList(BaseObjList[Segment]):
                             v = r.resid.resseqnum
                             if r.chainID not in protein_max_resid or v > protein_max_resid[r.chainID]:
                                 protein_max_resid[r.chainID] = v
+                # For "wide": detect inter-glycan resid collisions on the same chain.
+                # Collision is possible when two glycosylation sites are closer together
+                # than the size of the larger glycan.  Note: increasing wide_shift does
+                # NOT help since the shift cancels out in the difference.
+                if numbering == 'wide':
+                    wide_ranges: dict[str, list[tuple[int, int, int]]] = {}  # chainID → [(base, end, parent_resid), ...]
+                    for tree in trees:
+                        pc = tree['parent_chainID']
+                        base = tree['parent_resid'].resseqnum + wide_shift
+                        end = base + len(tree['residues']) - 1
+                        for prev_base, prev_end, prev_pr in wide_ranges.get(pc, []):
+                            if base <= prev_end:
+                                logger.warning(
+                                    f'Wide glycan numbering collision on chain {pc}: '
+                                    f'glycan at protein resid {tree["parent_resid"].resseqnum} '
+                                    f'(resids {base}-{end}) overlaps glycan at protein resid {prev_pr} '
+                                    f'(resids {prev_base}-{prev_end}). '
+                                    f'Consider using numbering: narrow or increasing separation between glycosylation sites.'
+                                )
+                        wide_ranges.setdefault(pc, []).append((base, end, tree['parent_resid'].resseqnum))
+
                 glycan_local_ctr: dict[str, int] = {}
                 for tree in trees:
                     parent_chainID = tree['parent_chainID']
