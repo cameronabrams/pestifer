@@ -6,8 +6,10 @@ import shutil
 import tempfile
 
 from .tcl import TcLScripter
+from ..charmmff.charmmffprm import CharmmParamFile
 from ..core.command import Command
 from ..logparsers import NAMDLogParser, NAMDxstParser
+from ..psfutil.psfcontents import PSFContents
 from ..util.progress import NAMDProgress
 
 logger = logging.getLogger(__name__)
@@ -138,6 +140,58 @@ class NAMDScripter(TcLScripter):
             if t in params:
                 self.addline(f'{self.namd_deprecates.get(t, t)} {params[t]}')
         super().writescript()
+
+    def consolidate_params(self, psf_path: str) -> bool:
+        """Replace the full parameter file set with a single minimal .prm for this PSF.
+
+        Reads atom types from *psf_path*, merges all files in ``self.parameters``,
+        extracts only the records needed for those atom types, writes
+        ``{basename}_minimal.prm``, and rewrites the NAMD script so that its
+        ``parameters`` lines reference only that one file.
+
+        Returns True if consolidation succeeded, False if it was skipped (e.g. no
+        parameter files, PSF unreadable, or parse failures on all files).
+        """
+        if not self.parameters or not os.path.exists(psf_path):
+            return False
+
+        atomtypes = set(a.atomtype for a in PSFContents(psf_path).atoms)
+        logger.debug(f'consolidate_params: {len(atomtypes)} unique atom types in {psf_path}')
+
+        combined = CharmmParamFile()
+        n_parsed = 0
+        for fname in self.parameters:
+            try:
+                combined.merge(CharmmParamFile.from_file(fname))
+                n_parsed += 1
+            except Exception as exc:
+                logger.warning(f'consolidate_params: could not parse {fname}: {exc}')
+        if n_parsed == 0:
+            return False
+
+        minimal = combined.extract_for_atomtypes(atomtypes)
+        outname = f'{self.basename}_minimal.prm'
+        minimal.write(outname, title=f'Minimal CHARMM parameters for {self.basename}')
+        logger.info(f'consolidate_params: wrote {outname} ({minimal.summary()})')
+
+        # Rewrite script: replace all 'parameters X' lines with the single minimal file
+        with open(self.scriptname, 'r') as fh:
+            lines = fh.readlines()
+        param_lines_replaced = False
+        new_lines = []
+        for line in lines:
+            if line.startswith('parameters '):
+                if not param_lines_replaced:
+                    new_lines.append(f'parameters {outname}\n')
+                    param_lines_replaced = True
+                # drop all subsequent 'parameters' lines
+            else:
+                new_lines.append(line)
+        with open(self.scriptname, 'w') as fh:
+            fh.writelines(new_lines)
+
+        self.parameters = [outname]
+        return True
 
     def _stage_params_to_local_scratch(self):
         """Copy parameter files to node-local scratch and rewrite the script to use absolute local paths.
