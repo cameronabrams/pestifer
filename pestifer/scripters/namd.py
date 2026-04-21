@@ -141,7 +141,7 @@ class NAMDScripter(TcLScripter):
                 self.addline(f'{self.namd_deprecates.get(t, t)} {params[t]}')
         super().writescript()
 
-    def consolidate_params(self, psf_path: str) -> bool:
+    def consolidate_params(self, psf_path: str) -> str | None:
         """Replace the full parameter file set with a single minimal .prm for this PSF.
 
         Reads atom types from *psf_path*, merges all files in ``self.parameters``,
@@ -149,11 +149,12 @@ class NAMDScripter(TcLScripter):
         ``{basename}_minimal.prm``, and rewrites the NAMD script so that its
         ``parameters`` lines reference only that one file.
 
-        Returns True if consolidation succeeded, False if it was skipped (e.g. no
-        parameter files, PSF unreadable, or parse failures on all files).
+        Returns the path to the written minimal .prm on success, or None if
+        consolidation was skipped (e.g. no parameter files, PSF unreadable, or
+        parse failures on all files).
         """
         if not self.parameters or not os.path.exists(psf_path):
-            return False
+            return None
 
         atomtypes = set(a.atomtype for a in PSFContents(psf_path).atoms)
         logger.debug(f'consolidate_params: {len(atomtypes)} unique atom types in {psf_path}')
@@ -167,7 +168,7 @@ class NAMDScripter(TcLScripter):
             except Exception as exc:
                 logger.warning(f'consolidate_params: could not parse {fname}: {exc}')
         if n_parsed == 0:
-            return False
+            return None
 
         minimal = combined.extract_for_atomtypes(atomtypes)
         outname = f'{self.basename}_minimal.prm'
@@ -191,7 +192,7 @@ class NAMDScripter(TcLScripter):
             fh.writelines(new_lines)
 
         self.parameters = [outname]
-        return True
+        return outname
 
     def _stage_params_to_local_scratch(self):
         """Copy parameter files to node-local scratch and rewrite the script to use absolute local paths.

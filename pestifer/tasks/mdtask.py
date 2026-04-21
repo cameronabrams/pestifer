@@ -195,10 +195,12 @@ class MDTask(VMDTask):
         logger.debug(f'CPU-override is {cpu_override}')
         na.writescript(params, cpu_override=cpu_override)
         logger.info(f'Consolidating NAMD parameters for {self.basename} using PSF {state.psf.name}')
-        if not na.consolidate_params(state.psf.name):
-            logger.warning(f'Parameter consolidation skipped for {self.basename}; using full parameter set')
+        minimal_prm = na.consolidate_params(state.psf.name)
+        if minimal_prm:
+            logger.info(f'Parameter consolidation complete; registering {minimal_prm} as artifact')
+            self.register(minimal_prm, key='charmmff_minimal_prm', artifact_type=CharmmffParFileArtifact)
         else:
-            logger.info(f'Parameter consolidation complete; NAMD script updated to use minimal .prm')
+            logger.warning(f'Parameter consolidation skipped for {self.basename}; using full parameter set')
         self.register(self.basename, key='namd', artifact_type=NAMDConfigFileArtifact, pytestable=True)
         result = 0  # anticipate success
         if script_only:

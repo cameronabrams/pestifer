@@ -42,6 +42,9 @@ class TerminateTask(MDTask):
         self.result = self.test_standard()
         if self.specs.get('basename'):
             self.copy_state_to_basename()
+        minimal_prm = self.generate_minimal_params()
+        if minimal_prm:
+            self.register(minimal_prm, key='charmmff_minimal_prm', artifact_type=CharmmffParFileArtifact)
         self.result += self.make_package()
         self.result += self.cleanup()
         return self.result
@@ -100,13 +103,11 @@ class TerminateTask(MDTask):
                     shutil.copy(fa.name, f'{pkg_basename}.{ext}')
                     fa = fa.copy(data=f'{pkg_basename}.{ext}')
                 TarballContents.append(fa)
-        # Generate minimal parameter file first; it becomes the sole parameter file
-        # referenced in the NAMD config and included in the tarball.
-        minimal_prm = self.generate_minimal_params()
-        if minimal_prm:
-            min_artifact = self.register(minimal_prm, key='charmmff_minimal_prm', artifact_type=CharmmffParFileArtifact)
-            # Replace pipeline par/stream file artifacts with just the minimal prm so
-            # that namdrun() writes only one "parameters" line in the NAMD config.
+        # Minimal parameter file was already generated (and registered) in do(); retrieve it here.
+        # Replace pipeline par/stream file artifacts with just the minimal prm so that
+        # namdrun() writes only one "parameters" line in the NAMD config.
+        min_artifact = self.get_current_artifact('charmmff_minimal_prm')
+        if min_artifact:
             self.register([min_artifact], key='charmmff_parfiles', artifact_type=CharmmffParFileArtifacts)
             self.register([], key='charmmff_streamfiles', artifact_type=CharmmffStreamFileArtifacts)
         result = 0
