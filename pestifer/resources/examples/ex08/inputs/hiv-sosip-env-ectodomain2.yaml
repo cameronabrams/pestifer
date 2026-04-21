@@ -69,7 +69,7 @@ tasks:
       tests:
         - connection_test:
             name: gp120 gaps ligation
-            selection: protein and chain A C E and ((resid 156 and insertion I) or resid 157 378 379)
+            selection: protein and chain A C E and resid 156 157 378 379)
             connection_type: interresidue
             connection_count: 6
         - connection_test:

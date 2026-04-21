@@ -138,6 +138,8 @@ class Controller:
                 logger.warning(f'Task {task.taskname} failed; task.result {task.result} returned result {returned_result} controller is aborted.')
                 break
         for task in self.tasks:
+            if task.index not in task_report:
+                continue
             task_report[task.index]['duration'] = task.duration
             task_report[task.index]['duration_frac'] = task.duration/task_durations if task_durations > 0 else 0
         return task_report
