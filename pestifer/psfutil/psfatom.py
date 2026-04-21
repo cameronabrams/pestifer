@@ -180,11 +180,14 @@ class PSFAtomList(BaseObjList[PSFAtom]):
         """
         if len(exclusion_logics) == 0:
             return 0
+        seen_ids = set()
         all_ignored_atoms = PSFAtomList([])
         for expression in exclusion_logics:
             filter_func = parse_filter_expression(expression)
-            ignored_atoms = filter(filter_func, self.data)
-            all_ignored_atoms.extend(list(ignored_atoms))
+            for atom in filter(filter_func, self.data):
+                if id(atom) not in seen_ids:
+                    seen_ids.add(id(atom))
+                    all_ignored_atoms.append(atom)
         for atom in all_ignored_atoms:
             self.remove_object(atom)
         return len(all_ignored_atoms)

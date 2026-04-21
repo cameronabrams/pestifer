@@ -469,13 +469,15 @@ class AtomList(BaseObjList[Atom]):
     def apply_exclusion_logics(self, exclusion_logics: list[str] = []) -> int:
         if len(exclusion_logics) == 0:
             return 0
+        seen_ids = set()
         all_ignored_atoms = AtomList([])
         for expression in exclusion_logics:
             logger.debug(f'Applying atom exclusion logic: {expression}')
             filter_func = parse_filter_expression(expression)
-            ignored_atoms = list(filter(filter_func, self.data))
-            logger.debug(f'  -> {len(ignored_atoms)} ignored atoms.')
-            all_ignored_atoms.extend(ignored_atoms)
+            for atom in filter(filter_func, self.data):
+                if id(atom) not in seen_ids:
+                    seen_ids.add(id(atom))
+                    all_ignored_atoms.append(atom)
         logger.debug(f'Removing {len(all_ignored_atoms)} ignored atoms out of {len(self.data)} total atoms.')
         for atom in all_ignored_atoms:
             self.remove_instance(atom)

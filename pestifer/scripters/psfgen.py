@@ -726,5 +726,11 @@ class PsfgenScripter(VMDScripter):
         my_logger(self.F, logger.debug)
         if not options.get('keep_tempfiles', False):
             self.F.flush()
+        if os.path.exists(self.logname):
+            with open(self.logname) as fh:
+                for line in fh:
+                    if 'MOLECULE DESTROYED BY FATAL ERROR' in line:
+                        logger.error(f'psfgen fatal error detected in {self.logname}: {line.rstrip()}')
+                        return 1
         return result
 

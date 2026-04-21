@@ -333,12 +333,15 @@ class ResiduePlaceholderList(BaseObjList[ResiduePlaceholder]):
     def apply_exclusion_logics(self, exclusion_logics: list[str] = []) -> int:
         if len(exclusion_logics) == 0:
             return 0
+        seen_ids = set()
         all_ignored_missing_residues = ResiduePlaceholderList([])
         for expression in exclusion_logics:
             logger.debug(f'Excluding missing residues with expression: {expression}')
             filter_func = parse_filter_expression(expression)
-            ignored_missing_residues = list(filter(filter_func, self.data))
-            all_ignored_missing_residues.extend(ignored_missing_residues)
+            for residue in filter(filter_func, self.data):
+                if id(residue) not in seen_ids:
+                    seen_ids.add(id(residue))
+                    all_ignored_missing_residues.append(residue)
         logger.debug(f'Removing {len(all_ignored_missing_residues)} ignored missing residues.')
         for residue in all_ignored_missing_residues:
             self.remove_instance(residue)
