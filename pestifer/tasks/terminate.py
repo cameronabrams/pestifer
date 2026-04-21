@@ -44,7 +44,9 @@ class TerminateTask(MDTask):
             self.copy_state_to_basename()
         minimal_prm = self.generate_minimal_params()
         if minimal_prm:
-            self.register(minimal_prm, key='charmmff_minimal_prm', artifact_type=CharmmffParFileArtifact)
+            state: StateArtifacts = self.get_current_artifact('state')
+            state.minimal_prm = CharmmffParFileArtifact(data=minimal_prm, keep=True)
+            state.data['minimal_prm'] = state.minimal_prm
         self.result += self.make_package()
         self.result += self.cleanup()
         return self.result
@@ -63,7 +65,7 @@ class TerminateTask(MDTask):
             self.register(self.specs['chainmapfile'].replace('.yaml', ''), key='chainmapfile', artifact_type=YAMLFileArtifact)
 
     def copy_state_to_basename(self):
-        """Copy current state files (psf, pdb, coor, xsc, vel) to the user-specified basename and re-register state."""
+        """Copy current state files (psf, pdb, coor, xsc, vel, minimal_prm) to the user-specified basename and re-register state."""
         basename = self.specs.get('basename')
         state: StateArtifacts = self.get_current_artifact('state')
         if not state:
@@ -78,6 +80,14 @@ class TerminateTask(MDTask):
                 new_fa = fa.copy(data=dest)
                 new_fa.keep = True
                 new_state[ext] = new_fa
+        fa: FileArtifact = getattr(state, 'minimal_prm', None)
+        if fa and fa.exists():
+            dest = f'{basename}_minimal.prm'
+            if fa.name != dest:
+                shutil.copy(fa.name, dest)
+            new_fa = fa.copy(data=dest)
+            new_fa.keep = True
+            new_state['minimal_prm'] = new_fa
         if new_state:
             self.register(new_state, key='state', artifact_type=StateArtifacts)
 
@@ -103,10 +113,10 @@ class TerminateTask(MDTask):
                     shutil.copy(fa.name, f'{pkg_basename}.{ext}')
                     fa = fa.copy(data=f'{pkg_basename}.{ext}')
                 TarballContents.append(fa)
-        # Minimal parameter file was already generated (and registered) in do(); retrieve it here.
+        # Minimal parameter file was already stored in state by do(); retrieve it here.
         # Replace pipeline par/stream file artifacts with just the minimal prm so that
         # namdrun() writes only one "parameters" line in the NAMD config.
-        min_artifact = self.get_current_artifact('charmmff_minimal_prm')
+        min_artifact = state.minimal_prm if state else None
         if min_artifact:
             self.register([min_artifact], key='charmmff_parfiles', artifact_type=CharmmffParFileArtifacts)
             self.register([], key='charmmff_streamfiles', artifact_type=CharmmffStreamFileArtifacts)
@@ -116,7 +126,7 @@ class TerminateTask(MDTask):
             save_specs = self.specs
             self.specs = md_specs
             self.specs['basename'] = pkg_basename
-            result = self.namdrun(script_only=True, skip_standard_params=(minimal_prm is not None))
+            result = self.namdrun(script_only=True, skip_standard_params=(min_artifact is not None))
             self.specs = save_specs
             TarballContents.append(self.get_current_artifact('namd'))
             constraints = self.specs.get('constraints', {})
@@ -125,7 +135,7 @@ class TerminateTask(MDTask):
                 TarballContents.append(self.get_current_artifact('consref'))
         else:
             logger.debug(f'No NAMD configuration is included in the package.')
-        if minimal_prm:
+        if min_artifact:
             TarballContents.append(min_artifact)
         TarballContents.make_tarball(pkg_basename, arcname_prefix=state_dir, unique=True, remove=True)
         return result

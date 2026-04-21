@@ -638,19 +638,21 @@ class StateArtifacts(FileArtifactDict):
     """ The velocity file name, Path, or NAMDVelFileArtifact. """
     xsc: str | Path | NAMDXscFileArtifact | None = None
     """ The XSC file name, Path, or NAMDXscFileArtifact. """
+    minimal_prm: str | Path | CharmmffParFileArtifact | None = None
+    """ The minimal consolidated CHARMM parameter file, Path, or CharmmffParFileArtifact. """
 
     def to_list(self):
-        return [getattr(self, attr) for attr in ['pdb', 'psf', 'coor', 'vel', 'xsc'] if getattr(self, attr) is not None]
+        return [getattr(self, attr) for attr in ['pdb', 'psf', 'coor', 'vel', 'xsc', 'minimal_prm'] if getattr(self, attr) is not None]
 
     def stamp(self, owner: object) -> StateArtifacts:
         self.produced_by = owner
-        for attr in ['pdb', 'psf', 'coor', 'vel', 'xsc']:
+        for attr in ['pdb', 'psf', 'coor', 'vel', 'xsc', 'minimal_prm']:
             if artifact := getattr(self, attr):
                 artifact.stamp(owner)
         return self
 
     def __post_init__(self):
-        for attr, artifact_type in [('pdb', PDBFileArtifact), ('psf', PSFFileArtifact), ('coor', NAMDCoorFileArtifact), ('vel', NAMDVelFileArtifact), ('xsc', NAMDXscFileArtifact)]:
+        for attr, artifact_type in [('pdb', PDBFileArtifact), ('psf', PSFFileArtifact), ('coor', NAMDCoorFileArtifact), ('vel', NAMDVelFileArtifact), ('xsc', NAMDXscFileArtifact), ('minimal_prm', CharmmffParFileArtifact)]:
             my_attr = getattr(self, attr)
             if my_attr is None:
                 my_attr = self.data.get(attr)
