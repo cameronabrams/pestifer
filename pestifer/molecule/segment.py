@@ -384,26 +384,35 @@ class SegmentList(BaseObjList[Segment]):
                 for tree in trees:
                     parent_chainID = tree['parent_chainID']
                     component = tree['residues']
-                    glycan_local_ctr[parent_chainID] = glycan_local_ctr.get(parent_chainID, 0) + 1
-                    k = glycan_local_ctr[parent_chainID]
-                    segname = f'{parent_chainID}G{k:02d}'
-                    if numbering == 'wide':
-                        base_resid = tree['parent_resid'].resseqnum + wide_shift
-                    else:  # narrow
-                        parent_max = protein_max_resid.get(parent_chainID, 0)
-                        base_resid = parent_max + (k - 1) * max_glycan_size + 1
-                    for i, r in enumerate(component):
-                        new_resid = ResID(base_resid + i)
-                        r.resid = new_resid
-                        for a in r.atoms.data:
-                            a.resid = new_resid
-                        r.set_chainID(parent_chainID)
+                    if numbering == 'as-is':
+                        # Segname is keyed off the glycan's own original chainID so it
+                        # stays unique; resids and chainIDs on atoms are left untouched.
+                        orig_chainID = component[0].chainID
+                        glycan_local_ctr[orig_chainID] = glycan_local_ctr.get(orig_chainID, 0) + 1
+                        k = glycan_local_ctr[orig_chainID]
+                        segname = f'{orig_chainID}G{k:02d}'
+                    else:
+                        glycan_local_ctr[parent_chainID] = glycan_local_ctr.get(parent_chainID, 0) + 1
+                        k = glycan_local_ctr[parent_chainID]
+                        segname = f'{parent_chainID}G{k:02d}'
+                        if numbering == 'wide':
+                            base_resid = tree['parent_resid'].resseqnum + wide_shift
+                        else:  # narrow
+                            parent_max = protein_max_resid.get(parent_chainID, 0)
+                            base_resid = parent_max + (k - 1) * max_glycan_size + 1
+                        for i, r in enumerate(component):
+                            new_resid = ResID(base_resid + i)
+                            r.resid = new_resid
+                            for a in r.atoms.data:
+                                a.resid = new_resid
+                            r.set_chainID(parent_chainID)
                     c_res = ResidueList(component)
                     self.segtype_of_segname[segname] = stype
                     self.glycan_segment_parents[segname] = parent_chainID
                     num_mis = sum(1 for x in component if len(x.atoms) == 0)
                     thisSeg = Segment(c_res, segname=segname, specs=self.seq_spec)
-                    logger.debug(f'Made glycan segment: parent_chain {parent_chainID} segname {segname} k={k} resids {base_resid}-{base_resid+len(component)-1} ({num_mis} missing)')
+                    resid_range = 'as-is' if numbering == 'as-is' else f'{base_resid}-{base_resid+len(component)-1}'
+                    logger.debug(f'Made glycan segment: parent_chain {parent_chainID} segname {segname} k={k} resids {resid_range} ({num_mis} missing)')
                     self.append(thisSeg)
                     self.segnames.append(segname)
                     self.counters_by_segtype[stype] += 1

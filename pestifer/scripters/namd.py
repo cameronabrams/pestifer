@@ -166,7 +166,7 @@ class NAMDScripter(TcLScripter):
         logger.info(f'NAMD using {use_cpu_count} PE(s)')
         if self.namd_type == 'cpu' or kwargs.get('cpu_override', False):
             if self.slurmvars:
-                c = Command(f'numactl --localalloc {self.namd} +p {use_cpu_count} {self.scriptname}')
+                c = Command(f'numactl --interleave=all {self.namd} +p {use_cpu_count} {self.scriptname}')
             else:
                 c = Command(f'{self.charmrun} +p {use_cpu_count} {self.namd} {self.scriptname}')
         elif self.namd_type == 'gpu':
@@ -175,6 +175,7 @@ class NAMDScripter(TcLScripter):
             else:
                 use_cpu_count = self.local_ncpus
             c = Command(f'{self.namdgpu} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
+        logger.info(f'NAMD launch command: {c.c}')
         self.logname = f'{self.basename}.log'
         self.logparser = NAMDLogParser(basename=self.basename)
         self.logparser.auxparser = NAMDxstParser(basename=f'{self.basename}')

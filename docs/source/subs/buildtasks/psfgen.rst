@@ -75,7 +75,17 @@ Under the ``loops`` directive under ``source.sequence``, one can specify three m
 source.sequence.glycans
 #######################
 
-Under the ``glycans`` directive under ``source.sequence``, one can specify a single ``declash`` directive, which like the loop declashing, has ``maxcycles`` (default **0**) and ``clashdist`` (default **1.5**).
+Under the ``glycans`` directive under ``source.sequence``, one can specify the following parameters.
+
+1. ``numbering``: Controls how glycan residues are renumbered and how their ``chainID`` attributes are assigned.  Three options are available:
+
+   - ``narrow`` *(default)*: Each glycan tree is renumbered starting just above the highest protein residue number on the parent chain, with successive glycans offset by ``max_glycan_size``.  The glycan's ``chainID`` is reassigned to match the parent protein chain.
+   - ``wide``: Each glycan tree is renumbered by adding ``wide_shift`` (default **3000**) to the parent protein residue number.  The glycan's ``chainID`` is likewise reassigned to the parent protein chain.  A warning is emitted if two glycans on the same chain would produce overlapping residue ranges.
+   - ``as-is``: Glycan residue numbers and ``chainID`` values are left exactly as they appear in the source PDB file.  Unique psfgen segnames are still assigned (using the glycan's own original ``chainID`` as the key, e.g. ``EG01``), so the topology is unambiguous, but no atom attributes are modified.  This is useful when downstream tools consume the PDB chainID directly and the original numbering must be preserved.
+
+2. ``max_glycan_size``: Maximum number of residues assumed per glycan tree when computing ``narrow`` residue offsets.  Default is **30**.
+3. ``wide_shift``: The offset added to the parent protein residue number under ``wide`` numbering.  Default is **3000**.
+4. ``declash``: A dictionary of parameters governing a post-build declashing procedure, with ``maxcycles`` (default **0**) and ``clashdist`` (default **1.5**).
 
 
 mods 
