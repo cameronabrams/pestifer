@@ -2,6 +2,8 @@
 
 import logging
 import os
+import shutil
+import tempfile
 
 from .tcl import TcLScripter
 from ..core.command import Command
@@ -137,6 +139,34 @@ class NAMDScripter(TcLScripter):
                 self.addline(f'{self.namd_deprecates.get(t, t)} {params[t]}')
         super().writescript()
 
+    def _stage_params_to_local_scratch(self):
+        """Copy parameter files to node-local scratch and rewrite the script to use absolute local paths.
+
+        Shared-filesystem reads (Lustre/NFS) during Charm++ multi-thread startup can be very slow
+        under load.  Staging to $TMPDIR ensures NAMD reads from local storage regardless of
+        shared-FS congestion.  Has no effect if $TMPDIR is not set or parameters list is empty.
+        """
+        tmpdir = os.environ.get('TMPDIR', '')
+        if not tmpdir or not self.parameters:
+            return
+        scratch = os.path.join(tmpdir, f'namd_params_{os.getpid()}')
+        os.makedirs(scratch, exist_ok=True)
+        replacements = {}
+        for p in self.parameters:
+            src = os.path.abspath(p)
+            dst = os.path.join(scratch, p)
+            if not os.path.exists(dst):
+                shutil.copy2(src, dst)
+            replacements[p] = dst
+        # Rewrite 'parameters <basename>' lines in the already-written script file
+        with open(self.scriptname, 'r') as fh:
+            script = fh.read()
+        for basename, localpath in replacements.items():
+            script = script.replace(f'parameters {basename}', f'parameters {localpath}')
+        with open(self.scriptname, 'w') as fh:
+            fh.write(script)
+        logger.info(f'Parameter files staged to local scratch: {scratch}')
+
     def runscript(self, **kwargs):
         """
         Run the NAMD script using the NAMD command line interface.
@@ -176,6 +206,8 @@ class NAMDScripter(TcLScripter):
                 use_cpu_count = self.local_ncpus
             c = Command(f'{self.namdgpu} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
         logger.info(f'NAMD launch command: {c.c}')
+        if self.slurmvars:
+            self._stage_params_to_local_scratch()
         self.logname = f'{self.basename}.log'
         self.logparser = NAMDLogParser(basename=self.basename)
         self.logparser.auxparser = NAMDxstParser(basename=f'{self.basename}')
