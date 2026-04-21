@@ -460,16 +460,12 @@ class PsfgenScripter(VMDScripter):
         self.addline(f'first none', indents=1)
         self.addline(f'last none', indents=1)
         self.addline(f'pdb {pdb}', indents=1)
+        for g in seg_grafts.data:
+            self.addline(f'pdb {g.segfile}', indents=1)
         self.addline('}')
         self.addline(f'coordpdb {pdb} {image_seglabel}')
         for g in seg_grafts.data:
-            graft_image_segname = chainIDmap.get(g.graft_segname, g.graft_segname)
-            self.addline(f'segment {graft_image_segname} '+'{')
-            self.addline(f'first none', indents=1)
-            self.addline(f'last none', indents=1)
-            self.addline(f'pdb {g.segfile}', indents=1)
-            self.addline('}')
-            self.addline(f'coordpdb {g.segfile} {graft_image_segname}')
+            self.addline(f'coordpdb {g.segfile} {image_seglabel}')
         if is_image:
             self.banner(f'Restoring A.U. state for {seglabel}')
             self.restore_selection(selname, dataholder=f'{selname}_data')
@@ -540,7 +536,7 @@ class PsfgenScripter(VMDScripter):
         for y in G.donor_residues:
             new_residlist.extend([f'{y.resid.resid}' for x in y.atoms])  # r
         self.addline(f'$mover_sel set resid [list {" ".join(new_residlist)}]')
-        self.addline(f'$mover_sel set chain {G.chainID}')
+        self.addline(f'$mover_sel set chain {G.residues[0].chainID}')
         self.addline(f'$mover_sel set segname {G.graft_segname}')
         self.addline(f'$mover_sel writepdb {G.segfile}')
         self.addfile(G.segfile)

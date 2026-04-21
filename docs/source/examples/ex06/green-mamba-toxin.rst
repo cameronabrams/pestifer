@@ -8,7 +8,7 @@ Example 6: Fasciculin 1 at pH 7.0
 .. literalinclude:: ../../../../pestifer/resources/examples/ex06/inputs/green-mamba-toxin.yaml
     :language: yaml
 
-Note that the ``pdb2pqr`` task is invoked immediately after the ``psfgen`` task but *before* the ``solvate`` task. The ``pdb2pqr`` task is documented at :ref:`subs_runtasks_pdb2pqr`.
+Note that the ``pdb2pqr`` task is invoked immediately after the ``psfgen`` task but *before* the ``solvate`` task. The ``pdb2pqr`` task is documented at :ref:`subs_buildtasks_pdb2pqr`.
 
 .. figure:: 1fas.png
 

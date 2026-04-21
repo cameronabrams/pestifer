@@ -344,25 +344,20 @@ class AsymmetricUnit:
                 link.segname1 = res_segname_map.get(id(link.residue1), link.residue1.chainID)
             if link.residue2 is not None:
                 link.segname2 = res_segname_map.get(id(link.residue2), link.residue2.chainID)
-        grafts.update_attr_from_objlist_elem_attr('chainID', 'residues', 0, 'chainID')
+        # Set g.chainID and g.graft_segname to the psfgen segname of the segment
+        # that contains the receiver residue.  inherit_objs routes objects by
+        # x.chainID == segment.segname, so this ensures the graft ends up in the
+        # glycan segment (e.g. 'GG02'), not in the protein segment (e.g. 'G').
+        # Donor residues will be written into that same glycan segment in psfgen.
+        for g in grafts.data:
+            receiver_segname = res_segname_map.get(id(g.residues[0]), g.residues[0].chainID)
+            g.chainID = receiver_segname
+            g.graft_segname = receiver_segname
+            logger.debug(f'Graft {g.obj_id} donor residues will join segment {g.graft_segname}')
         logger.debug(f'Segnames in A.U.: {", ".join(self.segments.segnames)}')
         if self.segments.daughters:
             logger.debug(f'Daughter chains generated: {self.segments.daughters}')
         logger.debug(f'Used chainIDs {chainIDmanager.Used}')
-        # Assign psfgen segnames for each graft's donated residues.
-        # Naming mirrors the base molecule glycan convention: {target_chainID}G{k:02d},
-        # where k starts after the highest existing glycan index on that chain.
-        graft_segname_counters: dict[str, int] = {}
-        for g in grafts.data:
-            parent_chainID = g.chainID
-            existing_count = sum(
-                1 for sn in self.segments.segnames
-                if self.segments.glycan_segment_parents.get(sn) == parent_chainID
-            )
-            k = existing_count + graft_segname_counters.get(parent_chainID, 0) + 1
-            g.graft_segname = f'{parent_chainID}G{k:02d}'
-            graft_segname_counters[parent_chainID] = graft_segname_counters.get(parent_chainID, 0) + 1
-            logger.debug(f'Graft {g.obj_id} donor residues will use psfgen segname {g.graft_segname}')
         # promote sequence numbers in any grafts to avoid collisions
         # and include the graft links in the overall list of links
         next_resid = max([x.resid for x in residues]) + 1

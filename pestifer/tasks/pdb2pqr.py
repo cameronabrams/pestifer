@@ -5,7 +5,7 @@ Definition of the :class:`PDB2PQRTask` class for preparing PDB files for PQR gen
 This class is a descendant of the :class:`PsfgenTask <pestifer.tasks.psfgen.PsfgenTask>` class and is used to prepare PDB files,
 generate PQR files with titration states, and apply necessary modifications to the molecular structure.
 
-Usage is described in the :ref:`subs_runtasks_pdb2pqr` documentation.
+Usage is described in the :ref:`subs_buildtasks_pdb2pqr` documentation.
 
 The documentation of the pdb2pqr command is available at `readthedocs <https://pdb2pqr.readthedocs.io/en/latest/>`_.
 """

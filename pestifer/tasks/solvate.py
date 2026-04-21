@@ -9,7 +9,7 @@ The task reads the input PDB and PSF files, calculates the bounding box for the 
 and generates the necessary Tcl commands to perform the solvation and ionization.
 The resulting solvated structure is saved with the specified basename, and the state is updated with the new PSF, PDB, and XSC files.
 
-Usage is described in the :ref:`subs_runtasks_solvate` documentation.
+Usage is described in the :ref:`subs_buildtasks_solvate` documentation.
 """
 import numpy as np
 

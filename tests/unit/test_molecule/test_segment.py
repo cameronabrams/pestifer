@@ -128,7 +128,7 @@ class TestSegmentList(unittest.TestCase):
         self.assertEqual(len(segment_list[1].residues), 4)
         for i in range(4, 8):
             self.assertEqual(segment_list[1].residues[i-4], residue_list[i])
-        self.assertEqual(segment_list[2].segname, 'S')
+        self.assertEqual(segment_list[2].segname, 'SG01')
         self.assertEqual(len(segment_list[2].residues), 1)
         for i in range(8, 9):
             self.assertEqual(segment_list[2].residues[i-8], residue_list[i])
@@ -140,7 +140,7 @@ class TestSegmentList(unittest.TestCase):
         segment_list.remove(segment_list[0])
         self.assertEqual(len(segment_list), 2)
         self.assertEqual(segment_list[0].segname, 'B')
-        self.assertEqual(segment_list[1].segname, 'S')
+        self.assertEqual(segment_list[1].segname, 'SG01')
 
     def test_segment_list_inherit_objs(self):
         residue_list = [
@@ -240,7 +240,7 @@ class TestSegmentList(unittest.TestCase):
         self.assertEqual(ssbonds[0].residue1, residue_list[1])
         self.assertEqual(ssbonds[0].residue2, residue_list[6])
         # make a one-element list of links, linking atom N of chain B resid 4 to atom C of chain S resid 404; use shortcode to initialize, e.g., 'C1_R1_A1-C2_R2_A2'
-        ll1 = Link('B_4_N-S_404_C')
+        ll1 = Link('B_4_N-S_1_C')
         links = LinkList([ll1])
         links[0].patchname='FakePatchname'
         links.assign_residues(residue_list)

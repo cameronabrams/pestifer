@@ -15,7 +15,7 @@ Example 16: HIV-1 Env MPER-TM Trimer in a DMPC Symmetric Bilayer
 
 The key task in this example is the ``make_membrane_system`` task.  This task specifies a ``bilayer`` subtask and an ``embed`` subtask.  The ``bilayer`` subtask specifies the composition of the two leaflets, directives for using ``packmol`` to assemble the initial *minimal* bilayer patch, and relaxation protocols for relaxing the patch and the full-sized bilayer, prior to embedding the protein.  The ``embed`` subtask specifies how the protein is to be oriented and placed in the bilayer.  Immediately following the ``make_membrane_system`` task, the ``minimize`` task is used to relax the system after embedding the protein.  This is then followed by a series of ``md`` tasks to progressively equilibrate the system density and the bilayer area.
 
-A detailed explanation of the two subtasks can be found at :ref:`subs_runtasks_make_membrane_system`.
+A detailed explanation of the two subtasks can be found at :ref:`subs_buildtasks_make_membrane_system`.
 
 Results
 +++++++

@@ -7,6 +7,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 - bugfix: graft source molecules (e.g., a standalone glycan PDB fetched for grafting) are no longer subjected to glycan chainID/segname/resid reassignment; the original chainIDs and resids are preserved so that `activate()` can correctly locate the source segment by its original chainID
 - bugfix: graft donor residues now go into a dedicated psfgen segment (e.g., `NG01`) instead of being mixed into the protein segment; the segname is computed from the target chain and existing glycan count, consistent with the base molecule glycan naming convention
 - bugfix: graft bond patch segnames now correctly reference the base molecule's psfgen segnames; receiver-side residues are looked up via `res_segname_map`, donor-side residues use the graft's dedicated segname (`graft_segname`), eliminating stale source-PDB chainID references in patch commands
+- test: added `test_graft_segname_and_link_segnames` to `tests/unit/test_objs/test_graft.py` covering the full segname/resid pipeline for a glycan graft
+- test: added `tests/unit/test_molecule/test_graft_molecule.py` — integration tests using real PDB structures (4b7i chain C glycan grafted onto 1gc1 chain G protein) verifying activation counts, `graft_segname` assignment, and link segname correctness end-to-end through the AsymmetricUnit pipeline
 
 ## [2.2.9] - 2026-04-20
 

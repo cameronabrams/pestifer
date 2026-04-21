@@ -1,5 +1,6 @@
 import unittest
 import os
+from pathlib import Path
 from pestifer import resources
 from pestifer.charmmff.pdbrepository import PDBInput, PDBRepository, PDBCollection
 import logging
@@ -25,8 +26,10 @@ class TestPDBCollection(unittest.TestCase):
 class TestPDBRepository(unittest.TestCase):
     
     def setUp(self):
-        charmmffpath = os.path.join(os.path.dirname(resources.__file__),'charmmff')
-        self.repopath = os.path.join(charmmffpath, 'pdbrepository')
+        charmmff_root = Path(resources.__file__).parent / 'charmmff'
+        version_dirs = sorted(charmmff_root.iterdir(), key=lambda p: p.stat().st_mtime)
+        charmmff_path = version_dirs[-1]
+        self.repopath = str(charmmff_path / 'pdbrepository')
         self.pdbrepo = PDBRepository(self.repopath)
 
     def test_pdbrepository_force_rebuild(self):

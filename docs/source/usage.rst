@@ -35,8 +35,8 @@ Subcommands
    :maxdepth: 1
 
    subs/config-help
-   subs/run
-   subs/run-example
+   subs/build
+   subs/build-example
    subs/new-system
    subs/wheretcl
    subs/make-pdb-collection

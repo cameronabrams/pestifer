@@ -2,11 +2,15 @@ from pestifer.util.util import *
 import unittest
 from pestifer.tasks.psfgen import *
 import os
+from pathlib import Path
 from pestifer.objs.mutation import Mutation
 from pestifer.objs.patch import Patch
-from pestifer import objs
+from pestifer import objs, resources
 from pestifer.core.command import Command
 from pestifer.util.util import protect_str_arg
+
+_TCL_ROOT = str(Path(resources.__file__).parent / 'tcl')
+_VMD_STARTUP = str(Path(resources.__file__).parent / 'tcl' / 'vmdrc.tcl')
 
 import logging
 logger = logging.getLogger(__name__)
@@ -33,10 +37,10 @@ exit
 """
                     )
         arg='abc 123'
-        c=Command(f"vmd -dispdev text -e test_str_arg.tcl -args -a {arg}")
+        c=Command(f"vmd -dispdev text -startup {_VMD_STARTUP} -e test_str_arg.tcl -args --tcl-root {_TCL_ROOT} -a {arg}")
         c.run()
         self.assertFalse('abc 123' in c.stdout)
-        c=Command(f"vmd -dispdev text -e test_str_arg.tcl -args -a {protect_str_arg(arg)}")
+        c=Command(f"vmd -dispdev text -startup {_VMD_STARTUP} -e test_str_arg.tcl -args --tcl-root {_TCL_ROOT} -a {protect_str_arg(arg)}")
         c.run()
         logger.debug(f'Output: {c.stdout}')
         self.assertTrue('abc 123' in c.stdout)

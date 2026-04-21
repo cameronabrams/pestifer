@@ -60,7 +60,7 @@ We have also modified the ``solvate`` task to allow for a 0.154 M NaCl solution,
 Digression:  The Validate Task
 ==============================
 
-This example also uses the `validate <_subs_runtasks_validate>`_ task, which is a useful way to check that your configuration file is doing what you expect by directly interrogating the PSF and PDB file of the current state.  This particular test validates the exclusion of the phosphate ion.  Other types of tests can check for presence or absence of other residues, interresidue bonds (disulfides and glycosylations), and more.
+This example also uses the `validate <_subs_buildtasks_validate>`_ task, which is a useful way to check that your configuration file is doing what you expect by directly interrogating the PSF and PDB file of the current state.  This particular test validates the exclusion of the phosphate ion.  Other types of tests can check for presence or absence of other residues, interresidue bonds (disulfides and glycosylations), and more.
 
 .. raw:: html
 

@@ -26,8 +26,8 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertEqual(len(self.C.residues), 0)
         self.assertEqual(len(self.C.patches), 0)
         self.C.provision()
-        self.assertEqual(len(self.C.residues), 2475)
-        self.assertEqual(len(self.C.patches), 790)
+        self.assertEqual(len(self.C.residues), 3872)
+        self.assertEqual(len(self.C.patches), 792)
         self.assertEqual(len(self.C.pdbrepository.collections), 2)
         # logger.debug(f"Collections: {self.C.pdbrepository.collections.keys()}")
         # logger.debug(f"Info in lipid collection: {self.C.pdbrepository.collections['lipid'].info.keys()}")
@@ -139,8 +139,8 @@ class TestCharmmffContent(unittest.TestCase):
 
     def test_charmmffcontent_get_resi(self):
         self.C.provision()
-        self.assertEqual(len(self.C.residues),2475)
-        self.assertEqual(len(self.C.patches),790)
+        self.assertEqual(len(self.C.residues),3872)
+        self.assertEqual(len(self.C.patches),792)
         self.assertTrue('ALA' in self.C.residues)
         self.assertTrue('TIP3' in self.C.residues)
         self.assertTrue('FAKE' not in self.C.residues)

@@ -6,7 +6,7 @@ in a molecular structure using the NAMD molecular dynamics engine.
 It measures the distances between loop termini, steers them toward each other, and connects them using a specified patch.
 The resulting structure is then saved as a PSF/PDB files.
 
-Usage is described in the :ref:`subs_runtasks_ligate` documentation.
+Usage is described in the :ref:`subs_buildtasks_ligate` documentation.
 """
 import logging
 

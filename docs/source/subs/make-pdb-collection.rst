@@ -41,7 +41,7 @@ You can see what RESIs are included in pestifer using the ``show-resources`` sub
     ---------------------------------------------------------------------------
 
 
-This shows that there are two PDB collections in the built-in repository: one for water and ions and another for lipids.  The water/ion collection was created manually; these are very simple PDB files.  Any of those lipid residues can be referred to in a ``make_membrane_system`` task (See :ref:`subs_runtasks_make_membrane_system` and :ref:`example mper-tm symmetric bilayer` and :ref:`example mper-tm viral bilayer`).
+This shows that there are two PDB collections in the built-in repository: one for water and ions and another for lipids.  The water/ion collection was created manually; these are very simple PDB files.  Any of those lipid residues can be referred to in a ``make_membrane_system`` task (See :ref:`subs_buildtasks_make_membrane_system` and :ref:`example mper-tm symmetric bilayer` and :ref:`example mper-tm viral bilayer`).
 
 The lipid collection was created using ``make-pdb-collection`` in the following way:  
 

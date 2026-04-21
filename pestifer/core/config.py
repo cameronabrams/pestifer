@@ -192,7 +192,7 @@ class Config(Yclept):
                 ncpus = user_ncpus
                 retstr += f'; will use {ncpus} PEs (config-specified)'
             else:
-                retstr += f'; will use {ncpus} PEs (auto-detected; override with --ncpus or namd.ncpus in config)'
+                retstr += f'; will use {ncpus} PEs (auto-detected)'
         self.ncpus = ncpus
         return retstr
 

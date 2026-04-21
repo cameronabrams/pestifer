@@ -8,7 +8,7 @@ that can be reproduced by an inferential psfgen call, and then performs the clea
 The resulting structure is then processed by the psfgen method, and the final result is saved
 as a PSF file.
 
-Usage is described in the :ref:`subs_runtasks_cleave` documentation.
+Usage is described in the :ref:`subs_buildtasks_cleave` documentation.
 """
 from .psfgen import PsfgenTask
 

@@ -5,10 +5,25 @@ Definition of the :class:`ContinuationTask` class for resetting the task chain t
 Usage is described in the :ref:`config_ref tasks continuation` documentation.
 """
 import logging
+import shutil
 
 from .psfgen import PsfgenTask
 from ..core.artifacts import *
 logger = logging.getLogger(__name__)
+
+
+def _ensure_in_cwd(filepath: str) -> str:
+    """Return filepath unchanged if it is already in the CWD; otherwise copy it here and return the basename."""
+    if not filepath:
+        return filepath
+    src = Path(filepath).resolve()
+    if src.parent == Path.cwd():
+        return filepath
+    dest = Path.cwd() / src.name
+    if not dest.exists() or not dest.samefile(src):
+        shutil.copy2(src, dest)
+        logger.info(f'Copied {src} → {dest}')
+    return src.name
 
 class ContinuationTask(PsfgenTask):
     """ 
@@ -29,9 +44,14 @@ class ContinuationTask(PsfgenTask):
             raise ValueError('psf file must be specified in the continuation task')
         if not coor and not pdb:
             raise ValueError('Either coor or pdb file must be specified in the continuation task')
-        if coor and not pdb: 
+        psf = _ensure_in_cwd(psf)
+        coor = _ensure_in_cwd(coor)
+        pdb = _ensure_in_cwd(pdb)
+        xsc = _ensure_in_cwd(xsc)
+        vel = _ensure_in_cwd(vel)
+        if coor and not pdb:
             pdb = self.coor_to_pdb(coor, psf)
-        if pdb and not coor: 
+        if pdb and not coor:
             coor = self.pdb_to_coor(pdb)
         topolines = []
         with open(psf, 'r') as f:

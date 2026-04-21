@@ -93,7 +93,7 @@ source:
         self.assertEqual(len(mutations),3)
         self.assertEqual(len(links),15)
         self.assertEqual(len(au.residues),1566)
-        self.assertEqual(len(au.segments),13)
+        self.assertEqual(len(au.segments),19)
         r0=au.residues[0]
         self.assertEqual(r0.resname,'THR')
         self.assertEqual(r0.segtype,'protein')
@@ -168,8 +168,8 @@ source:
         self.assertEqual(l.atom1.altloc,'')
         self.assertEqual(l.residue2.segtype,'glycan')
         self.assertEqual(l.residue2.resname,'NAG')
-        self.assertEqual(l.residue2.chainID,'E')
-        self.assertEqual(l.residue2.resid,ResID(615))
+        self.assertEqual(l.residue2.chainID,'G')
+        self.assertEqual(l.residue2.resid,ResID(514))
         self.assertEqual(l.atom2.name,'C1')
         self.assertEqual(l.atom2.altloc,'')
         self.assertTrue(l.residue2 in l.residue1.down)
@@ -200,9 +200,9 @@ source:
         self.assertEqual(cm['G'],'G')
         self.assertTrue(ba.transforms[0].is_identity())
         cm=ba.transforms[1].chainIDmap
-        self.assertEqual(cm['G'],'H')
+        self.assertEqual(cm['G'],'E')
         cm=ba.transforms[2].chainIDmap
-        self.assertEqual(cm['G'],'L')
+        self.assertEqual(cm['G'],'H')
 
     def test_molecule_ancestry(self):
         ac='4zmj'
@@ -287,7 +287,8 @@ source:
                         'sequence': {
                             'fix_conflicts': True,
                             'fix_engineered_mutations': True,
-                            'include_terminal_loops': False
+                            'include_terminal_loops': False,
+                            'skip_glycan_renaming': True
                         }
                     }, molid=0)
             au[fmt]=mol[fmt].asymmetric_unit

@@ -2,7 +2,7 @@
 """
 Definition of the :class:`MakeMembraneSystemTask` class for handling embedding proteins into bilayers.
 
-Usage is described in the :ref:`subs_runtasks_make_membrane_system` documentation.
+Usage is described in the :ref:`subs_buildtasks_make_membrane_system` documentation.
 """
 
 import glob

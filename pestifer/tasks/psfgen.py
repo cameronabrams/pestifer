@@ -2,7 +2,7 @@
 """
 Definition of the :class:`PsfgenTask` class for handling invocations of psfgen which create a molecule from a base PDB/mmCIF file.
 
-Usage is described in the :ref:`subs_runtasks_psfgen` documentation.
+Usage is described in the :ref:`subs_buildtasks_psfgen` documentation.
 
 """
 import logging

@@ -524,6 +524,20 @@ class LinkList(BaseObjList[Link]):
             list of residues from Residues that are not used for any assignments
         """
         logger.debug(f'Links: Assigning residues from list of {len(Residues)} residues')
+        # PSF-loaded links store the psfgen segname as chainID1/chainID2. When atoms carry
+        # their biological chainID (not their segname), the primary chainID match would fail.
+        # Pre-normalise: if no residue matches chainIDN but one matches by segname, update chainIDN.
+        segname_map = {(getattr(r, 'segname', None), r.resid): r.chainID
+                       for r in Residues if getattr(r, 'segname', None)}
+        for link in self.data:
+            if not Residues.get(lambda x, _l=link: x.chainID == _l.chainID1 and x.resid == _l.resid1):
+                mapped = segname_map.get((link.chainID1, link.resid1))
+                if mapped:
+                    link.chainID1 = mapped
+            if not Residues.get(lambda x, _l=link: x.chainID == _l.chainID2 and x.resid == _l.resid2):
+                mapped = segname_map.get((link.chainID2, link.resid2))
+                if mapped:
+                    link.chainID2 = mapped
         ignored_by_ptnr1 = self.assign_objs_to_attr('residue1', Residues, chainID='chainID1', resid='resid1')
         ignored_by_ptnr2 = self.assign_objs_to_attr('residue2', Residues, chainID='chainID2', resid='resid2')
         for link in self.data:
