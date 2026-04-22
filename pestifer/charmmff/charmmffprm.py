@@ -254,7 +254,7 @@ class CharmmParamFile:
             elif upper.startswith('ANGLE'):
                 section = 'ANGLES'
                 continue
-            elif upper.startswith('DIHEDRAL'):
+            elif upper.startswith('DIHE'):
                 section = 'DIHEDRALS'
                 continue
             elif upper.startswith('IMPROPER'):
