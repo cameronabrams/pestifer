@@ -248,13 +248,13 @@ class CharmmParamFile:
             # ----------------------------------------------------------
             # Section header detection
             # ----------------------------------------------------------
-            if upper.startswith('BONDS'):
+            if upper.startswith('BOND'):
                 section = 'BONDS'
                 continue
-            elif upper.startswith('ANGLES'):
+            elif upper.startswith('ANGLE'):
                 section = 'ANGLES'
                 continue
-            elif upper.startswith('DIHEDRALS'):
+            elif upper.startswith('DIHEDRAL'):
                 section = 'DIHEDRALS'
                 continue
             elif upper.startswith('IMPROPER'):

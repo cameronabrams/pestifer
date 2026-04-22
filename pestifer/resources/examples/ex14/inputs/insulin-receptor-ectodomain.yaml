@@ -34,7 +34,7 @@ tasks:
       tests:
         - connection_test:
             name: check ligation
-            selection: chain B E and resid 693 694
+            selection: chain A E and resid 693 694
             connection_type: interresidue
             connection_count: 2 
   - md:
