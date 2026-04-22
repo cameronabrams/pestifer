@@ -471,8 +471,14 @@ class Molecule:
         cm = self.chainIDmanager
         topomods = self.objmanager.get('topol', {})
         for clv in clv_list:
-            S = au.segments.get(lambda x: x.chainID == clv.chainID)
-            if S:
+            chainID = clv.chainID
+            matching = au.segments.filter(lambda x, cid=chainID: x.chainID == cid)
+            if not matching:
+                logger.debug(f'No segment with chainID {chainID} found; no cleavage performed.')
+                continue
+            for S in matching:
+                if not S.residues.filter(lambda x, clv=clv: x.resid == clv.resid1):
+                    continue
                 DchainID = cm.next_unused_chainID()
                 logger.debug(f'Cleaving segment {S.segname} at {clv} to make new segment with chainID {DchainID}')
                 D = S.cleave(clv, DchainID)
@@ -480,29 +486,27 @@ class Molecule:
 
                 ssbonds = topomods.get('ssbonds', [])
                 if ssbonds:
-                    for c in ssbonds.filter(lambda x: x.chainID1 == S.segname):
-                        for d in D.residues.filter(lambda x: x.resid == c.resid1):
+                    for c in ssbonds.filter(lambda x, seg=S: x.chainID1 == seg.segname):
+                        for d in D.residues.filter(lambda x, c=c: x.resid == c.resid1):
                             c.chainID1 = d.chainID
-                    for c in ssbonds.filter(lambda x: x.chainID2 == S.segname):
-                        for d in D.residues.filter(lambda x: x.resid == c.resid2):
+                    for c in ssbonds.filter(lambda x, seg=S: x.chainID2 == seg.segname):
+                        for d in D.residues.filter(lambda x, c=c: x.resid == c.resid2):
                             c.chainID2 = d.chainID
                 links = topomods.get('links', [])
                 if links:
                     logger.debug(f'Examining {len(links)} links for ones needing chainID update from {S.segname} to {DchainID} due to cleavage')
-                    for c in links.filter(lambda x: x.chainID1 == S.segname):
+                    for c in links.filter(lambda x, seg=S: x.chainID1 == seg.segname):
                         logger.debug(f'...link {str(c)}')
-                        for d in D.residues.filter(lambda x: x.resid == c.resid1):
+                        for d in D.residues.filter(lambda x, c=c: x.resid == c.resid1):
                             logger.debug(f'...hit! {c.chainID1}->{d.chainID}')
                             c.update_residue(1,chainID=d.chainID)
-                    for c in links.filter(lambda x: x.chainID2 == S.segname):
+                    for c in links.filter(lambda x, seg=S: x.chainID2 == seg.segname):
                         logger.debug(f'...link {str(c)}')
-                        for d in D.residues.filter(lambda x: x.resid == c.resid2):
+                        for d in D.residues.filter(lambda x, c=c: x.resid == c.resid2):
                             logger.debug(f'...hit! {c.chainID2}->{d.chainID}')
                             c.update_residue(2,chainID=d.chainID)
                     for c in links:
                         logger.debug(str(c))
-            else:
-                logger.debug(f'No segment with chainID {clv.chainID} found; no cleavage performed.')
 
 Graft.model_rebuild()
 Segment.model_rebuild()
