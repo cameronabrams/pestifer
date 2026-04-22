@@ -435,6 +435,8 @@ class Link(BaseObj):
                 new_chainID=fields['chainID']
                 if self.chainID1!=new_chainID:
                     logger.debug(f'updating link residue1 chainID from {self.chainID1} to {new_chainID}')
+                    if self.segname1 is not None and self.segname1 == self.chainID1:
+                        self.segname1 = new_chainID
                     self.chainID1=new_chainID
                     self.residue1.set(chainID=new_chainID)
         elif idx==2:
@@ -442,6 +444,8 @@ class Link(BaseObj):
                 new_chainID=fields['chainID']
                 if self.chainID2!=new_chainID:
                     logger.debug(f'updating link residue2 chainID from {self.chainID2} to {new_chainID}')
+                    if self.segname2 is not None and self.segname2 == self.chainID2:
+                        self.segname2 = new_chainID
                     self.chainID2=new_chainID
                     self.residue2.set(chainID=new_chainID)
 
