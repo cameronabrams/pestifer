@@ -106,7 +106,7 @@ tasks:
       basename: solvated
   - terminate:
       basename: my_4zmj
-      artifacts_dir: arc
+      artifacts_dir: artifacts
       package:
         basename: prod_4zmj
         state_dir: r2r

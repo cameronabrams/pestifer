@@ -49,7 +49,7 @@ tasks:
     grid: True
 - terminate:
     basename: my_mcm
-    artifacts_dir: arc
+    artifacts_dir: artifacts
     package:
       basename: my_mcm
       state_dir: r2r

@@ -111,7 +111,7 @@ tasks:
       grid: True
   - terminate:
       basename: my_4tvp
-      artifacts_dir: arc
+      artifacts_dir: artifacts
       package:
         basename: prod_4tvp
         state_dir: r2r

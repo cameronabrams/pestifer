@@ -118,7 +118,7 @@ tasks:
       grid: True
   - terminate:
       basename: my_5vn3
-      artifacts_dir: arc
+      artifacts_dir: artifacts
       package:
         basename: prod_5vn3
         state_dir: r2r

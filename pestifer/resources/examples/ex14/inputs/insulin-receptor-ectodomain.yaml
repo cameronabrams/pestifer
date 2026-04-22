@@ -71,7 +71,7 @@ tasks:
       grid: True
   - terminate:
       basename: my_4zxb
-      artifacts_dir: arc
+      artifacts_dir: artifacts
       package:
         basename: prod_4zxb
         state_dir: r2r
