@@ -444,6 +444,8 @@ class FileArtifact(Artifact, ABC):
         pass
 
     def __post_init__(self):
+        if self.data is not None:
+            self.data = str(self.data)
         if self.key is None:
             self.key = self.ext
         if self.data and '.' in self.data:
