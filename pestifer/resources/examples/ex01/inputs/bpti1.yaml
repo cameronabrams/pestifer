@@ -56,9 +56,8 @@ tasks:
       grid: True
   - terminate:
       basename: my_6pti
-      artifacts_dir: artifacts
+      artifacts: artifacts
       package:
-        state_dir: my_state
         basename: prod_6pti
-        md:
+        namd:
           ensemble: NPT

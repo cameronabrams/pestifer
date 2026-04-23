@@ -75,9 +75,8 @@ tasks:
       grid: True
   - terminate:
       basename: my_8fad
-      artifacts_dir: artifacts
+      artifacts: artifacts
       package:
         basename: prod_8fad
-        state_dir: r2r
-        md:
+        namd:
           ensemble: NPT

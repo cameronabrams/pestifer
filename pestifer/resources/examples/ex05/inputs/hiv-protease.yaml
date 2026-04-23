@@ -94,10 +94,9 @@ tasks:
       grid: True
   - terminate:
       basename: my_1f7a
-      artifacts_dir: artifacts
+      artifacts: artifacts
       package:
-        state_dir: r2r
         basename: prod_1f7a
-        md:
+        namd:
           ensemble: NPT
           nsteps: 500000

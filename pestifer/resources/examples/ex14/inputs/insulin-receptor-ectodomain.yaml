@@ -71,9 +71,8 @@ tasks:
       grid: True
   - terminate:
       basename: my_4zxb
-      artifacts_dir: artifacts
+      artifacts: artifacts
       package:
         basename: prod_4zxb
-        state_dir: r2r
-        md:
+        namd:
           ensemble: NPT

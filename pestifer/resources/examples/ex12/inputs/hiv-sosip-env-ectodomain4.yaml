@@ -118,9 +118,8 @@ tasks:
       grid: True
   - terminate:
       basename: my_5vn3
-      artifacts_dir: artifacts
+      artifacts: artifacts
       package:
         basename: prod_5vn3
-        state_dir: r2r
-        md:
+        namd:
           ensemble: NPT

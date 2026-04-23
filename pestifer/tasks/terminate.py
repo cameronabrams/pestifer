@@ -99,8 +99,7 @@ class TerminateTask(MDTask):
         if not package_specs or not package_specs.get('basename'):
             logger.debug('No package basename provided; packaging will not be performed.')
             return 0
-        md_specs = package_specs.get('md', {})
-        state_dir = package_specs.get('state_dir', '.')
+        md_specs = package_specs.get('namd', {})
         pkg_basename = package_specs.get('basename')
         TarballContents = FileArtifactList()
         # State files were already copied to terminate.basename by copy_state_to_basename().
@@ -137,7 +136,7 @@ class TerminateTask(MDTask):
             logger.debug(f'No NAMD configuration is included in the package.')
         if min_artifact:
             TarballContents.append(min_artifact)
-        TarballContents.make_tarball(pkg_basename, arcname_prefix=state_dir, unique=True, remove=True)
+        TarballContents.make_tarball(pkg_basename, arcname_prefix=pkg_basename, unique=True, remove=True)
         return result
 
     def generate_minimal_params(self) -> str | None:
@@ -191,7 +190,7 @@ class TerminateTask(MDTask):
         if not self.specs.get('cleanup', True):
             logger.debug('Cleanup disabled; skipping cleanup step.')
             return 0
-        archive_dir = self.specs.get('artifacts_dir', self.specs.get('archive_dir', 'artifacts'))
+        archive_name = self.specs.get('artifacts', 'artifacts')
 
         all_file_artifacts: FileArtifactList = self.pipeline.get_all_file_artifacts()
         file_artifacts = FileArtifactList([fa for fa in all_file_artifacts if not fa.keep])
@@ -208,7 +207,7 @@ class TerminateTask(MDTask):
             logger.debug(f'Non-artifact files in current working directory:')
             my_logger(non_artifact_files, logger.debug, depth=1)
 
-        file_artifacts.make_tarball('artifacts', remove=True, arcname_prefix=archive_dir, unique=True)
+        file_artifacts.make_tarball(archive_name, remove=True, arcname_prefix=archive_name, unique=True)
         return 0
     
     def test_standard(self):

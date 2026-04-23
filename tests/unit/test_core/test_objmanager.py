@@ -12,7 +12,7 @@ class TestObjManager(unittest.TestCase):
 
     def test_objmanager_initialization(self):
         O=ObjManager()
-        self.assertEqual(len(O._obj_classes),16)
+        self.assertEqual(len(O._obj_classes),18)
         sample_yaml = 'mutations'
         self.assertIn(sample_yaml, O._obj_classes_byYAML)
         Cls=O._obj_classes_byYAML[sample_yaml]

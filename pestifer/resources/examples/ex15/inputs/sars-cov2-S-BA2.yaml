@@ -155,10 +155,9 @@ tasks:
       grid: True
   - terminate:
       basename: my_7xix
-      artifacts_dir: artifacts
+      artifacts: artifacts
       package:
         basename: prod_7xix
-        state_dir: r2r
-        md:
+        namd:
           ensemble: NPT
           nsteps: 5000000
