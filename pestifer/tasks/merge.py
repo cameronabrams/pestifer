@@ -46,6 +46,10 @@ class MergeTask(PsfgenTask):
 
     Parameters (from YAML ``specs``)
     ---------------------------------
+    pipeline_system : dict, optional
+        Rename options applied to the pipeline state when it is automatically
+        prepended.  Accepted keys: ``segname_map`` and ``chainID_map``.
+        Ignored when there is no prior pipeline state.
     systems : list of dict
         Each entry must contain ``psf`` and either ``pdb`` or ``coor``.
         An optional ``segname_map`` dict provides explicit renames for that
@@ -60,8 +64,19 @@ class MergeTask(PsfgenTask):
 
     def do(self) -> int:
         self.next_basename('merge')
-        systems_specs: list[dict] = self.specs.get('systems', [])
+        systems_specs: list[dict] = list(self.specs.get('systems', []))
         collision_strategy: str = self.specs.get('collision_strategy', 'enumerate')
+
+        state: StateArtifacts = self.get_current_artifact('state')
+        if state and state.psf and (state.pdb or state.coor):
+            pipeline_overrides: dict = self.specs.get('pipeline_system', {})
+            systems_specs.insert(0, {
+                'psf': state.psf.name,
+                'pdb': state.pdb.name if state.pdb else '',
+                'coor': state.coor.name if state.coor else '',
+                'segname_map': dict(pipeline_overrides.get('segname_map', {})),
+                'chainID_map': dict(pipeline_overrides.get('chainID_map', {})),
+            })
 
         if len(systems_specs) < 2:
             raise ValueError('merge task requires at least 2 systems')

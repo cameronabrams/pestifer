@@ -65,6 +65,8 @@ class ManipulateTask(BaseTask):
                     vm.write_orient(obj, molid='mCM')
                 elif objtype == 'rottrans':
                     vm.write_rottrans(obj, molid='mCM')
+                elif objtype == 'align':
+                    vm.write_align(obj)
             vm.write_pdb(self.basename, 'mCM')
             vm.writescript()
             result = vm.runscript()

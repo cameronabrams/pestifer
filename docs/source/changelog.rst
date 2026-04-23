@@ -4,6 +4,25 @@ Changelog
 Pestifer follows `Semantic Versioning <https://semver.org/>`__ and
 documents changes below.
 
+[2.2.10] - 2026-04-23
+---------------------
+
+-  New ``align`` coormod for the ``manipulate`` task: rigidly aligns the
+   pipeline system to a reference PDB (or PSF+PDB) by computing the
+   least-RMSD rotation and translation via VMD's ``measure fit``.
+   Supports independent ``mobile_sel``, ``ref_sel``, and ``apply_to``
+   VMD atomselect strings; a congruency check guards against mismatched
+   atom counts before the fit is attempted.
+-  ``merge`` task now auto-detects and prepends the pipeline state when
+   it is available, eliminating the need for an explicit flag.  An
+   optional ``pipeline_system`` key accepts ``segname_map`` and
+   ``chainID_map`` sub-keys for renaming the pipelined system's segments
+   and chains before the merge.
+-  ``merge`` task now supports ``chainID_map`` per input system to
+   relabel PDB chain IDs before merging.
+
+.. _section-0:
+
 [2.2.4] - 2026-04-18
 --------------------
 

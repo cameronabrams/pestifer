@@ -13,6 +13,7 @@ from ..logparsers import VMDLogParser
 from ..molecule.molecule import Molecule
 from ..molecule.residue import ResidueList
 
+from ..objs.align import Align
 from ..objs.crot import Crot, CrotList
 from ..objs.orient import Orient, OrientList
 from ..objs.rottrans import RotTrans, RotTransList
@@ -372,6 +373,37 @@ class VMDScripter(TcLScripter):
         elif rottrans.movetype=='ROT':
             self.addline(f'set COM [measure center $mover weight mass]')
             self.addline(f'$mover move [trans origin $COM axis {rottrans.axis} {rottrans.angle}]')
+
+    def write_align(self, align: Align):
+        """Write VMD commands to align the pipeline system to a reference coordinate file.
+
+        Uses ``measure fit`` to compute the least-RMSD homogeneous transformation
+        between ``mobile_sel`` atoms in the pipeline molecule and ``ref_sel`` atoms
+        in the reference molecule, then applies that matrix to ``apply_to`` atoms.
+        The reference molecule is deleted after the fit so it leaves no state.
+        """
+        molid_varname = self.molid_varname
+        molid = f'${molid_varname}'
+        ref_sel = align.ref_sel if align.ref_sel is not None else align.mobile_sel
+        if align.ref_psf:
+            self.addline(f'mol load psf {{{align.ref_psf}}} pdb {{{align.ref_pdb}}}')
+        else:
+            self.addline(f'mol load pdb {{{align.ref_pdb}}}')
+        self.addline('set _ref_mol [molinfo top get id]')
+        self.addline(f'set _mob_fit [atomselect {molid} "{align.mobile_sel}"]')
+        self.addline(f'set _ref_fit [atomselect $_ref_mol "{ref_sel}"]')
+        self.addline('set _n_mob [$_mob_fit num]')
+        self.addline('set _n_ref [$_ref_fit num]')
+        self.addline('if { $_n_mob != $_n_ref } {')
+        self.addline(f'    puts "ERROR align: mobile_sel \\"{align.mobile_sel}\\" has $_n_mob atoms but ref_sel \\"{ref_sel}\\" has $_n_ref atoms"')
+        self.addline('    exit 1')
+        self.addline('}')
+        self.addline('set _M [measure fit $_mob_fit $_ref_fit]')
+        self.addline('mol delete $_ref_mol')
+        self.addline(f'set _mover [atomselect {molid} "{align.apply_to}"]')
+        self.addline('$_mover move $_M')
+        self.addline('$_mob_fit delete')
+        self.addline('$_mover delete')
 
     def write_protein_loop_lines(self, mol: Molecule , cycles=100, **options):
         """
