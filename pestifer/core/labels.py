@@ -236,6 +236,10 @@ class LabelMappers:
             self.charmm_resname_of_pdb_resname[resname] = alias1
             if len(resname) >= 3:
                 self.pdb_resname_of_charmm_resname[alias1] = resname
+            # PSF files use CHARMM names; propagate segtype so the alias is
+            # also recognised by segtype_of_resname (e.g. HEM → HEME).
+            if resname in self.segtype_of_resname and alias1 not in self.segtype_of_resname:
+                self.segtype_of_resname[alias1] = self.segtype_of_resname[resname]
     
     def update_aliases(self, residue_aliases=[], atom_aliases=[]):
         """
