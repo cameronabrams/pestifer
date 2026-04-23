@@ -1352,6 +1352,12 @@ attributes:
               - name: orient
                 text: orient structure along principal axes
                 type: text
+              - name: align
+                text: rigidly align the pipeline system to a reference coordinate file
+                type: list
+              - name: transfer_coords
+                text: copy atomic coordinates from a donor system onto the pipeline system
+                type: list
       - name: terminate
         text: Final task in a system preparation; performs clean-up and packaging
         type: dict

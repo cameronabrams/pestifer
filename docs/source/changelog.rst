@@ -13,6 +13,13 @@ documents changes below.
    Supports independent ``mobile_sel``, ``ref_sel``, and ``apply_to``
    VMD atomselect strings; a congruency check guards against mismatched
    atom counts before the fit is attempted.
+-  New ``transfer_coords`` coormod for the ``manipulate`` task: copies
+   atomic coordinates from a selected subset of a donor PDB directly onto
+   matching atoms of the pipeline system.  An optional pre-alignment step
+   (``align_donor_sel`` + ``align_mobile_sel``) rigidly fits the entire
+   donor to the pipeline before the transfer, accommodating donors prepared
+   in a different coordinate frame.  Both alignment and transfer selections
+   are validated for atom-count congruency.
 -  ``merge`` task now auto-detects and prepends the pipeline state when
    it is available, eliminating the need for an explicit flag.  An
    optional ``pipeline_system`` key accepts ``segname_map`` and

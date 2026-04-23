@@ -14,6 +14,7 @@ from ..molecule.molecule import Molecule
 from ..molecule.residue import ResidueList
 
 from ..objs.align import Align
+from ..objs.transfer_coords import TransferCoords
 from ..objs.crot import Crot, CrotList
 from ..objs.orient import Orient, OrientList
 from ..objs.rottrans import RotTrans, RotTransList
@@ -404,6 +405,49 @@ class VMDScripter(TcLScripter):
         self.addline('$_mover move $_M')
         self.addline('$_mob_fit delete')
         self.addline('$_mover delete')
+
+    def write_transfer_coords(self, tc: TransferCoords):
+        """Write VMD commands to copy coordinates from a donor system onto the pipeline system.
+
+        If ``tc.pre_align`` is true, the entire donor is first rigidly fitted to the
+        pipeline system using ``align_donor_sel`` / ``align_mobile_sel`` before the
+        coordinate transfer is performed.  Both the alignment and transfer selections
+        are checked for congruency before use.
+        """
+        molid_varname = self.molid_varname
+        molid = f'${molid_varname}'
+        if tc.donor_psf:
+            self.addline(f'mol load psf {{{tc.donor_psf}}} pdb {{{tc.donor_pdb}}}')
+        else:
+            self.addline(f'mol load pdb {{{tc.donor_pdb}}}')
+        self.addline('set _donor_mol [molinfo top get id]')
+        if tc.pre_align:
+            self.addline(f'set _aln_donor [atomselect $_donor_mol "{tc.align_donor_sel}"]')
+            self.addline(f'set _aln_mob [atomselect {molid} "{tc.align_mobile_sel}"]')
+            self.addline('set _n_aln_donor [$_aln_donor num]')
+            self.addline('set _n_aln_mob [$_aln_mob num]')
+            self.addline('if { $_n_aln_donor != $_n_aln_mob } {')
+            self.addline(f'    puts "ERROR transfer_coords align: align_donor_sel \\"{tc.align_donor_sel}\\" has $_n_aln_donor atoms but align_mobile_sel \\"{tc.align_mobile_sel}\\" has $_n_aln_mob atoms"')
+            self.addline('    exit 1')
+            self.addline('}')
+            self.addline('set _aln_M [measure fit $_aln_donor $_aln_mob]')
+            self.addline('set _aln_all [atomselect $_donor_mol all]')
+            self.addline('$_aln_all move $_aln_M')
+            self.addline('$_aln_donor delete')
+            self.addline('$_aln_mob delete')
+            self.addline('$_aln_all delete')
+        self.addline(f'set _donor_sel [atomselect $_donor_mol "{tc.donor_sel}"]')
+        self.addline(f'set _mob_sel [atomselect {molid} "{tc.mobile_sel}"]')
+        self.addline('set _n_donor [$_donor_sel num]')
+        self.addline('set _n_mob [$_mob_sel num]')
+        self.addline('if { $_n_donor != $_n_mob } {')
+        self.addline(f'    puts "ERROR transfer_coords: donor_sel \\"{tc.donor_sel}\\" has $_n_donor atoms but mobile_sel \\"{tc.mobile_sel}\\" has $_n_mob atoms"')
+        self.addline('    exit 1')
+        self.addline('}')
+        self.addline('$_mob_sel set {x y z} [$_donor_sel get {x y z}]')
+        self.addline('mol delete $_donor_mol')
+        self.addline('$_donor_sel delete')
+        self.addline('$_mob_sel delete')
 
     def write_protein_loop_lines(self, mol: Molecule , cycles=100, **options):
         """

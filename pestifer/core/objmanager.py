@@ -19,6 +19,7 @@ from pestifer.objs.resid import ResID
 from .baseobj import BaseObj, BaseObjList
 
 from ..objs.align import Align, AlignList
+from ..objs.transfer_coords import TransferCoords, TransferCoordsList
 from ..objs.cfusion import Cfusion, CfusionList
 from ..objs.cleavagesite import CleavageSite, CleavageSiteList
 from ..objs.crot import Crot, CrotList
@@ -72,6 +73,7 @@ class ObjManager(UserDict[str, UserDict[str, BaseObjList]]):
 
     _obj_classes = (
         (Align, AlignList),
+        (TransferCoords, TransferCoordsList),
         (Cfusion, CfusionList),
         (CleavageSite, CleavageSiteList),
         (Crot, CrotList),

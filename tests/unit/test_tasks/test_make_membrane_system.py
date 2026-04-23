@@ -291,7 +291,6 @@ class TestMakeMembraneSystem(unittest.TestCase):
         os.chdir('..')
         assert result == 0
 
-    @pytest.mark.slow
     def test_makemembranesystem_quilt_from_patch(self):
         test_dir = '__test_makemembranesystem_quilt_from_patch'
         if os.path.exists(test_dir):
