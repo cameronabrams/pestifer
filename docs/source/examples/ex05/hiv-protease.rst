@@ -10,6 +10,9 @@ Here, we removed the ligand, and protonate the active-site aspartates (Asp29).  
 .. literalinclude:: ../../../../pestifer/resources/examples/ex05/inputs/hiv-protease.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex05/inputs/hiv-protease.yaml
+
+
 Note that this required first mutating the residues at positions 25 from asparagine to asparate. This PDB entry was a catalytically inactive construct with an inhibitor mimic bound, so the catalytic aspartates were mutated to asparagines.
 
 .. figure:: 1f7a-aspp.png

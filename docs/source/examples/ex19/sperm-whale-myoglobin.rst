@@ -8,6 +8,9 @@ Example 19: Sperm whale myoglobin
 .. literalinclude:: ../../../../pestifer/resources/examples/ex19/inputs/sperm-whale-myoglobin.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex19/inputs/sperm-whale-myoglobin.yaml
+
+
 .. figure:: 1mob.png
    :alt: 1mob structure
    :width: 400px

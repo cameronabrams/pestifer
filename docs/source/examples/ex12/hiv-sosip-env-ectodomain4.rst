@@ -8,6 +8,9 @@ Example 12: Open, Symmetric 17b/CD4-liganded HIV-1 B41 SOSIP Env Ectodomain Trim
 .. literalinclude:: ../../../../pestifer/resources/examples/ex12/inputs/hiv-sosip-env-ectodomain4.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex12/inputs/hiv-sosip-env-ectodomain4.yaml
+
+
 .. raw:: html
 
     <div class="autogen-footer">

@@ -8,6 +8,9 @@ Example 20: Mitochondrial methylmalonyl-CoA mutase (Alphafold P22033)
 .. literalinclude:: ../../../../pestifer/resources/examples/ex20/inputs/methylmalonyl-coa-mutase.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex20/inputs/methylmalonyl-coa-mutase.yaml
+
+
 .. raw:: html
 
         <div class="autogen-footer">

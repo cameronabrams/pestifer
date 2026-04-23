@@ -8,6 +8,9 @@ Example 13: DES-PHE B1 Bovine Insulin Hexamer
 .. literalinclude:: ../../../../pestifer/resources/examples/ex13/inputs/insulin-hexamer.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex13/inputs/insulin-hexamer.yaml
+
+
 .. figure:: ins6.png
     :width: 400px
     :alt: Insulin Hexamer

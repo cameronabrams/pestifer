@@ -11,6 +11,9 @@ The relevant biological assembly is a C3-symmetric homotrimer of protomers, whic
 .. literalinclude:: ../../../../pestifer/resources/examples/ex07/inputs/hiv-sosip-env-ectodomain1.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex07/inputs/hiv-sosip-env-ectodomain1.yaml
+
+
 There are several new aspects in this example relative to the first four.  First, in the ``psfgen`` task, the ``source`` directive has a ``biological_assembly`` specification with ``transform_reserves`` and ``sequence`` subdirectives.  
 
 Clearly we are indicating biological assembly 1, which you can verify through the RCSB web interface or by reading the PDB file header is the trimer.  

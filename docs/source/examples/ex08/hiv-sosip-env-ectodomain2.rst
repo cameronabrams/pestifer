@@ -10,6 +10,9 @@ Many structures in the RCSB are only available in mmCIF format, rather than the 
 .. literalinclude:: ../../../../pestifer/resources/examples/ex08/inputs/hiv-sosip-env-ectodomain2.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex08/inputs/hiv-sosip-env-ectodomain2.yaml
+
+
 .. figure:: 4tvp.png
     :width: 400px
     :align: center

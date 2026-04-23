@@ -11,6 +11,9 @@ The ``psfgen`` `user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen
 .. literalinclude:: ../../../../pestifer/resources/examples/ex01/inputs/bpti1.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex01/inputs/bpti1.yaml
+
+
 You can check the :ref:`config_ref` for a complete reference to Pestifer config files.
 
 This build can be performed (preferably in a clean directory) using this command:
@@ -25,7 +28,7 @@ The first thing ``pestifer`` does with ``build-example`` is to copy the YAML con
 
    $ pestifer build myconfig.yaml
 
-You could also use ``fetch-example`` to get the config file and then run it:
+Alternatively, you could also use ``fetch-example`` to get the config file and then run it:
 
 .. code-block:: bash
 

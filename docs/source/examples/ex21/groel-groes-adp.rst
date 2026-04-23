@@ -8,6 +8,9 @@ Example 21: Asymmetric GroEL/GroES Chaperonin Complex
 .. literalinclude:: ../../../../pestifer/resources/examples/ex21/inputs/groel-groes-adp.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex21/inputs/groel-groes-adp.yaml
+
+
 .. figure:: 1aon.png
 
         The GroEL/GroES chaperonin complex with ADP bound, in TIP3P water, as built by Pestifer.  This system has 550,812 atoms and its box dimensions are 158.5 x 160.3 x 210.9 Å.

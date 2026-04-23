@@ -769,7 +769,7 @@ attributes:
           - name: colormap
             type: str
             text: matplotlib colormap for multiple traces on a single plot
-            default: viridis
+            default: tab10
           - name: colormap-direction
             type: int
             text: direction of colormap; 1 for normal, -1 for reversed
@@ -792,6 +792,10 @@ attributes:
             type: str
             text: Baseame of image/CSV file(s) to generate
             default: myplot
+          - name: output_dir
+            type: str
+            text: Subdirectory into which PNG plot files are written; created if absent
+            default: mdplots
       - name: cleave
         text: Parameters controlling cleavage of one or more protein chains
         type: dict

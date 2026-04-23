@@ -10,6 +10,9 @@ The molecules with the resname 83G are bound instances of the entry inhibitor mo
 .. literalinclude:: ../../../../pestifer/resources/examples/ex09/inputs/hiv-ad8-env-ectodomain.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex09/inputs/hiv-ad8-env-ectodomain.yaml
+
+
 .. figure:: 8fad-graphic.png
    :width: 600px
    :align: center

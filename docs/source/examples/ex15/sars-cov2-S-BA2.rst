@@ -39,6 +39,9 @@ The ``cleave`` task is used to cleave each protomer at its furin cleavage site (
 .. literalinclude:: ../../../../pestifer/resources/examples/ex15/inputs/sars-cov2-S-BA2.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex15/inputs/sars-cov2-S-BA2.yaml
+
+
 
 Note the various syntax used in the ``graft`` directives.  For example:
 

@@ -8,6 +8,9 @@ Using the ``mods`` subdirective, one can introduce new disulfides into an existi
 .. literalinclude:: ../../../../pestifer/resources/examples/ex04/inputs/bpti4.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex04/inputs/bpti4.yaml
+
+
 Note that this required first mutating the residues at positions 11 and 34 to cysteines, and *then* introducing the disulfide mod.
 
 .. raw:: html

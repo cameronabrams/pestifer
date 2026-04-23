@@ -12,6 +12,7 @@ Usage as a task in a build workflow is described in the :ref:`config_ref tasks m
 
 """
 import logging
+import os
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -41,12 +42,14 @@ class MDPlotTask(BaseTask):
     def do(self):
         self.next_basename()
         my_logger(self.specs, logger.debug)
+        output_dir = self.specs.get('output_dir', 'mdplots')
+        os.makedirs(output_dir, exist_ok=True)
         self.reprocess_logs = self.specs.get('reprocess-logs', False)
         self.explicit_logs = self.specs.get('logs', [])
         self.running_sums = self.specs.get('running_sums', ['cpu_time', 'wall_time'])
         self.dataframes: dict[str, pd.DataFrame] = {}
-        self.colormapname = self.specs.get('colormap', 'plasma')
-        self.colormap = cmaps.get(self.colormapname, cmaps['plasma'])
+        self.colormapname = self.specs.get('colormap', 'tab10')
+        self.colormap = cmaps.get(self.colormapname, cmaps['tab10'])
         self.colormap_direction = self.specs.get('colormap-direction', 1)
         # task list
         self.priortasklist: list[BaseTask] = []
@@ -212,13 +215,14 @@ class MDPlotTask(BaseTask):
             ax.set_xlabel('time step')
             axis_labels = self.specs.get('axis-labels', {})
             ax.set_ylabel(', '.join([to_latex_math(axis_labels.get(n, n)) + ' (' + u + ')' for n, u in zip(tracelist, unitspecs)]))
-            if legend:
+            if legend and len(tracelist) > 1:
                 ax.legend()
             if grid:
                 ax.grid(True)
             tracename = '-'.join(tracelist)
-            plt.savefig(f'{self.basename}-{tracename}.png', bbox_inches='tight')
-            self.register(f'{self.basename}-{tracename}', key=f'{tracename}-timeseries-plot', artifact_type=PNGImageFileArtifact)
+            png_path = os.path.join(output_dir, f'{self.basename}-{tracename}.png')
+            plt.savefig(png_path, bbox_inches='tight')
+            self.register(png_path, key=f'{tracename}-timeseries-plot', artifact_type=PNGImageFileArtifact, keep=True)
             plt.clf()
         for profile in profiles:
             if profile == 'pressure':
@@ -313,8 +317,9 @@ class MDPlotTask(BaseTask):
                         ax[0].grid(True)
                         ax[1].grid(True)
                         ax[2].grid(True)
-                    plt.savefig(f'{self.basename}-pressureprofile.png', bbox_inches='tight')
-                    self.register(f'{self.basename}-pressureprofile.png', key='pressureprofile-plot', artifact_type=PNGImageFileArtifact)
+                    png_path = os.path.join(output_dir, f'{self.basename}-pressureprofile.png')
+                    plt.savefig(png_path, bbox_inches='tight')
+                    self.register(png_path, key='pressureprofile-plot', artifact_type=PNGImageFileArtifact, keep=True)
                     plt.clf()
                 else:
                     logger.debug(f'No pressure profile data.  Skipping...')

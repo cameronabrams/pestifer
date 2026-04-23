@@ -8,6 +8,9 @@ Building on Example 2, here we show how to introduce point mutations and how to 
 .. literalinclude:: ../../../../pestifer/resources/examples/ex03/inputs/bpti3.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex03/inputs/bpti3.yaml
+
+
 First, note the ``mutations`` list.  Each element specifies one particular point mutation using a *shortcode*.  There are two allowable shortcodes for a point mutation:
 
 1. ``CHAIN``:``OLRCRESIDOLRC``

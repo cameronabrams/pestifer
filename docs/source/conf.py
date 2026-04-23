@@ -96,3 +96,5 @@ def setup(app):
     app.add_css_file("css/custom.css")
     from pestifer.sphinxext.tclscript import TclScriptDirective
     app.add_directive("tclscript", TclScriptDirective)
+    from pestifer.sphinxext.task_table import TaskTableDirective
+    app.add_directive("task-table", TaskTableDirective)

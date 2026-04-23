@@ -8,6 +8,9 @@ Example 11: Open, Symmetric D9/CD4-liganded HIV-1 SOSIP Env Ectodomain Trimer (l
 .. literalinclude:: ../../../../pestifer/resources/examples/ex11/inputs/hiv-sosip-env-ectodomain3.yaml
     :language: yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex11/inputs/hiv-sosip-env-ectodomain3.yaml
+
+
 .. raw:: html
 
     <div class="autogen-footer">

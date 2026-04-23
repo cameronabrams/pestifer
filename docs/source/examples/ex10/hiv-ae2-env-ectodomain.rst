@@ -9,6 +9,9 @@ The AE2 structure is slightly more compact than the AD8 structure, which is not 
 
 .. literalinclude:: ../../../../pestifer/resources/examples/ex10/inputs/hiv-ae2-env-ectodomain.yaml
     :language: yaml
+
+.. task-table:: ../../../../pestifer/resources/examples/ex10/inputs/hiv-ae2-env-ectodomain.yaml
+
     
 Reference
 +++++++++

@@ -12,6 +12,9 @@ This example is the same as :ref:`example mper-tm symmetric bilayer`, but uses a
 
 .. literalinclude:: ../../../../pestifer/resources/examples/ex17/inputs/hiv-mpertm3-membrane2.yaml
 
+.. task-table:: ../../../../pestifer/resources/examples/ex17/inputs/hiv-mpertm3-membrane2.yaml
+
+
 Results
 +++++++
 
