@@ -49,7 +49,9 @@ class MergeTask(PsfgenTask):
     systems : list of dict
         Each entry must contain ``psf`` and either ``pdb`` or ``coor``.
         An optional ``segname_map`` dict provides explicit renames for that
-        system (``{old_segname: new_segname}``).
+        system's PSF segment names (``{old_segname: new_segname}``).
+        An optional ``chainID_map`` dict renames PDB chain IDs for that
+        system (``{old_chainID: new_chainID}``).
     collision_strategy : str, optional
         ``'enumerate'`` *(default)* or ``'error'``.
     """
@@ -85,6 +87,7 @@ class MergeTask(PsfgenTask):
                 'psf': psf,
                 'pdb': pdb,
                 'segname_map': dict(spec.get('segname_map', {})),
+                'chainID_map': dict(spec.get('chainID_map', {})),
             })
 
         # Resolve segment name collisions across all systems.
@@ -112,15 +115,20 @@ class MergeTask(PsfgenTask):
         tmp_pdbs = []
         for i, sys in enumerate(resolved):
             rename_map = sys['effective_segname_map']
-            if rename_map:
+            chain_map = sys.get('chainID_map', {})
+            if rename_map or chain_map:
                 tmp_psf = f'_merge_tmp_{i}.psf'
                 tmp_pdb = f'_merge_tmp_{i}.pdb'
-                pg.comment(f'Rename segments in system {i}: {rename_map}')
+                pg.comment(f'Rename segments/chains in system {i}: segnames={rename_map} chains={chain_map}')
                 pg.addline(f'mol load psf {sys["psf"]} pdb {sys["pdb"]}')
                 for old_name, new_name in rename_map.items():
                     pg.addline(f'set _ms [atomselect top "segname {old_name}"]')
                     pg.addline(f'$_ms set segname {new_name}')
                     pg.addline(f'$_ms delete')
+                for old_chain, new_chain in chain_map.items():
+                    pg.addline(f'set _mc [atomselect top "chain {old_chain}"]')
+                    pg.addline(f'$_mc set chain {new_chain}')
+                    pg.addline(f'$_mc delete')
                 pg.addline(f'set _ma [atomselect top all]')
                 pg.addline(f'$_ma writepsf {tmp_psf}')
                 pg.addline(f'$_ma writepdb {tmp_pdb}')

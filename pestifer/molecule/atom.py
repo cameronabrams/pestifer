@@ -368,21 +368,31 @@ class AtomList(BaseObjList[Atom]):
         `ORIGINAL_ATTRIBUTES` dictionary of each atom for reference.
         """
         serial = 1
-        residshift = ResID(0)
-        lastresid = ResID(0)
-        lastchainID = ''
+        seen_per_chain: dict[str, set] = {}
+        residshift_per_chain: dict[str, ResID] = {}
+        current_resid_per_chain: dict[str, int | None] = {}
         for a in self.data:
             a.ORIGINAL_ATTRIBUTES['serial'] = a.serial
             a.ORIGINAL_ATTRIBUTES['resid'] = a.resid.copy(deep=True)
-            # assert a.ORIGINAL_ATTRIBUTES['resid'] is not a.resid, "Error: resid is not a copy!"
             a.serial = serial
             serial += 1
-            if a.resid + residshift < lastresid and a.chainID == lastchainID:
-                residshift += ResID(9999)
-                logger.debug(f'Atom {a.serial} has chainID {a.chainID} and resid {a.resid} after previous atom had chainID {lastchainID} and resid {lastresid}, so shifting resseqnums by {residshift}')
-            a.resid += residshift
-            lastresid = a.resid
-            lastchainID = a.chainID
+            chain = a.chainID
+            if chain not in seen_per_chain:
+                seen_per_chain[chain] = set()
+                residshift_per_chain[chain] = ResID(0)
+                current_resid_per_chain[chain] = None
+            residshift = residshift_per_chain[chain]
+            new_resid = a.resid + residshift
+            # Only check collision on residue transitions, not between atoms of the same residue
+            if new_resid.resseqnum != current_resid_per_chain[chain]:
+                if new_resid.resseqnum in seen_per_chain[chain]:
+                    residshift += ResID(9999)
+                    new_resid = a.resid + residshift
+                    residshift_per_chain[chain] = residshift
+                    logger.debug(f'Atom {a.serial} chainID {chain} resid {a.resid} collides; shifting resseqnums by {residshift}')
+                seen_per_chain[chain].add(new_resid.resseqnum)
+                current_resid_per_chain[chain] = new_resid.resseqnum
+            a.resid = new_resid
         return self
     
     def adjustSerials(self, Ters: TerList):
