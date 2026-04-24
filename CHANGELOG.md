@@ -2,6 +2,14 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
+## [2.2.11] - 2026-04-24
+
+- bugfix: `toppar_all36_carb_imlab.str` added to the default CHARMM stream file list; this file contains supplementary carbohydrate parameters (e.g., `CC3162 OC301 CC3162` angle) needed for certain glycan-glycan ether linkages in N-glycan trees; its absence caused NAMD to abort with "UNABLE TO FIND ANGLE PARAMETERS" on glycosylated systems built from multi-donor glycan grafts
+- new feature: `ring_check` task now includes `glycan` segments in its default `segtypes` (previously only `lipid`); glycan pyranose rings are now detected and checked for lipid-chain piercing by default; note that for glycan rings pierced by lipid chains, `delete: piercer` is more appropriate than the default `delete: piercee`
+- new feature: `mdplot` task now saves PNG output to a subdirectory (default `mdplots/`) specified by the new `output_dir` spec; plots are marked `keep=True` so they survive the artifacts tarball sweep and are immediately visible after the run
+- change: `mdplot` default colormap changed from `viridis` to `tab10` for better perceptual separation of discrete traces on multi-trace plots
+- change: `mdplot` single-trace plots no longer show a legend even when `legend: True` is set
+
 ## [2.2.10] - 2026-04-20
 
 - bugfix: graft source molecules (e.g., a standalone glycan PDB fetched for grafting) are no longer subjected to glycan chainID/segname/resid reassignment; the original chainIDs and resids are preserved so that `activate()` can correctly locate the source segment by its original chainID

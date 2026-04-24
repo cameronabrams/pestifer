@@ -30,7 +30,7 @@ class RingCheckTask(BaseTask):
     def do(self):
         state: StateArtifacts = self.get_current_artifact('state')
         cutoff: float = self.specs.get('cutoff', 3.5)
-        segtypes: list = self.specs.get('segtypes', ['lipid'])
+        segtypes: list = self.specs.get('segtypes', ['lipid', 'glycan'])
         delete_these: str = self.specs.get('delete', 'piercee')
         npiercings = ring_check(state.psf.name, state.pdb.name, state.xsc.name, cutoff=cutoff, segtypes=segtypes)
         if npiercings:

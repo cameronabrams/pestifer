@@ -65,6 +65,7 @@ attributes:
             default:
               - toppar_water_ions.str
               - toppar_all36_carb_glycopeptide.str
+              - toppar_all36_carb_imlab.str
               - toppar_all36_prot_modify_res.str
           - name: prm
             type: list
@@ -918,7 +919,7 @@ attributes:
           - name: segtypes
             text: list of segment types to include in the ring-pierce check
             type: list
-            default: ['lipid']
+            default: ['lipid', 'glycan']
       - name: make_membrane_system
         text: Parameters controlling packmol to generate a membrane system with an embedded protein
         type: dict
