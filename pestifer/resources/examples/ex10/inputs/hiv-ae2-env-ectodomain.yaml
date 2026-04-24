@@ -26,6 +26,10 @@ tasks:
           E: I
           A: B
           F: D
+        sequence:
+          glycans:
+            declash:
+              maxcycles: 500
   - validate:
       tests:
         - residue_test:
