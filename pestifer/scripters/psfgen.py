@@ -482,6 +482,7 @@ class PsfgenScripter(VMDScripter):
             This method generates the Tcl commands to create a graft segment in the Psfgen script,
             including the selection of atoms and writing the segment to a PDB file.
         """
+        from ..objs.graft import _linkage_dihedrals, _patchname_to_linkage_key
 
         self.comment(f'{str(G)}')
         self.addline(f'set topid [molinfo ${self.molid_varname} get id]')
@@ -492,49 +493,113 @@ class PsfgenScripter(VMDScripter):
         self.addline(f'set graftid [molinfo top get id]')
         self.addline(f'mol top $topid')
 
-        alignment_target_resid_logic = f'(resid {G.target_root.resid}'
-        if G.target_partner is not None:
-            alignment_target_resid_logic += f' or resid {G.target_partner.resid}'
-        alignment_target_resid_logic += ') and noh'
+        tgt_chain = G.residues[0].asym_chainID
+        src_chain = G.source_chainID
 
-        self.addline(f'set target_sel [atomselect $topid "chain {G.residues[0].asym_chainID} and {alignment_target_resid_logic}"]')
+        # All source index resids and corresponding target resids (in alignment order)
+        all_src_index_resids = [G.source_root] + list(G.source_partners)
+        all_tgt_resids = [r.resid for r in G.residues]  # receiver residue resids
 
-        alignment_source_resid_logic = f'(resid {G.source_root.resid}'
-        if G.source_partner is not None:
-            alignment_source_resid_logic += f' or resid {G.source_partner.resid}'
-        # if G.source_end is not None:
-        #     alignment_source_resid_logic += f' or resid {G.source_end.resid}'
-        alignment_source_resid_logic += ') and noh'
+        # --- Pre-conditioning: match source glycosidic dihedrals to target ---
+        # Iterate over consecutive pairs of index residues (innermost first)
+        # and rotate the outer side to match the target dihedral angles.
+        if G.index_internal_links and len(G.index_internal_links) > 0:
+            self.comment('Pre-conditioning: match source glycosidic dihedrals to target stub')
+            for i, link in enumerate(G.index_internal_links.data):
+                patchname = link.patchname or ''
+                lk = _patchname_to_linkage_key.get(patchname)
+                if lk is None:
+                    logger.warning(f'Graft {G.obj_id}: no linkage key for patchname {patchname!r}, skipping pre-conditioning for link {i}')
+                    continue
+                dihed_def = _linkage_dihedrals[lk]
 
-        self.addline(f'set source_sel [atomselect $graftid "chain {G.source_chainID} and {alignment_source_resid_logic}"]')
+                # Determine acc (inner) and don (outer) in both source and target
+                patchhead = link.patchhead if link.patchhead is not None else 1
+                if patchhead == 1:
+                    src_acc_residue, src_don_residue = link.residue1, link.residue2
+                else:
+                    src_acc_residue, src_don_residue = link.residue2, link.residue1
+
+                src_acc_resid = src_acc_residue.resid.resid
+                src_don_resid = src_don_residue.resid.resid
+
+                # Find corresponding target resids: acc is at index i, don is at index i+1
+                # (assuming links are ordered innermost→outermost, matching all_src_index_resids order)
+                src_acc_idx = next((j for j, r in enumerate(all_src_index_resids) if r.resid == src_acc_residue.resid.resid), None)
+                if src_acc_idx is None or src_acc_idx + 1 >= len(all_tgt_resids):
+                    logger.warning(f'Graft {G.obj_id}: cannot map link {i} to target resids, skipping pre-conditioning')
+                    continue
+                tgt_acc_resid = all_tgt_resids[src_acc_idx].resid
+                tgt_don_resid = all_tgt_resids[src_acc_idx + 1].resid
+
+                self.comment(f'Link {i}: {patchname} ({lk}), src acc={src_acc_resid} don={src_don_resid}, tgt acc={tgt_acc_resid} don={tgt_don_resid}')
+
+                role_to_src = {'acc': src_acc_resid, 'don': src_don_resid}
+                role_to_tgt = {'acc': tgt_acc_resid, 'don': tgt_don_resid}
+
+                for angle_name in ['phi', 'psi', 'omega']:
+                    if angle_name not in dihed_def:
+                        continue
+                    adef = dihed_def[angle_name]
+                    atoms = adef['dihed']   # list of (role, atomname)
+                    bond  = adef['bond']    # [(role_i, atm_i), (role_j, atm_j)]
+
+                    # Measure target dihedral
+                    tgt_idx_vars = []
+                    for k, (role, atm) in enumerate(atoms):
+                        vname = f'tgt_{angle_name}{i}_{k}'
+                        tgt_resid = role_to_tgt[role]
+                        self.addline(f'set {vname} [[atomselect $topid "chain {tgt_chain} and resid {tgt_resid} and name {atm}"] get index]')
+                        tgt_idx_vars.append(f'${vname}')
+                    self.addline(f'set tgt_{angle_name}{i} [measure dihed [list {" ".join(tgt_idx_vars)}]]')
+
+                    # Measure source dihedral (current, possibly post-prior-rotation)
+                    src_idx_vars = []
+                    for k, (role, atm) in enumerate(atoms):
+                        vname = f'src_{angle_name}{i}_{k}'
+                        src_resid = role_to_src[role]
+                        self.addline(f'set {vname} [[atomselect $graftid "chain {src_chain} and resid {src_resid} and name {atm}"] get index]')
+                        src_idx_vars.append(f'${vname}')
+                    self.addline(f'set src_{angle_name}{i} [measure dihed [list {" ".join(src_idx_vars)}]]')
+
+                    self.addline(f'set d{angle_name}{i} [expr ${{tgt_{angle_name}{i}}} - ${{src_{angle_name}{i}}}]')
+                    self.addline(f'vmdcon -info "Graft {G.obj_id} link {i} {angle_name}: tgt=${{tgt_{angle_name}{i}}} src=${{src_{angle_name}{i}}} delta=${{d{angle_name}{i}}}"')
+
+                    # Apply rotation: bond[0]=(role_i,atm_i), bond[1]=(role_j,atm_j)
+                    bi_role, bi_atm = bond[0]
+                    bj_role, bj_atm = bond[1]
+                    bi_resid = role_to_src[bi_role]
+                    bj_resid = role_to_src[bj_role]
+                    self.addline(f'glycan_pendant_rotate $graftid {src_chain} {bi_resid} {bj_resid} {bi_atm} {bj_atm} ${{d{angle_name}{i}}}')
+
+        # --- Alignment selections ---
+        alignment_target_resid_logic = '(' + ' or '.join(f'resid {r.resid}' for r in all_tgt_resids) + ') and noh'
+        alignment_source_resid_logic = '(' + ' or '.join(f'resid {r.resid}' for r in all_src_index_resids) + ') and noh'
+
+        self.addline(f'set target_sel [atomselect $topid "chain {tgt_chain} and {alignment_target_resid_logic}"]')
+        self.addline(f'set source_sel [atomselect $graftid "chain {src_chain} and {alignment_source_resid_logic}"]')
         self.addline(f'vmdcon -info "[$source_sel num] atoms in source, [$target_sel num] atoms in target"')
 
-        # Now we need to select the residues that will be moved
-        # The mover residues are those that are in the source segment *excluding* those used in the alignment
-
-        movers_source_resid_logic = f'(not (resid {G.source_root.resid}'
-        if G.source_partner is not None:
-            movers_source_resid_logic += f' or resid {G.source_partner.resid}'
-        movers_source_resid_logic += ')'
+        # Mover selection: all source residues that are NOT index residues
+        all_src_index_resid_nums = [r.resid for r in all_src_index_resids]
+        excl_logic = ' or '.join(f'resid {r}' for r in all_src_index_resid_nums)
+        movers_source_resid_logic = f'(not ({excl_logic})'
         if G.source_end is not None:
             movers_source_resid_logic += f' and resid <= {G.source_end.resid}'
         movers_source_resid_logic += ')'
 
-        self.addline(f'set mover_sel [atomselect $graftid "chain {G.source_chainID} and {movers_source_resid_logic}"]')
+        self.addline(f'set mover_sel [atomselect $graftid "chain {src_chain} and {movers_source_resid_logic}"]')
         self.addline(f'vmdcon -info "[$mover_sel num] atoms will be moved"')
 
-        # Now we need to align the mover residues to the target residues
-        # We will use the transidentity command to get the transformation matrix
-        # and then apply it to the mover residues
-
-        # self.addline(f'set TT [transidentity]')
+        # Compute and apply the N-point alignment transformation
         self.addline(f'set TT [measure fit $source_sel $target_sel]')
         self.addline(f'vmdcon -info "Homog. trans. matrix: $TT"')
         self.addline(f'$mover_sel move $TT')
-        G.segfile=f'graft{G.obj_id}.pdb'
-        new_residlist=[]
+
+        G.segfile = f'graft{G.obj_id}.pdb'
+        new_residlist = []
         for y in G.donor_residues:
-            new_residlist.extend([f'{y.resid.resid}' for x in y.atoms])  # r
+            new_residlist.extend([f'{y.resid.resid}' for x in y.atoms])
         self.addline(f'$mover_sel set resid [list {" ".join(new_residlist)}]')
         self.addline(f'$mover_sel set chain {G.residues[0].chainID}')
         self.addline(f'$mover_sel set segname {G.graft_segname}')

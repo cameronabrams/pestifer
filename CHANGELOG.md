@@ -2,6 +2,11 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
+## [2.3.0] - 2026-04-24
+
+- bugfix: six `pdbalias atom` entries for sialic acid (ANE5AC) in `labels.py` incorrectly used `ANE5` as the residue prefix; psfgen applies atom aliases using the post-residue-alias CHARMM name (`ANE5AC`), so these aliases were silently ignored and coordinate assignment for SIA atoms failed; all six entries corrected to `ANE5AC`
+- new feature: glycan grafts now support **N-point alignment** with **dihedral pre-conditioning**; the graft shortcode target now accepts any number of alignment residues separated by `#` (e.g., `G_572#573#574`), and the source accepts the same number of index resids (e.g., `4b7i,C_1#2#3-8`); before computing the `measure fit` transformation, pestifer matches each glycosidic dihedral (phi, psi, and omega for 1→6/2→6 linkages) in the source stem to the corresponding angle in the target stub by rotating the outer branch around the appropriate bond axis; this substantially improves donor atom placement when the target already carries a multi-sugar stub
+
 ## [2.2.11] - 2026-04-24
 
 - bugfix: `toppar_all36_carb_imlab.str` added to the default CHARMM stream file list; this file contains supplementary carbohydrate parameters (e.g., `CC3162 OC301 CC3162` angle) needed for certain glycan-glycan ether linkages in N-glycan trees; its absence caused NAMD to abort with "UNABLE TO FIND ANGLE PARAMETERS" on glycosylated systems built from multi-donor glycan grafts
