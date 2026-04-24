@@ -404,38 +404,28 @@ class GraftList(BaseObjList[Graft]):
         """
         logger.debug(f'Assigning residue objects to {len(self)} grafts')
         delete_us = GraftList([])
-        # down_group = ResidueList([])
-        # down_links = LinkList([])
         for graft in self.data:
             logger.debug(f'  Graft {graft.obj_id}:')
             graft.assign_receiver_residues(Residues)
-            # a graft that received no residue assignments means that the builder was instructed to delete
-            # residues that comprise it prior to the graft operation.  We can remove it from the list.
             if graft.residues is None or len(graft.residues) == 0:
                 logger.debug(f'-> removing graft {graft.obj_id} because it has no receivers')
                 delete_us.append(graft)
                 continue
             logger.debug(str(graft))
-            # # the graft specifications allow us to keep only the first residue in the target segment, AND if specified, the additional residue.
-            # root_res = graft.residues[0]
-            # downs = root_res.down
-            # adowns = []
-            # addl_res = None
-            # if graft.target_partner is not None:
-            #     addl_res = graft.residues[1]
-            #     assert addl_res in downs, f'Graft {graft.obj_id} target_partner {graft.target_partner.resid} not found in down-links of root residue {root_res.chainID}_{root_res.resname}{root_res.resid.resid}'
-            #     adowns = addl_res.down
-            #     # remove residues down-linked to the root residue that are not the additional residue
-            # for down_res in downs + adowns:
-            #     logger.debug(f'-> removing residue {down_res.chainID}_{down_res.resname}{down_res.resid.resid} from base list and graft list')
-            #     down_group.append(Residues.remove_and_return(down_res))
-            #     graft.residues.remove(down_res)
-            #     logger.debug(f'-> removing down-link from {root_res.chainID}_{root_res.resname}{root_res.resid.resid} to {down_res.chainID}_{down_res.resname}{down_res.resid.resid}')
-            #     down_links.extend(Links.remove_links_to(down_res))
-            # now we can remove the down-links from the root residue
+            # Remove any base-structure residues downstream of the outermost receiver.
+            # These would conflict with the graft's external links if left in the segment.
+            outermost = graft.residues[-1]
+            dg, _ = outermost.get_down_group()
+            if dg:
+                for d, link in list(zip(outermost.down, outermost.downlink)):
+                    outermost.unlink(d, link)
+                for dr in dg:
+                    Residues.remove_and_return(dr)
+                    Links.remove_links_to(dr)
+                logger.debug(f'-> removed {len(dg)} downstream residues beyond outermost receiver of graft {graft.obj_id}')
         for s in delete_us:
             self.remove(s)
-        return delete_us #, down_group, down_links
+        return delete_us
 
     # def sequential_renumber(self, r: ResID):
     #     """

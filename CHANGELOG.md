@@ -2,6 +2,10 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
+## [2.3.1] - 2026-04-24
+
+- bugfix: `GraftList.assign_residues()` now removes base-structure residues downstream of the outermost receiver (and their links) before applying graft external links; previously, if the base structure carried any sugars beyond the outermost receiver resid, psfgen would apply both the existing glycosidic patch and the new graft external link to the same acceptor oxygen, producing a doubly-bonded OC301 and a `CC3162 OC301 CC3162 CC3161` dihedral that NAMD cannot parameterize
+
 ## [2.3.0] - 2026-04-24
 
 - bugfix: six `pdbalias atom` entries for sialic acid (ANE5AC) in `labels.py` incorrectly used `ANE5` as the residue prefix; psfgen applies atom aliases using the post-residue-alias CHARMM name (`ANE5AC`), so these aliases were silently ignored and coordinate assignment for SIA atoms failed; all six entries corrected to `ANE5AC`
