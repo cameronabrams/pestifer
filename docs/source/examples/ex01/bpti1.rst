@@ -35,7 +35,7 @@ Alternatively, you could also use ``fetch-example`` to get the config file and t
   $ ls
   $ pestifer fetch-example 1
   $ ls
-  bpti.yaml
+  bpti1.yaml
   $ pestifer build bpti1
 
 (If there is no extension on the argument of build, pestifer assumes one of ``.yaml``, ``.yml``, or ``.ym``.)

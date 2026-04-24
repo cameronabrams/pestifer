@@ -40,7 +40,7 @@ demonstrating progressively more complex modifications to a standard
 fetch-psfgen-solvate-equilibrate workflow.
 
 - :doc:`Example 1 <examples/ex01/bpti1>` — baseline solvated build; the simplest complete pestifer workflow
-- :doc:`Example 2 <examples/ex02/bpti2>` — heteroatom exclusion (phosphate ion); salty solvent; retaining crystal waters
+- :doc:`Example 2 <examples/ex02/bpti2>` — heteroatom exclusion (phosphate ion); salty solvent; retaining crystal waters; ``validate`` task with custom parameters
 - :doc:`Example 3 <examples/ex03/bpti3>` — point mutations (two shortcode formats) and disulfide bond deletion
 - :doc:`Example 4 <examples/ex04/bpti4>` — introducing a new disulfide bond via mutations
 
@@ -51,7 +51,7 @@ Straightforward builds of small, single-chain or homodimeric proteins,
 illustrating ligand inclusion and the reversal of engineered mutations.
 
 - :doc:`Example 5 <examples/ex05/hiv-protease>` — HIV-1 protease dimer (1f7a); including small-molecule acetate ligands; reversing engineered mutations
-- :doc:`Example 6 <examples/ex06/green-mamba-toxin>` — fasciculin 1 from green mamba snake venom (1fas); minimal single-chain build
+- :doc:`Example 6 <examples/ex06/green-mamba-toxin>` — fasciculin 1 from green mamba snake venom (1fas); automatic ionization state assignment via ``pdb2pqr``
 
 HIV-1 Env Ectodomains (Examples 7–12)
 --------------------------------------
