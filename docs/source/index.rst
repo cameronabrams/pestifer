@@ -1,7 +1,7 @@
 pestifer
 ========
 
-.. image:: https://zenodo.org/badge/DOI/10.5281/zenodo.16051498.svg
+.. image:: https://img.shields.io/badge/DOI-10.5281%2Fzenodo.16051498-blue
   :target: https://doi.org/10.5281/zenodo.16051498
 
 .. image:: https://static.pepy.tech/badge/pestifer
