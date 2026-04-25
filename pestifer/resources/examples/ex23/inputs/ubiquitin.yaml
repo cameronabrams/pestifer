@@ -2,29 +2,32 @@
 #
 # pestifer input script
 #
-# Human ubiquitin (1ubq) with post-minimization crystal-frame alignment
+# Human ubiquitin (1ubq) aligned to the GGA3-GAT binding pose (1yd8)
 #
 # Notes:
+#   - 1yd8 is a crystal structure of ubiquitin (chain A) bound to the
+#     GGA3 GAT domain (chain B); the complex represents ubiquitin
+#     in its cargo-recognition binding pose at the trans-Golgi network.
 #   - After vacuum minimization, the manipulate/align task rigidly
-#     superimposes the pipeline system back onto the fetched crystal PDB
-#     (1ubq.pdb), restoring the experimental coordinate frame before solvation.
-#   - The 1ubq.pdb file is created by the fetch task and persists in the
-#     working directory throughout the build.
+#     superimposes the built ubiquitin onto chain A of 1yd8, placing it
+#     in the same orientation it adopts when engaging the GAT domain.
 #   - A production tarball is generated: prod_1ubq.tgz
 #
-title: Human ubiquitin (1ubq) with post-minimization crystal-frame alignment
+title: Human ubiquitin (1ubq) aligned to the GGA3-GAT binding pose (1yd8)
 tasks:
   - fetch:
       sourceID: 1ubq
+  - fetch:
+      sourceID: 1yd8
   - psfgen:
   - md:
       ensemble: minimize
   - manipulate:
       mods:
         align:
-          - ref_pdb: 1ubq.pdb
+          - ref_pdb: 1yd8.pdb
             mobile_sel: backbone
-            ref_sel: backbone
+            ref_sel: "chain A and backbone"
   - solvate:
   - md:
       ensemble: minimize

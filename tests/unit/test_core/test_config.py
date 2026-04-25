@@ -122,8 +122,10 @@ class TestConfig(unittest.TestCase):
             # with open(f'{configfile}-complete.yaml', 'w') as f:
             #     yaml.dump(U, f)
             tasks = U['tasks']
-            self.assertTrue('fetch' in tasks[0])
-            specs = tasks[1]['psfgen']
+            self.assertTrue(any('fetch' in t for t in tasks))
+            psfgen_task = next((t for t in tasks if 'psfgen' in t), None)
+            self.assertIsNotNone(psfgen_task, 'No psfgen task found in example')
+            specs = psfgen_task['psfgen']
             self.assertTrue('source' in specs)
             self.assertTrue('mods' in specs)
             self.assertTrue('ssbondsdelete' in specs['mods'])

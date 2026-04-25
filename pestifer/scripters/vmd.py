@@ -399,11 +399,16 @@ class VMDScripter(TcLScripter):
         self.addline(f'    puts "ERROR align: mobile_sel \\"{align.mobile_sel}\\" has $_n_mob atoms but ref_sel \\"{ref_sel}\\" has $_n_ref atoms"')
         self.addline('    exit 1')
         self.addline('}')
+        self.addline('set _rmsd_before [measure rmsd $_mob_fit $_ref_fit]')
+        self.addline(f'vmdcon -info "Align RMSD before: $_rmsd_before"')
         self.addline('set _M [measure fit $_mob_fit $_ref_fit]')
-        self.addline('mol delete $_ref_mol')
         self.addline(f'set _mover [atomselect {molid} "{align.apply_to}"]')
         self.addline('$_mover move $_M')
+        self.addline('set _rmsd_after [measure rmsd $_mob_fit $_ref_fit]')
+        self.addline(f'vmdcon -info "Align RMSD after: $_rmsd_after"')
+        self.addline('mol delete $_ref_mol')
         self.addline('$_mob_fit delete')
+        self.addline('$_ref_fit delete')
         self.addline('$_mover delete')
 
     def write_transfer_coords(self, tc: TransferCoords):
