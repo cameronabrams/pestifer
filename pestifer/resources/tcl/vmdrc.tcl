@@ -36,7 +36,12 @@ if {![info exists quiet]} {
 
 global PESTIFER_TCLROOT
 if {![info exists PESTIFER_TCLROOT]} {
-  set PESTIFER_TCLROOT [exec pestifer --no-banner wheretcl --root]
+  if {[catch {exec pestifer --no-banner wheretcl --root} PESTIFER_TCLROOT]} {
+    vmdcon -info "vmdrc.tcl: failed to locate pestifer Tcl root: $PESTIFER_TCLROOT"
+    vmdcon -info "vmdrc.tcl: launch VMD from the environment in which pestifer is installed"
+    return
+  }
+  set PESTIFER_TCLROOT [string trim $PESTIFER_TCLROOT]
   if {$quiet == 0} {
     vmdcon -info "No PESTIFER_TCLROOT passed in; detected $PESTIFER_TCLROOT"
   }

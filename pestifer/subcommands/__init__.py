@@ -16,6 +16,7 @@ from .modify_package import ModifyPackageSubcommand
 from .make_pdbcollection import MakePDBCollectionSubcommand
 from .rebuild_charmmff_cache import RebuildCHARMMFFCache
 from .mdplot import MDPlotSubcommand
+from .setup_vmd import SetupVMDSubcommand
 
 package_path = Path(__file__).resolve().parent.parent.parent
 is_source_package_with_git = os.path.isdir(os.path.join(package_path, '.git'))
@@ -35,6 +36,7 @@ _subcommands: list[Subcommand] = [
     MakeNAMDRestartSubcommand(),
     RebuildCHARMMFFCache(),
     FollowNAMDLogSubcommand(),
+    SetupVMDSubcommand(),
     ]
 
 if is_source_package_with_git:

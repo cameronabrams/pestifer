@@ -52,35 +52,34 @@ Subcommands
 Use in VMD scripts
 ------------------
 
-Pestifer provides a library of useful TcL/VMD procs and VMD macro definitions.  Include the following ``proc`` definition somewhere in your ``.vmdrc`` file.  Then the command ``pestifer_init`` will be available any time you start VMD.  You can issue ``pestifer_init`` from any Tcl prompt in a running VMD session to give it access to Pestifer's TcL library.
+Pestifer provides a library of useful Tcl/VMD procs and VMD macro definitions.
+To make them available in every VMD session, run once (from the conda environment
+in which pestifer is installed):
+
+.. code-block:: bash
+
+   $ pestifer setup-vmd
+
+This writes ``~/.pestifer/vmd_init.tcl`` with the absolute path to pestifer's Tcl
+library hardcoded, and appends a one-line source hook to ``~/.vmdrc``:
 
 .. code-block:: tcl
 
-      proc pestifer_init { } {
-         set status 0
-         if {[catch {exec which pestifer} results options]} {
-            set details [dict get $options -errorcode]
-            if {[lindex $details 0] eq "CHILDSTATUS"} {
-               set status [lindex $details 2]
-            } else {
-               return -options $options -level 0 $results
-            }
-         }
-         if { $status == 0 } {
-            set pestifer_tcl_root [exec pestifer --no-banner wheretcl --root]
-            vmdcon -info "Source ${pestifer_tcl_root}/vmdrc.tcl"
-            source ${pestifer_tcl_root}/vmdrc.tcl
-         } else {
-            vmdcon -info "Pestifer is not available in your current environment."
-         }
-      }
+   # pestifer setup-vmd
+   if {[file exists ~/.pestifer/vmd_init.tcl]} { source ~/.pestifer/vmd_init.tcl }
 
-This ``proc`` uses the :ref:`subs wheretcl` subcommand to find the location of Pestifer's TcL library, and it sources the ``vmdrc.tcl`` file from that location.  The ``vmdrc.tcl`` file contains the definitions of Pestifer's TcL procs, packages, and macros.
+That single line is the only thing that ever needs to be in ``~/.vmdrc`` — it does
+not change between pestifer versions.  After upgrading pestifer or switching conda
+environments, simply re-run ``pestifer setup-vmd`` to regenerate
+``~/.pestifer/vmd_init.tcl`` with the updated path.
 
-If you are using VMD to analyze a system generated using Pestifer, it is a good idea to initialize VMD's access to Pestifer's TcL library.  This is because Pestifer extends the definitions of the ``glycan`` and ``lipid`` macros, among other reasons.  In addition to defining the ``pestifer_init`` proc, you should also add the following line to your ``~/.vmdrc`` file (after the ``pestifer_init`` proc definition):
+.. important::
 
-.. code-block:: tcl
+   Run ``pestifer setup-vmd`` from the shell environment (or conda environment)
+   in which pestifer is installed, so that the correct installation path is
+   recorded.  VMD itself can be launched from any environment — no dynamic
+   ``exec pestifer`` call is made at VMD startup.
 
-   pestifer_init
-
-This will ensure that the Pestifer library is available in your VMD session.  You can then use the ``pestifer`` command to access Pestifer's functionality from within VMD scripts.  Note that if you launch VMD from a shell in which the ``pestifer`` command is not available, you will not be able to use the ``pestifer_init`` proc, and you will not have access to Pestifer's TcL library.
+Once set up, VMD automatically loads pestifer's Tcl library on startup, including
+extended definitions of the ``glycan`` and ``lipid`` atomselect macros and all
+PestiferUtil procedures.
