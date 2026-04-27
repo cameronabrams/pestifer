@@ -173,7 +173,7 @@ class NAMDScripter(TcLScripter):
         minimal = combined.extract_for_atomtypes(atomtypes)
         outname = f'{self.basename}_minimal.prm'
         minimal.write(outname, title=f'Minimal CHARMM parameters for {self.basename}')
-        logger.info(f'consolidate_params: wrote {outname} ({minimal.summary()})')
+        logger.debug(f'consolidate_params: wrote {outname} ({minimal.summary()})')
 
         # Rewrite script: replace all 'parameters X' lines with the single minimal file
         with open(self.scriptname, 'r') as fh:
@@ -220,7 +220,7 @@ class NAMDScripter(TcLScripter):
             script = script.replace(f'parameters {basename}', f'parameters {localpath}')
         with open(self.scriptname, 'w') as fh:
             fh.write(script)
-        logger.info(f'Parameter files staged to local scratch: {scratch}')
+        logger.debug(f'Parameter files staged to local scratch: {scratch}')
 
     def runscript(self, **kwargs):
         """
@@ -248,7 +248,7 @@ class NAMDScripter(TcLScripter):
         else:
             use_gpu_count = self.ngpus
             use_gpu_devices = self.gpu_devices
-        logger.info(f'NAMD using {use_cpu_count} PE(s)')
+        logger.debug(f'NAMD using {use_cpu_count} PE(s)')
         if self.namd_type == 'cpu' or kwargs.get('cpu_override', False):
             if self.slurmvars:
                 c = Command(f'numactl --interleave=all {self.namd} +p {use_cpu_count} {self.scriptname}')
@@ -260,7 +260,7 @@ class NAMDScripter(TcLScripter):
             else:
                 use_cpu_count = self.local_ncpus
             c = Command(f'{self.namdgpu} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
-        logger.info(f'NAMD launch command: {c.c}')
+        logger.debug(f'NAMD launch command: {c.c}')
         if self.slurmvars:
             self._stage_params_to_local_scratch()
         self.logname = f'{self.basename}.log'

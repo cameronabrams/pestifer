@@ -121,7 +121,10 @@ class Command:
             if output == '' and process.poll() is not None:
                 break
         if hasattr(logparser, 'progress_bar') and logparser.progress_bar is not None:
-            print()
+            if not _pytest:
+                logparser.progress_bar.finish()
+            else:
+                print()
         if logfile:
             logger.debug(f'Log written to {logfile}')
             log.close()
@@ -129,7 +132,7 @@ class Command:
         self.stdout += remaining_stdout
         if logparser:
             logparser.update(remaining_stdout)
-            if not _pytest:
+            if not _pytest and not (hasattr(logparser, 'progress_bar') and logparser.progress_bar is not None):
                 logparser.update_progress_bar()
             if hasattr(logparser, 'finalize'):
                 logparser.finalize()

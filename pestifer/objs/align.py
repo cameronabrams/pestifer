@@ -12,7 +12,7 @@ script so it leaves no persistent state.
 import logging
 logger = logging.getLogger(__name__)
 from typing import ClassVar
-from pydantic import Field
+from pydantic import Field, model_validator
 from ..core.baseobj import BaseObj, BaseObjList
 
 
@@ -22,8 +22,14 @@ class Align(BaseObj):
 
     Parameters (from YAML ``specs``)
     ---------------------------------
-    ref_pdb : str
-        Path to the reference PDB file.
+    ref_pdb : str, optional
+        Path or filename of the reference PDB file.  Mutually exclusive with
+        ``ref_sourceID``.
+    ref_sourceID : str, optional
+        RCSB PDB ID for the reference structure.  The PDB file is downloaded
+        to the working directory if not already present.  Mutually exclusive
+        with ``ref_pdb``.  Exactly one of ``ref_pdb`` / ``ref_sourceID`` must
+        be supplied.
     ref_psf : str, optional
         Path to the reference PSF file.  When omitted the reference is loaded
         as a plain PDB (sufficient for coordinate fitting).
@@ -43,14 +49,27 @@ class Align(BaseObj):
     of atoms in the same order.  Mismatched counts will cause a VMD error.
     """
 
-    _required_fields = {'ref_pdb'}
-    _optional_fields = {'ref_psf', 'mobile_sel', 'ref_sel', 'apply_to'}
+    _required_fields = set()
+    _optional_fields = {'ref_pdb', 'ref_sourceID', 'ref_psf', 'mobile_sel', 'ref_sel', 'apply_to'}
+    _mutually_exclusive = {frozenset({'ref_pdb', 'ref_sourceID'})}
 
-    ref_pdb: str = Field(..., description="Path to the reference PDB file.")
+    ref_pdb: str | None = Field(None, description="Filename of the reference PDB file.")
+    ref_sourceID: str | None = Field(None, description="RCSB PDB ID; the file is downloaded to CWD if not already present.")
     ref_psf: str | None = Field(None, description="Path to the reference PSF file (optional).")
     mobile_sel: str = Field('all', description="VMD atomselect string for pipeline atoms used in the fit.")
     ref_sel: str | None = Field(None, description="VMD atomselect string for reference atoms used in the fit (defaults to mobile_sel).")
     apply_to: str = Field('all', description="VMD atomselect string for pipeline atoms to move after fitting.")
+
+    @model_validator(mode='after')
+    def _require_one_ref(self):
+        if self.ref_pdb is None and self.ref_sourceID is None:
+            raise ValueError("Align requires exactly one of 'ref_pdb' or 'ref_sourceID'.")
+        return self
+
+    @property
+    def effective_ref_pdb(self) -> str:
+        """Resolved filename of the reference PDB (local path or derived from ref_sourceID)."""
+        return self.ref_pdb if self.ref_pdb is not None else f'{self.ref_sourceID}.pdb'
 
     _yaml_header: ClassVar[str] = 'align'
     _objcat: ClassVar[str] = 'coord'

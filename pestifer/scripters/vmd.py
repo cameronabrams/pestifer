@@ -98,7 +98,12 @@ class VMDScripter(TcLScripter):
         force_exit : bool, optional
             If True, the exit statement is added even if one is already present.
         """
-        if not self.has_statement('exit') or force_exit:
+        has_bare_exit = any(
+            l.strip() == 'exit'
+            for l in self.B.byte_collector.split('\n')
+            if l.strip() and not l.strip().startswith('#')
+        )
+        if not has_bare_exit or force_exit:
             self.addline('exit')
         self.banner(f'END PESTIFER VMD SCRIPT')
         self.banner(f'Thank you for using Pestifer!')
@@ -386,10 +391,11 @@ class VMDScripter(TcLScripter):
         molid_varname = self.molid_varname
         molid = f'${molid_varname}'
         ref_sel = align.ref_sel if align.ref_sel is not None else align.mobile_sel
+        ref_pdb = align.effective_ref_pdb
         if align.ref_psf:
-            self.addline(f'mol load psf {{{align.ref_psf}}} pdb {{{align.ref_pdb}}}')
+            self.addline(f'mol load psf {{{align.ref_psf}}} pdb {{{ref_pdb}}}')
         else:
-            self.addline(f'mol load pdb {{{align.ref_pdb}}}')
+            self.addline(f'mol load pdb {{{ref_pdb}}}')
         self.addline('set _ref_mol [molinfo top get id]')
         self.addline(f'set _mob_fit [atomselect {molid} "{align.mobile_sel}"]')
         self.addline(f'set _ref_fit [atomselect $_ref_mol "{ref_sel}"]')

@@ -29,7 +29,6 @@ Examples
    examples/ex20/methylmalonyl-coa-mutase
    examples/ex21/groel-groes-adp
    examples/ex22/ferredoxin-fad
-   examples/ex23/ubiquitin
 
 BPTI Series (Examples 1–4)
 ---------------------------
@@ -109,12 +108,3 @@ and very large multi-chain assemblies.
 - :doc:`Example 20 <examples/ex20/methylmalonyl-coa-mutase>` — mitochondrial methylmalonyl-CoA mutase; AlphaFold model (UniProt P22033) as the input source
 - :doc:`Example 21 <examples/ex21/groel-groes-adp>` — asymmetric GroEL/GroES chaperonin complex (1aon); 21-chain assembly with ADP ligands
 - :doc:`Example 22 <examples/ex22/ferredoxin-fad>` — ferredoxin-NADP(H) reductase (2bgj); FAD cofactor; chain exclusion
-
-Coordinate Modifications (Example 23)
---------------------------------------
-
-Builds that showcase the :ref:`manipulate <subs_buildtasks_manipulate>` task's
-coordinate-only modification capabilities, which reposition atoms after the PSF
-has been built without altering system topology.
-
-- :doc:`Example 23 <examples/ex23/ubiquitin>` — human ubiquitin (1ubq); post-minimization backbone alignment to the crystal coordinate frame using the ``align`` mod

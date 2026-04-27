@@ -2,6 +2,15 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
+## [2.4.0] - 2026-04-27
+
+- new feature: `setup-vmd` subcommand generates `~/.pestifer/vmd_init.tcl` with the absolute path to pestifer's Tcl root and appends a one-line source hook to `~/.vmdrc`; re-running after upgrading pestifer or switching conda environments keeps VMD's Tcl package paths in sync
+- new feature: `align` mod accepts a new `ref_sourceID` field (RCSB PDB ID) as an alternative to `ref_pdb`; the reference structure is downloaded to the working directory automatically, keeping `base_coordinates` and `base_molecule` invariant without requiring a second `fetch` task; downloaded files are registered as pipeline artifacts and swept into the artifacts tarball on cleanup
+- new feature: `terminate` task logs a structured system report at the end of every build: output file sizes, topology feature counts (atoms, bonds, angles, dihedrals, impropers, cross-terms from the PSF), and periodic box vectors and lengths from the XSC file
+- change: `package.basename` in the `terminate` task now controls only the tarball filename and NAMD configuration script name; coordinate state files (PSF, PDB, COOR, XSC, VEL) retain their terminate-task basename inside the tarball and are no longer renamed
+- bugfix: `VMDScripter.writescript()` used substring matching to detect an existing `exit` statement, causing `exit 1` in error-branch Tcl code to suppress injection of the final bare `exit` and leaving VMD hanging after script completion; fixed to require an exact line match
+- change: progress bar timer widget now uses `progressbar.utils.len_color` (ANSI-aware) instead of Python's built-in `len` so bars correctly fill to the terminal's right edge regardless of color escape sequences in the timer label
+
 ## [2.3.1] - 2026-04-24
 
 - bugfix: `GraftList.assign_residues()` now removes base-structure residues downstream of the outermost receiver (and their links) before applying graft external links; previously, if the base structure carried any sugars beyond the outermost receiver resid, psfgen would apply both the existing glycosidic patch and the new graft external link to the same acceptor oxygen, producing a doubly-bonded OC301 and a `CC3162 OC301 CC3162 CC3161` dihedral that NAMD cannot parameterize

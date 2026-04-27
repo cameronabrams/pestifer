@@ -11,6 +11,7 @@ import logging
 import shutil
 import yaml
 import os
+import numpy as np
 
 from .mdtask import MDTask
 from ..charmmff.charmmffprm import CharmmParamFile
@@ -19,6 +20,7 @@ from ..molecule.molecule import Molecule
 from ..psfutil.psfcontents import PSFContents
 from ..util.colors import PestiferColors
 from ..util.stringthings import my_logger
+from ..util.util import cell_from_xsc
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +49,7 @@ class TerminateTask(MDTask):
             state: StateArtifacts = self.get_current_artifact('state')
             state.minimal_prm = CharmmffParFileArtifact(data=minimal_prm, keep=True)
             state.data['minimal_prm'] = state.minimal_prm
+        self.print_system_report()
         self.result += self.make_package()
         self.result += self.cleanup()
         return self.result
@@ -94,6 +97,9 @@ class TerminateTask(MDTask):
     def make_package(self):
         """
         Create a package for a production NAMD run starting from the end of the build.
+        State files are included in the tarball under their existing names (the
+        terminate basename); only the tarball itself and the NAMD config script use
+        the package basename.
         """
         package_specs = self.specs.get('package', {})
         if not package_specs or not package_specs.get('basename'):
@@ -102,15 +108,10 @@ class TerminateTask(MDTask):
         md_specs = package_specs.get('namd', {})
         pkg_basename = package_specs.get('basename')
         TarballContents = FileArtifactList()
-        # State files were already copied to terminate.basename by copy_state_to_basename().
-        # Collect them for the tarball, optionally re-copying to package.basename if different.
         state: StateArtifacts = self.get_current_artifact('state')
         for ext in ['psf', 'pdb', 'coor', 'xsc', 'vel']:
             fa: FileArtifact = getattr(state, ext, None)
             if fa and fa.exists():
-                if pkg_basename and f'{pkg_basename}.{ext}' != fa.name:
-                    shutil.copy(fa.name, f'{pkg_basename}.{ext}')
-                    fa = fa.copy(data=f'{pkg_basename}.{ext}')
                 TarballContents.append(fa)
         # Minimal parameter file was already stored in state by do(); retrieve it here.
         # Replace pipeline par/stream file artifacts with just the minimal prm so that
@@ -138,6 +139,56 @@ class TerminateTask(MDTask):
             TarballContents.append(min_artifact)
         TarballContents.make_tarball(pkg_basename, arcname_prefix=pkg_basename, unique=True, remove=True)
         return result
+
+    def print_system_report(self):
+        """Log a summary of the final built system: file sizes, topology counts, and box dimensions."""
+        state: StateArtifacts = self.get_current_artifact('state')
+        if not state:
+            return
+
+        W = 60
+        sep = '=' * W
+        logger.info(sep)
+        logger.info('System Report')
+        logger.info(sep)
+
+        # File sizes
+        logger.info('Output files:')
+        for ext in ['psf', 'pdb', 'coor', 'xsc', 'vel']:
+            fa: FileArtifact = getattr(state, ext, None)
+            if fa and fa.exists():
+                size_kb = os.path.getsize(fa.name) / 1024
+                logger.info(f'  {fa.name:<40s} {size_kb:>10.1f} kB')
+
+        # Topology from PSF
+        if state.psf and state.psf.exists():
+            psf = PSFContents(state.psf.name)
+            logger.info('Topology (from PSF):')
+            sections = [
+                ('ATOM',   'Atoms'),
+                ('BOND',   'Bonds'),
+                ('THETA',  'Angles'),
+                ('PHI',    'Dihedrals'),
+                ('IMPHI',  'Impropers'),
+                ('CRTERM', 'Cross-terms'),
+            ]
+            for key, label in sections:
+                count = psf.token_count.get(key)
+                if count is not None:
+                    logger.info(f'  {label:<16s} {count:>10,}')
+
+        # Box dimensions from XSC
+        if state.xsc and state.xsc.exists():
+            box, _ = cell_from_xsc(state.xsc.name)
+            if box is not None:
+                logger.info('Periodic box (from XSC):')
+                labels = ['a', 'b', 'c']
+                for i, label in enumerate(labels):
+                    length = float(np.linalg.norm(box[i]))
+                    vec = box[i]
+                    logger.info(f'  {label} = ({vec[0]:8.3f}, {vec[1]:8.3f}, {vec[2]:8.3f}) Å   |{label}| = {length:.3f} Å')
+
+        logger.info(sep)
 
     def generate_minimal_params(self) -> str | None:
         """Generate a minimal consolidated CHARMM parameter file for the current PSF.
@@ -182,7 +233,7 @@ class TerminateTask(MDTask):
 
         outname = f'{self.basename}_minimal.prm'
         minimal.write(outname, title=f'Minimal CHARMM parameter file for {self.basename}')
-        logger.info(f'Wrote minimal parameter file: {outname}')
+        logger.debug(f'Wrote minimal parameter file: {outname}')
         return outname
 
     def cleanup(self):

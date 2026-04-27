@@ -4,6 +4,7 @@ Implements progress bar animations for pestifer runs outside of a batch system (
 """
 import logging
 import progressbar
+import progressbar.utils as _pb_utils
 
 from typing import Callable
 
@@ -28,15 +29,12 @@ class PestiferProgress:
         self.interval_sec = kwargs.get('interval_sec', 1)
         timer_format = f'{self.color}{self.name}{self.color.OFF} {self.timer_format}'
         if not self.widgets:
+            timer = progressbar.Timer(timer_format)
+            timer._len = _pb_utils.len_color  # ANSI-aware width so Bar() gets correct space
             if self.max_value == progressbar.UnknownLength:
-                self.widgets = [
-                    progressbar.Timer(timer_format), ' ', progressbar.RotatingMarker()
-                ]
+                self.widgets = [timer, ' ', progressbar.RotatingMarker()]
             else:
-                self.widgets = [
-                    progressbar.Timer(timer_format),
-                    progressbar.Bar(), ' ', progressbar.ETA()
-                ]
+                self.widgets = [timer, progressbar.Bar(), ' ', progressbar.ETA()]
         self.initialized = False
         self.bar = progressbar.ProgressBar(max_value=self.max_value, widgets=self.widgets)
 
@@ -68,6 +66,10 @@ class PestiferProgress:
                 self.bar.update(int(progress * self.max_value))
         else:
             self.bar.update()
+
+    def finish(self):
+        """Force the bar to 100% and end the line cleanly."""
+        self.bar.finish()
 
 class NAMDProgress(PestiferProgress):
     def __init__(self, **kwargs):

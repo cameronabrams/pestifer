@@ -8,11 +8,13 @@ Usage is described in the :ref:`config_ref tasks manipulate` documentation.
 import logging
 
 from pathlib import Path
+from pidibble.pdbparse import PDBParser
 
 from .basetask import BaseTask
 from ..scripters import VMDScripter
 from ..core.objmanager import ObjManager
 from ..core.artifacts import PDBFileArtifact, VMDScriptArtifact, VMDLogFileArtifact, StateArtifacts
+from ..objs.align import Align
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +68,12 @@ class ManipulateTask(BaseTask):
                 elif objtype == 'rottrans':
                     vm.write_rottrans(obj, molid='mCM')
                 elif objtype == 'align':
+                    if isinstance(obj, Align) and obj.ref_sourceID is not None:
+                        ref_pdb_path = Path(f'{obj.ref_sourceID}.pdb')
+                        if not ref_pdb_path.exists():
+                            logger.debug(f'align: downloading reference {obj.ref_sourceID} from RCSB')
+                            PDBParser(source_db='rcsb', source_id=obj.ref_sourceID).fetch()
+                        self.register(obj.ref_sourceID, key=f'ref_pdb_{obj.ref_sourceID}', artifact_type=PDBFileArtifact)
                     vm.write_align(obj)
                 elif objtype == 'transfer_coords':
                     vm.write_transfer_coords(obj)
