@@ -41,11 +41,15 @@ All parameters are optional:
   Distance in Å between a bond midpoint and a ring center-of-mass used to pre-screen candidate pairs before the full geometric test.  Increasing it finds more candidates at the cost of more computation; the default of 10.0 Å is appropriate for typical ring sizes.
 
 **delete**
-  Controls which molecule is removed when a piercing is found:
+  Controls which molecule is removed when a non-glycan piercing is found:
 
   - ``piercee`` *(default)* — removes the ring-containing molecule (e.g. the cholesterol whose ring was threaded).  Use this for sterol rings pierced by lipid acyl chains.
-  - ``piercer`` — removes the molecule whose bond did the piercing.  More appropriate when a glycan ring is pierced by a lipid chain and you want to keep the glycan.
+  - ``piercer`` — removes the molecule whose bond did the piercing.
   - ``none`` — logs all piercings but takes no action.  Useful for auditing.
+
+.. note::
+
+   **Glycan ring piercings always terminate the build.**  Because glycan residues are covalently bonded to the protein, they cannot be deleted to resolve a piercing.  If a glycan ring is found to be pierced, pestifer logs an error identifying each problematic segment and residue and raises an exception.  The recommended remedy is to rebuild the system with a different random seed or to add more minimization steps before the ``ring_check`` task.
 
 How the detection works
 ~~~~~~~~~~~~~~~~~~~~~~~

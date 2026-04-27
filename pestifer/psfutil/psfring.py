@@ -174,6 +174,7 @@ def ring_check(psf,pdb,xsc,cutoff=10.0,segtypes=['lipid']):
     topol = PSFContents(psf, parse_topology=['bonds'], topology_segtypes=segtypes)
     assert coorddf.shape[0] == len(topol.atoms), f'{psf} and {pdb} are incongruent'
     coorddf['segname'] = [a.segname for a in topol.atoms.data]
+    segname_to_segtype = {a.segname: a.segtype for a in topol.atoms}
     logger.debug(f'ingesting coords into bonds...(could take a while)')
     topol.bonds.ingest_coordinates(coorddf, pos_key=['x', 'y', 'z'], meta_key=['segname', 'resid'])
     logger.debug(f'Assiging link-cell indices to each bond')
@@ -230,7 +231,10 @@ def ring_check(psf,pdb,xsc,cutoff=10.0,segtypes=['lipid']):
             ringname = '-|- ' + ' -- '.join([str(topol.included_atoms.get((lambda a: a.serial == x))) for x in ring.idx_list]) + ' -|-'
             logger.debug(f'ring {ringname}:')
             for bond in piercing_bonds:
-                piercespecs.append(dict(piercer=dict(segname=bond.segname, resid=bond.resid), piercee=dict(segname=ring.segname, resid=ring.resid)))
+                piercespecs.append(dict(
+                    piercer=dict(segname=bond.segname, resid=bond.resid, segtype=segname_to_segtype.get(bond.segname, 'unknown')),
+                    piercee=dict(segname=ring.segname, resid=ring.resid, segtype=segname_to_segtype.get(ring.segname, 'unknown')),
+                ))
                 bondname = ' -- '.join([str(topol.included_atoms.get((lambda a: a.serial == x))) for x in bond.idx_list])
                 logger.debug(f'  pierced by bond [ {bondname} ]')
     for k, v in rdict.items():

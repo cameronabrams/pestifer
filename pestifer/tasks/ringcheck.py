@@ -35,24 +35,34 @@ class RingCheckTask(BaseTask):
         npiercings = ring_check(state.psf.name, state.pdb.name, state.xsc.name, cutoff=cutoff, segtypes=segtypes)
         if npiercings:
             ess = 's' if len(npiercings) > 1 else ''
+            glycan_piercings = [p for p in npiercings if p['piercee']['segtype'] == 'glycan']
+            other_piercings  = [p for p in npiercings if p['piercee']['segtype'] != 'glycan']
+            if glycan_piercings:
+                gess = 's' if len(glycan_piercings) > 1 else ''
+                logger.error(f'{len(glycan_piercings)} glycan ring piercing{gess} detected — glycan residues cannot be deleted to resolve:')
+                for p in glycan_piercings:
+                    logger.error(f'  {p["piercee"]["segname"]}-{p["piercee"]["resid"]} pierced by {p["piercer"]["segname"]}-{p["piercer"]["resid"]}')
+                raise RuntimeError(
+                    f'{len(glycan_piercings)} glycan ring piercing{gess} detected; '
+                    f'rebuild the system to resolve (e.g. use a different random seed or add more minimization before ring_check)'
+                )
             if delete_these == "none":
-                logger.debug(f'No action taken regarding {len(npiercings)} pierced-ring configuration{ess}')
-                for r in npiercings:
+                logger.debug(f'No action taken regarding {len(other_piercings)} pierced-ring configuration{ess}')
+                for r in other_piercings:
                     logger.debug(f'  Piercing of {r["piercee"]["segname"]}-{r["piercee"]["resid"]} by {r["piercer"]["segname"]}-{r["piercer"]["resid"]}')
-            else:
+            elif other_piercings:
                 self.next_basename('ring_check')
                 pg: PsfgenScripter = self.get_scripter('psfgen')
                 pg.newscript(self.basename)
                 pg.load_project(state.psf.name, state.pdb.name)
-                logger.debug(f'Deleting all {delete_these}s from {len(npiercings)} pierced-ring configuration{ess}')
-                for r in npiercings:
+                oess = 's' if len(other_piercings) > 1 else ''
+                logger.debug(f'Deleting all {delete_these}s from {len(other_piercings)} pierced-ring configuration{oess}')
+                for r in other_piercings:
                     logger.debug(f'   Deleting segname {r[delete_these]["segname"]} residue {r[delete_these]["resid"]}')
                     pg.addline(f'delatom {r[delete_these]["segname"]} {r[delete_these]["resid"]}')
                 pg.writescript(self.basename)
                 pg.runscript()
                 self.register(dict(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), xsc=state.xsc), key='state', artifact_type=StateArtifacts)
-                # for at in [PsfgenInputScriptArtifact, PsfgenLogFileArtifact]:
-                #     self.register(at(self.basename))
                 self.register(self.basename, key='tcl', artifact_type=PsfgenInputScriptArtifact)
                 self.register(self.basename, key='log', artifact_type=PsfgenLogFileArtifact)
         self.result = 0

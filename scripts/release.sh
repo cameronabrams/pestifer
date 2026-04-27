@@ -42,7 +42,12 @@ if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
 fi
 
 if git rev-parse "v$VERSION" >/dev/null 2>&1; then
-    echo "ERROR: tag v$VERSION already exists"
+    echo "ERROR: tag v$VERSION already exists locally"
+    exit 1
+fi
+
+if git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q .; then
+    echo "ERROR: tag v$VERSION already exists on origin — fetch it first if you need it locally"
     exit 1
 fi
 

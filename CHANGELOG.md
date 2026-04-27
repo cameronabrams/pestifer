@@ -2,6 +2,10 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
+## [2.4.1] - 2026-04-27
+
+- change: `ring_check` task now terminates the build with an error when any glycan ring is found to be pierced; because glycan residues are covalently bonded to the protein they cannot be deleted, so pestifer logs each offending segment and residue and raises a `RuntimeError`; the recommended remedy is to rebuild with a different random seed or add more minimization before the `ring_check` task; non-glycan piercings (e.g. sterol rings) continue to be handled by the `delete` parameter as before
+
 ## [2.4.0] - 2026-04-27
 
 - new feature: `setup-vmd` subcommand generates `~/.pestifer/vmd_init.tcl` with the absolute path to pestifer's Tcl root and appends a one-line source hook to `~/.vmdrc`; re-running after upgrading pestifer or switching conda environments keeps VMD's Tcl package paths in sync
