@@ -4,31 +4,214 @@ Changelog
 Pestifer follows `Semantic Versioning <https://semver.org/>`__ and
 documents changes below.
 
-[2.2.10] - 2026-04-23
+[2.4.0] - 2026-04-27
+--------------------
+
+-  new feature: ``setup-vmd`` subcommand generates
+   ``~/.pestifer/vmd_init.tcl`` with the absolute path to pestifer’s Tcl
+   root and appends a one-line source hook to ``~/.vmdrc``; re-running
+   after upgrading pestifer or switching conda environments keeps VMD’s
+   Tcl package paths in sync
+-  new feature: ``align`` mod accepts a new ``ref_sourceID`` field (RCSB
+   PDB ID) as an alternative to ``ref_pdb``; the reference structure is
+   downloaded to the working directory automatically, keeping
+   ``base_coordinates`` and ``base_molecule`` invariant without
+   requiring a second ``fetch`` task; downloaded files are registered as
+   pipeline artifacts and swept into the artifacts tarball on cleanup
+-  new feature: ``terminate`` task logs a structured system report at
+   the end of every build: output file sizes, topology feature counts
+   (atoms, bonds, angles, dihedrals, impropers, cross-terms from the
+   PSF), and periodic box vectors and lengths from the XSC file
+-  change: ``package.basename`` in the ``terminate`` task now controls
+   only the tarball filename and NAMD configuration script name;
+   coordinate state files (PSF, PDB, COOR, XSC, VEL) retain their
+   terminate-task basename inside the tarball and are no longer renamed
+-  bugfix: ``VMDScripter.writescript()`` used substring matching to
+   detect an existing ``exit`` statement, causing ``exit 1`` in
+   error-branch Tcl code to suppress injection of the final bare
+   ``exit`` and leaving VMD hanging after script completion; fixed to
+   require an exact line match
+-  change: progress bar timer widget now uses
+   ``progressbar.utils.len_color`` (ANSI-aware) instead of Python’s
+   built-in ``len`` so bars correctly fill to the terminal’s right edge
+   regardless of color escape sequences in the timer label
+
+.. _section-1:
+
+[2.3.1] - 2026-04-24
+--------------------
+
+-  bugfix: ``GraftList.assign_residues()`` now removes base-structure
+   residues downstream of the outermost receiver (and their links)
+   before applying graft external links; previously, if the base
+   structure carried any sugars beyond the outermost receiver resid,
+   psfgen would apply both the existing glycosidic patch and the new
+   graft external link to the same acceptor oxygen, producing a
+   doubly-bonded OC301 and a ``CC3162 OC301 CC3162 CC3161`` dihedral
+   that NAMD cannot parameterize
+
+.. _section-2:
+
+[2.3.0] - 2026-04-24
+--------------------
+
+-  bugfix: six ``pdbalias atom`` entries for sialic acid (ANE5AC) in
+   ``labels.py`` incorrectly used ``ANE5`` as the residue prefix; psfgen
+   applies atom aliases using the post-residue-alias CHARMM name
+   (``ANE5AC``), so these aliases were silently ignored and coordinate
+   assignment for SIA atoms failed; all six entries corrected to
+   ``ANE5AC``
+-  new feature: glycan grafts now support **N-point alignment** with
+   **dihedral pre-conditioning**; the graft shortcode target now accepts
+   any number of alignment residues separated by ``#`` (e.g.,
+   ``G_572#573#574``), and the source accepts the same number of index
+   resids (e.g., ``4b7i,C_1#2#3-8``); before computing the
+   ``measure fit`` transformation, pestifer matches each glycosidic
+   dihedral (phi, psi, and omega for 1→6/2→6 linkages) in the source
+   stem to the corresponding angle in the target stub by rotating the
+   outer branch around the appropriate bond axis; this substantially
+   improves donor atom placement when the target already carries a
+   multi-sugar stub
+
+.. _section-3:
+
+[2.2.11] - 2026-04-24
 ---------------------
 
--  New ``align`` coormod for the ``manipulate`` task: rigidly aligns the
-   pipeline system to a reference PDB (or PSF+PDB) by computing the
-   least-RMSD rotation and translation via VMD's ``measure fit``.
-   Supports independent ``mobile_sel``, ``ref_sel``, and ``apply_to``
-   VMD atomselect strings; a congruency check guards against mismatched
-   atom counts before the fit is attempted.
--  New ``transfer_coords`` coormod for the ``manipulate`` task: copies
-   atomic coordinates from a selected subset of a donor PDB directly onto
-   matching atoms of the pipeline system.  An optional pre-alignment step
-   (``align_donor_sel`` + ``align_mobile_sel``) rigidly fits the entire
-   donor to the pipeline before the transfer, accommodating donors prepared
-   in a different coordinate frame.  Both alignment and transfer selections
-   are validated for atom-count congruency.
--  ``merge`` task now auto-detects and prepends the pipeline state when
-   it is available, eliminating the need for an explicit flag.  An
-   optional ``pipeline_system`` key accepts ``segname_map`` and
-   ``chainID_map`` sub-keys for renaming the pipelined system's segments
-   and chains before the merge.
--  ``merge`` task now supports ``chainID_map`` per input system to
-   relabel PDB chain IDs before merging.
+-  bugfix: ``toppar_all36_carb_imlab.str`` added to the default CHARMM
+   stream file list; this file contains supplementary carbohydrate
+   parameters (e.g., ``CC3162 OC301 CC3162`` angle) needed for certain
+   glycan-glycan ether linkages in N-glycan trees; its absence caused
+   NAMD to abort with “UNABLE TO FIND ANGLE PARAMETERS” on glycosylated
+   systems built from multi-donor glycan grafts
+-  new feature: ``ring_check`` task now includes ``glycan`` segments in
+   its default ``segtypes`` (previously only ``lipid``); glycan pyranose
+   rings are now detected and checked for lipid-chain piercing by
+   default; note that for glycan rings pierced by lipid chains,
+   ``delete: piercer`` is more appropriate than the default
+   ``delete: piercee``
+-  new feature: ``mdplot`` task now saves PNG output to a subdirectory
+   (default ``mdplots/``) specified by the new ``output_dir`` spec;
+   plots are marked ``keep=True`` so they survive the artifacts tarball
+   sweep and are immediately visible after the run
+-  change: ``mdplot`` default colormap changed from ``viridis`` to
+   ``tab10`` for better perceptual separation of discrete traces on
+   multi-trace plots
+-  change: ``mdplot`` single-trace plots no longer show a legend even
+   when ``legend: True`` is set
 
-.. _section-0:
+.. _section-4:
+
+[2.2.10] - 2026-04-20
+---------------------
+
+-  bugfix: graft source molecules (e.g., a standalone glycan PDB fetched
+   for grafting) are no longer subjected to glycan chainID/segname/resid
+   reassignment; the original chainIDs and resids are preserved so that
+   ``activate()`` can correctly locate the source segment by its
+   original chainID
+-  bugfix: graft donor residues now go into a dedicated psfgen segment
+   (e.g., ``NG01``) instead of being mixed into the protein segment; the
+   segname is computed from the target chain and existing glycan count,
+   consistent with the base molecule glycan naming convention
+-  bugfix: graft bond patch segnames now correctly reference the base
+   molecule’s psfgen segnames; receiver-side residues are looked up via
+   ``res_segname_map``, donor-side residues use the graft’s dedicated
+   segname (``graft_segname``), eliminating stale source-PDB chainID
+   references in patch commands
+-  test: added ``test_graft_segname_and_link_segnames`` to
+   ``tests/unit/test_objs/test_graft.py`` covering the full
+   segname/resid pipeline for a glycan graft
+-  test: added ``tests/unit/test_molecule/test_graft_molecule.py`` —
+   integration tests using real PDB structures (4b7i chain C glycan
+   grafted onto 1gc1 chain G protein) verifying activation counts,
+   ``graft_segname`` assignment, and link segname correctness end-to-end
+   through the AsymmetricUnit pipeline
+
+.. _section-5:
+
+[2.2.9] - 2026-04-20
+--------------------
+
+-  new feature: two glycan resid numbering conventions are now available
+   via ``sequence.glycans.numbering``
+
+   -  ``narrow`` (default): glycan blocks start above the maximum
+      protein resid of the parent chain; block size controlled by
+      ``sequence.glycans.max_glycan_size`` (default 30)
+   -  ``wide``: the root glycan monomer (directly bonded to the protein)
+      gets the protein attachment resid plus
+      ``sequence.glycans.wide_shift`` (default 3000); subsequent
+      monomers increment by 1 in BFS order from the root (e.g. NAG on
+      ASN 123 → resid 3123, next monomer → 3124)
+
+-  bugfix: ``--ncpus`` CLI option and ``namd.ncpus`` config key now
+   correctly override NAMD PE count; the processor-info banner reflects
+   the effective count at startup
+-  bugfix: under SLURM, NAMD (CPU/multicore mode) is now launched as
+   ``numactl --localalloc namd3 +p N script.namd``; both
+   ``charmrun +p N`` and bare ``+p N`` bypass SLURM’s CPU affinity mask,
+   scattering Charm++ worker threads across all NUMA nodes and causing
+   severe startup slowdown due to cross-NUMA memory access during
+   bond-table construction; ``numactl --localalloc`` preserves Charm++’s
+   thread placement while ensuring each thread’s memory allocations land
+   on its local NUMA node
+-  bugfix: glycan resid block allocation in the ``narrow`` convention
+   now correctly starts above the parent chain’s maximum protein resid
+   rather than from 1, eliminating clashes between glycan and protein
+   resids within the same chainID
+
+.. _section-6:
+
+[2.2.7] - 2026-04-19
+--------------------
+
+-  new feature: all glycan trees (both polymeric and monomeric) now
+   share the chainID of their attached protein chain, each receives a
+   unique segname (``{chainID}G{k:02d}``), and resids are
+   block-allocated per chain in attachment-resid order so each glycan
+   owns a non-overlapping resid range allowing future monomer additions;
+   controlled by new ``sequence.glycans.max_glycan_size`` parameter
+   (default 30)
+-  new feature: link ``resid1``/``resid2`` fields are synchronized from
+   residue objects after segment building to keep topology consistent
+   through ``prune_topology``
+
+.. _section-7:
+
+[2.2.6] - 2026-04-19
+--------------------
+
+-  bugfix: stale ``pstr()`` call on ``StateInterval`` in loop-declashing
+   debug log replaced with valid attribute access
+-  bugfix: ``assign_obj_to_attr`` in ``BaseObj`` now correctly handles
+   multi-match lists — previously used ``type(x) != objList`` (always
+   ``True``) instead of ``type(x) != type(objList)``, causing a
+   ``ResidueList`` to be assigned where a single residue was expected,
+   leading to downstream ``AttributeError``
+-  bugfix: ``prune_topology`` in ``SegmentList`` now uses identity
+   (``is``) rather than equality (``==``) when locating and removing
+   residues — after all glycan chainIDs are remapped to their parent
+   protein chain, glycan residues from different source chains (e.g.,
+   chain A NAG1 and chain D NAG1) become value-equal but are distinct
+   objects; using ``__eq__`` caused the wrong segment’s residues to be
+   deleted, breaking the glycan patch application
+-  bugfix: ``unregister_chain`` is no longer called for pruned glycan
+   segments (e.g., GG03) whose ``segname`` is not a registered chainID —
+   previously raised ``KeyError`` when a glycan segment was fully pruned
+   by ``prune_topology``
+-  bugfix: asymmetric-unit builder now detects C-terminal insertions and
+   ensures they are built even when ``include_C_termini: False`` is set
+
+.. _section-8:
+
+[2.2.5] - 2026-04-18
+--------------------
+
+-  bugfix: ``merge`` task now writes injected PSF REMARKS with a leading
+   space, consistent with psfgen’s own output format
+
+.. _section-9:
 
 [2.2.4] - 2026-04-18
 --------------------
@@ -38,7 +221,7 @@ documents changes below.
    than raising an error — so ``altloc == 'B'`` can be used safely in a
    ``psfgen`` source ``exclude`` list
 
-.. _section-1:
+.. _section-10:
 
 [2.2.3] - 2026-04-17
 --------------------
@@ -48,7 +231,7 @@ documents changes below.
 -  New ``merge`` task for merging independent PSF/PDBs into a single
    system (no coordinate transformations!)
 
-.. _section-2:
+.. _section-11:
 
 [2.2.0] - 2026-03-04
 --------------------
@@ -56,7 +239,7 @@ documents changes below.
 -  Now uses Feb 26 CHARMMFF release (Jul 24 is still available as an
    option)
 
-.. _section-3:
+.. _section-12:
 
 [2.1.9] - 2026-03-03
 --------------------
@@ -66,7 +249,7 @@ documents changes below.
 -  bugfix: psfgen task can now follow a continuation task and add atoms
    and residues successfully
 
-.. _section-4:
+.. _section-13:
 
 [2.1.8] - 2026-02-18
 --------------------
@@ -74,28 +257,28 @@ documents changes below.
 -  bugfix: desolvate no longer assumes solvent and non-solvent atoms
    must have different segnames (but they should)
 
-.. _section-5:
+.. _section-14:
 
 [2.1.7] - 2025-11-19
 --------------------
 
 -  bugfix: insertion resid incrementation bug fixed
 
-.. _section-6:
+.. _section-15:
 
 [2.1.6] - 2025-10-22
 --------------------
 
 -  bugfix: glycan declashing
 
-.. _section-7:
+.. _section-16:
 
 [2.1.5] - 2025-10-22
 --------------------
 
 -  testing ``GLYCAN_PENDANT`` crotation
 
-.. _section-8:
+.. _section-17:
 
 [2.1.4] - 2025-10-12
 --------------------
@@ -103,7 +286,7 @@ documents changes below.
 -  multiple bugfixes in ``desolvate`` and ``make-namd-restart``
    subcommands
 
-.. _section-9:
+.. _section-18:
 
 [2.1.3] - 2025-10-10
 --------------------
@@ -115,7 +298,7 @@ documents changes below.
    validation
 -  added cardiolipin substream to built-in pdbrepository
 
-.. _section-10:
+.. _section-19:
 
 [2.1.2] - 2025-09-30
 --------------------
@@ -124,7 +307,7 @@ documents changes below.
    membrane x,y dimensions
 -  bugfix for grafts onto targets that have H’s from sources that do not
 
-.. _section-11:
+.. _section-20:
 
 [2.1.1] - 2025-09-23
 --------------------
@@ -133,7 +316,7 @@ documents changes below.
    ``make_membrane_system`` (``dum_pdb``)
 -  updated input configs for examples 16 and 17
 
-.. _section-12:
+.. _section-21:
 
 [2.1.0] - 2025-09-19
 --------------------
@@ -144,7 +327,7 @@ documents changes below.
    ``terminate`` task to enable generation of gold standard results and
    comparisons to them
 
-.. _section-13:
+.. _section-22:
 
 [2.0.3] - 2025-09-15
 --------------------
@@ -156,7 +339,7 @@ documents changes below.
 -  updated ``pidibble`` dependency to allow for downloading structures
    from OPM
 
-.. _section-14:
+.. _section-23:
 
 [2.0.1] - 2025-09-04
 --------------------
@@ -176,7 +359,7 @@ documents changes below.
    running sums over chained MD runs
 -  complete refactoring to use pydantic’s BaseModel
 
-.. _section-15:
+.. _section-24:
 
 [1.21.2] - 2025-07-17
 ---------------------
@@ -184,14 +367,14 @@ documents changes below.
 -  first official Zenodo release |DOI|
 -  fixed bug in user-modifiable segtype handling
 
-.. _section-16:
+.. _section-25:
 
 [1.21.1] - 2025-07-15
 ---------------------
 
 -  Parameterized BMS-806 (resname 83G) from PDB ID 8fad now included
 
-.. _section-17:
+.. _section-26:
 
 [1.20.3] - 2025-07-14
 ---------------------
@@ -199,7 +382,7 @@ documents changes below.
 -  more examples
 -  upgraded example support
 
-.. _section-18:
+.. _section-27:
 
 [1.19.1] - 2025-07-11
 ---------------------
@@ -209,7 +392,7 @@ documents changes below.
 -  support for adding, renaming, inserting, assigning authorship to, and
    deleting examples
 
-.. _section-19:
+.. _section-28:
 
 [1.18.1] - 2025-07-08
 ---------------------
@@ -218,14 +401,14 @@ documents changes below.
    by ``pdb2pqr``
 -  developer support for adding examples
 
-.. _section-20:
+.. _section-29:
 
 [1.17.0] - 2025-07-05
 ---------------------
 
 -  support for simple nucleic acids added
 
-.. _section-21:
+.. _section-30:
 
 [1.16.3] - 2025-07-03
 ---------------------
@@ -237,7 +420,7 @@ documents changes below.
 -  new ``pdb2pqr`` task to assign protonation states based on
    ``propka3``
 
-.. _section-22:
+.. _section-31:
 
 [1.15.1] - 2025-06-22
 ---------------------
@@ -247,7 +430,7 @@ documents changes below.
 -  removed spurious dependence on ``parmed``
 -  added pressure profile calculation capabilities to ``mdplot`` task
 
-.. _section-23:
+.. _section-32:
 
 [1.14.1] - 2025-06-18
 ---------------------
@@ -255,14 +438,14 @@ documents changes below.
 -  Implemented standard CHARMM36 patches as mods
 -  Added HIV-1 protease 1f7a as a new example (now there are 16!)
 
-.. _section-24:
+.. _section-33:
 
 [1.13.3] - 2025-06-17
 ---------------------
 
 -  Allow config to contain names of otherwise unnamed lipids in CHARMMFF
 
-.. _section-25:
+.. _section-34:
 
 [1.13.2] - 2025-06-16
 ---------------------
@@ -272,7 +455,7 @@ documents changes below.
 -  updated PDB repository to work with a gzipped folder (all lipids)
 -  converted charmmff contents back into an as-downloaded tarball
 
-.. _section-26:
+.. _section-35:
 
 [1.12.1] - 2025-06-04
 ---------------------
@@ -284,7 +467,7 @@ documents changes below.
    per leaflet in a patch
 -  misspelled “paramfiles” in ycleptic basefile (one time)
 
-.. _section-27:
+.. _section-36:
 
 [1.12.0] - 2025-06-03
 ---------------------
@@ -294,7 +477,7 @@ documents changes below.
 -  fixed residue misnumbering for large membranes
 -  fixed large membrane embedding errors
 
-.. _section-28:
+.. _section-37:
 
 [1.11.2] - 2025-05-27
 ---------------------
@@ -305,7 +488,7 @@ documents changes below.
 -  New NAMD and packmol on-the-fly log parsing, including in standalone
    mode with the ``follow-namd-log`` subcommand
 
-.. _section-29:
+.. _section-38:
 
 [1.10.0] - 2025-03-27
 ---------------------
@@ -315,7 +498,7 @@ documents changes below.
    ``source [pestifer_init]``
 -  ``cleanup`` subcommand added for cleaning up after an aborted run
 
-.. _section-30:
+.. _section-39:
 
 [1.9.0] - 2025-03-27
 --------------------
@@ -323,7 +506,7 @@ documents changes below.
 -  ``transrot`` mod enabled for global translations and rotations
 -  ``desolvate`` subcommand now can output a single pdb file
 
-.. _section-31:
+.. _section-40:
 
 [1.8.3] - 2025-03-19
 --------------------
@@ -331,7 +514,7 @@ documents changes below.
 -  fixed bug for growing alpha helices in the N-terminal direction in
    ``crot.tcl``
 
-.. _section-32:
+.. _section-41:
 
 [1.8.2] - 2025-03-11
 --------------------
@@ -342,7 +525,7 @@ documents changes below.
 -  added ``--gpu`` option for the ``run`` and ``run-example``
    subcommands
 
-.. _section-33:
+.. _section-42:
 
 [1.8.1] - 2025-03-10
 --------------------
@@ -350,7 +533,7 @@ documents changes below.
 -  removal of tcllib from resources (I never used it anyway)
 -  bugfix in slow build tests
 
-.. _section-34:
+.. _section-43:
 
 [1.8.0] - 2025-03-07
 --------------------
@@ -359,14 +542,14 @@ documents changes below.
 -  mmCIF convention updated
 -  ``mdplot`` subcommand added
 
-.. _section-35:
+.. _section-44:
 
 [1.7.4] - 2025-02-23
 --------------------
 
 -  bugfix: xst trace for ``mdplot`` fails if empty
 
-.. _section-36:
+.. _section-45:
 
 [1.7.2] - 2025-02-12
 --------------------
@@ -375,7 +558,7 @@ documents changes below.
    file based on the first two Info: records
 -  bugfix: correct the problem with restarts interfering with mdplot
 
-.. _section-37:
+.. _section-46:
 
 [1.7.1] - 2025-02-10
 --------------------
@@ -389,7 +572,7 @@ documents changes below.
 -  ``make-namd-restart`` subcommand enabled
 -  ``ycleptic`` dependency updated to 1.1.0
 
-.. _section-38:
+.. _section-47:
 
 [1.6.1] - 2025-06-29
 --------------------
@@ -397,14 +580,14 @@ documents changes below.
 -  now able to use namd2 or namd3
 -  can optionally use GPU-resident namd3
 
-.. _section-39:
+.. _section-48:
 
 [1.5.9] - 2025-01-22
 --------------------
 
 -  bugfix: log write suppressed inadvertently if progress bars not used
 
-.. _section-40:
+.. _section-49:
 
 [1.5.6] - 2025-01-03
 --------------------
@@ -413,21 +596,21 @@ documents changes below.
 -  wildcard allowed in pdbalias commands for atom renaming
 -  temporary fix for dbRes HIS in any mutations to be named HSD
 
-.. _section-41:
+.. _section-50:
 
 [1.5.4] - 2024-11-05
 --------------------
 
 -  bugfix: incorrect deletion of image seqmods
 
-.. _section-42:
+.. _section-51:
 
 [1.5.3] - 2024-09-30
 --------------------
 
 -  bugfix: ``custom_pdb_path`` bug in ``bilayer`` fixed
 
-.. _section-43:
+.. _section-52:
 
 [1.5.2] - 2024-09-24
 --------------------
@@ -436,7 +619,7 @@ documents changes below.
 -  python dependency updated to >=3.12
 -  ``ycleptic`` dependency updated to 1.0.7
 
-.. _section-44:
+.. _section-53:
 
 [1.4.8] - 2024-09-24
 --------------------
@@ -445,7 +628,7 @@ documents changes below.
 -  updated ``ycleptic`` to 1.0.6 to enable interactive help and
    automatic config documentation
 
-.. _section-45:
+.. _section-54:
 
 [1.4.7] - 2024-09-18
 --------------------
@@ -473,7 +656,7 @@ documents changes below.
 -  since packmol-memgen sometimes translates the insert, cannot use
    packmol’s input coordinates to psfgen the resulting embedded system
 
-.. _section-46:
+.. _section-55:
 
 [1.4.4] - 2024-07-10
 --------------------
@@ -483,7 +666,7 @@ documents changes below.
 -  fixed incorrect charges on the C-terminal CA and HB in the ``HEAL``
    patch
 
-.. _section-47:
+.. _section-56:
 
 [1.4.3] - 2024-07-02
 --------------------
@@ -495,28 +678,28 @@ documents changes below.
 -  allow for N-atom position calculation for residues added to a
    C-terminus (atom name OT1 vs O)
 
-.. _section-48:
+.. _section-57:
 
 [1.4.2] - 2024-06-27
 --------------------
 
 -  explicit chain mapping in config file
 
-.. _section-49:
+.. _section-58:
 
 [1.4.1] - 2024-05-16
 --------------------
 
 -  support for empty TER records
 
-.. _section-50:
+.. _section-59:
 
 [1.4.0] - 2024-04-01
 --------------------
 
 -  initial ``packmol-memgen`` integration
 
-.. _section-51:
+.. _section-60:
 
 [1.3.9] - 2024-03-04
 --------------------
@@ -525,14 +708,14 @@ documents changes below.
    ``False`` to prevent C-terminal insertions from undergoing automatic
    declashing
 
-.. _section-52:
+.. _section-61:
 
 [1.3.8] - 2024-02-29
 --------------------
 
 -  bugfix: spurious code in ``pestifer-vmd.tcl``
 
-.. _section-53:
+.. _section-62:
 
 [1.3.7] - 2024-02-29
 --------------------
@@ -543,7 +726,7 @@ documents changes below.
 -  ``alphafold`` source directive added to permit download of models
    from the AlphaFold database by accession code
 
-.. _section-54:
+.. _section-63:
 
 [1.3.5] - 2024-02-26
 --------------------
@@ -554,7 +737,7 @@ documents changes below.
 -  ``inittcl`` subcommand makes this transfer; needs only to be run one
    time post-installation
 
-.. _section-55:
+.. _section-64:
 
 [1.3.4] - 2024-02-06
 --------------------
@@ -566,7 +749,7 @@ documents changes below.
 -  ``script`` subcommand removed
 -  syntax of ``wheretcl`` subcommand expanded
 
-.. _section-56:
+.. _section-65:
 
 [1.3.3] - 2024-01-31
 --------------------
@@ -575,7 +758,7 @@ documents changes below.
 -  ``mdplot`` task for generating plots of various energy-like
    quantities vs timestep
 
-.. _section-57:
+.. _section-66:
 
 [1.3.2] - 2024-01-24
 --------------------
@@ -583,28 +766,28 @@ documents changes below.
 -  allow for user-defined links in the config file
 -  all example builds now have tests in the test suite
 
-.. _section-58:
+.. _section-67:
 
 [1.3.1] - 2024-01-12
 --------------------
 
 -  bug fixes for cleaving
 
-.. _section-59:
+.. _section-68:
 
 [1.3.0] - 2024-01-11
 --------------------
 
 -  Support for reading from already-built PSF/PDB systems
 
-.. _section-60:
+.. _section-69:
 
 [1.2.9] - 2023-12-19
 --------------------
 
 -  improved declashing and domain-swapping
 
-.. _section-61:
+.. _section-70:
 
 [1.2.8] - 2023-12-05
 --------------------
@@ -613,14 +796,14 @@ documents changes below.
 -  ``cleave`` task and ``CleavageMod``
 -  ``ModManager`` replaces ``ModContainer``
 
-.. _section-62:
+.. _section-71:
 
 [1.2.5] - 2023-11-28
 --------------------
 
 -  ``insertion`` mod; corrected bug in ``brot`` tcl procedure
 
-.. _section-63:
+.. _section-72:
 
 [1.2.3] - 2023-11-20
 --------------------
@@ -629,7 +812,7 @@ documents changes below.
 -  added ``wheretcl`` subcommand
 -  added ``script`` subcommand (since removed)
 
-.. _section-64:
+.. _section-73:
 
 [1.2.0] - 2023-11-16
 --------------------
@@ -637,7 +820,7 @@ documents changes below.
 -  split all namd subtasks out; now they are level-1 tasks
 -  added ``manipulate`` task
 
-.. _section-65:
+.. _section-74:
 
 [1.1.2] - 2023-11-09
 --------------------
@@ -647,7 +830,7 @@ documents changes below.
 -  position restraints control in minimization and relaxation
 -  ``other_parameters`` for any NAMD2 relaxation task
 
-.. _section-66:
+.. _section-75:
 
 [1.0.9] - 2023-11-07
 --------------------
@@ -658,7 +841,7 @@ documents changes below.
 -  ``alpha`` crotation for folding a span of residues into an alpha
    helix
 
-.. _section-67:
+.. _section-76:
 
 [1.0.6] - 2023-10-31
 --------------------
@@ -668,7 +851,7 @@ documents changes below.
 -  enhancements to packaging task
 -  support for topogromacs added
 
-.. _section-68:
+.. _section-77:
 
 [1.0.1] - 2023-09-20
 --------------------
