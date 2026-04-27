@@ -46,6 +46,7 @@ Subcommands
    subs/follow-namd-log
    subs/mdplot
    subs/modify-package
+   subs/setup-vmd
 
 .. _use in vmd scripts:
 
