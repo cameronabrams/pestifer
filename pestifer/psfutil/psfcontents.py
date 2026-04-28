@@ -290,6 +290,14 @@ class PSFContents:
         self.patchremarks = self.remarks.get_patchremarks()
         self.ssbonds = SSBondList([SSBond(p.data) for p in self.patchremarks if isinstance(p.data, PSFDISUPatch)])
         self.links = LinkList([Link(p.data) for p in self.patchremarks if isinstance(p.data, PSFLinkPatch)])
+        # Terminus-management patches (and their undo counterparts) are always handled
+        # by psfgen's first/last segment directives or the intra-segmental loop-gap
+        # mechanism.  Re-propagating them from a continuation PSF causes duplicate bonds
+        # (e.g., XCTR applied to a residue whose C=O was never removed by CTER in the
+        # new build adds a second C-O bond, producing a degenerate angle C-O-C).
+        _terminus_skip = (set(Patch._in_segment_Npatches) |
+                          set(Patch._in_segment_Cpatches) |
+                          {'XCTR', 'XNTR', 'XGLP', 'XPRP'})
         self.generic_patches = PatchList([])
         for p in self.patchremarks:
             if p.data is not None:
@@ -297,24 +305,21 @@ class PSFContents:
             if len(p.patchspecs) != 1:
                 logger.debug(f'Skipping multi-spec generic patch {p.patchname} {p.patchspecs}')
                 continue
+            if p.patchname in _terminus_skip:
+                logger.debug(f'Skipping terminus-management patch {p.patchname} from generic_patches')
+                continue
             spec = p.patchspecs[0]
             try:
                 segname, resid_str = spec.split(':')
             except ValueError:
                 logger.warning(f'Cannot parse patch spec {spec!r} for patch {p.patchname}')
                 continue
-            if p.patchname in Patch._in_segment_Npatches:
-                use_in_segment = 'first'
-            elif p.patchname in Patch._in_segment_Cpatches:
-                use_in_segment = 'last'
-            else:
-                use_in_segment = ''
             use_after_regenerate = p.patchname in Patch._after_regenerate_patches
             self.generic_patches.append(Patch(
                 patchname=p.patchname,
                 chainID=segname,
                 resid=ResID(resid_str),
-                use_in_segment=use_in_segment,
+                use_in_segment='',
                 use_after_regenerate=use_after_regenerate,
             ))
 
