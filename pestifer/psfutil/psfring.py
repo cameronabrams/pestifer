@@ -146,30 +146,39 @@ class RingList(PSFTopoElementList):
         return ';'.join([str(x) for x in self])
     
 @countTime
-def ring_check(psf,pdb,xsc,cutoff=10.0,segtypes=['lipid']):
+def ring_check(psf,pdb,xsc=None,cutoff=10.0,segtypes=['lipid']):
     """
     Check for rings in a molecular structure and identify bonds that pierce them.
     This function reads a PSF file and a PDB file, extracts the coordinates of atoms, and checks for rings in the structure.
     It identifies bonds that pierce the rings based on a specified cutoff distance and returns a list of specifications for the piercing bonds.
-    
+
     Parameters
     ----------
     psf : str
         Path to the PSF file.
     pdb : str
         Path to the PDB file.
-    xsc : str
-        Path to the XSC file.
+    xsc : str or None
+        Path to the XSC file.  If ``None``, the system is treated as non-periodic
+        (vacuum): a bounding box is derived from the coordinate extents and the
+        minimum-image convention is not applied.
     cutoff : float
         Cutoff distance in Angstroms for identifying piercing bonds. Default is 10.0.
     segtypes : list
         List of segment types to include in the analysis. Default is ['lipid'].
     """
-    box, orig = cell_from_xsc(xsc)
     coorddf = coorddf_from_pdb(pdb)
-    sidelengths = np.diagonal(box)
-    ll = orig - 0.5 * sidelengths
-    ur = orig + 0.5 * sidelengths
+    if xsc is not None:
+        box, orig = cell_from_xsc(xsc)
+        sidelengths = np.diagonal(box)
+        ll = orig - 0.5 * sidelengths
+        ur = orig + 0.5 * sidelengths
+    else:
+        box = None
+        coords = coorddf[['x', 'y', 'z']].values
+        ll = coords.min(axis=0) - cutoff
+        ur = coords.max(axis=0) + cutoff
+        logger.debug('No XSC file — treating system as non-periodic (vacuum)')
     LC = Linkcell(np.array([ll, ur]), cutoff)
     topol = PSFContents(psf, parse_topology=['bonds'], topology_segtypes=segtypes)
     assert coorddf.shape[0] == len(topol.atoms), f'{psf} and {pdb} are incongruent'
@@ -209,7 +218,7 @@ def ring_check(psf,pdb,xsc,cutoff=10.0,segtypes=['lipid']):
         for bond in search_bonds:
             if any([x in ring.idx_list for x in bond.idx_list]):
                 continue
-            test_bond = bond.mic_shift(ring.COM, box)
+            test_bond = bond.mic_shift(ring.COM, box) if box is not None else bond
             pdict = ring.pierced_by(test_bond)
             if pdict['pierced']: piercing_bonds.append(test_bond)
             if 'reason' in pdict:

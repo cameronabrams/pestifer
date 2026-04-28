@@ -2,6 +2,12 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
+## [2.4.3] - 2026-04-28
+
+- bugfix: generic single-residue patches (NTER, CTER, GLUP, ASPP, NNEU, and custom patches) recorded in `REMARKS patch` lines of an input PSF were silently dropped when a `psfgen` task followed a `continuation` task; `PSFContents` now extracts these patches into `generic_patches` and `AsymmetricUnit` propagates them through the objmanager pipeline so they are re-emitted as `first`/`last`/`patch` commands in the new psfgen script
+- bugfix: `ring_check` task now operates correctly without an XSC file (vacuum / non-periodic systems); previously the task assumed a periodic box was always available; in non-periodic mode the bounding box is derived from coordinate extents and minimum-image wrapping is skipped
+- test: added `tests/unit/test_tasks/test_psfgen.py` — slow regression test that builds a vacuum BPTI PSF/PDB (6pti, mirroring example 1), then loads it via a `continuation` task and re-runs `psfgen` with one non-cysteine mutation, verifying that all three DISU patch REMARK records survive into the stage-2 PSF
+
 ## [2.4.2] - 2026-04-28
 
 - bugfix: `PSFContents` used `BaseObjList.get()` to filter atoms by segtype when building the topology-active atom list for `ring_check`; `get()` returns `None` for zero matches and a bare object for exactly one match, causing a `TypeError` on `len()`; replaced with `filter()`, which always returns a `BaseObjList`

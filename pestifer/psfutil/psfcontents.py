@@ -26,6 +26,7 @@ from .psfpatch import PSFDISUPatch, PSFLinkPatch
 from ..molecule.residue import Residue, ResidueList
 
 from ..objs.link import Link, LinkList
+from ..objs.patch import Patch, PatchList
 from ..objs.resid import ResID
 from ..objs.ssbond import SSBond, SSBondList
 
@@ -289,6 +290,33 @@ class PSFContents:
         self.patchremarks = self.remarks.get_patchremarks()
         self.ssbonds = SSBondList([SSBond(p.data) for p in self.patchremarks if isinstance(p.data, PSFDISUPatch)])
         self.links = LinkList([Link(p.data) for p in self.patchremarks if isinstance(p.data, PSFLinkPatch)])
+        self.generic_patches = PatchList([])
+        for p in self.patchremarks:
+            if p.data is not None:
+                continue
+            if len(p.patchspecs) != 1:
+                logger.debug(f'Skipping multi-spec generic patch {p.patchname} {p.patchspecs}')
+                continue
+            spec = p.patchspecs[0]
+            try:
+                segname, resid_str = spec.split(':')
+            except ValueError:
+                logger.warning(f'Cannot parse patch spec {spec!r} for patch {p.patchname}')
+                continue
+            if p.patchname in Patch._in_segment_Npatches:
+                use_in_segment = 'first'
+            elif p.patchname in Patch._in_segment_Cpatches:
+                use_in_segment = 'last'
+            else:
+                use_in_segment = ''
+            use_after_regenerate = p.patchname in Patch._after_regenerate_patches
+            self.generic_patches.append(Patch(
+                patchname=p.patchname,
+                chainID=segname,
+                resid=ResID(resid_str),
+                use_in_segment=use_in_segment,
+                use_after_regenerate=use_after_regenerate,
+            ))
 
         self.segnames = [seg.segname for seg in self.segments.data]
         self.atomserials = [x.serial for x in self.atoms.data]
@@ -296,6 +324,7 @@ class PSFContents:
         logger.debug(f'{len(self.segments)} segments: {self.segnames}')
         logger.debug(f'{len(self.ssbonds)} disulfide bonds')
         logger.debug(f'{len(self.links)} special covalent links')
+        logger.debug(f'{len(self.generic_patches)} generic single-residue patches')
         if parse_topology:
             include_serials = []
             if topology_segtypes:

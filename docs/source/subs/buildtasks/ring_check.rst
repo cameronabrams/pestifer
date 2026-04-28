@@ -8,7 +8,9 @@ The ``ring_check`` task detects and removes **pierced-ring** configurations — 
 Prerequisites
 ~~~~~~~~~~~~~
 
-``ring_check`` requires PSF, PDB, and XSC state files, so it must follow at least one MD step (typically a short minimization).  The canonical placement is immediately after the first minimization following a ``psfgen`` or ``make_membrane_system`` task:
+``ring_check`` requires PSF and PDB state files and must follow at least one MD step (typically a short minimization).  An XSC file is used when present: it supplies the periodic box vectors so that the minimum-image convention can be applied when measuring bond–ring distances across periodic boundaries.  If no XSC is available (vacuum system), ``ring_check`` falls back to a non-periodic mode in which the bounding box is derived from the coordinate extents.
+
+The canonical placement is immediately after the first minimization following a ``psfgen`` or ``make_membrane_system`` task:
 
 .. code-block:: yaml
 

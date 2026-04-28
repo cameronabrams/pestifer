@@ -33,7 +33,10 @@ class RingCheckTask(BaseTask):
         cutoff: float = self.specs.get('cutoff', 3.5)
         segtypes: list = self.specs.get('segtypes', ['lipid', 'glycan'])
         delete_these: str = self.specs.get('delete', 'piercee')
-        npiercings = ring_check(state.psf.name, state.pdb.name, state.xsc.name, cutoff=cutoff, segtypes=segtypes)
+        xsc_name = state.xsc.name if state.xsc else None
+        if xsc_name is None:
+            logger.debug('No XSC in pipeline state — ring_check will run in non-periodic (vacuum) mode')
+        npiercings = ring_check(state.psf.name, state.pdb.name, xsc_name, cutoff=cutoff, segtypes=segtypes)
         if npiercings:
             ess = 's' if len(npiercings) > 1 else ''
             glycan_piercings = [p for p in npiercings if p['piercee']['segtype'] == 'glycan']

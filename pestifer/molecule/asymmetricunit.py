@@ -157,10 +157,13 @@ class AsymmetricUnit:
             # because it is not a Structure File from the PDB (since it has a companion PSF)
             ssbonds.extend(self.psfcontents.ssbonds)
             links.extend(self.psfcontents.links)
+            patches.extend(self.psfcontents.generic_patches)
             if len(self.psfcontents.ssbonds) > 0:
                 logger.debug(f'PSF file {psf} identifies {len(self.psfcontents.ssbonds)} ssbonds; total ssbonds now {len(ssbonds)}')
             if len(self.psfcontents.links) > 0:
                 logger.debug(f'PSF file {psf} identifies {len(self.psfcontents.links)} links; total links now {len(links)}')
+            if len(self.psfcontents.generic_patches) > 0:
+                logger.debug(f'PSF file {psf} identifies {len(self.psfcontents.generic_patches)} generic patches')
 
         # at this point the objmanager is holding all mods that are in 
         # the input file but NOT in the PDB/mmCIF/psf file.
