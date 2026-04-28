@@ -498,7 +498,11 @@ class PsfgenScripter(VMDScripter):
 
         # All source index resids and corresponding target resids (in alignment order)
         all_src_index_resids = [G.source_root] + list(G.source_partners)
-        all_tgt_resids = [r.resid for r in G.residues]  # receiver residue resids
+        # Use original shortcode resids (G.target_root / G.target_partners), not the
+        # post-narrow-convention values on G.residues.  The $m4 base molecule is the
+        # raw source PDB which has not been renumbered yet at the point graft alignment
+        # runs, so the selection must match original PDB chain/resid.
+        all_tgt_resids = [G.target_root] + list(G.target_partners)
 
         # --- Pre-conditioning: match source glycosidic dihedrals to target ---
         # Iterate over consecutive pairs of index residues (innermost first)
