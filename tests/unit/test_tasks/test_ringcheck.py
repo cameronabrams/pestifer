@@ -16,8 +16,10 @@ class TestRingCheck(unittest.TestCase):
         p=result[0]
         self.assertEqual(p['piercee']['resid'],67)
         self.assertEqual(p['piercee']['segname'],'S2')
+        self.assertEqual(p['piercee']['segtype'],'lipid')
         self.assertEqual(p['piercer']['resid'],645)
         self.assertEqual(p['piercer']['segname'],'S2')
+        self.assertEqual(p['piercer']['segtype'],'lipid')
 
     @pytest.mark.slow
     def test_ring_check_coords_2(self):
@@ -61,6 +63,22 @@ class TestRingCheck(unittest.TestCase):
         self.assertEqual(p['piercee']['segname'],'S1')
         self.assertEqual(p['piercer']['resid'],529)
         self.assertEqual(p['piercer']['segname'],'S1')
+
+    def test_ring_check_coords_5(self):
+        # synthetic: BGLC pyranose ring (glycan) in XY plane, CHL1 bond (lipid) along Z piercing through center
+        dir='5'
+        pdb=os.path.join(dir,'test.pdb')
+        psf=os.path.join(dir,'test.psf')
+        xsc=os.path.join(dir,'test.xsc')
+        result=ring_check(psf,pdb,xsc,cutoff=3.5,segtypes=['lipid','glycan'])
+        self.assertEqual(len(result),1)
+        p=result[0]
+        self.assertEqual(p['piercee']['segname'],'AG01')
+        self.assertEqual(p['piercee']['resid'],1)
+        self.assertEqual(p['piercee']['segtype'],'glycan')
+        self.assertEqual(p['piercer']['segname'],'LIP1')
+        self.assertEqual(p['piercer']['resid'],2)
+        self.assertEqual(p['piercer']['segtype'],'lipid')
 
     @pytest.mark.slow
     def test_ring_check_coords_4(self):

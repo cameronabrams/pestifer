@@ -4,6 +4,7 @@ from collections import UserList, UserDict
 
 from . import task_classes
 from .basetask import BaseTask
+from ..core.errors import PestiferBuildError
 from ..util.stringthings import my_logger
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,7 @@ class TaskList(UserList[BaseTask]):
             # Ensure the name of the task is among the implemented Tasks
             Cls = task_classes.get(taskname, None)
             if Cls is None:
-                raise ValueError(f"Task {taskname} is not implemented.")
+                raise PestiferBuildError(f"Task {taskname} is not implemented.")
             data.append(Cls(specs=task_specs, index=index))
             if prior is None:
                 prior = data[-1]

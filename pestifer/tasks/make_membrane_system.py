@@ -16,6 +16,7 @@ from .basetask import BaseTask
 from ..charmmff.charmmffcontent import CHARMMFFContent
 
 from ..core.artifacts import *
+from ..core.errors import PestiferBuildError
 from ..util.stringthings import __pestifer_version__
 
 from ..molecule.bilayer import Bilayer, specstrings_builddict
@@ -197,7 +198,7 @@ class MakeMembraneSystemTask(BaseTask):
                               z_tail_group=protect_str_arg(z_tail_group),
                               o=self.basename)
         if result != 0:
-            raise RuntimeError(f'vmd failed with result {result} for {self.basename}')
+            raise PestiferBuildError(f'vmd failed with result {result} for {self.basename}')
         self.register(self.basename, key='log', artifact_type=VMDLogFileArtifact)
         self.register(dict(
             psf=protein_psf, 
@@ -326,7 +327,7 @@ class MakeMembraneSystemTask(BaseTask):
         result = pm.runscript()
         logger.debug(f'{self.basename} packmol result {result}')
         if result != 0:
-            raise Exception(f'Packmol failed with result {result}')
+            raise PestiferBuildError(f'Packmol failed with result {result}')
         self.register(dict(pdb=PDBFileArtifact(self.basename, pytestable=True)), key=f'{patch_name}_state', artifact_type=StateArtifacts)
         if os.path.exists(f'{self.basename}.pdb_FORCED'):
             self.register(f'{self.basename}.pdb_FORCED', key=f'{patch_name}_packmol_forced', artifact_type=PackMolPDBForcedFileArtifact)
@@ -461,7 +462,7 @@ class MakeMembraneSystemTask(BaseTask):
             pdbB = patchB_state.pdb.name
             xscB = patchB_state.xsc.name
         else:
-            raise ValueError("No valid patch state found.")
+            raise PestiferBuildError("No valid patch state found.")
         for patch in [self.patch, self.patchA, self.patchB]:
             if patch is None:
                 continue
@@ -494,7 +495,7 @@ class MakeMembraneSystemTask(BaseTask):
                 result = pg.runscript(dimx=dimx, dimy=dimy, psfA=psfA, pdbA=pdbA,
                                       psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
         if result != 0:
-            raise RuntimeError(f'psfgen failed with result {result} for {self.basename}')
+            raise PestiferBuildError(f'psfgen failed with result {result} for {self.basename}')
         self.register(self.basename, key='log', artifact_type=PsfgenLogFileArtifact)
         self.register_tmpfiles_from_tcl(f'{self.basename}.log')
         self.register(dict(
@@ -560,7 +561,7 @@ class MakeMembraneSystemTask(BaseTask):
                               z_value=z_value,
                               o=self.basename)
         if result != 0:
-            raise RuntimeError(f'psfgen failed with result {result} for {self.basename}')
+            raise PestiferBuildError(f'psfgen failed with result {result} for {self.basename}')
         self.register(self.basename, key='log', artifact_type=PsfgenLogFileArtifact)
         self.register(dict(
             psf=PSFFileArtifact(self.basename, pytestable=True), 

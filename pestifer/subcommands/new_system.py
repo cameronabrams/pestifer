@@ -10,6 +10,7 @@ from dataclasses import dataclass
 
 from . import Subcommand
 
+from ..core.errors import PestiferError
 from ..core.resourcemanager import ResourceManager
 
 @dataclass
@@ -25,7 +26,7 @@ class NewSystemSubcommand(Subcommand):
         outputfilename = args.output if args.output else f'{args.id}.yaml'
         title = args.title if args.title else ''
         if os.path.exists(outputfilename):
-            raise FileExistsError(f'Output file {outputfilename} already exists; please remove it or choose a different name')
+            raise PestiferError(f'Output file {outputfilename} already exists; please remove it or choose a different name')
         r.example_manager.new_example_yaml(db_id=args.id, build_type=build_type, outputfilename=outputfilename, title=title)
         return True
 

@@ -31,6 +31,7 @@ import os
 
 from .psfgen import PsfgenTask
 from ..core.artifacts import *
+from ..core.errors import PestiferBuildError
 from ..psfutil.psfcontents import PSFContents
 
 logger = logging.getLogger(__name__)
@@ -79,7 +80,7 @@ class MergeTask(PsfgenTask):
             })
 
         if len(systems_specs) < 2:
-            raise ValueError('merge task requires at least 2 systems')
+            raise PestiferBuildError('merge task requires at least 2 systems')
 
         # Normalise each spec: convert coor → pdb if needed, validate files.
         systems = []
@@ -88,16 +89,16 @@ class MergeTask(PsfgenTask):
             pdb = spec.get('pdb', '')
             coor = spec.get('coor', '')
             if not psf:
-                raise ValueError(f'systems[{i}]: psf file must be specified')
+                raise PestiferBuildError(f'systems[{i}]: psf file must be specified')
             if not pdb and not coor:
-                raise ValueError(f'systems[{i}]: either pdb or coor must be specified')
+                raise PestiferBuildError(f'systems[{i}]: either pdb or coor must be specified')
             if coor and not pdb:
                 # Convert binary NAMD coordinate file to PDB so VMD can read it
                 pdb = self.coor_to_pdb(coor, psf)
             if not os.path.exists(psf):
-                raise FileNotFoundError(f'systems[{i}]: psf file not found: {psf}')
+                raise PestiferBuildError(f'systems[{i}]: psf file not found: {psf}')
             if not os.path.exists(pdb):
-                raise FileNotFoundError(f'systems[{i}]: pdb file not found: {pdb}')
+                raise PestiferBuildError(f'systems[{i}]: pdb file not found: {pdb}')
             systems.append({
                 'psf': psf,
                 'pdb': pdb,
@@ -260,7 +261,7 @@ class MergeTask(PsfgenTask):
 
                 if final in used:
                     if strategy == 'error':
-                        raise ValueError(
+                        raise PestiferBuildError(
                             f"Segment name collision: '{final}' (from system "
                             f"'{sys['psf']}') conflicts with an earlier system. "
                             f"Provide an explicit segname_map or use "
@@ -306,7 +307,7 @@ class MergeTask(PsfgenTask):
             candidate = f'{base2}{i:02d}'
             if candidate not in used:
                 return candidate
-        raise ValueError(
+        raise PestiferBuildError(
             f"Cannot find a unique segment name derived from '{name}'; "
             f"provide explicit segname_map entries."
         )

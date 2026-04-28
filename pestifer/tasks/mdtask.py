@@ -13,6 +13,7 @@ import logging
 
 from .basetask import VMDTask
 from ..core.artifacts import *
+from ..core.errors import PestiferBuildError
 
 from ..scripters.namd import NAMDScripter
 from ..scripters.namd_colvar_input import NAMDColvarInputScripter
@@ -79,7 +80,7 @@ class MDTask(VMDTask):
         my_logger(specs, logger.debug)
         ensemble: str = specs['ensemble']
         if ensemble.casefold() not in ['NPAT'.casefold(), 'NPT'.casefold(), 'NVT'.casefold(), 'minimize'.casefold()]:
-            raise Exception(f'Error: {ensemble} is not a valid ensemble type. Must be \'NPAT\', \'NPT\', \'NVT\', or \'minimize\'')
+            raise PestiferBuildError(f'Error: {ensemble} is not a valid ensemble type. Must be \'NPAT\', \'NPT\', \'NVT\', or \'minimize\'')
         if not baselabel:
             self.next_basename(ensemble)
         else:
@@ -88,7 +89,7 @@ class MDTask(VMDTask):
         params = {}
         state: StateArtifacts = self.get_current_artifact('state')
         if not state.psf or not state.pdb:
-            raise RuntimeError(f'No PSF or PDB file found for task {self.taskname}')
+            raise PestiferBuildError(f'No PSF or PDB file found for task {self.taskname}')
         charmmff_parfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_parfiles')
         if charmmff_parfiles is None:
             charmmff_parfiles = self.register([], key='charmmff_parfiles', artifact_type=CharmmffParFileArtifacts)
@@ -143,7 +144,7 @@ class MDTask(VMDTask):
             params.update(self.namd_global_config['thermostat'])
             if ensemble.casefold() == 'NPT'.casefold():
                 if not self.get_current_artifact_data('periodic'):
-                    raise Exception(f'Cannot use barostat on a system without PBCs')
+                    raise PestiferBuildError(f'Cannot use barostat on a system without PBCs')
                 params['tcl'].append(f'set pressure {pressure}')
                 params.update(self.namd_global_config['barostat'])
             elif ensemble.casefold() == 'NPAT'.casefold():
@@ -159,7 +160,7 @@ class MDTask(VMDTask):
             self.make_constraint_pdb(constraints)
             consref = self.get_current_artifact_path('consref')
             if not consref:
-                raise RuntimeError(f'No constraint reference PDB file found for task {self.taskname}')
+                raise PestiferBuildError(f'No constraint reference PDB file found for task {self.taskname}')
             params['constraints'] = 'on'
             params['consref'] = consref.name
             params['conskfile'] = consref.name
@@ -212,12 +213,12 @@ class MDTask(VMDTask):
         single_cpu_only = specs.get('single-core', False)
         result = na.runscript(single_molecule=local_execution_only, local_execution_only=local_execution_only, single_gpu_only=single_gpu_only, cpu_override=cpu_override, single_cpu_only=single_cpu_only)
         if result != 0:
-            raise RuntimeError(f'md task {self.taskname} failed.')
+            raise PestiferBuildError(f'md task {self.taskname} failed.')
         coor = NAMDCoorFileArtifact(self.basename)
         vel = NAMDVelFileArtifact(self.basename)
         dcd = NAMDDcdFileArtifact(self.basename)
         if not coor.exists() and not vel.exists() and not dcd.exists():
-            raise RuntimeError(f'NAMD run {self.basename} failed: no .coor, .vel, or .dcd files produced')
+            raise PestiferBuildError(f'NAMD run {self.basename} failed: no .coor, .vel, or .dcd files produced')
         xsc = NAMDXscFileArtifact(self.basename)
         xst = NAMDXstFileArtifact(self.basename)
         log = NAMDLogFileArtifact(self.basename)
@@ -228,7 +229,7 @@ class MDTask(VMDTask):
         pdb = PDBFileArtifact(f'{self.basename}.pdb', pytestable=True)
         psf = state.psf
         if not pdb.exists():
-            raise RuntimeError(f'NAMD run {self.basename} failed: no .pdb file produced from .coor')
+            raise PestiferBuildError(f'NAMD run {self.basename} failed: no .pdb file produced from .coor')
         self.register(dict(pdb=pdb,
                            coor=coor,
                            vel=vel,

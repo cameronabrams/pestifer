@@ -9,6 +9,7 @@ import numpy as np
 
 from ..charmmff.charmmffcontent import CHARMMFFContent
 from ..core.artifacts import ArtifactDict
+from ..core.errors import PestiferBuildError
 from ..util.stringthings import my_logger
 from ..util.units import _UNITS_, _SYMBOLS_, cuA_of_nmolec
 from ..scripters import PackmolScripter
@@ -246,7 +247,7 @@ class Bilayer:
             for d in L:
                 resi = self.charmmffcontent.get_resi(d['name'])
                 if resi is None:
-                    raise ValueError(f'Cannot find residue {d["name"]} in CHARMMFFContent')
+                    raise PestiferBuildError(f'Cannot find residue {d["name"]} in CHARMMFFContent')
                 if not 'patn' in d:
                     d['patn'] = int(d['frac'] * leaflet_nlipids[adjective])
                 if not 'charge' in d:
@@ -308,7 +309,7 @@ class Bilayer:
             for l in self.species_names:
                 logger.debug(f'Getting pdb for {l}')
                 if not l in pdbrepository:
-                    raise Exception(f'Cannot find {l} in PDB repository')
+                    raise PestiferBuildError(f'Cannot find {l} in PDB repository')
                 pdbstruct = pdbrepository.checkout(l)
                 self.species_data[l] = pdbstruct
                 for p in self.species_data[l].get_parameters():

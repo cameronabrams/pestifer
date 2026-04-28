@@ -10,6 +10,7 @@ from pidibble.pdbparse import PDBParser
 from .basetask import BaseTask
 
 from ..core.artifacts import *
+from ..core.errors import PestiferBuildError
 
 logger = logging.getLogger(__name__)
 
@@ -29,9 +30,9 @@ class FetchTask(BaseTask):
         sourceID: str  = self.specs.get('sourceID', '')
         source_format: str = self.specs.get('source_format', 'pdb') # desired format for the source file, default is 'pdb'
         if source_format not in ['pdb', 'cif']:
-            raise ValueError(f"Unsupported source format: {source_format}. Expected 'pdb' or 'cif'.")
+            raise PestiferBuildError(f"Unsupported source format: {source_format}. Expected 'pdb' or 'cif'.")
         if source not in ['rcsb', 'alphafold', 'opm', 'local']:
-            raise ValueError(f'Unsupported source database designation: {source}')
+            raise PestiferBuildError(f'Unsupported source database designation: {source}')
         # if source == 'rcsb':
         if source != 'local':
             if source_format == 'pdb':
@@ -40,7 +41,7 @@ class FetchTask(BaseTask):
                 if pdb_file:
                     self.register(sourceID, key=self._artifact_name, artifact_type=PDBFileArtifact)
                 else:
-                    raise ValueError(f"Could not fetch PDB file for sourceID: {sourceID}")
+                    raise PestiferBuildError(f"Could not fetch PDB file for sourceID: {sourceID}")
             else:
                 cif_file = PDBParser(source_db=source, source_id=sourceID, input_format='mmCIF').fetch()
                 if cif_file:
@@ -49,7 +50,7 @@ class FetchTask(BaseTask):
                     if json_companion.exists():
                         self.register(sourceID, key=f'{self._artifact_name}_json', artifact_type=JSONFileArtifact)
                 else:
-                    raise ValueError(f"Could not fetch CIF file for sourceID: {sourceID}")
+                    raise PestiferBuildError(f"Could not fetch CIF file for sourceID: {sourceID}")
             dum_companion = Path(f'{sourceID}-dum.pdb')
             if dum_companion.exists():
                 self.register(f'{sourceID}-dum', key=f'{self._artifact_name}_dum', artifact_type=PDBFileArtifact)
@@ -62,6 +63,6 @@ class FetchTask(BaseTask):
             elif os.path.exists(local_cif):
                 self.register(sourceID, key=self._artifact_name, artifact_type=CIFFileArtifact)
             else:
-                raise FileNotFoundError(f"Neither {local_pdb} nor {local_cif} found.")
+                raise PestiferBuildError(f"Neither {local_pdb} nor {local_cif} found.")
         self.result = 0
         return self.result

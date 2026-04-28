@@ -1,0 +1,19 @@
+PSF
+
+       2 !NTITLE
+ REMARKS segment AG01 { first none; last none; auto none  }
+ REMARKS segment LIP1 { first none; last none; auto none  }
+
+       8 !NATOM
+       1 AG01     1 BGLC O5   OT    -0.660000       15.9994           0
+       2 AG01     1 BGLC C1   CT     0.140000       12.0110           0
+       3 AG01     1 BGLC C2   CT    -0.180000       12.0110           0
+       4 AG01     1 BGLC C3   CT    -0.180000       12.0110           0
+       5 AG01     1 BGLC C4   CT    -0.180000       12.0110           0
+       6 AG01     1 BGLC C5   CT     0.000000       12.0110           0
+       7 LIP1     2 CHL1 C20  CTL2  -0.180000       12.0110           0
+       8 LIP1     2 CHL1 C21  CTL3  -0.270000       12.0110           0
+
+       7 !NBOND: bonds
+       1       2       2       3       3       4       4       5
+       5       6       6       1       7       8

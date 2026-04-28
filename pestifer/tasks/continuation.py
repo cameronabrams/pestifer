@@ -9,6 +9,7 @@ import shutil
 
 from .psfgen import PsfgenTask
 from ..core.artifacts import *
+from ..core.errors import PestiferBuildError
 logger = logging.getLogger(__name__)
 
 
@@ -41,9 +42,9 @@ class ContinuationTask(PsfgenTask):
         xsc: str = self.specs.get('xsc','')
         vel: str = self.specs.get('vel','')
         if not psf:
-            raise ValueError('psf file must be specified in the continuation task')
+            raise PestiferBuildError('psf file must be specified in the continuation task')
         if not coor and not pdb:
-            raise ValueError('Either coor or pdb file must be specified in the continuation task')
+            raise PestiferBuildError('Either coor or pdb file must be specified in the continuation task')
         psf = _ensure_in_cwd(psf)
         coor = _ensure_in_cwd(coor)
         pdb = _ensure_in_cwd(pdb)
@@ -62,7 +63,7 @@ class ContinuationTask(PsfgenTask):
                 if '!NATOM' in line:
                     break
         if not topolines:
-            raise ValueError('No topology information found in PSF file')
+            raise PestiferBuildError('No topology information found in PSF file')
         streamfiles = []
         for topoline in topolines:
             tokens = topoline.split()

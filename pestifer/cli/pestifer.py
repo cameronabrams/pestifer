@@ -7,10 +7,12 @@ import importlib.metadata
 import logging
 import os
 import shutil
+import sys
 
 __pestifer_version__ = importlib.metadata.version("pestifer")
 from ..util.stringthings import banner
 from ..subcommands import _subcommands
+from ..core.errors import PestiferError
 
 logger = logging.getLogger(__name__)
 
@@ -82,4 +84,8 @@ def cli():
     console.setFormatter(logging.Formatter('%(levelname)s> %(message)s'))
     logging.getLogger('').addHandler(console)
     banner(print, args)
-    args.func(args)
+    try:
+        args.func(args)
+    except PestiferError as e:
+        logger.error(str(e))
+        sys.exit(1)

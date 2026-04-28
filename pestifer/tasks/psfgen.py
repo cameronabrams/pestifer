@@ -19,6 +19,7 @@ from ..molecule.chainidmanager import ChainIDManager
 from ..molecule.molecule import Molecule
 from ..core.objmanager import ObjManager
 from ..core.artifacts import *
+from ..core.errors import PestiferBuildError
 from ..objs.graft import GraftList
 from ..psfutil.psfatom import PSFAtomList
 from ..psfutil.psfcontents import PSFContents
@@ -137,7 +138,7 @@ class PsfgenTask(VMDTask):
             if topfile:
                 new_topfiles.add(topfile)
             else:
-                raise ValueError(f'No topology file found for residue name {resname}')
+                raise PestiferBuildError(f'No topology file found for residue name {resname}')
         return list(new_topfiles)
 
     def patch_topologies(self):
@@ -232,7 +233,7 @@ class PsfgenTask(VMDTask):
         elif segtype == 'glycan':
             self.declash_glycans(specs_to_declashers)
         else:
-            raise ValueError(f'Unknown segment type {segtype} for declashing')
+            raise PestiferBuildError(f'Unknown segment type {segtype} for declashing')
 
     def declash_protein_loops(self, specs: dict):
         """
@@ -490,7 +491,7 @@ class PsfgenTask(VMDTask):
         if not base_coordinates:
             state: StateArtifacts = self.get_current_artifact('state')
             if not (state.pdb and state.psf):
-                raise RuntimeError(f'No base_coordinates artifact found, and no prebuilt PDB/PSF/XSC files found in the pipeline context. Cannot ingest base molecule.')
+                raise PestiferBuildError(f'No base_coordinates artifact found, and no prebuilt PDB/PSF/XSC files found in the pipeline context. Cannot ingest base molecule.')
             this_source['prebuilt'] = {
                 'pdb': state.pdb.name,
                 'psf': state.psf.name,
@@ -506,7 +507,7 @@ class PsfgenTask(VMDTask):
             elif ext.lower() == '.cif':
                 this_source['file_format'] = 'mmCIF'
             else:
-                raise RuntimeError(f'Unknown file format {ext} for base_coordinates artifact {base_coordinates.name}')
+                raise PestiferBuildError(f'Unknown file format {ext} for base_coordinates artifact {base_coordinates.name}')
         self.source_specs.update(this_source)
         logger.debug(f'User-input modspecs:')
         my_logger(self.specs["mods"], logger.debug, depth=1)
@@ -574,7 +575,7 @@ class PsfgenTask(VMDTask):
         psf: Path = state.psf
         xsc: Path | None = state.xsc
         if not (pdb and psf):
-            raise RuntimeError(f'No base_coordinates artifact found, and no prebuilt PDB/PSF/XSC files found in the pipeline context. Cannot ingest base molecule.')
+            raise PestiferBuildError(f'No base_coordinates artifact found, and no prebuilt PDB/PSF/XSC files found in the pipeline context. Cannot ingest base molecule.')
         source = {}
         source['prebuilt'] = {
             'pdb': pdb.name,

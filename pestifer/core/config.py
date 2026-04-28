@@ -15,6 +15,7 @@ from importlib.metadata import version
 from importlib.resources import files as pkg_files
 from ycleptic.yclept import Yclept
 
+from .errors import PestiferError
 from .resourcemanager import ResourceManager
 from ..tasks.taskcollections import TaskList
 from ..util.stringthings import my_logger
@@ -206,7 +207,7 @@ class Config(Yclept):
             rq_resolved = shutil.which(self.shell_commands[rq])
             rq_alt = command_alternates.get(rq, None)
             if not rq_resolved and not rq_alt:
-                raise FileNotFoundError(f'Cannot find required command {self.shell_commands[rq]} in your path.')
+                raise PestiferError(f'Cannot find required command {self.shell_commands[rq]} in your path.')
             
             if not rq_resolved:
                 if rq in command_alternates:
@@ -217,9 +218,9 @@ class Config(Yclept):
                         logger.info(f'Using alternate command {self.shell_commands[rq]} for {rq}.')
                         rq_resolved = altrq_resolved
                     else:
-                        raise FileNotFoundError(f'Cannot find required command {self.shell_commands[rq]} or alternate {self.shell_commands[rqalt]} in your path.')
+                        raise PestiferError(f'Cannot find required command {self.shell_commands[rq]} or alternate {self.shell_commands[rqalt]} in your path.')
                 else:
-                    raise FileNotFoundError(f'Cannot find required command {self.shell_commands[rq]} in your path.')
+                    raise PestiferError(f'Cannot find required command {self.shell_commands[rq]} in your path.')
             if rq_resolved is not None and verify_access:
                 assert os.access(rq_resolved, os.X_OK), f'You do not have permission to execute {rq_resolved}'
         self.namd_type = self['user']['namd']['processor-type']

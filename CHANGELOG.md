@@ -2,9 +2,14 @@
 
 Pestifer follows [Semantic Versioning](https://semver.org/) and documents changes below.
 
+## [2.4.2] - 2026-04-28
+
+- bugfix: `PSFContents` used `BaseObjList.get()` to filter atoms by segtype when building the topology-active atom list for `ring_check`; `get()` returns `None` for zero matches and a bare object for exactly one match, causing a `TypeError` on `len()`; replaced with `filter()`, which always returns a `BaseObjList`
+- new feature: custom exception hierarchy (`PestiferError`, `PestiferBuildError`) replaces bare `RuntimeError`/`ValueError`/`Exception` raises throughout the task and molecule layers; the CLI top-level handler catches any `PestiferError` and logs a clean error message with `sys.exit(1)` rather than printing a Python traceback; `ring_check` with `delete: none` now raises `PestiferBuildError` instead of silently logging
+
 ## [2.4.1] - 2026-04-27
 
-- change: `ring_check` task now terminates the build with an error when any glycan ring is found to be pierced; because glycan residues are covalently bonded to the protein they cannot be deleted, so pestifer logs each offending segment and residue and raises a `RuntimeError`; the recommended remedy is to rebuild with a different random seed or add more minimization before the `ring_check` task; non-glycan piercings (e.g. sterol rings) continue to be handled by the `delete` parameter as before
+- change: `ring_check` task now terminates the build with an error when any glycan ring is found to be pierced; because glycan residues are covalently bonded to the protein they cannot be deleted, so pestifer logs each offending segment and residue and raises a `PestiferBuildError`; the recommended remedy is to rebuild with a different random seed or add more minimization before the `ring_check` task; non-glycan piercings (e.g. sterol rings) continue to be handled by the `delete` parameter as before
 
 ## [2.4.0] - 2026-04-27
 

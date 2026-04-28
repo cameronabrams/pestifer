@@ -22,6 +22,7 @@ from typing import TYPE_CHECKING
 
 from ..core.artifacts import *
 from ..core.command import Command
+from ..core.errors import PestiferBuildError
 from ..core.resourcemanager import ResourceManager
 from ..core.pipeline import PipelineContext
 
@@ -353,7 +354,7 @@ class VMDTask(BaseTask, ABC):
         Converts a namdbin coordinate file to a PDB file using catdcd.
         """
         if not Path(coorfilename).exists():
-            raise FileNotFoundError(f'Coordinate file {coorfilename} not found')
+            raise PestiferBuildError(f'Coordinate file {coorfilename} not found')
         c = Command(f'catdcd -o {self.basename}.pdb -otype pdb -s {psffilename} -stype psf -namdbin {coorfilename}')
         c.run()
         with open(f'{self.basename}.pdb', 'r') as f:

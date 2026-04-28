@@ -1,6 +1,7 @@
 from pestifer.tasks.fetch import FetchTask
 from pestifer.core.pipeline import PipelineContext
 from pestifer.core.artifacts import Artifact, PDBFileArtifact, CIFFileArtifact
+from pestifer.core.errors import PestiferBuildError
 import unittest
 import os
 
@@ -16,7 +17,7 @@ class TestFetchTask(unittest.TestCase):
         self.assertFalse(hasattr(task, 'pipeline'))
         task.provision(packet=dict(pipeline=pipeline))
         self.assertTrue(hasattr(task, 'pipeline'))
-        with self.assertRaises((ValueError, AssertionError)):
+        with self.assertRaises((PestiferBuildError, AssertionError)):
             task.execute()
 
     def test_fetch_task_do_fetch_pdb(self):

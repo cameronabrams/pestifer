@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 from typing import Callable
 
+from .errors import PestiferError
 from .examplemanager import ExampleManager
 from .labels import Labels
 
@@ -44,7 +45,7 @@ class ResourceManager:
         for r in self._base_resources:
             self.resource_path[r] = os.path.join(self.resources_path, r)
             if not os.path.isdir(self.resource_path[r]):
-                raise FileNotFoundError(f'Resource {r} not found at {self.resource_path[r]} -- your installation is likely incomplete')
+                raise PestiferError(f'Resource {r} not found at {self.resource_path[r]} -- your installation is likely incomplete')
 
         self._charmmff_config = charmmff_config
         self._charmmff_content = None
@@ -80,11 +81,11 @@ class ResourceManager:
             key = charmmff_version_key(version_str)
             path = Path(self.resource_path['charmmff']) / key
             if not path.is_dir():
-                raise FileNotFoundError(f'CHARMMFF version directory for {version_str!r} not found at {path}')
+                raise PestiferError(f'CHARMMFF version directory for {version_str!r} not found at {path}')
             return path
         version_dirs = self.charmmff_version_dirs()
         if not version_dirs:
-            raise FileNotFoundError(f'No CHARMMFF version directories found in {self.resource_path["charmmff"]}')
+            raise PestiferError(f'No CHARMMFF version directories found in {self.resource_path["charmmff"]}')
         return version_dirs[-1]  # newest by mtime
 
     @property

@@ -1,0 +1,10 @@
+REMARK synthetic: BGLC ring in XY plane, CHL1 bond along Z
+ATOM      1  O5  BGLCA   1       1.400   0.000   0.000  1.00  0.00      AG01
+ATOM      2  C1  BGLCA   1       0.700   1.212   0.000  1.00  0.00      AG01
+ATOM      3  C2  BGLCA   1      -0.700   1.212   0.000  1.00  0.00      AG01
+ATOM      4  C3  BGLCA   1      -1.400   0.000   0.000  1.00  0.00      AG01
+ATOM      5  C4  BGLCA   1      -0.700  -1.212   0.000  1.00  0.00      AG01
+ATOM      6  C5  BGLCA   1       0.700  -1.212   0.000  1.00  0.00      AG01
+ATOM      7  C20 CHL1L   2       0.000   0.000  -3.000  1.00  0.00      LIP1
+ATOM      8  C21 CHL1L   2       0.000   0.000   3.000  1.00  0.00      LIP1
+END

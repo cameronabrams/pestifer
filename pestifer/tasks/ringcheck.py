@@ -12,6 +12,7 @@ from pathlib import Path
 from .basetask import BaseTask
 from ..scripters import PsfgenScripter
 from ..core.artifacts import *
+from ..core.errors import PestiferBuildError
 from ..psfutil.psfring import ring_check
 
 logger=logging.getLogger(__name__)
@@ -42,14 +43,17 @@ class RingCheckTask(BaseTask):
                 logger.error(f'{len(glycan_piercings)} glycan ring piercing{gess} detected — glycan residues cannot be deleted to resolve:')
                 for p in glycan_piercings:
                     logger.error(f'  {p["piercee"]["segname"]}-{p["piercee"]["resid"]} pierced by {p["piercer"]["segname"]}-{p["piercer"]["resid"]}')
-                raise RuntimeError(
+                raise PestiferBuildError(
                     f'{len(glycan_piercings)} glycan ring piercing{gess} detected; '
                     f'rebuild the system to resolve (e.g. use a different random seed or add more minimization before ring_check)'
                 )
             if delete_these == "none":
-                logger.debug(f'No action taken regarding {len(other_piercings)} pierced-ring configuration{ess}')
                 for r in other_piercings:
-                    logger.debug(f'  Piercing of {r["piercee"]["segname"]}-{r["piercee"]["resid"]} by {r["piercer"]["segname"]}-{r["piercer"]["resid"]}')
+                    logger.error(f'  Piercing of {r["piercee"]["segname"]}-{r["piercee"]["resid"]} by {r["piercer"]["segname"]}-{r["piercer"]["resid"]}')
+                raise PestiferBuildError(
+                    f'{len(other_piercings)} pierced-ring configuration{ess} found; '
+                    f'ring_check is configured with delete=none — resolve these manually or change the delete setting'
+                )
             elif other_piercings:
                 self.next_basename('ring_check')
                 pg: PsfgenScripter = self.get_scripter('psfgen')

@@ -18,6 +18,7 @@ from unittest.mock import MagicMock, patch
 
 from pestifer.core.artifacts import StateArtifacts
 from pestifer.core.config import Config
+from pestifer.core.errors import PestiferBuildError
 from pestifer.core.controller import Controller
 from pestifer.psfutil.psfcontents import PSFContents
 from pestifer.tasks.merge import MergeTask
@@ -83,7 +84,7 @@ class TestUniqueName(unittest.TestCase):
     def test_all_single_and_double_digits_exhausted_raises(self):
         used = {f'PRO{i}' for i in range(10)}
         used |= {f'PR{i:02d}' for i in range(100)}
-        with self.assertRaises(ValueError):
+        with self.assertRaises(PestiferBuildError):
             MergeTask._unique_name('PROA', used)
 
     def test_short_name_uses_prefix_correctly(self):
@@ -217,7 +218,7 @@ class TestResolveErrorStrategy(unittest.TestCase):
         self.assertEqual(len(resolved), 2)
 
     def test_collision_raises_valueerror(self):
-        with self.assertRaises(ValueError):
+        with self.assertRaises(PestiferBuildError):
             _make_resolve([['PROA'], ['PROA']], strategy='error')
 
     def test_explicit_map_resolves_before_error_check(self):

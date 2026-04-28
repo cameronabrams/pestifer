@@ -21,6 +21,7 @@ from matplotlib import colormaps as cmaps
 
 from .basetask import BaseTask
 from .mdtask import MDTask
+from ..core.errors import PestiferBuildError
 from ..util.units import g_per_amu, A3_per_cm3
 from ..logparsers import NAMDLogParser
 from ..util.stringthings import to_latex_math
@@ -71,7 +72,7 @@ class MDPlotTask(BaseTask):
                     for key in csvs_generated:
                         artifact = self.register(csvs_generated[key], key=f'{key}-csv', artifact_type=CSVDataFileArtifact) 
                         if artifact is None:
-                            raise FileNotFoundError(f'CSV file {csvs_generated[key]} does not exist.')
+                            raise PestiferBuildError(f'CSV file {csvs_generated[key]} does not exist.')
                         else:
                             self.csvartifacts.append(artifact)
                     namdlog_objs.append(the_log)
@@ -83,10 +84,10 @@ class MDPlotTask(BaseTask):
                 for pt_artifact in artifactfile_collection:
                     self.csvartifacts.append(pt_artifact)
         else:
-            raise ValueError('No CSV artifacts found in prior tasks.')
+            raise PestiferBuildError('No CSV artifacts found in prior tasks.')
 
         if len(self.csvartifacts) == 0:
-            raise ValueError('No CSV artifacts found.  Cannot extract time series data.')
+            raise PestiferBuildError('No CSV artifacts found.  Cannot extract time series data.')
         logger.debug(f'Found {len(self.csvartifacts)} CSV artifacts.')
 
         self.all_time_series_names = list(set([art.key.replace('-csv', '') for art in self.csvartifacts]))

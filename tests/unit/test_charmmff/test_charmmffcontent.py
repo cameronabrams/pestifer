@@ -26,7 +26,7 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertEqual(len(self.C.residues), 0)
         self.assertEqual(len(self.C.patches), 0)
         self.C.provision()
-        self.assertEqual(len(self.C.residues), 3872)
+        self.assertEqual(len(self.C.residues), 3875)
         self.assertEqual(len(self.C.patches), 792)
         self.assertEqual(len(self.C.pdbrepository.collections), 2)
         # logger.debug(f"Collections: {self.C.pdbrepository.collections.keys()}")
@@ -58,7 +58,7 @@ class TestCharmmffContent(unittest.TestCase):
         basenames = [k for k in self.C.filenamemap['top'].keys()]
         basenames.extend([k for k in self.C.filenamemap['toppar'].keys()])
         basenames.extend([k for k in self.C.filenamemap['par'].keys()])
-        self.assertEqual(len(basenames), 55)
+        self.assertEqual(len(basenames), 58)
         self.assertEqual(len(set(basenames)), len(basenames))  # check for duplicates
         self.assertTrue(len(self.C.streams) > 0)
         self.assertEqual(self.C.streams.sort(), ['prot', 'carb', 'na', 'lipid'].sort())
@@ -139,7 +139,7 @@ class TestCharmmffContent(unittest.TestCase):
 
     def test_charmmffcontent_get_resi(self):
         self.C.provision()
-        self.assertEqual(len(self.C.residues),3872)
+        self.assertEqual(len(self.C.residues),3875)
         self.assertEqual(len(self.C.patches),792)
         self.assertTrue('ALA' in self.C.residues)
         self.assertTrue('TIP3' in self.C.residues)
