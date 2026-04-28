@@ -5,6 +5,7 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 ## [2.4.4] - 2026-04-28
 
 - bugfix: graft alignment VMD selections produced zero atoms for all grafts in structures where native glycan resids were renumbered by the narrow convention; the N-point alignment code introduced in v2.3.0 used post-renumbering resids from `G.residues` instead of the original shortcode resids (`G.target_root` / `G.target_partners`); since `$m4` is the raw source PDB which has not yet been renumbered at the time graft alignment runs in the Tcl script, the selections must use the original PDB resids; reverted to the pre-v2.3.0 approach of using `G.target_root` and `G.target_partners` directly, generalized to N alignment points
+- bugfix: terminus-management patches (`NTER`, `CTER`, `GLYP`, `PROP`, `ACE`, `CNEU`, etc.) and their pestifer undo-counterparts (`XCTR`, `XNTR`, `XGLP`, `XPRP`) recorded in `REMARKS patch` lines of a continuation PSF were being re-propagated into the next psfgen script as generic patches; `CTER`/`NTER` loop-boundary records were emitted as `last`/`first` segment directives (applying to the wrong, segment-terminal residues), while `XCTR`/`XNTR` records were emitted as standalone `patch` commands against residues whose C=O / N-HN bonds had never been removed, producing duplicate bonds and a degenerate `C O C` angle that NAMD cannot parameterize; fixed by filtering all terminus-management and undo patches out of `PSFContents.generic_patches`
 
 ## [2.4.3] - 2026-04-28
 
