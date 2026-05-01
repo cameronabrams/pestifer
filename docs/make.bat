@@ -9,8 +9,14 @@ if "%SPHINXBUILD%" == "" (
 )
 set SOURCEDIR=source
 set BUILDDIR=build
+set APIDOC_OUT=%SOURCEDIR%\api
+set APIDOC_SRC=..\pestifer
 
 if "%1" == "" goto help
+if "%1" == "apidoc" goto apidoc
+if "%1" == "config-ref" goto config_ref
+if "%1" == "html" goto html
+if "%1" == "clean" goto clean
 
 %SPHINXBUILD% >NUL 2>NUL
 if errorlevel 9009 (
@@ -26,6 +32,28 @@ if errorlevel 9009 (
 )
 
 %SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
+goto end
+
+:apidoc
+if exist %APIDOC_OUT% rmdir /s /q %APIDOC_OUT%
+sphinx-apidoc -f -M -e --implicit-namespaces --tocfile API -o %APIDOC_OUT% %APIDOC_SRC%
+goto end
+
+:config_ref
+cd %SOURCEDIR%
+yclept make-doc ..\..\pestifer\schema\base.yaml --root config_ref --footer-style raw-html
+cd ..
+goto end
+
+:html
+if exist %APIDOC_OUT% rmdir /s /q %APIDOC_OUT%
+sphinx-apidoc -f -M -e --implicit-namespaces --tocfile API -o %APIDOC_OUT% %APIDOC_SRC%
+%SPHINXBUILD% -M html %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
+goto end
+
+:clean
+if exist %BUILDDIR% rmdir /s /q %BUILDDIR%
+if exist %APIDOC_OUT% rmdir /s /q %APIDOC_OUT%
 goto end
 
 :help
