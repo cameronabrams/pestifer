@@ -148,13 +148,19 @@ proc PestiferUtil::update_atomselect_macro { macro_name new_value overwrite } {
       set existing_macro $results
    }
    if {$overwrite == 1} {
-      atomselect macro $macro_name $new_value
+      if { [catch { atomselect macro $macro_name $new_value } err] } {
+         vmdcon -warn "Cannot redefine built-in macro \"$macro_name\"; skipping."
+      }
    } else {
       if {$existing_macro != ""} {
-         atomselect macro $macro_name "($existing_macro) or ($new_value)"
+         if { [catch { atomselect macro $macro_name "($existing_macro) or ($new_value)" } err] } {
+            vmdcon -warn "Cannot update built-in macro \"$macro_name\"; skipping."
+         }
       } else {
-         vmdcon -info "No existing \"$macro_name\" -- creating."
-         atomselect macro $macro_name $new_value
+         vmdcon -info "Creating new atomselect user macro \"$macro_name\""
+         if { [catch { atomselect macro $macro_name $new_value } err] } {
+            vmdcon -warn "Cannot redefine built-in macro \"$macro_name\"; skipping."
+         }
       }
    }
 }

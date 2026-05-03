@@ -49,6 +49,7 @@ _segtypes = {
             'ADE', 'THY', 'CYT', 'GUA', 'URA', 'DA', 'DC', 'DG', 'DT', 'DU', 'FAD']},
     'glycan': {
         'macro':True,
+        'vmd_version_lt': '2.0',
         'resnames': [
             'BGC'   , 'MAL'   , 'GLC'   , 'NDG'   , 'SGN'   , '4YS'   , 'NAG'   ,
             'GCS'   , 'GCU'   , 'QUI'   , 'OLI'   , 'BMA'   , 'MAN'   , 'BEM'   ,
@@ -289,7 +290,13 @@ class LabelMappers:
             if data['macro']:
                 resnames = data['resnames']
                 macro_content = ' '.join(resnames)
-                fp.write(f"update_atomselect_macro {segtype} \"resname {macro_content}\" 0\n")
+                vmd_lt = data.get('vmd_version_lt', '')
+                if vmd_lt:
+                    fp.write(f"if {{[package vcompare [vmdinfo version] {vmd_lt}] < 0}} {{\n")
+                    fp.write(f"    update_atomselect_macro {segtype} \"resname {macro_content}\" 0\n")
+                    fp.write(f"}}\n")
+                else:
+                    fp.write(f"update_atomselect_macro {segtype} \"resname {macro_content}\" 0\n")
 
 Labels = LabelMappers()
 """ 
