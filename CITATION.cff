@@ -1,0 +1,30 @@
+cff-version: 1.2.0
+title: pestifer
+message: "If you use this software, please cite it using the metadata below."
+type: software
+authors:
+  - family-names: Abrams
+    given-names: Cameron F.
+    email: cfa22@drexel.edu
+    affiliation: Drexel University
+repository-code: "https://github.com/cameronabrams/pestifer"
+url: "https://pestifer.readthedocs.io"
+abstract: >-
+  Pestifer is a Python package for automating the preparation of
+  biomolecular simulation systems for NAMD using the CHARMM force field.
+  It drives VMD/psfgen to build PSF/PDB topology and coordinate files
+  from PDB or mmCIF structures, handling missing loops, glycosylation,
+  disulfide bonds, mutations, membrane embedding, and solvation.
+keywords:
+  - molecular dynamics
+  - NAMD
+  - CHARMM
+  - psfgen
+  - VMD
+  - protein
+  - glycoprotein
+  - membrane
+  - biomolecular simulation
+license: MIT
+version: "2.4.4"
+date-released: "2026-04-28"
