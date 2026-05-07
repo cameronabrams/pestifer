@@ -2,27 +2,31 @@
 # Release pestifer at a given version.
 #
 # Usage: ./scripts/release.sh <version>
-# Example: ./scripts/release.sh 2.2.3
+# Example: ./scripts/release.sh 2.4.4
 #
 # Prerequisites (checked automatically):
 #   - Working tree must be clean (no uncommitted changes)
 #   - Must be on the main branch
-#   - CHANGELOG.md must have a "## [<version>]" entry
+#   - CHANGELOG.md must have an "## [Unreleased]" section
 #
 # What it does:
-#   1. Updates the version in pyproject.toml
-#   2. Commits the change as "Release v<version>"
-#   3. Creates tag v<version>
-#   4. Pushes the commit and the tag to origin
+#   1. Rotates CHANGELOG.md: renames [Unreleased] to [<version>] - <date>
+#      and inserts a fresh empty [Unreleased] section above it
+#   2. Updates the version in pyproject.toml
+#   3. Commits both changes as "Release v<version>"
+#   4. Creates tag v<version>
+#   5. Pushes the commit and the tag to origin
 #
-# The pushed tag triggers the release.yaml CI workflow which builds,
-# publishes to PyPI, creates a GitHub Release, and triggers ReadTheDocs.
+# The pushed tag triggers release.yaml, which runs tests, builds the package,
+# publishes to PyPI, creates a GitHub Release with the CHANGELOG notes, and
+# triggers a ReadTheDocs build.
 
 set -euo pipefail
 
-VERSION="${1:?Usage: scripts/release.sh <version>  (e.g. 2.2.3)}"
+VERSION="${1:?Usage: scripts/release.sh <version>  (e.g. 2.4.4)}"
+TODAY="$(date +%Y-%m-%d)"
 
-# ── Preconditions ────────────────────────────────────────────────────────────
+# ── Preconditions ─────────────────────────────────────────────────────────────
 
 if ! git diff --quiet || ! git diff --cached --quiet; then
     echo "ERROR: working tree has uncommitted changes — commit or stash them first"
@@ -35,9 +39,8 @@ if [ "$BRANCH" != "main" ]; then
     exit 1
 fi
 
-if ! grep -q "^## \[$VERSION\]" CHANGELOG.md; then
-    echo "ERROR: no entry for $VERSION found in CHANGELOG.md"
-    echo "       Add a '## [$VERSION] - $(date +%Y-%m-%d)' section before releasing"
+if ! grep -q "^## \[Unreleased\]" CHANGELOG.md; then
+    echo "ERROR: no '## [Unreleased]' section found in CHANGELOG.md"
     exit 1
 fi
 
@@ -47,26 +50,33 @@ if git rev-parse "v$VERSION" >/dev/null 2>&1; then
 fi
 
 if git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q .; then
-    echo "ERROR: tag v$VERSION already exists on origin — fetch it first if you need it locally"
+    echo "ERROR: tag v$VERSION already exists on origin"
     exit 1
 fi
 
-# ── Version bump ─────────────────────────────────────────────────────────────
+# ── CHANGELOG rotation ────────────────────────────────────────────────────────
+
+echo "Rotating CHANGELOG.md: [Unreleased] -> [$VERSION] - $TODAY"
+sed -i "s/^## \[Unreleased\]/## [$VERSION] - $TODAY/" CHANGELOG.md
+
+# Insert a fresh [Unreleased] section before the new release
+sed -i "s/^## \[$VERSION\] - $TODAY/## [Unreleased]\n\n## [$VERSION] - $TODAY/" CHANGELOG.md
+
+# ── Version bump ──────────────────────────────────────────────────────────────
 
 echo "Bumping pyproject.toml version to $VERSION"
 sed -i "s/^version = \".*\"/version = \"$VERSION\"/" pyproject.toml
 
-# Verify the sed worked
-ACTUAL="$(python3 -c "import tomllib; print(tomllib.load(open('pyproject.toml','rb'))['project']['version'])")"
+ACTUAL="$(grep '^version = ' pyproject.toml | sed 's/version = \"\(.*\)\"/\1/')"
 if [ "$ACTUAL" != "$VERSION" ]; then
     echo "ERROR: version in pyproject.toml is '$ACTUAL' after sed — check the file"
-    git checkout pyproject.toml
+    git checkout pyproject.toml CHANGELOG.md
     exit 1
 fi
 
-# ── Commit, tag, push ────────────────────────────────────────────────────────
+# ── Commit, tag, push ─────────────────────────────────────────────────────────
 
-git add pyproject.toml
+git add pyproject.toml CHANGELOG.md
 git commit -m "Release v$VERSION"
 git tag "v$VERSION"
 
