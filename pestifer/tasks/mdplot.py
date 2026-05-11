@@ -237,12 +237,16 @@ class MDPlotTask(BaseTask):
                         else:
                             logger.debug(f'Unitspec "{unitspec}" not recognized.')
                             units = 1.0
-                unitspecs.append(unitspec)
                 key = t_i.upper()
                 df = df_of_column.get(key, None)
                 if df is None:
                     key = t_i.lower()
                     df = df_of_column.get(key, None)
+                if df is not None and unitspec == 'kcal/mol':
+                    if df[key].abs().max() > 1000:
+                        units = 1e-3
+                        unitspec = '1000 kcal/mol'
+                unitspecs.append(unitspec)
                 if df is None:
                     logger.debug(f'No data found for trace {t_i}. Skipping...')
                     continue
