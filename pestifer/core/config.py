@@ -13,7 +13,7 @@ import shutil
 from GPUtil import getGPUs
 from importlib.metadata import version
 from importlib.resources import files as pkg_files
-from ycleptic.yclept import Yclept
+from ycleptic import Yclept
 
 from .errors import PestiferError
 from .resourcemanager import ResourceManager
