@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [2.4.7] - 2026-05-11
+
 - bugfix: `pestifer mdplot --timeseries` crashed with `KeyError: 'pressureprofile'` when `--profiles` was not supplied; the `--profiles` argument defaulted to `['pressure']`, causing the task to look for a pressure-profile dataframe that was never loaded; fixed by changing the default to `[]`; also added a guard in the task to filter `profiles` to only those whose dataframe was actually loaded, so the same crash cannot recur even when profiles are explicitly requested but absent from the log files
 - bugfix: `pestifer.core.config` imported `Yclept` via `from ycleptic.yclept import Yclept`, a path that no longer exists after ycleptic's 2.0.5 `src/` restructure; updated to `from ycleptic import Yclept` using the new stable public API (requires ycleptic >= 2.0.6)
 
