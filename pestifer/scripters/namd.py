@@ -32,7 +32,6 @@ class NAMDScripter(TcLScripter):
         self.gpu_devices = kwargs.get('gpu_devices')
         self.local_ncpus = kwargs.get('local_ncpus')
         self.namd = kwargs.get('namd')
-        self.namdgpu = kwargs.get('namd3gpu')
         self.namd_config = kwargs.get('namd_config')
         self.namd_type = kwargs.get('namd_type')
         self.namd_version = int(self.namd_config['namd-version'])
@@ -259,7 +258,7 @@ class NAMDScripter(TcLScripter):
                 use_cpu_count = 8 if use_gpu_count == 1 else (use_gpu_count - 1) * 8 + 8 - (use_gpu_count - 1)
             else:
                 use_cpu_count = self.local_ncpus
-            c = Command(f'{self.namdgpu} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
+            c = Command(f'{self.namd} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
         logger.debug(f'NAMD launch command: {c.c}')
         if self.slurmvars:
             self._stage_params_to_local_scratch()

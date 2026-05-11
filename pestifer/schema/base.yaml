@@ -319,7 +319,7 @@ attributes:
         default: namd3
       - name: namd3gpu
         type: str
-        text: Path for namd3 executable, GPU version; this must be different from the path for the CPU version if both are to be used in a single Pestifer build
+        text: "Deprecated: GPU mode now uses the same namd3 executable as CPU mode, with +devices flags. This entry is ignored."
         default: namd3gpu
       - name: charmrun
         type: str

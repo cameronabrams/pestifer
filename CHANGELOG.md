@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- enhancement: NAMD GPU dispatch no longer requires a separate `namd3gpu` executable; GPU mode now uses the same `namd3` binary as CPU mode, adding `+devices <ids>` flags to the launch command; this matches the typical HPC pattern where GPU support is selected via module loading rather than a distinct binary; the `paths.namd3gpu` schema entry is retained for backward compatibility but is no longer used
+
 ## [2.4.9] - 2026-05-11
 
 - enhancement: `mdplot` timeseries plots now use simulation time on the bottom x-axis instead of raw timestep index; units are auto-selected by magnitude (ps when total duration < 1000 ps, ns otherwise); the integer timestep index is shown on the top spine via a secondary x-axis; `NAMDLogParser.finalize()` adds a `dt_fs` constant column to the energy dataframe so that chained runs with different timestep sizes are handled correctly — simulation time is computed in the plot task as `cumsum(dt_fs × ΔTS / 1000)` across the concatenated dataframe, which correctly accumulates time across run segments regardless of whether the timestep changes between segments

@@ -125,7 +125,6 @@ class Config(Yclept):
             namd = self.shell_commands['namd3'],
             namd_config = self['user']['namd'],
             namd_deprecates = self['user']['namd'].get('deprecated3', {}),
-            namd_gpu = self.shell_commands['namd3gpu'],
             namd_type = self.namd_type,
             namd_version = self['user']['namd'].get('version', '3.0'),
             ncpus = self.ncpus,
@@ -224,16 +223,6 @@ class Config(Yclept):
             if rq_resolved is not None and verify_access:
                 assert os.access(rq_resolved, os.X_OK), f'You do not have permission to execute {rq_resolved}'
         self.namd_type = self['user']['namd']['processor-type']
-        cn = 'namd3gpu'
-        self.shell_commands[cn] = self['user']['paths'][cn]
-        rq_resolved = shutil.which(self.shell_commands[cn])
-        if not rq_resolved:
-            logger.warning(f'{self.shell_commands[cn]}: not found')
-        if self.shell_commands['namd3gpu'] == self.shell_commands['namd3']:
-            logger.warning(f'CPU and GPU namd3 have the same path: {self.shell_commands["namd3gpu"]}')
-        if self.namd_type == 'gpu': # make sure we can run the GPUResident namd3
-            if verify_access:
-                assert os.access(rq_resolved, os.X_OK), f'You do not have permission to execute {rq_resolved}'
         self.namd_deprecates = self['user']['namd']['deprecated3']
 
     def _set_internal_shortcuts(self):
