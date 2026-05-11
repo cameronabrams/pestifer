@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- bugfix: `scripts/release.sh` did not update `CITATION.cff`, causing the release workflow to fail when it checked that the citation version matched the release; `release.sh` now bumps both `version` and `date-released` in `CITATION.cff` alongside `pyproject.toml`
+
 ## [2.4.7] - 2026-05-11
 
 - bugfix: `pestifer mdplot --timeseries` crashed with `KeyError: 'pressureprofile'` when `--profiles` was not supplied; the `--profiles` argument defaulted to `['pressure']`, causing the task to look for a pressure-profile dataframe that was never loaded; fixed by changing the default to `[]`; also added a guard in the task to filter `profiles` to only those whose dataframe was actually loaded, so the same crash cannot recur even when profiles are explicitly requested but absent from the log files

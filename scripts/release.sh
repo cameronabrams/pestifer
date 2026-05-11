@@ -74,9 +74,13 @@ if [ "$ACTUAL" != "$VERSION" ]; then
     exit 1
 fi
 
+echo "Bumping CITATION.cff version to $VERSION"
+sed -i "s/^version: \".*\"/version: \"$VERSION\"/" CITATION.cff
+sed -i "s/^date-released: \".*\"/date-released: \"$TODAY\"/" CITATION.cff
+
 # ── Commit, tag, push ─────────────────────────────────────────────────────────
 
-git add pyproject.toml CHANGELOG.md
+git add pyproject.toml CHANGELOG.md CITATION.cff
 git commit -m "Release v$VERSION"
 git tag "v$VERSION"
 
