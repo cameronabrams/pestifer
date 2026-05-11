@@ -404,24 +404,59 @@ class CharmmParamFile:
                 logger.debug(f'Skipping malformed parameter line: {repr(raw_line)} ({exc})')
 
     # ------------------------------------------------------------------
+    # Canonical keys for deduplication
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _bond_key(b: 'CharmmBondParam') -> tuple:
+        return tuple(sorted([b.type1, b.type2]))
+
+    @staticmethod
+    def _angle_key(a: 'CharmmAngleParam') -> tuple:
+        fwd = (a.type1, a.type2, a.type3)
+        rev = (a.type3, a.type2, a.type1)
+        return min(fwd, rev)
+
+    @staticmethod
+    def _dihedral_key(d: 'CharmmDihedralParam') -> tuple:
+        # Different n values are distinct terms (they are summed), so n is
+        # part of the key.  The quartet is canonicalised by reversibility.
+        fwd = (d.type1, d.type2, d.type3, d.type4)
+        rev = (d.type4, d.type3, d.type2, d.type1)
+        return (min(fwd, rev), d.n)
+
+    @staticmethod
+    def _improper_key(i: 'CharmmImproperParam') -> tuple:
+        return (i.type1, i.type2, i.type3, i.type4)
+
+    @staticmethod
+    def _nbfix_key(n: 'CharmmNBFixParam') -> tuple:
+        return tuple(sorted([n.type1, n.type2]))
+
+    # ------------------------------------------------------------------
     # Merging
     # ------------------------------------------------------------------
 
     def merge(self, other: 'CharmmParamFile') -> None:
         """Merge *other* into this instance (in-place).
 
-        For NONBONDED entries, later values override earlier ones (same as
-        CHARMM's ``READ PARAM APPEND`` semantics).  For all list-based
-        sections (BONDS, ANGLES, …) entries are simply appended; duplicates
-        are not removed, which mirrors the behaviour of CHARMM when reading
-        multiple parameter files.
+        Uses last-wins semantics for all sections, matching CHARMM's
+        ``READ PARAM APPEND`` behaviour.  For dihedrals, entries with the
+        same atom-type quartet but *different* multiplicity ``n`` are kept
+        as separate terms (they are summed by the force field); only exact
+        duplicates (same quartet *and* same ``n``) are deduplicated.
         """
-        self.bonds.extend(other.bonds)
-        self.angles.extend(other.angles)
-        self.dihedrals.extend(other.dihedrals)
-        self.impropers.extend(other.impropers)
+        def _merge_list(existing, incoming, key_fn):
+            d = {key_fn(x): x for x in existing}
+            d.update({key_fn(x): x for x in incoming})
+            return list(d.values())
+
+        self.bonds     = _merge_list(self.bonds,     other.bonds,     self._bond_key)
+        self.angles    = _merge_list(self.angles,    other.angles,    self._angle_key)
+        self.dihedrals = _merge_list(self.dihedrals, other.dihedrals, self._dihedral_key)
+        self.impropers = _merge_list(self.impropers, other.impropers, self._improper_key)
         self.nonbonded.update(other.nonbonded)
-        self.nbfix.extend(other.nbfix)
+        self.nbfix     = _merge_list(self.nbfix,     other.nbfix,     self._nbfix_key)
         self.cmaps.extend(other.cmaps)
 
     # ------------------------------------------------------------------

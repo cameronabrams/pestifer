@@ -281,6 +281,144 @@ class TestCharmmParamFileExtract(unittest.TestCase):
         self.assertNotIn(('OT', 'CT1'), nbfix_pairs)
 
 
+class TestCharmmParamFileMergeDeduplicate(unittest.TestCase):
+    """Deduplication behaviour in merge().
+
+    Key invariants
+    --------------
+    * True duplicates (same key) are collapsed to one entry (last wins).
+    * Multi-term dihedrals — same quartet, different ``n`` — are preserved
+      as distinct entries because CHARMM sums them.
+    * Merging the same file twice must not double any count.
+    """
+
+    # File A: three dihedral terms for C-NH1-CT1-CT2 (n=1,2,3) plus a bond
+    _FILE_A = """\
+* File A
+*
+
+BONDS
+CT1  CT2   222.500     1.5380
+
+DIHEDRALS
+C    NH1  CT1  CT2      0.2000  1     0.00
+C    NH1  CT1  CT2      0.1000  2     0.00
+C    NH1  CT1  CT2      0.3000  3     0.00
+
+NONBONDED nbxmod  5 atom cdiel fshift vatom vdistance vfswitch -
+cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
+CT1    0.000000  -0.020000     2.275000
+CT2    0.000000  -0.055000     2.175000
+
+END
+"""
+
+    # File B: overrides the n=1 term, adds a new n=5 term, updates CT2 nonbonded
+    _FILE_B = """\
+* File B
+*
+
+BONDS
+CT1  CT2   250.000     1.5200
+
+DIHEDRALS
+C    NH1  CT1  CT2      0.9000  1     0.00 ! overrides A's n=1
+C    NH1  CT1  CT2      0.5000  5     0.00 ! new term
+
+NONBONDED nbxmod  5 atom cdiel fshift vatom vdistance vfswitch -
+cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
+CT2    0.000000  -0.999000     2.175000 ! overrides A's CT2
+
+END
+"""
+
+    def setUp(self):
+        self.a = CharmmParamFile.from_text(self._FILE_A)
+        self.b = CharmmParamFile.from_text(self._FILE_B)
+
+    def _quartet_terms(self, prm, t1, t2, t3, t4):
+        """Return all dihedral entries for a given atom-type quartet (either orientation)."""
+        fwd = (t1, t2, t3, t4)
+        rev = (t4, t3, t2, t1)
+        return [d for d in prm.dihedrals if (d.type1, d.type2, d.type3, d.type4) in (fwd, rev)]
+
+    # -- Double-merge idempotency -----------------------------------------
+
+    def test_double_merge_bond_count(self):
+        """Merging the same file twice must not double the bond count."""
+        once = CharmmParamFile()
+        once.merge(self.a)
+        twice = CharmmParamFile()
+        twice.merge(self.a)
+        twice.merge(self.a)
+        self.assertEqual(len(once.bonds), len(twice.bonds))
+
+    def test_double_merge_dihedral_count(self):
+        """Merging the same file twice must not double the dihedral count."""
+        once = CharmmParamFile()
+        once.merge(self.a)
+        twice = CharmmParamFile()
+        twice.merge(self.a)
+        twice.merge(self.a)
+        self.assertEqual(len(once.dihedrals), len(twice.dihedrals))
+
+    # -- Multi-term summation preservation --------------------------------
+
+    def test_multiterm_dihedrals_preserved(self):
+        """All three n-values for the C-NH1-CT1-CT2 quartet must survive merge."""
+        combined = CharmmParamFile()
+        combined.merge(self.a)
+        terms = self._quartet_terms(combined, 'C', 'NH1', 'CT1', 'CT2')
+        ns = {d.n for d in terms}
+        self.assertEqual(ns, {1, 2, 3})
+
+    # -- True-duplicate deduplication (last wins) --------------------------
+
+    def test_bond_last_wins(self):
+        """When the same bond appears in two files, the second value wins."""
+        combined = CharmmParamFile()
+        combined.merge(self.a)
+        combined.merge(self.b)
+        ct1ct2 = next(b for b in combined.bonds
+                      if set([b.type1, b.type2]) == {'CT1', 'CT2'})
+        self.assertAlmostEqual(ct1ct2.Kb, 250.0, places=1)
+        self.assertEqual(len(combined.bonds), 1)
+
+    def test_dihedral_same_n_last_wins(self):
+        """Same quartet + same n from two files: only one entry, second Kchi wins."""
+        combined = CharmmParamFile()
+        combined.merge(self.a)
+        combined.merge(self.b)
+        terms = self._quartet_terms(combined, 'C', 'NH1', 'CT1', 'CT2')
+        n1_terms = [d for d in terms if d.n == 1]
+        self.assertEqual(len(n1_terms), 1)
+        self.assertAlmostEqual(n1_terms[0].Kchi, 0.9, places=4)
+
+    def test_dihedral_new_n_added(self):
+        """A new n value from file B is added alongside existing terms."""
+        combined = CharmmParamFile()
+        combined.merge(self.a)
+        combined.merge(self.b)
+        terms = self._quartet_terms(combined, 'C', 'NH1', 'CT1', 'CT2')
+        ns = {d.n for d in terms}
+        self.assertEqual(ns, {1, 2, 3, 5})
+
+    def test_dihedral_total_count_after_merge(self):
+        """After merging A (3 terms) and B (2 terms, 1 overlap): 4 unique terms."""
+        combined = CharmmParamFile()
+        combined.merge(self.a)
+        combined.merge(self.b)
+        terms = self._quartet_terms(combined, 'C', 'NH1', 'CT1', 'CT2')
+        self.assertEqual(len(terms), 4)
+
+    def test_nonbonded_last_wins(self):
+        """Nonbonded entry overridden by file B: CT2 epsilon should be -0.999."""
+        combined = CharmmParamFile()
+        combined.merge(self.a)
+        combined.merge(self.b)
+        self.assertAlmostEqual(combined.nonbonded['CT2'].epsilon, -0.999, places=3)
+
+
 class TestCharmmParamFileRoundTrip(unittest.TestCase):
     """Tests for write() / from_file() round-trip."""
 
