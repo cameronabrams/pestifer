@@ -46,6 +46,14 @@ Arguments
 ``--colormap-direction``
    Colormap direction: ``1`` for normal, ``-1`` for reversed (default: ``1``).
 
+CSV output
+~~~~~~~~~~
+
+Providing ``--logs`` triggers two rounds of CSV writing:
+
+1. **Per-log CSVs** — immediately after each log file is parsed, one CSV is written per dataframe type found in that log (``energy``, ``xst``, ``pressureprofile``, …).
+2. **Merged CSV** — after all per-log dataframes are concatenated, the combined result is written as ``{basename}-{key}.csv`` (e.g., ``mdplot-energy.csv``).  This is the file that captures the full time series across all supplied log files.
+
 Time-series plot features
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 

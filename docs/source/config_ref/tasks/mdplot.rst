@@ -5,6 +5,13 @@
 
 This task generates plots from the output of MD tasks.  It can plot energy-like quantities vs time, and profile quantities vs distance along the z-axis. The plots are generated using matplotlib, and are saved as image files. This task can be part of a standard build, or it can be used via the command line (``pestifer mdplot``) to generate plots from existing NAMD logs and xst files.
 
+CSV output
+----------
+
+The mdplot task always writes a merged CSV file for each dataframe type it processes (e.g., ``{basename}-energy.csv``, ``{basename}-xst.csv``).  These files contain the concatenated data from all prior MD tasks or all explicitly supplied log files.
+
+When ``reprocess-logs: True`` is set (which is done automatically when ``--logs`` is provided on the command line), a per-log CSV is also written immediately after each log file is parsed, before the dataframes are merged.  When the task runs inside a build pipeline (``reprocess-logs: False``), the per-log CSVs were already written by each MD task as its simulation completed; the mdplot task reads those artifacts, concatenates them, and writes only the merged CSV.
+
 
 Single-valued attributes:
 
