@@ -123,6 +123,7 @@ class Config(Yclept):
             gpu_devices = self.gpu_devices,
             local_ncpus = self.local_ncpus,
             namd = self.shell_commands['namd3'],
+            namd3gpu = self.shell_commands['namd3gpu'],
             namd_config = self['user']['namd'],
             namd_deprecates = self['user']['namd'].get('deprecated3', {}),
             namd_type = self.namd_type,
@@ -223,6 +224,16 @@ class Config(Yclept):
             if rq_resolved is not None and verify_access:
                 assert os.access(rq_resolved, os.X_OK), f'You do not have permission to execute {rq_resolved}'
         self.namd_type = self['user']['namd']['processor-type']
+        namd3gpu_path = self['user']['paths']['namd3gpu']
+        self.shell_commands['namd3gpu'] = namd3gpu_path
+        namd3gpu_resolved = shutil.which(namd3gpu_path)
+        if not namd3gpu_resolved:
+            if self.namd_type == 'gpu':
+                raise PestiferError(f'Cannot find GPU namd3 executable {namd3gpu_path!r} in your path. Install the GPU-resident NAMD3 build and set paths.namd3gpu.')
+            else:
+                logger.warning(f'GPU namd3 executable {namd3gpu_path!r} not found; GPU mode will be unavailable.')
+        elif verify_access:
+            assert os.access(namd3gpu_resolved, os.X_OK), f'You do not have permission to execute {namd3gpu_resolved}'
         self.namd_deprecates = self['user']['namd']['deprecated3']
 
     def _set_internal_shortcuts(self):

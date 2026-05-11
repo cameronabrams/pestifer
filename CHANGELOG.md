@@ -4,7 +4,7 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
-- enhancement: NAMD GPU dispatch no longer requires a separate `namd3gpu` executable; GPU mode now uses the same `namd3` binary as CPU mode, adding `+devices <ids>` flags to the launch command; this matches the typical HPC pattern where GPU support is selected via module loading rather than a distinct binary; the `paths.namd3gpu` schema entry is retained for backward compatibility but is no longer used
+- enhancement: `paths.namd3gpu` now defaults to `namd3` (same binary as CPU mode) rather than a separate `namd3gpu` executable name; on HPC systems where a single module-loaded binary handles both modes this requires no configuration, while workstation users with separate CPU and GPU-resident NAMD3 builds can set `paths.namd3gpu` explicitly; also fixed a key-name mismatch that previously prevented the GPU binary path from reaching `NAMDScripter`; GPU mode now correctly raises an error at startup if the configured GPU binary is not found
 
 ## [2.4.9] - 2026-05-11
 

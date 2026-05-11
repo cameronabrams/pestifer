@@ -319,8 +319,8 @@ attributes:
         default: namd3
       - name: namd3gpu
         type: str
-        text: "Deprecated: GPU mode now uses the same namd3 executable as CPU mode, with +devices flags. This entry is ignored."
-        default: namd3gpu
+        text: Path for the GPU-resident namd3 executable. Defaults to namd3 (same binary), which is correct when a single module-loaded binary handles both CPU and GPU modes. On a workstation where the GPU-resident build is a separate binary, set this to its path.
+        default: namd3
       - name: charmrun
         type: str
         text: Path for charmrun executable
