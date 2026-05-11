@@ -132,6 +132,16 @@ class MDPlotTask(BaseTask):
                 df.to_csv(csvname,index=False)
                 self.register(f'{self.basename}-{key}', key=f'{key}-csv', artifact_type=CSVDataFileArtifact)
 
+        # compute time_ps for the energy dataframe after all CSVs are concatenated;
+        # using cumsum(dt_fs * delta_TS) correctly handles chained runs where dt may vary
+        if 'energy' in self.dataframes and 'dt_fs' in self.dataframes['energy'].columns:
+            df_e = self.dataframes['energy']
+            ts_arr = df_e['TS'].values.astype(float)
+            dt_arr = df_e['dt_fs'].values
+            delta_ts = np.diff(ts_arr, prepend=ts_arr[0])
+            df_e['time_ps'] = np.cumsum(dt_arr * delta_ts / 1000.0)
+            self.dataframes['energy'] = df_e
+
         # build a dictionary of column headings:dataframe pairs
         df_of_column = {}
         for key, df in self.dataframes.items():
@@ -176,6 +186,34 @@ class MDPlotTask(BaseTask):
                 tracelist = [trace]
             else:
                 tracelist = trace
+
+            # Determine time-axis settings once per figure using the first
+            # trace whose dataframe carries time_ps.
+            time_unit = None   # 'ps' or 'ns', or None → fall back to TS index
+            time_scale = 1.0
+            eff_dt_scaled = None  # dt in time_unit per TS step (for secondary axis)
+            ts_offset = 0.0
+            for t_i in tracelist:
+                df_check = df_of_column.get(t_i.upper(), df_of_column.get(t_i.lower()))
+                if df_check is not None and 'time_ps' in df_check.columns:
+                    max_time_ps = float(df_check['time_ps'].max())
+                    if max_time_ps >= 1000.0:
+                        time_unit, time_scale = 'ns', 1e-3
+                    else:
+                        time_unit, time_scale = 'ps', 1.0
+                    ts_arr = df_check['TS'].values.astype(float)
+                    ts_offset = float(ts_arr[0])
+                    ts_range = float(ts_arr[-1] - ts_arr[0])
+                    if ts_range > 0:
+                        eff_dt_ps = max_time_ps / ts_range
+                    elif 'dt_fs' in df_check.columns:
+                        eff_dt_ps = float(df_check['dt_fs'].iloc[0]) / 1000.0
+                    else:
+                        eff_dt_ps = None
+                    if eff_dt_ps and eff_dt_ps > 0:
+                        eff_dt_scaled = eff_dt_ps * time_scale
+                    break
+
             for idx, t_i in enumerate(tracelist):
                 units = 1.0
                 unitspec = self.specs.get('units', {}).get(t_i, '*')
@@ -192,29 +230,45 @@ class MDPlotTask(BaseTask):
                 key = t_i.upper()
                 df = df_of_column.get(key, None)
                 if df is None:
-                    # try the lowercase key
                     key = t_i.lower()
                     df = df_of_column.get(key, None)
                 if df is None:
                     logger.debug(f'No data found for trace {t_i}. Skipping...')
                     continue
-                # determine the time step column name
-                time_step_column = None
-                for tcn in time_step_column_names:
-                    if tcn in df.columns:
-                        time_step_column = tcn
-                        break
-                if time_step_column is None:
-                    logger.debug(f'No time step column found for trace {t_i}. Skipping...')
-                    continue
+                if time_unit is not None and 'time_ps' in df.columns:
+                    x_values = df['time_ps'] * time_scale
+                else:
+                    time_step_column = None
+                    for tcn in time_step_column_names:
+                        if tcn in df.columns:
+                            time_step_column = tcn
+                            break
+                    if time_step_column is None:
+                        logger.debug(f'No time step column found for trace {t_i}. Skipping...')
+                        continue
+                    x_values = df[time_step_column]
                 color = self.colormap(idx / max(1, len(tracelist)-1))
                 if self.colormap_direction == -1 and len(tracelist) > 1:
                     color = self.colormap(1.0 - idx / max(1, len(tracelist)-1))
                 label = key
                 if label.endswith('_time'):
                     label = label.replace('_time', ' time')
-                ax.plot(df[time_step_column], df[key] * units, label=label.title() if '_' not in label else r'$'+label+r'$', color=color)
-            ax.set_xlabel('time step')
+                ax.plot(x_values, df[key] * units, label=label.title() if '_' not in label else r'$'+label+r'$', color=color)
+
+            if time_unit is not None:
+                ax.set_xlabel(f'simulation time ({time_unit})')
+                if eff_dt_scaled is not None:
+                    _ts0, _dt = ts_offset, eff_dt_scaled
+                    ax_top = ax.secondary_xaxis(
+                        'top',
+                        functions=(
+                            lambda t, ts0=_ts0, dt=_dt: ts0 + t / dt,
+                            lambda ts, ts0=_ts0, dt=_dt: (ts - ts0) * dt,
+                        )
+                    )
+                    ax_top.set_xlabel('time step')
+            else:
+                ax.set_xlabel('time step')
             axis_labels = self.specs.get('axis-labels', {})
             ax.set_ylabel(', '.join([to_latex_math(axis_labels.get(n, n)) + ' (' + u + ')' for n, u in zip(tracelist, unitspecs)]))
             if legend and len(tracelist) > 1:

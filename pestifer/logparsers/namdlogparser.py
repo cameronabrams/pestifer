@@ -629,10 +629,11 @@ class NAMDLogParser(LogParser):
             self.dataframes[key] = pd.DataFrame(self.time_series_data[key])
         if self.auxlogparser:
             self.dataframes['xst'] = self.auxlogparser.dataframe
-        # add a 'DENSITY' column to the energy dataframe
+        # add per-run columns to the energy dataframe
         if 'energy' in self.dataframes:
             if 'total_mass' in self.metadata and 'VOLUME' in self.dataframes['energy'].columns:
                 self.dataframes['energy']['DENSITY'] = self.metadata['total_mass'] / self.dataframes['energy']['VOLUME']
+            self.dataframes['energy']['dt_fs'] = self.metadata.get('timestep', 1.0)
         # convert the integer slab index column headings in the pressure profile dataframe to floating point z-coordinates using metadata['slab_thickness']
         # if 'pressureprofile' in self.dataframes:
         #     if 'number_of_pressure_slabs' in self.metadata and 'slab_thickness' in self.metadata:
