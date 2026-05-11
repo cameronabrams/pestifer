@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [2.4.8] - 2026-05-11
+
 - bugfix: `scripts/release.sh` did not update `CITATION.cff`, causing the release workflow to fail when it checked that the citation version matched the release; `release.sh` now bumps both `version` and `date-released` in `CITATION.cff` alongside `pyproject.toml`
 
 ## [2.4.7] - 2026-05-11
