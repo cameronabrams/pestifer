@@ -93,7 +93,7 @@ class Controller:
             'pipeline': self.pipeline,
             'resource_manager': self.config.RM,
             'scripters': self.config.scripters,
-            'processor-type': self.config['user']['namd']['processor-type'],
+            'processor-type': self.config.namd_type,
             'shell-commands': self.config.shell_commands,
             'progress-flag': self.config.use_terminal_progress,
             'namd_global_config': self.config['user']['namd'],

@@ -65,7 +65,8 @@ class RunSubcommand(Subcommand):
         config = Config(userfile=configname, ncpus_override=args.ncpus, **kwargs).configure_new()
         C = Controller().configure(config)
         if args.gpu:
-            C.config['user']['namd']['processor-type'] = 'gpu'
+            C.config.namd_type = 'gpu'
+            C.config.scripters['namd'].namd_type = 'gpu'
 
         if args.complete_config:
             C.write_complete_config(f'{cbase}-complete.yaml')

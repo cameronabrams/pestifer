@@ -203,7 +203,7 @@ attributes:
         choices: [2, 3]
         default: 3
       - name: processor-type
-        text: which processor type to use (cpu or gpu)
+        text: "Deprecated and ignored: GPU mode is now auto-detected by comparing paths.namd3 and paths.namd3gpu. This entry is accepted for backward compatibility but has no effect."
         type: str
         choices: [cpu, gpu]
         default: cpu
