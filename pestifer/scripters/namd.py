@@ -120,20 +120,23 @@ class NAMDScripter(TcLScripter):
         """
         # logger.debug(f'params: {params}')
         tailers = ['minimize', 'run', 'numsteps']
+        gpu_resident_active = self.namd_type == 'gpu' and not cpu_override
+        gpu_override_keys = {k.lower() for k in self.namd_config['gpu-resident']} if gpu_resident_active else set()
         for k, v in params.items():
-            if k not in tailers:
-                if type(v) == list:
-                    for val in v:
-                        if k == 'tcl':
-                            self.addline(val)
-                        else:
-                            self.addline(f'{self.namd_deprecates.get(k, k)} {val}')
-                else:
+            if k in tailers or k.lower() in gpu_override_keys:
+                continue
+            if type(v) == list:
+                for val in v:
                     if k == 'tcl':
-                        self.addline(v)
+                        self.addline(val)
                     else:
-                        self.addline(f'{self.namd_deprecates.get(k, k)} {v}')
-        if self.namd_type == 'gpu' and not cpu_override:
+                        self.addline(f'{self.namd_deprecates.get(k, k)} {val}')
+            else:
+                if k == 'tcl':
+                    self.addline(v)
+                else:
+                    self.addline(f'{self.namd_deprecates.get(k, k)} {v}')
+        if gpu_resident_active:
             for k, v in self.namd_config['gpu-resident'].items():
                 self.addline(f'{k} {v}')
         for t in tailers:
