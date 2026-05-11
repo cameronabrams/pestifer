@@ -30,6 +30,16 @@ from ..core.artifacts import *
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
+_NAMD_DEFAULT_UNITS = {
+    'BOND': 'kcal/mol', 'ANGLE': 'kcal/mol', 'DIHED': 'kcal/mol',
+    'IMPRP': 'kcal/mol', 'ELECT': 'kcal/mol', 'VDW': 'kcal/mol',
+    'BOUNDARY': 'kcal/mol', 'MISC': 'kcal/mol', 'KINETIC': 'kcal/mol',
+    'TOTAL': 'kcal/mol', 'POTENTIAL': 'kcal/mol', 'TOTAL3': 'kcal/mol',
+    'TEMP': 'K', 'TEMPAVG': 'K',
+    'PRESSURE': 'bar', 'GPRESSURE': 'bar', 'PRESSAVG': 'bar', 'GPRESSAVG': 'bar',
+    'VOLUME': 'Å³',
+}
+
 class MDPlotTask(BaseTask):
     """ 
     A class for making plots of energy-like quantities from a series of one or more NAMD 
@@ -218,6 +228,7 @@ class MDPlotTask(BaseTask):
                 units = 1.0
                 unitspec = self.specs.get('units', {}).get(t_i, '*')
                 if unitspec == '*':
+                    unitspec = _NAMD_DEFAULT_UNITS.get(t_i.upper(), '*')
                     units = 1.0
                 else:
                     if t_i == 'density':
