@@ -3,17 +3,20 @@
 ``units``
 ---------
 
-  * ``density``: g/cc
-  * ``a_x``: Å
-  * ``b_y``: Å
-  * ``c_z``: Å
-  * ``pressure``: bar
-  * ``temperature``: K
-  * ``cpu_time``: s
-  * ``wall_time``: s
+User-specified unit labels for plot y-axes.  Each key is a quantity name and the value is the label string shown on the axis.
 
+Unit labels for standard NAMD ``ENERGY:`` output columns and XST-derived quantities are **inferred automatically** from NAMD defaults and do not need to be listed here:
 
-user-specified units for plots
+- ``BOND``, ``ANGLE``, ``DIHED``, ``IMPRP``, ``ELECT``, ``VDW``, ``BOUNDARY``, ``MISC``, ``KINETIC``, ``POTENTIAL``, ``TOTAL``, ``TOTAL3`` — kcal/mol
+- ``TEMP``, ``TEMPAVG`` — K
+- ``PRESSURE``, ``GPRESSURE``, ``PRESSAVG``, ``GPRESSAVG`` — bar
+- ``VOLUME`` — Å³
+
+Use this attribute only to override a default label or to supply a label for a non-standard column.  The defaults for quantities that are not NAMD ``ENERGY:`` columns are:
+
+- ``density``: g/cc
+- ``a_x``, ``b_y``, ``c_z``: Å
+- ``cpu_time``, ``wall_time``: s
 
 .. raw:: html
 

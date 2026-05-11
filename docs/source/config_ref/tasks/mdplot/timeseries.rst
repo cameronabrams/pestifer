@@ -3,20 +3,36 @@
 ``timeseries``
 --------------
 
+The list of quantities to plot as time-series panels.  Each element produces a separate figure; to overlay multiple quantities on one panel, make that element itself a list.
 
+Quantities are drawn from the NAMD ``ENERGY:`` output lines or from the XST file (cell dimensions and derived quantities).  Available columns include:
 
-The list of energy-like quantities to plot vs timestep.  These quantities are extracted from the NAMD log files and plotted against timestep.  To combine traces onto a single plot, the list element itself can be a list. The default is to plot density, but you can specify any quantity in an ENERGY: output line or an XST file, including:
+- ``density`` — computed from total system mass and simulation box volume (g/cc)
+- ``a_x``, ``b_y``, ``c_z`` — simulation cell dimensions (Å)
+- ``BOND``, ``ANGLE``, ``DIHED``, ``IMPRP`` — bonded energy terms (kcal/mol)
+- ``ELECT``, ``VDW``, ``BOUNDARY``, ``MISC`` — non-bonded and miscellaneous energy terms (kcal/mol)
+- ``KINETIC``, ``POTENTIAL``, ``TOTAL``, ``TOTAL3`` — total energy terms (kcal/mol)
+- ``TEMP``, ``TEMPAVG`` — temperature (K)
+- ``PRESSURE``, ``GPRESSURE``, ``PRESSAVG``, ``GPRESSAVG`` — pressure (bar)
+- ``VOLUME`` — simulation box volume (Å³)
 
-- density (not included in ENERGY:, but computed)
-- a_x (cell size along x direction)
-- b_y (cell size along y direction)
-- c_z (cell size along z direction)
-- pressure
-- temperature
+X-axis
+++++++
 
+The bottom x-axis shows **simulation time** in ps or ns, chosen automatically: ps when the total run duration is less than 1000 ps, ns otherwise.
+Simulation time is computed as the cumulative sum of ``TIMESTEP × ΔTS`` across all log entries, so chained runs with different timestep sizes are handled correctly.
 
-Example:
-++++++++
+The **top spine** shows the corresponding integer NAMD timestep index (``TS``) as a secondary axis.
+
+Y-axis and units
+++++++++++++++++
+
+Unit labels for all standard NAMD output columns are inferred automatically from NAMD defaults; no ``units`` override is needed for these quantities.
+
+For energetic quantities (kcal/mol), if the maximum absolute value in the time series exceeds 1000 kcal/mol, the axis is automatically scaled by 1/1000 and labeled **1000 kcal/mol** to keep tick magnitudes readable.
+
+Example
++++++++
 
 .. code-block:: yaml
 
@@ -25,8 +41,9 @@ Example:
    - - a_x
      - b_y
      - c_z
-   - pressure
-   - temperature
+   - TOTAL
+   - TEMP
+   - PRESSURE
 
 .. raw:: html
 

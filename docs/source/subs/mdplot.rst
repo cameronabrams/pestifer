@@ -3,13 +3,65 @@
 mdplot
 -------
 
-The ``mdplot`` subcommand is used to plot data from molecular dynamics simulations. It can generate various types of plots, such as energy, temperature, and pressure over time, or radial distribution functions.
-It is particularly useful for analyzing the results of molecular dynamics simulations and visualizing the behavior of the system over time.
+The ``mdplot`` subcommand generates plots from NAMD log and XST files without requiring a full pestifer configuration file.
+It is the standalone equivalent of the ``mdplot`` task used inside a ``pestifer build`` pipeline.
 
 .. code-block:: bash
 
-   $ pestifer mdplot [-h] [--logs LOGS [LOGS ...]] [--xsts XSTS [XSTS ...]] 
-            [--basename BASENAME] [--figsize FIGSIZE FIGSIZE]
-            [--traces TRACES [TRACES ...]] [--profiles PROFILES [PROFILES ...]]
+   $ pestifer mdplot [-h] [--logs LOGS [LOGS ...]] [--basename BASENAME]
+            [--figsize FIGSIZE FIGSIZE]
+            [--timeseries QUANTITY [QUANTITY ...]]
+            [--timecoseries QUANTITY [QUANTITY ...]]
+            [--profiles [PROFILE ...]]
+            [--profiles-per-block N]
+            [--colormap COLORMAP] [--colormap-direction {1,-1}]
 
-The ``mdplot`` subcommand mimics the ``mdplot`` task in the ``pestifer build`` command, but it does not require a configuration file. Instead, it allows you to specify the NAMD log and xst files directly on the command line.
+Arguments
+~~~~~~~~~
+
+``--logs``
+   One or more NAMD log files in chronological order.  When multiple logs are supplied they are concatenated before plotting, so runs that were broken into segments (e.g. a restart sequence) are treated as a single continuous trajectory.
+
+``--basename``
+   Base name for all output image and CSV files (default: ``mdplot``).
+
+``--figsize``
+   Figure width and height in inches (default: ``9 6``).
+
+``--timeseries``
+   One or more scalar quantities to plot as individual time-series panels (default: ``density``).  Each quantity produces a separate figure.  Any column appearing in a NAMD ``ENERGY:`` output line or in an XST file is accepted (e.g. ``TOTAL``, ``TEMP``, ``PRESSURE``, ``density``, ``a_x``).
+
+``--timecoseries``
+   One or more quantities to overlay on a *single* panel.  Use this when you want to compare quantities on the same axes (e.g. ``a_x b_y c_z`` to see all three cell dimensions together).
+
+``--profiles``
+   Zero or more profile quantities to plot as a function of position along the z-axis (e.g. ``pressure``).
+
+``--profiles-per-block``
+   Number of saved frames to average per profile block (default: ``100``).
+
+``--colormap``
+   Matplotlib colormap name used when multiple traces appear on one panel (default: ``viridis``).
+
+``--colormap-direction``
+   Colormap direction: ``1`` for normal, ``-1`` for reversed (default: ``1``).
+
+Time-series plot features
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Each time-series panel uses **simulation time** (in ps or ns, chosen automatically by magnitude) on the bottom x-axis.
+The corresponding integer NAMD timestep is shown on the **top spine** as a secondary axis.
+Simulation time is computed from the ``TIMESTEP`` and ``TS`` columns in the log, so chained runs with different timestep sizes are handled correctly.
+
+Unit labels for all standard NAMD ``ENERGY:`` output columns (``BOND``, ``ANGLE``, ``DIHED``, ``VDW``, ``ELECT``, ``TOTAL``, ``TEMP``, ``PRESSURE``, ``VOLUME``, etc.) are inferred automatically from NAMD defaults (kcal/mol, K, bar, Å³).
+
+For energetic quantities whose maximum absolute value exceeds 1000 kcal/mol, the axis is automatically scaled by 1/1000 and labeled **1000 kcal/mol** to avoid unwieldy tick magnitudes.
+
+Example
+~~~~~~~
+
+Plot total energy and temperature from two chained log files:
+
+.. code-block:: bash
+
+   $ pestifer mdplot --logs run1.log run2.log --timeseries TOTAL TEMP --basename analysis
