@@ -29,7 +29,7 @@ Arguments
    Figure width and height in inches (default: ``9 6``).
 
 ``--timeseries``
-   One or more scalar quantities to plot as individual time-series panels (default: ``density``).  Each quantity produces a separate figure.  Any column appearing in a NAMD ``ENERGY:`` output line or in an XST file is accepted (e.g. ``TOTAL``, ``TEMP``, ``PRESSURE``, ``density``, ``a_x``).
+   One or more scalar quantities to plot as individual time-series panels (default: ``density``).  Each quantity produces a separate figure.  Any column appearing in a NAMD ``ENERGY:`` output line or in an XST file is accepted (e.g. ``TOTAL``, ``TEMP``, ``PRESSURE``, ``a_x``).  ``density`` is a pestifer-computed quantity derived from the total system mass (parsed from the log) divided by the ``VOLUME`` column at each step; it is only available for periodic simulations where NAMD reports ``VOLUME``.
 
 ``--timecoseries``
    One or more quantities to overlay on a *single* panel.  Use this when you want to compare quantities on the same axes (e.g. ``a_x b_y c_z`` to see all three cell dimensions together).

@@ -7,8 +7,8 @@ The list of quantities to plot as time-series panels.  Each element produces a s
 
 Quantities are drawn from the NAMD ``ENERGY:`` output lines or from the XST file (cell dimensions and derived quantities).  Available columns include:
 
-- ``density`` — computed from total system mass and simulation box volume (g/cc)
-- ``a_x``, ``b_y``, ``c_z`` — simulation cell dimensions (Å)
+- ``density`` — **pestifer-computed** (not a native NAMD output); derived from the total system mass (read from the ``Info: TOTAL MASS`` line in the log) divided by the ``VOLUME`` column at each step; units are g/cc; only available for periodic (solvated) simulations where NAMD reports ``VOLUME``
+- ``a_x``, ``b_y``, ``c_z`` — simulation cell dimensions from the XST file (Å)
 - ``BOND``, ``ANGLE``, ``DIHED``, ``IMPRP`` — bonded energy terms (kcal/mol)
 - ``ELECT``, ``VDW``, ``BOUNDARY``, ``MISC`` — non-bonded and miscellaneous energy terms (kcal/mol)
 - ``KINETIC``, ``POTENTIAL``, ``TOTAL``, ``TOTAL3`` — total energy terms (kcal/mol)
