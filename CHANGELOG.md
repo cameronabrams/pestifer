@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [2.4.5] - 2026-05-11
+
 - bugfix: `CharmmParamFile.merge()` incorrectly deduplicated multi-term dihedral parameters; CHARMM sums all dihedral terms for the same atom-type quartet that have different periodicities `n`, so deduplication must key on `(canonical_quartet, n)` rather than the quartet alone; the old code collapsed all terms for a quartet to a single entry, silently discarding all but one periodicity; added five static key methods (`_bond_key`, `_angle_key`, `_dihedral_key`, `_improper_key`, `_nbfix_key`) and rewrote `merge()` to use them; also added 8 unit tests covering bond/dihedral/nonbonded deduplication and multi-term dihedral preservation
 
 ## [2.4.4] - 2026-04-28
