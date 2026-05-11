@@ -259,7 +259,12 @@ class NAMDScripter(TcLScripter):
                 use_cpu_count = 8 if use_gpu_count == 1 else (use_gpu_count - 1) * 8 + 8 - (use_gpu_count - 1)
             else:
                 use_cpu_count = self.local_ncpus
-            c = Command(f'{self.namdgpu} +p{use_cpu_count} +setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
+            if use_gpu_count > 1:
+                pmepes = use_cpu_count - (use_gpu_count - 1) * 8
+                pmepes_flag = f'+pmepes {pmepes} '
+            else:
+                pmepes_flag = ''
+            c = Command(f'{self.namdgpu} +p{use_cpu_count} {pmepes_flag}+setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
         logger.debug(f'NAMD launch command: {c.c}')
         if self.slurmvars:
             self._stage_params_to_local_scratch()

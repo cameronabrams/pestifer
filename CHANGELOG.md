@@ -4,6 +4,9 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- bugfix: GPU-resident NAMD3 config parameter renamed from `GPUResident` to `CUDASOAintegrate` to match current NAMD3 release notes; `outputEnergies` added to the `gpu-resident` schema section with a default of 500 (NAMD recommends 500–1000 for GPU-resident mode; the generic default of 100 is written first and overridden by this value)
+- enhancement: multi-GPU GPU-resident launches now include `+pmepes K` to assign fewer PEs to the PME device and reduce load imbalance; K is computed as total PEs minus 8×(N−1) for N GPUs, matching the NAMD3 recommended work distribution examples
+
 - enhancement: GPU mode is now auto-detected by comparing `paths.namd3` and `paths.namd3gpu`; if the two paths differ and `namd3gpu` is found in PATH, pestifer switches to GPU mode automatically — no `namd.processor-type` setting required; `processor-type` is retained in the schema for backward compatibility but is ignored; `paths.namd3gpu` defaults to `namd3` (CPU mode when identical); workstation users with separate CPU and GPU-resident NAMD3 builds simply set `paths.namd3gpu` to the GPU binary name/path; the `--gpu` CLI flag now correctly propagates GPU mode to both the config and the live NAMD scripter
 
 ## [2.4.9] - 2026-05-11

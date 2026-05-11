@@ -215,8 +215,9 @@ attributes:
         type: dict
         text: Configuration parameter(s) required for GPU-resident NAMD3
         default:
-          GPUResident: on
+          CUDASOAintegrate: on
           margin: 4
+          outputEnergies: 500
       - name: deprecated3
         type: dict
         text: Deprecated namd2 configuration parameters and their namd3 counterparts
