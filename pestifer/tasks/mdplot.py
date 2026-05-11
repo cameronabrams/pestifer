@@ -152,15 +152,16 @@ class MDPlotTask(BaseTask):
                 logger.debug('not tracking box depth, so depth profiles will not be plotted')
                 profiles = []
             else:
-                if self.dataframes['xst'].shape[0] != self.dataframes[f'{profiles[0]}profile'].shape[0]:
-                    logger.debug(f'xst: {self.dataframes["xst"].shape[0]} rows, {profiles[0]}profile: {self.dataframes[f"{profiles[0]}profile"].shape[0]} rows')
-                    # transfer the c_z column from the xst dataframe to the profile dataframe keeping the TS columns aligned
-                dp = self.dataframes['xst']
-                pp = self.dataframes[f'{profiles[0]}profile']
-                # logger.debug(f'pp[TS]: {pp["TS"].values}')
-                # logger.debug(f'dp[TS]: {dp[dp["TS"].isin(pp["TS"])]["TS"].values}')
-                pp['c_z'] = dp[dp['TS'].isin(pp['TS'])]['c_z'].values
-                self.dataframes[f'{profiles[0]}profile'] = pp
+                profiles = [p for p in profiles if f'{p}profile' in self.dataframes]
+                if not profiles:
+                    logger.debug('no profile dataframes available; skipping profile plots')
+                else:
+                    if self.dataframes['xst'].shape[0] != self.dataframes[f'{profiles[0]}profile'].shape[0]:
+                        logger.debug(f'xst: {self.dataframes["xst"].shape[0]} rows, {profiles[0]}profile: {self.dataframes[f"{profiles[0]}profile"].shape[0]} rows')
+                    dp = self.dataframes['xst']
+                    pp = self.dataframes[f'{profiles[0]}profile']
+                    pp['c_z'] = dp[dp['TS'].isin(pp['TS'])]['c_z'].values
+                    self.dataframes[f'{profiles[0]}profile'] = pp
         profiles_per_block = self.specs.get('profiles_per_block', 100)
         legend = self.specs.get('legend', False)
         grid = self.specs.get('grid', False)

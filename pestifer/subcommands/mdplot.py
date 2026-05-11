@@ -82,7 +82,7 @@ class MDPlotSubcommand(Subcommand):
         self.parser.add_argument('--figsize', type=int, nargs=2, default=(9,6), help='figsize')
         self.parser.add_argument('--timecoseries', type=str, default=[], nargs='+', help='timeseries to plot on same axes')
         self.parser.add_argument('--timeseries', type=str, default=['density'], nargs='+', help='timeseries to plot')
-        self.parser.add_argument('--profiles', type=str, default=['pressure'], nargs='+', help='profiles (along z) to plot')
+        self.parser.add_argument('--profiles', type=str, default=[], nargs='*', help='profiles (along z) to plot')
         self.parser.add_argument('--profiles-per-block', type=int, default=100, help='number of profiles to plot per block (default: %(default)s)')
         self.parser.add_argument('--colormap', type=str, default='viridis', help='matplotlib colormap for multiple traces on a single plot (default: %(default)s)')
         self.parser.add_argument('--colormap-direction', type=int, choices=[1,-1], default=1, help='direction of colormap (1 or -1) (default: %(default)s)')
