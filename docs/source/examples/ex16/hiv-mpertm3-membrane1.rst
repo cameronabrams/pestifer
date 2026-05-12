@@ -15,6 +15,7 @@ Example 16: HIV-1 Env MPER-TM Trimer in a DMPC Symmetric Bilayer
 
 .. task-table:: ../../../../pestifer/resources/examples/ex16/inputs/hiv-mpertm3-membrane1.yaml
 
+Notice first that packmol's path is set explicitly in the ``paths`` section to ``/usr/local/bin/packmol``.  This avoids any version of packmol that may be installed via conda; for example, when a user installs AmberTools via conda, packmol is installed as a dependency, but this version of packmol is not compatible with the current version of ``pestifer``.  If packmol is not found at the specified path, the membrane-building process will fail.
 
 The key task in this example is the ``make_membrane_system`` task.  This task specifies a ``bilayer`` subtask and an ``embed`` subtask.  The ``bilayer`` subtask specifies the composition of the two leaflets, directives for using ``packmol`` to assemble the initial *minimal* bilayer patch, and relaxation protocols for relaxing the patch and the full-sized bilayer, prior to embedding the protein.  The ``embed`` subtask specifies how the protein is to be oriented and placed in the bilayer.  Immediately following the ``make_membrane_system`` task, the ``minimize`` task is used to relax the system after embedding the protein.  This is then followed by a series of ``md`` tasks to progressively equilibrate the system density and the bilayer area.
 

@@ -393,6 +393,8 @@ class PackmolLogParser(LogParser):
         for k, v in self.gencan.items():
             self.gencan_df[k] = pd.DataFrame(v)
             self.gencan_df[k].to_csv(f'{self.basename}_{k}_packmol.csv', index=False)
+        if not self.gencan_df:
+            return None
         fig, ax = plt.subplots(1, len(self.gencan_df), figsize=(4 * len(self.gencan_df), 4))
         for i, (k, v) in enumerate(self.gencan_df.items()):
             if len(v) == 0:

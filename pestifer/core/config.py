@@ -21,6 +21,7 @@ from ..tasks.taskcollections import TaskList
 from ..util.stringthings import my_logger
 from ..scripters import PsfgenScripter, NAMDColvarInputScripter, PackmolScripter, VMDScripter, GenericScripter
 from ..scripters.namd import NAMDScripter
+from ..scripters.packmol import check_packmol_version
 
 logger = logging.getLogger(__name__)
 
@@ -207,8 +208,8 @@ class Config(Yclept):
             rq_resolved = shutil.which(self.shell_commands[rq])
             rq_alt = command_alternates.get(rq, None)
             if not rq_resolved and not rq_alt:
-                raise PestiferError(f'Cannot find required command {self.shell_commands[rq]} in your path.')
-            
+                raise PestiferError(f'Cannot find or execute required command {self.shell_commands[rq]!r}.')
+
             if not rq_resolved:
                 if rq in command_alternates:
                     rqalt = command_alternates[rq]
@@ -218,11 +219,16 @@ class Config(Yclept):
                         logger.info(f'Using alternate command {self.shell_commands[rq]} for {rq}.')
                         rq_resolved = altrq_resolved
                     else:
-                        raise PestiferError(f'Cannot find required command {self.shell_commands[rq]} or alternate {self.shell_commands[rqalt]} in your path.')
+                        raise PestiferError(f'Cannot find or execute required command {self.shell_commands[rq]!r} or alternate {self.shell_commands[rqalt]!r}.')
                 else:
-                    raise PestiferError(f'Cannot find required command {self.shell_commands[rq]} in your path.')
+                    raise PestiferError(f'Cannot find or execute required command {self.shell_commands[rq]!r}.')
             if rq_resolved is not None and verify_access:
                 assert os.access(rq_resolved, os.X_OK), f'You do not have permission to execute {rq_resolved}'
+        if verify_access:
+            try:
+                check_packmol_version(self.shell_commands['packmol'])
+            except RuntimeError as e:
+                raise PestiferError(str(e)) from e
         namd3_path = self.shell_commands['namd3']
         namd3gpu_path = self['user']['paths']['namd3gpu']
         self.shell_commands['namd3gpu'] = namd3gpu_path

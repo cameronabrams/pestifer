@@ -6,6 +6,8 @@
 #
 #
 title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in model viral bilayer
+paths:
+  packmol: /usr/local/bin/packmol
 tasks:
   - fetch:
       sourceID: 6e8w
