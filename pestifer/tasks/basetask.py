@@ -373,6 +373,72 @@ class VMDTask(BaseTask, ABC):
         c.run()
         return f'{self.basename}.coor'
 
+    def make_ssrestraints_file(self, specs: dict, statekey: str = 'extrabonds') -> str:
+        """
+        Run the VMD ``ssrestraints`` plugin against the current state's PSF/PDB
+        and produce a NAMD ``extraBonds`` file. Registers the resulting file
+        (and the Tcl driver script + VMD log) as artifacts.
+
+        Parameters
+        ----------
+        specs : dict
+            The ``ssrestraints`` sub-dict from the md task spec; see the
+            schema entry for the full set of keys.
+        statekey : str, optional
+            Artifact key under which the generated extraBonds file is
+            registered. Default is ``extrabonds``.
+
+        Returns
+        -------
+        str
+            Filename of the generated extraBonds file (``<basename>.extrabonds``).
+        """
+        vm: VMDScripter = self.get_scripter('vmd')
+        state: StateArtifacts = self.get_current_artifact('state')
+        psf: Path = state.psf
+        pdb: Path = state.pdb
+        eb_file = f'{self.basename}.extrabonds'
+
+        args = [
+            f'-psf {psf.name}',
+            f'-pdb {pdb.name}',
+            f'-o {eb_file}',
+            f'-sel "{specs.get("sel", "helix or extended_beta or nucleic")}"',
+            f'-k_prot {specs.get("k_prot", 200)}',
+            f'-k_na_dih {specs.get("k_na_dih", 200)}',
+            f'-k_na_bond {specs.get("k_na_bond", 200)}',
+            f'-na {specs.get("na", 3)}',
+        ]
+        if specs.get('ideal', False):
+            args.append('-ideal')
+        if specs.get('hbonds', False):
+            args.extend([
+                '-hbonds',
+                f'-hbdonorsel "{specs.get("hbdonorsel", "name N and backbone and (helix or extended_beta)")}"',
+                f'-hbaccsel "{specs.get("hbaccsel", "name O and backbone and (helix or extended_beta)")}"',
+                f'-hbbondk {specs.get("hbbondk", 20.0)}',
+                f'-hbanglek {specs.get("hbanglek", 20.0)}',
+                f'-hbdcut {specs.get("hbdcut", 3.5)}',
+                f'-hbacut {specs.get("hbacut", 35.0)}',
+            ])
+
+        # Bypass VMDScripter's packages= mechanism: the ssrestraints plugin
+        # provides 'ssrestraints' as a global proc, but its namespace is
+        # ::SSRestraints:: (mixed case), so the auto-generated
+        # `namespace import ssrestraints::*` would fail.
+        vm.newscript(f'{self.basename}-make-ssrestraints')
+        vm.addline('package require ssrestraints')
+        vm.addline(f'ssrestraints {" ".join(args)}')
+        vm.writescript()
+        self.register(f'{self.basename}-make-ssrestraints', key='tcl', artifact_type=TclScriptArtifact)
+        vm.runscript()
+        self.register(f'{self.basename}-make-ssrestraints', key='log', artifact_type=VMDLogFileArtifact)
+
+        if not Path(eb_file).exists():
+            raise PestiferBuildError(f'ssrestraints failed to produce {eb_file}')
+        self.register(self.basename, key=statekey, artifact_type=NAMDExtraBondsFileArtifact)
+        return eb_file
+
     def make_constraint_pdb(self, specs: dict, statekey: str = 'consref'):
         """
         Creates a PDB file with constraints based on the specifications provided.

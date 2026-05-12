@@ -1080,6 +1080,17 @@ class NAMDColvarsConfigArtifact(JSONFileArtifact):
     ext: str = 'in'
 
 @dataclass
+class NAMDExtraBondsFileArtifact(TXTFileArtifact):
+    """
+    A NAMD extraBonds configuration file artifact. Plain-text records of the
+    form ``bond i j k r0`` / ``angle i j k l K theta0`` /
+    ``dihedral i j k l K phi0``, fed to NAMD via ``extraBondsFile``. Produced
+    by the VMD ssrestraints plugin or any equivalent generator.
+    """
+    description: str = "NAMD extraBonds configuration file"
+    ext: str = 'extrabonds'
+
+@dataclass
 class PackmolInputScriptArtifact(TXTFileArtifact):
     """
     A Packmol input script artifact.

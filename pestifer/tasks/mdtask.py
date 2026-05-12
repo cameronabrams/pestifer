@@ -120,6 +120,7 @@ class MDTask(VMDTask):
         constraints = specs.get('constraints',{})
         other_params = specs.get('other_parameters',{})
         colvars = specs.get('colvar_specs',{})
+        ssrestraints = specs.get('ssrestraints',{})
         params.update(self.namd_global_config['generic'])
         params['structure'] = state.psf.name
         params['coordinates'] = state.pdb.name
@@ -173,6 +174,10 @@ class MDTask(VMDTask):
             self.register(f'{self.basename}-cv', key='in', artifact_type=NAMDColvarsConfigArtifact)
             params['colvars'] = 'on'
             params['colvarsconfig'] = self.get_current_artifact_path('in')
+        if ssrestraints:
+            eb_file = self.make_ssrestraints_file(ssrestraints)
+            params['extraBonds'] = 'on'
+            params['extraBondsFile'] = eb_file
 
         params.update(other_params)
         params.update(extras)
