@@ -18,7 +18,7 @@ from pestifer.core.controller import Controller
 
 
 _TARBALL = (Path(__file__).parents[3] / 'scratch' / 'builds' / '1' / 'artifacts.tar.gz').resolve()
-_ARCHIVE_PREFIX = 'my_archive'
+_ARCHIVE_PREFIX = 'artifacts'
 _SOLVATED_PSF = '00-04-00_solvate.psf'
 _SOLVATED_PDB = '00-04-00_solvate.pdb'
 _MINIMIZE_DCD = '00-05-00_md-minimize.dcd'

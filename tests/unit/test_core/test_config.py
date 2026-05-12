@@ -113,11 +113,15 @@ class TestConfig(unittest.TestCase):
             self.assertTrue('paths' in U)
             self.assertTrue('tasks' in U)
             paths = U['paths']
-            self.assertEqual(paths['namd3'], 'namd3')
-            self.assertEqual(paths['charmrun'], 'charmrun')
-            self.assertEqual(paths['vmd'], 'vmd')
-            self.assertEqual(paths['packmol'], 'packmol')
-            self.assertEqual(paths['catdcd'], 'catdcd')
+            # An example may legitimately override any of these defaults with an
+            # absolute path (see ex16/ex17, which pin packmol to /usr/local/bin
+            # to dodge a conda shadow). Just check the resolved entry ends in
+            # the expected binary name.
+            self.assertTrue(paths['namd3'].endswith('namd3'))
+            self.assertTrue(paths['charmrun'].endswith('charmrun'))
+            self.assertTrue(paths['vmd'].endswith('vmd'))
+            self.assertTrue(paths['packmol'].endswith('packmol'))
+            self.assertTrue(paths['catdcd'].endswith('catdcd'))
             self.assertFalse('charmff' in paths)
             # with open(f'{configfile}-complete.yaml', 'w') as f:
             #     yaml.dump(U, f)
