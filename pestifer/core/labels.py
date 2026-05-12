@@ -292,7 +292,8 @@ class LabelMappers:
                 macro_content = ' '.join(resnames)
                 vmd_lt = data.get('vmd_version_lt', '')
                 if vmd_lt:
-                    fp.write(f"if {{[package vcompare [vmdinfo version] {vmd_lt}] < 0}} {{\n")
+                    vmd_major_lt = int(str(vmd_lt).split('.')[0])
+                    fp.write(f"if {{[lindex [split [vmdinfo version] .] 0] < {vmd_major_lt}}} {{\n")
                     fp.write(f"    update_atomselect_macro {segtype} \"resname {macro_content}\" 0\n")
                     fp.write(f"}}\n")
                 else:
