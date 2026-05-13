@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [2.4.12] - 2026-05-13
+
 - bugfix: `PackmolLogParser` failed on logs produced by `packmol` 21.x because the new release reorganized its header in three breaking ways: the `Periodic boundary condition activated:` line became multi-line with indented `Minimum coordinates:` and `Maximum coordinates:` rows, the `PBC Reference box:` line was removed entirely (its information now carried by the min/max rows), and the per-type `Maximum number of GENCAN loops for type:` lines were dropped in favor of the aggregate `for all molecule packing:` value alone; the parser now auto-detects the PBC format by checking whether numeric tokens trail the activation line and reconstructs both `pbc_boxsize` (max-min) and `pbc_reference_box` (concatenated min+max) so downstream consumers see the same metadata schema; logs from packmol 20.15.1 continue to parse correctly via the legacy code path
 - bugfix: `PackmolLogParser` initialized each structure's `current_gencan_loops` counter only inside the per-type `Maximum number of GENCAN loops for type:` block, so a `KeyError` was raised on the first GENCAN report for any structure whose type lacked that header line (always the case in packmol 21.x); the counter is now initialized to 0 at structure-creation time
 - bugfix: `PackmolLogParser.finalize()` crashed with `'Axes' object is not subscriptable` for single-structure packs because `plt.subplots(1, 1)` returns a bare `Axes` rather than a 1-element array; `squeeze=False` plus `ax.flatten()` makes the indexing uniform
