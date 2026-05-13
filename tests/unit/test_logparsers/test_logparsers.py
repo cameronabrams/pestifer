@@ -90,6 +90,26 @@ def test_packmol_log_static():
 
     l.finalize()
 
+def test_packmol_log_v21_static():
+    """Smoke test against a packmol 21.x log; the format dropped the
+    ``PBC Reference box:`` line, made the PBC activation entry multi-line,
+    and stopped emitting per-type ``Maximum number of GENCAN loops for
+    type:`` lines. This test confirms the parser still produces the same
+    metadata schema for a v21 log."""
+    l = PackmolLogParser()
+    with open('packmol/a-21.pm-log', 'r') as f:
+        l.update(f.read())
+    assert l.metadata['version'] == '21.2.1'
+    # Two structures (water.pdb + water2.pdb), 30 each, 3 atoms per molecule.
+    assert len(l.metadata['structures']) == 2
+    assert l.metadata['total_number_atoms'] == 180
+    assert l.metadata['total_number_molecules'] == 60
+    # PBC reconstructed from min/max coordinates: 30x30x30 box at origin.
+    assert l.metadata['pbc_boxsize'] == [30.0, 30.0, 30.0]
+    assert l.metadata['pbc_reference_box'] == [0.0, 0.0, 0.0, 30.0, 30.0, 30.0]
+    assert l.metadata['coordinate_files'] == ['water.pdb', 'water2.pdb']
+    l.finalize()
+
 def test_packmol_log_dynamic():
     l=PackmolLogParser()
     with open('packmol/a.pm-log','r') as f:

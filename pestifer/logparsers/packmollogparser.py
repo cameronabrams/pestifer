@@ -108,10 +108,30 @@ class PackmolLogParser(LogParser):
         self.metadata['url'] = get_single('Userguide at:', bytes)
         flag = 'Types of coordinate files specified:'
         self.metadata['coordinate_file_types'] = bytes[bytes.index(flag) + len(flag):].split()[0]
+        # Packmol 20.x emitted PBC info as two single-line entries:
+        #   Periodic boundary condition activated:    <Lx> <Ly> <Lz>
+        #   PBC Reference box:    <xmin> <ymin> <zmin> <xmax> <ymax> <zmax>
+        # 21.x replaced both with a single multi-line block:
+        #   Periodic boundary condition activated:
+        #     Minimum coordinates:    <xmin> <ymin> <zmin>
+        #     Maximum coordinates:    <xmax> <ymax> <zmax>
+        # We detect by checking whether numeric tokens trail the activation
+        # line; the metadata schema (pbc_boxsize, pbc_reference_box) is preserved.
         flag = 'Periodic boundary condition activated:'
-        self.metadata['pbc_boxsize'] = [float(bytes[bytes.index(flag) + len(flag):].split()[x].strip()) for x in range(0, 3)]
-        flag = 'PBC Reference box:'
-        self.metadata['pbc_reference_box'] = [float(bytes[bytes.index(flag) + len(flag):].split()[x].strip()) for x in range(0, 6)]
+        idx = bytes.index(flag) + len(flag)
+        eol = bytes[idx:].index('\n') + idx
+        rest_tokens = bytes[idx:eol].split()
+        if len(rest_tokens) >= 3:
+            self.metadata['pbc_boxsize'] = [float(rest_tokens[x]) for x in range(0, 3)]
+            flag = 'PBC Reference box:'
+            self.metadata['pbc_reference_box'] = [float(bytes[bytes.index(flag) + len(flag):].split()[x].strip()) for x in range(0, 6)]
+        else:
+            mn_flag = 'Minimum coordinates:'
+            mx_flag = 'Maximum coordinates:'
+            mn = [float(bytes[bytes.index(mn_flag) + len(mn_flag):].split()[x].strip()) for x in range(0, 3)]
+            mx = [float(bytes[bytes.index(mx_flag) + len(mx_flag):].split()[x].strip()) for x in range(0, 3)]
+            self.metadata['pbc_boxsize'] = [mx[i] - mn[i] for i in range(3)]
+            self.metadata['pbc_reference_box'] = mn + mx
         flag = 'Seed for random number generator:'
         self.metadata['seed'] = int(bytes[bytes.index(flag) + len(flag):].split()[0].strip())
         flag = 'Output file:'
@@ -135,7 +155,11 @@ class PackmolLogParser(LogParser):
             idx = int(tokens[0])
             fl = tokens[1]
             na = int(tokens[2])
-            self.metadata['structures'].append(dict(idx=idx, file=fl, natoms=na))
+            # current_gencan_loops is incremented in process_gencan_report and
+            # must exist regardless of whether the log carries a per-type
+            # 'Maximum number of GENCAN loops for type:' line (those were
+            # dropped in packmol 21.x).
+            self.metadata['structures'].append(dict(idx=idx, file=fl, natoms=na, current_gencan_loops=0))
         flag = 'Maximum number of GENCAN loops for all molecule packing:'
         self.metadata['max_gencan_loops_all'] = int(bytes[bytes.index(flag) + len(flag):].split()[0].strip())
         flag = 'Maximum number of GENCAN loops for type:'
@@ -150,7 +174,6 @@ class PackmolLogParser(LogParser):
             match = next((d for d in self.metadata['structures'] if d['idx'] == mtype), None)
             if match:
                 match['max_gencan_loops'] = mloops
-                match['current_gencan_loops'] = 0
             else:
                 logger.error(f'process_header: No match for mtype {mtype} in structures {self.metadata["structures"]}')
         self.metadata['max_total_gencan_loops'] = self.metadata['max_gencan_loops_all'] + sum([d['max_gencan_loops'] for d in self.metadata['structures'] if 'max_gencan_loops' in d])
@@ -395,7 +418,8 @@ class PackmolLogParser(LogParser):
             self.gencan_df[k].to_csv(f'{self.basename}_{k}_packmol.csv', index=False)
         if not self.gencan_df:
             return None
-        fig, ax = plt.subplots(1, len(self.gencan_df), figsize=(4 * len(self.gencan_df), 4))
+        fig, ax = plt.subplots(1, len(self.gencan_df), figsize=(4 * len(self.gencan_df), 4), squeeze=False)
+        ax = ax.flatten()
         for i, (k, v) in enumerate(self.gencan_df.items()):
             if len(v) == 0:
                 continue
