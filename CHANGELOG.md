@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [2.4.11] - 2026-05-13
+
 - new feature: integrated the VMD `ssrestraints` plugin into the `md` task as a peer of `constraints` and `colvar_specs`; when a top-level `ssrestraints` sub-dict appears under an `md` task, pestifer invokes the plugin against the current state's PSF/PDB to emit a NAMD `extraBonds` file and wires `extraBonds=on` / `extraBondsFile=<basename>.extrabonds` into the generated NAMD config; the schema entry exposes all 13 plugin options (selection text, force constants for protein/NA, `na` mode, `ideal`, H-bond restraint sub-options) with defaults that mirror the plugin's own; the generated extraBonds file participates in the artifact pipeline via a new `NAMDExtraBondsFileArtifact`
 - enhancement: `packmol` is now version-validated at config-load time; pestifer probes the resolved binary by sending it an empty stdin and parses the version banner, refusing any version below 20.15.1 (the first release with the `pbc` keyword); when the resolved binary lives inside a conda environment, the error message hints at the AmberTools/`packmol-memgen` shadow problem and recommends installing a standalone packmol outside the conda env; `paths.packmol` may be set to an absolute path in user YAMLs to bypass `PATH` resolution entirely; ex16 and ex17 example YAMLs now demonstrate this pattern
 - enhancement: the `PackmolScripter` post-run log scan now flags lines containing `ERROR`, `Could not open file`, or `Could not find` and forces a non-zero return code so callers raise; older packmol could exit 0 while still failing internally, and this surfaces those failures
