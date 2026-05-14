@@ -929,6 +929,22 @@ attributes:
             text: flag to tell main controller to provision this task with a subcontroller, so it can run its own builds
             type: bool
             default: True
+          - name: compute_pressure_profile
+            text: enable NAMD's on-the-fly pressure profile calculation during bilayer relaxation NPT/NPAT stages; not supported on CUDA-enabled (GPU) NAMD
+            type: dict
+            attributes:
+              - name: enabled
+                text: turn on pressureProfile during NPT/NPAT relaxation stages
+                type: bool
+                default: False
+              - name: slabs
+                text: number of slabs along z (pressureProfileSlabs)
+                type: int
+                default: 30
+              - name: freq
+                text: frequency of pressure profile output, in time steps (pressureProfileFreq)
+                type: int
+                default: 100
           - name: bilayer
             text: Parameters controlling bilayer generation
             type: dict

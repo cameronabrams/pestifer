@@ -380,29 +380,33 @@ class MakeMembraneSystemTask(BaseTask):
         else:
             logger.debug(f'Using user-specified relaxation protocol:')
             my_logger(relaxation_protocol, logger.debug)
+        pp_specs = self.specs.get('compute_pressure_profile', {})
+        pp_requested = bool(pp_specs.get('enabled', False))
+        is_gpu = self.provisions['processor-type'] == 'gpu'
+        if pp_requested and is_gpu:
+            raise PestiferBuildError(
+                'compute_pressure_profile.enabled is true, but processor-type is "gpu"; '
+                'CUDA-enabled NAMD does not support pressureProfile. '
+                'Either disable compute_pressure_profile or use a CPU NAMD build.')
         for stage in relaxation_protocol:
             specs = stage['md']
             specs['addl_paramfiles'] = bilayer.addl_streamfiles
+            other = specs.setdefault('other_parameters', {})
+            if is_gpu and other.get('pressureProfile'):
+                raise PestiferBuildError(
+                    f'Stage {specs.get("ensemble", "?")} has pressureProfile set in other_parameters, '
+                    f'but processor-type is "gpu"; CUDA-enabled NAMD does not support pressureProfile.')
             if specs.get('ensemble', None) in ['NPT', 'npt', 'NPAT', 'npat']:
-                if not 'other_parameters' in specs:  # never true due to ycleptic base.yaml
-                    specs['other_parameters'] = {'useflexiblecell': True, 'useconstantratio': True,
-                                                 'pressureProfile': 'on', 'pressureProfileSlabs': 30,
-                                                 'pressureProfileFreq': 100}
-                else:
-                    if not 'useflexiblecell' in specs['other_parameters']:
-                        specs['other_parameters']['useflexiblecell'] = True
-                    if not 'useconstantratio' in specs['other_parameters']:
-                        specs['other_parameters']['useconstantratio'] = True
-                    if self.provisions['processor-type'] != 'gpu':  # GPU NAMD 3.0.1 does not support pressure profiles
-                        if not 'pressureProfile' in specs['other_parameters']:
-                            specs['other_parameters']['pressureProfile'] = 'on'
-                        if not 'pressureProfileSlabs' in specs['other_parameters']:
-                            specs['other_parameters']['pressureProfileSlabs'] = 30
-                        if not 'pressureProfileFreq' in specs['other_parameters']:
-                            specs['other_parameters']['pressureProfileFreq'] = 100
+                other.setdefault('useflexiblecell', True)
+                other.setdefault('useconstantratio', True)
+                if pp_requested:
+                    other.setdefault('pressureProfile', True)
+                    other.setdefault('pressureProfileSlabs', pp_specs.get('slabs', 30))
+                    other.setdefault('pressureProfileFreq', pp_specs.get('freq', 100))
         timeseries = ['density', ['a_x', 'b_y', 'c_z']]
-        profiles = ['pressure']
-        if self.provisions['processor-type'] != 'gpu':
+        profiles = []
+        if pp_requested:
+            profiles.append('pressure')
             timeseries.append('pressure')  # To do: change this to pressureProfile plotting
         tasklist_user = [{'continuation': dict(psf=state.psf.name, pdb=state.pdb.name, xsc=state.xsc.name)}]
         tasklist_user.extend(relaxation_protocol)

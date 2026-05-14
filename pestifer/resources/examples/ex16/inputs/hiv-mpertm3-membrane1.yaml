@@ -1,9 +1,14 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 #
 # pestifer input script
-# 
+#
 # Membrane-embedded build of HIV-1 gp41 MPER-TM trimer (6e8w)
 #
+# NOTE: This example uses NAMD's on-the-fly pressureProfile calculation in the
+# post-equilibration NPAT stage and in the packaged production run. CUDA-enabled
+# (GPU) NAMD does not support pressureProfile, so this example must be run with
+# a CPU NAMD build. Remove the `pressureProfile*` keys from the relevant
+# `other_parameters` blocks (or omit `--gpu`) to use a GPU build.
 #
 title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in DMPC bilayer
 paths:
