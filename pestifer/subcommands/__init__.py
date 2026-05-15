@@ -13,6 +13,7 @@ from .show_resources import ShowResourcesSubcommand
 from .wheretcl import WhereTCLSubcommand
 from .desolvate import DesolvateSubcommand
 from .modify_package import ModifyPackageSubcommand
+from .make_ligand_mol2 import MakeLigandMol2Subcommand
 from .make_pdbcollection import MakePDBCollectionSubcommand
 from .rebuild_charmmff_cache import RebuildCHARMMFFCache
 from .mdplot import MDPlotSubcommand
@@ -30,6 +31,7 @@ _subcommands: list[Subcommand] = [
     ShowResourcesSubcommand(),
     NewSystemSubcommand(),
     DesolvateSubcommand(),
+    MakeLigandMol2Subcommand(),
     MakePDBCollectionSubcommand(),
     WhereTCLSubcommand(),
     MDPlotSubcommand(),

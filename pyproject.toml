@@ -41,6 +41,14 @@ dependencies = [
   "ycleptic>=2.0.1",
 ]
 
+[project.optional-dependencies]
+# Auto-CGenFF ligand parameterization (protonation + cgenff binary wrapper).
+# The cgenff binary itself is a separate runtime dependency obtained from SilcsBio.
+ligand-paramgen = [
+  "rdkit",
+  "dimorphite_dl",
+]
+
 [project.scripts]
 pestifer = "pestifer.cli.pestifer:cli"
 

@@ -40,6 +40,7 @@ Subcommands
    subs/new-system
    subs/wheretcl
    subs/make-pdb-collection
+   subs/make-ligand-mol2
    subs/desolvate
    subs/make-namd-restart
    subs/show-resources
@@ -47,6 +48,81 @@ Subcommands
    subs/mdplot
    subs/modify-package
    subs/setup-vmd
+
+.. _custom_charmm_stream_file:
+
+Using a custom CHARMM stream file for a small molecule
+------------------------------------------------------
+
+If you have a CHARMM-format stream (``.str``) file for a small molecule -- for
+example, a CGenFF stream you generated for a ligand that is not covered by the
+standard CHARMM36 release -- pestifer can pull it into a build without any code
+or psfgen-script editing.  Add a ``charmmff.user_custom`` block to your build
+YAML pointing at the directory that contains the file:
+
+.. code-block:: yaml
+
+   charmmff:
+     user_custom:
+       searchpath:
+         - /path/to/my_ligand_params/
+
+   tasks:
+     # ...your normal task list...
+
+At build time, pestifer walks each directory in ``searchpath`` and registers
+every CHARMM-format file (``.rtf``, ``.top``, ``.str``, ``.prm``) it finds.
+Each topology or stream file is scanned for ``RESI`` and ``PRES`` records, so
+the residues and patches it defines become resolvable by name.  When the
+``psfgen`` task encounters a residue from your input PDB whose definition lives
+in one of these files, the file is automatically copied into the run directory,
+emitted as a ``topology <basename>`` directive in the psfgen script, and
+registered in the pipeline so its parameter section is also included in the
+NAMD parameter file list.
+
+Each residue picked up this way is also classified for the molecule parser.
+By default a new residue is treated as a ``ligand`` so it lands in its own
+segment.  To override the default, add a ``segtypes`` mapping under
+``user_custom``:
+
+.. code-block:: yaml
+
+   charmmff:
+     user_custom:
+       searchpath:
+         - /path/to/my_ligand_params/
+       segtypes:
+         cofactor: [NADX]
+
+A few things worth knowing:
+
+* A single ``.str`` file containing both ``read rtf … END`` and
+  ``read para … END`` blocks is sufficient.  You do not need to also list it
+  under ``rtf:`` or ``prm:``.
+* The per-extension lists (``rtf:``, ``str:``, ``prm:``) take **basenames only**
+  -- any path separator there is rejected.  Directories go under
+  ``searchpath:``.
+* ``charmmff.user_custom`` is for files you supply.  Do not put them under
+  ``charmmff.custom``, which is reserved for files that ship with pestifer.
+* Your PDB must use the residue name as it appears in the ``RESI`` card of
+  your stream file (e.g. if the stream defines ``RESI LIG``, use ``LIG`` in
+  the input PDB).
+* Atom names in the input PDB must match the atom names declared inside the
+  ``RESI`` block.  RCSB-issued PDBs typically use names that differ from
+  CGenFF-generated streams; when they disagree, psfgen builds the topology
+  but cannot import coordinates, so each unmatched atom ends up at
+  ``(0, 0, 0)``.  Use ``psfgen.aliases.atom`` to bridge the two schemes, e.g.
+
+  .. code-block:: yaml
+
+     psfgen:
+       aliases:
+         atom:
+           - LIG PA P1
+           - LIG O1A O1
+           - LIG O2A O2
+
+See :ref:`config_ref charmmff user_custom` for the full reference.
 
 .. _use in vmd scripts:
 

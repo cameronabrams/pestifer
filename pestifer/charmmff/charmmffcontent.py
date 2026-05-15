@@ -222,13 +222,42 @@ class CHARMMFFContent(CacheableObject):
     def __init__(self, *args, **kwargs):
         user_custom_directories = kwargs.pop('user_custom_directories', [])
         user_pdbrepository_paths = kwargs.pop('user_pdbrepository_paths', [])
+        user_custom_segtypes = kwargs.pop('user_custom_segtypes', {})
         if args and 'resource_label' not in kwargs:
             kwargs['resource_label'] = Path(args[0]).name
         super().__init__(*args, **kwargs)
         self.deprovision()
         self.user_pdbrepository_paths = user_pdbrepository_paths
+        self.user_custom_resnames = set()
         for d in user_custom_directories:
             self.add_custom_directory(d)
+        if self.user_custom_resnames:
+            self._assign_user_custom_segtypes(user_custom_segtypes)
+
+    def _assign_user_custom_segtypes(self, overrides: dict):
+        """
+        Classify every residue/patch picked up from a user_custom directory.
+
+        ``overrides`` is the ``charmmff.user_custom.segtypes`` mapping
+        (``{segtype: [resname, ...]}``).  Resnames listed there take that
+        segtype; everything else from a user_custom file defaults to
+        ``'ligand'``.  Resnames already known to :class:`Labels` (e.g. an
+        existing ``psfgen.segtypes`` entry) are left untouched, so explicit
+        user classification always wins over the default.
+        """
+        explicit: dict[str, str] = {}
+        for segtype, names in (overrides or {}).items():
+            for n in names:
+                explicit[n] = segtype
+        new_segtypes: dict[str, list[str]] = {}
+        for resname in self.user_custom_resnames:
+            if resname in Labels.segtype_of_resname:
+                continue
+            segtype = explicit.get(resname, 'ligand')
+            new_segtypes.setdefault(segtype, []).append(resname)
+        if new_segtypes:
+            logger.debug(f'Auto-classifying user_custom residues: {new_segtypes}')
+            Labels.update_segtypes(new_segtypes)
 
     @with_spinner('Building CHARMMFF cache from package resources...')
     def _build_from_resources(self, charmmff_path: Path, **kwargs):
@@ -559,6 +588,12 @@ class CHARMMFFContent(CacheableObject):
         Add a user custom directory to the :class:`CHARMMFFContent`.
         This directory should contain custom files that can be used in addition to the standard CHARMM force field files.
 
+        Each ``.rtf``/``.top``/``.str`` file in the directory is scanned for ``RESI``/``PRES`` cards so
+        that residues and patches it defines become discoverable via :meth:`get_topfile_of_resname`,
+        and any ``MASS`` cards are merged into :attr:`massdict`.  This keeps the auto-discovery used
+        by the psfgen task consistent whether the rest of the CHARMM content was rebuilt from the
+        tarball or hydrated from cache.
+
         Parameters
         ----------
         user_custom_directory : str
@@ -569,15 +604,46 @@ class CHARMMFFContent(CacheableObject):
         NotADirectoryError
             If the specified path is not a directory.
         """
+        user_custom_directory = os.path.expanduser(
+            os.path.expandvars(str(user_custom_directory))
+        )
         if not os.path.isdir(user_custom_directory):
             raise NotADirectoryError(f'Expected a directory at {user_custom_directory}, but it is not a directory')
         logger.debug(f'Adding user custom directory {user_custom_directory} to CHARMMFFContent')
         new_files = [f for f in os.listdir(user_custom_directory) if CHARMMFFContent.charmmff_filetype(f)]
         for f in new_files:
             ext = CHARMMFFContent.charmmff_filetype(f)
-            assert f not in self.filenamemap[ext], f'user custom file {f} already exists in filenamemap'
-            self.filenamemap[ext][f] = os.path.join(user_custom_directory, f)
-        self.custom_files.extend(new_files)
+            fullpath = os.path.join(user_custom_directory, f)
+            if f in self.filenamemap[ext]:
+                logger.warning(
+                    f'user custom file {f!r} from {user_custom_directory} '
+                    f'overrides earlier registration at '
+                    f'{self.filenamemap[ext][f]}'
+                )
+            self.filenamemap[ext][f] = fullpath
+            if ext in ('top', 'toppar'):
+                self.all_topology_files[f] = fullpath
+                with open(fullpath, 'r') as fh:
+                    contents = fh.read()
+                for line in contents.splitlines():
+                    if line.startswith('RESI') or line.startswith('PRES'):
+                        tokens = line.split()
+                        if len(tokens) >= 2:
+                            resname = tokens[1]
+                            prev = self.resi_to_topfile_map.get(resname)
+                            if prev is not None and prev != f:
+                                logger.warning(
+                                    f'RESI/PRES {resname!r} in {f} overrides '
+                                    f'earlier definition in {prev}'
+                                )
+                            self.resi_to_topfile_map[resname] = f
+                            self.user_custom_resnames.add(resname)
+                masses = CharmmMassList.from_cardlist(extract_mass_lines(contents)).to_dict()
+                self.massdict.update(masses)
+            if ext in ('par', 'toppar'):
+                self.all_parameter_files[f] = fullpath
+            if f not in self.custom_files:
+                self.custom_files.append(f)
 
     def clean_local_charmmff_files(self):
         """ 

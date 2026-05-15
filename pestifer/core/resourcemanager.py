@@ -20,6 +20,15 @@ from ..util.gitutil import get_git_origin_url
 
 logger = logging.getLogger(__name__)
 
+
+USER_TOPPAR_DIR = Path("~/.pestifer/toppar").expanduser()
+""" Well-known per-user cache directory for custom CHARMM stream files. When
+this directory exists, it is implicitly prepended to ``charmmff.user_custom.searchpath``
+so that a build picks up any ``.str``/``.rtf``/``.prm`` files the user has
+dropped there without needing to declare it in YAML. Project-local searchpath
+entries override anything in the cache (last-loaded wins). """
+
+
 class ResourceManager:
     """
     A class for managing pestifer's built-in resources.
@@ -93,9 +102,17 @@ class ResourceManager:
         if self._charmmff_content is None:
             charmmff_path = self.charmmff_version_path(self._charmmff_config.get('release', ''))
             logger.info(f'Using CHARMMFF version: {charmmff_path.name}')
+            user_custom = self._charmmff_config.get('user_custom', {})
+            user_custom_directories = list(user_custom.get('searchpath', []))
+            if USER_TOPPAR_DIR.is_dir():
+                # Load the cache first so that project-local searchpath entries
+                # (listed in YAML) can override anything that lives there.
+                user_custom_directories.insert(0, str(USER_TOPPAR_DIR))
+                logger.debug(f'Including user toppar cache: {USER_TOPPAR_DIR}')
             self._charmmff_content = CHARMMFFContent(
                 charmmff_path,
-                user_custom_directories=self._charmmff_config.get('user_custom', {}).get('searchpath', []),
+                user_custom_directories=user_custom_directories,
+                user_custom_segtypes=user_custom.get('segtypes', {}),
                 user_pdbrepository_paths=self._charmmff_config.get('pdbrepository', []),
             )
         return self._charmmff_content
