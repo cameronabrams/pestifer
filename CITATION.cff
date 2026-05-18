@@ -26,5 +26,5 @@ keywords:
   - membrane
   - biomolecular simulation
 license: MIT
-version: "2.4.13"
-date-released: "2026-05-14"
+version: "2.5.0"
+date-released: "2026-05-18"
