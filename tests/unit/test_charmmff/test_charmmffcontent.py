@@ -12,13 +12,17 @@ class TestCharmmffContent(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
+        # Pick the newest CHARMMFF version directory using the same
+        # semantic month/year parse that ResourceManager uses in production
+        # (mtime ordering is unreliable: directories can be re-extracted
+        # out of release order, which silently picks the older release).
         logger.debug("Setting up TestCharmmffContent class...")
-        resource_path = Path(resources.__file__).parent
-        charmmff_root = resource_path / 'charmmff'
-        version_dirs = sorted(charmmff_root.iterdir(), key=lambda p: p.stat().st_mtime)
-        charmmff_path = version_dirs[-1]
+        from pestifer.core.resourcemanager import ResourceManager
+        rm = ResourceManager()
+        charmmff_path = rm.charmmff_version_dirs()[-1]
         cls.C = CHARMMFFContent(charmmff_path, force_rebuild=True)
         logger.debug("tarfilename: " + cls.C.tarfilename)
+        logger.debug(f"Selected CHARMMFF version: {charmmff_path.name}")
         logger.debug("Done setting up TestCharmmffContent class...")
 
     def test_charmmffcontent_full_provisioning(self):
