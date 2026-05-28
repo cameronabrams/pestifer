@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [2.5.2] - 2026-05-28
+
 - bugfix: a plain `pip install pestifer` (without the optional `ligand-paramgen` extra) crashed on every CLI invocation with `ModuleNotFoundError: No module named 'dimorphite_dl'`; the optional `rdkit` and `dimorphite_dl` dependencies were imported at module load time in `charmmff.ligand_paramgen.protonation` and `charmmff.ligand_paramgen.mol2_writer`, and since `subcommands/__init__.py` eagerly imports the `make-ligand-mol2` subcommand at startup, those imports ran for every command. The imports are now lazy (deferred into the functions that use them) and raise a clear `pip install pestifer[ligand-paramgen]` hint when actually needed
 - bugfix: the `dependencies` array in `pyproject.toml` was missing its closing `]`
 
