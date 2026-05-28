@@ -12,18 +12,49 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-import dimorphite_dl
-from rdkit import Chem
-from rdkit.Chem import rdDetermineBonds
-
 if TYPE_CHECKING:
+    from rdkit import Chem
+
     from ...molecule.residue import Residue
 
 logger = logging.getLogger(__name__)
 
+_PARAMGEN_INSTALL_HINT = (
+    "Install the optional dependencies with "
+    "`pip install pestifer[ligand-paramgen]`."
+)
+
 
 class LigandProtonationError(RuntimeError):
     """Raised when a ligand cannot be protonated for CGenFF parameterization."""
+
+
+def _import_rdkit():
+    """Lazily import RDKit, raising a friendly error if it is not installed.
+
+    RDKit is an optional ``ligand-paramgen`` dependency, so it must not be
+    imported at module load time (that would break a plain install's CLI).
+    """
+    try:
+        from rdkit import Chem
+        from rdkit.Chem import rdDetermineBonds
+    except ModuleNotFoundError as exc:
+        raise LigandProtonationError(
+            f"RDKit is required for ligand parameterization. {_PARAMGEN_INSTALL_HINT}"
+        ) from exc
+    return Chem, rdDetermineBonds
+
+
+def _import_dimorphite():
+    """Lazily import Dimorphite-DL, raising a friendly error if it is missing."""
+    try:
+        import dimorphite_dl
+    except ModuleNotFoundError as exc:
+        raise LigandProtonationError(
+            f"Dimorphite-DL is required for ligand parameterization. "
+            f"{_PARAMGEN_INSTALL_HINT}"
+        ) from exc
+    return dimorphite_dl
 
 
 def protonate_ligand(
@@ -52,6 +83,9 @@ def protonate_ligand(
         pH at which to protonate (default 7.4). ``ph_min`` and ``ph_max``
         passed to Dimorphite-DL are both set to this value.
     """
+    Chem, _ = _import_rdkit()
+    dimorphite_dl = _import_dimorphite()
+
     heavy_pdb_atoms = [
         a for a in residue.atoms.data
         if (a.elem or "").strip().upper() != "H"
@@ -146,6 +180,7 @@ def _build_coord_mol(heavy_atoms) -> Chem.Mol:
     SMILES template, so we can stamp PDB-order atom map numbers onto
     the template's atoms.
     """
+    Chem, rdDetermineBonds = _import_rdkit()
     rwmol = Chem.RWMol()
     conf = Chem.Conformer(len(heavy_atoms))
     for i, a in enumerate(heavy_atoms):

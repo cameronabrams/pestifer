@@ -14,16 +14,30 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-
-from rdkit import Chem
+from typing import TYPE_CHECKING
 
 from ...core.command import Command
+
+if TYPE_CHECKING:
+    from rdkit import Chem
 
 logger = logging.getLogger(__name__)
 
 
 class Mol2WriteError(RuntimeError):
     """Raised when mol2 generation fails."""
+
+
+def _import_rdkit_chem():
+    """Lazily import ``rdkit.Chem`` (an optional ``ligand-paramgen`` dependency)."""
+    try:
+        from rdkit import Chem
+    except ModuleNotFoundError as exc:
+        raise Mol2WriteError(
+            "RDKit is required for ligand parameterization. Install the "
+            "optional dependencies with `pip install pestifer[ligand-paramgen]`."
+        ) from exc
+    return Chem
 
 
 def write_mol2(
@@ -56,6 +70,7 @@ def write_mol2(
     pathlib.Path
         The path that was written.
     """
+    Chem = _import_rdkit_chem()
     if mol.GetNumConformers() == 0:
         raise Mol2WriteError("Mol has no conformer; cannot write 3D mol2.")
 
@@ -93,6 +108,7 @@ def write_mol2(
 def _stamp_pdb_names(mol: Chem.Mol, resname: str) -> None:
     """Attach AtomPDBResidueInfo to every atom so RDKit's PDB writer emits
     a stable name for each one."""
+    Chem = _import_rdkit_chem()
     resname3 = resname.strip()[:3].ljust(3)
     h_idx = 0
     used_names: set[str] = set()

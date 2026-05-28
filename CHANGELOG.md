@@ -4,6 +4,9 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- bugfix: a plain `pip install pestifer` (without the optional `ligand-paramgen` extra) crashed on every CLI invocation with `ModuleNotFoundError: No module named 'dimorphite_dl'`; the optional `rdkit` and `dimorphite_dl` dependencies were imported at module load time in `charmmff.ligand_paramgen.protonation` and `charmmff.ligand_paramgen.mol2_writer`, and since `subcommands/__init__.py` eagerly imports the `make-ligand-mol2` subcommand at startup, those imports ran for every command. The imports are now lazy (deferred into the functions that use them) and raise a clear `pip install pestifer[ligand-paramgen]` hint when actually needed
+- bugfix: the `dependencies` array in `pyproject.toml` was missing its closing `]`
+
 ## [2.5.1] - 2026-05-28
 
 - bugfix: `PSFContents.remove_ignored_residues` crashed with `TypeError: 'PSFAtom' object is not subscriptable` because it wrongly indexed the result of `BaseObjList.get()` with `[0]`; `get()` returns the matched object directly when there is exactly one match (which is always the case for an atom-by-serial lookup), so the trailing `[0]` was indexing into the atom itself
