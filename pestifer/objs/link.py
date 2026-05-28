@@ -245,6 +245,8 @@ class Link(BaseObj):
             'resid1': L.resid1,
             'chainID2': L.seg2,
             'resid2': L.resid2,
+            'segname1': L.seg1,
+            'segname2': L.seg2,
             'patchname': L.patchname if hasattr(L, 'patchname') else '',
             'patchhead': 1,  # default order
             'name1': Link._patch_atomnames[L.patchname][0],

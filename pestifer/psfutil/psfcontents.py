@@ -403,7 +403,7 @@ class PSFContents:
         for residue in ignored_residues:
             for atom in residue.atoms.data:
                 serial = atom.serial
-                ignored_atom = self.atoms.get(lambda x: x.serial == serial)[0]
+                ignored_atom = self.atoms.get(lambda x: x.serial == serial)
                 try:
                     self.atoms.remove(ignored_atom)
                     number_atoms_ignored += 1

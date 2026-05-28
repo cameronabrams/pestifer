@@ -276,7 +276,6 @@ class AsymmetricUnit:
         ignored_residues = ResidueList([])
         ignored_residues.extend(more_ignored_residues)
         ignored_grafts = grafts.assign_residues(residues, links)
-        ignored_residues.extend(more_ignored_residues)
         # ignored_links.extend(new_ignored_links)
         total_ignored_residue_count = len(ignored_residues) + ignored_missing_residue_count
         if (ignored_atom_count + total_ignored_residue_count + len(ignored_seqadvs) + len(ignored_ssbonds) + len(ignored_links) + len(ignored_grafts)) > 0:

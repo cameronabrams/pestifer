@@ -1107,11 +1107,17 @@ class ResidueList(BaseObjList[Residue]):
         mapper_by_chain = {}
         for npc in non_protein_residues_in_conflict.data:
             c = npc.chainID
+            s = getattr(npc, 'segname', None)
             if not c in mapper_by_chain:
                 mapper_by_chain[c] = {}
             old_resid = npc.resid
             new = max_unused_resid
             mapper_by_chain[c][old_resid] = new
+            # PSF-loaded links carry the psfgen segname as chainID1/chainID2, not the
+            # biological chainID. Also key the mapper by segname so those links get
+            # their resids updated when a renumber happens.
+            if s and s != c:
+                mapper_by_chain.setdefault(s, {})[old_resid] = new
             max_unused_resid += 1
             npc.resid = new
             for a in npc.atoms.data:
