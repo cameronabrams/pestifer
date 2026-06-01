@@ -37,6 +37,7 @@ dependencies = [
   "pydantic",
   "pyyaml>=6",
   "scipy",
+  "setuptools",         # gputil imports distutils, removed from stdlib in Py3.12+; setuptools shims it
   "unidiff",
   "ycleptic>=2.0.6"
 ]
