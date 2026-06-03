@@ -225,18 +225,19 @@ class NAMDScripter(TcLScripter):
             fh.write(script)
         logger.debug(f'Parameter files staged to local scratch: {scratch}')
 
-    def runscript(self, **kwargs):
+    def _build_launch_command(self, **kwargs):
         """
-        Run the NAMD script using the NAMD command line interface.
-        This method constructs a command to execute NAMD with the specified script and options.
+        Construct the :class:`~pestifer.core.command.Command` used to launch NAMD.
 
-        Parameters
-        ----------
-        kwargs : dict
-            A dictionary of options to be passed to the NAMD command. This can include:
-            - ``local_execution_only``: If True, use the local CPU count instead of the configured CPU count.
-            - ``single_gpu_only``: If True, use only one GPU device.
-            - ``cpu_override``: If True, force the use of CPU settings even if the NAMD type is ``gpu``.
+        The form of the command depends on whether NAMD is running in CPU or GPU mode,
+        whether the process is running under SLURM, and -- for CPU mode under SLURM -- the
+        ``cpu-parallel-launcher`` configuration option (``auto``, ``numactl``, ``srun``, or
+        ``charmrun``). See :meth:`runscript` for the recognized keyword arguments.
+
+        Returns
+        -------
+        Command
+            The command object that will be run to launch NAMD.
         """
         assert hasattr(self, 'scriptname'), f'No scriptname set.'
         if kwargs.get('single_cpu_only', False):
@@ -254,7 +255,25 @@ class NAMDScripter(TcLScripter):
         logger.debug(f'NAMD using {use_cpu_count} PE(s)')
         if self.namd_type == 'cpu' or kwargs.get('cpu_override', False):
             if self.slurmvars:
-                c = Command(f'numactl --interleave=all {self.namd} +p {use_cpu_count} {self.scriptname}')
+                launcher = self.namd_config.get('cpu-parallel-launcher', 'auto')
+                if launcher == 'auto':
+                    # A single-node multicore launch cannot span nodes, so use srun (an MPI
+                    # build) whenever the allocation has more than one node.
+                    nnodes = int(self.slurmvars.get('SLURM_NNODES', 1))
+                    launcher = 'srun' if nnodes > 1 else 'numactl'
+                    logger.debug(f'cpu-parallel-launcher auto -> {launcher} (SLURM_NNODES={nnodes})')
+                if launcher == 'srun':
+                    # MPI build of NAMD: let SLURM spawn one rank per allocated task
+                    # (SLURM_NNODES x SLURM_NTASKS_PER_NODE). Do NOT pass +p -- the rank
+                    # count comes from the SLURM allocation; passing +p here would conflict.
+                    c = Command(f'srun {self.namd} {self.scriptname}')
+                elif launcher == 'charmrun':
+                    # net (charmrun) build of NAMD: use charmrun's MPI launcher (++mpiexec)
+                    # so Charm++ spawns PEs across the allocated nodes via SLURM.
+                    c = Command(f'{self.charmrun} +p {use_cpu_count} ++mpiexec {self.namd} {self.scriptname}')
+                else:
+                    # single-node multicore/SMP build: one process, N worker threads, node-local.
+                    c = Command(f'numactl --interleave=all {self.namd} +p {use_cpu_count} {self.scriptname}')
             else:
                 c = Command(f'{self.charmrun} +p {use_cpu_count} {self.namd} {self.scriptname}')
         elif self.namd_type == 'gpu':
@@ -268,6 +287,23 @@ class NAMDScripter(TcLScripter):
             else:
                 pmepes_flag = ''
             c = Command(f'{self.namdgpu} +p{use_cpu_count} {pmepes_flag}+setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
+        return c
+
+    def runscript(self, **kwargs):
+        """
+        Run the NAMD script using the NAMD command line interface.
+        This method constructs a command to execute NAMD with the specified script and options.
+
+        Parameters
+        ----------
+        kwargs : dict
+            A dictionary of options to be passed to the NAMD command. This can include:
+            - ``local_execution_only``: If True, use the local CPU count instead of the configured CPU count.
+            - ``single_gpu_only``: If True, use only one GPU device.
+            - ``cpu_override``: If True, force the use of CPU settings even if the NAMD type is ``gpu``.
+        """
+        assert hasattr(self, 'scriptname'), f'No scriptname set.'
+        c = self._build_launch_command(**kwargs)
         logger.debug(f'NAMD launch command: {c.c}')
         if self.slurmvars:
             self._stage_params_to_local_scratch()

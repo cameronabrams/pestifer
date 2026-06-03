@@ -258,6 +258,18 @@ attributes:
         text: number of processing elements (PEs) for NAMD; 0 means auto-detect from SLURM environment or local CPU count
         type: int
         default: 0
+      - name: cpu-parallel-launcher
+        text: >-
+          How CPU-mode NAMD is launched when running under SLURM. 'auto' (the default) uses
+          'numactl' for a single-node allocation and 'srun' when SLURM_NNODES > 1, since a
+          single-node multicore launch cannot span nodes. 'numactl' runs a single-node
+          multicore/SMP NAMD build via 'numactl --interleave=all namd3 +p N'. 'srun' launches
+          an MPI NAMD build across every allocated SLURM task (nodes x ntasks-per-node), which
+          is required to span multiple nodes. 'charmrun' launches a net (charmrun) NAMD build
+          across nodes via charmrun's MPI launcher.
+        type: str
+        choices: [auto, numactl, srun, charmrun]
+        default: auto
       - name: gpu-resident
         type: dict
         text: Configuration parameter(s) required for GPU-resident NAMD3
