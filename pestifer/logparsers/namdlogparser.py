@@ -548,7 +548,13 @@ class NAMDLogParser(LogParser):
             return 0
         for key, func in self._line_processors.items():
             if line.startswith(key):
-                func(line[len(key):])
+                try:
+                    func(line[len(key):])
+                except (ValueError, IndexError, KeyError) as e:
+                    # Live NAMD stdout from a multi-rank (e.g. srun) run can interleave
+                    # output from different PEs, producing a malformed line that defeats
+                    # numeric parsing (e.g. '0LINE'). Skip it rather than aborting the run.
+                    logger.debug(f'process_line: skipping unparseable {key!r} line {line!r}: {e}')
                 return 0
 
     def update(self, bytes: str):

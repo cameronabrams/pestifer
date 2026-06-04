@@ -169,3 +169,20 @@ def test_namd_log_dynamic():
         logger.debug(f'progress {l.measure_progress()}')
     assert l.success()
     l.finalize()
+def test_namd_energy_line_garbled_interleave():
+    """A multi-rank (srun) run can interleave NAMD stdout, producing a malformed
+    ENERGY line (e.g. a token like '0LINE'). The parser must skip it, not crash."""
+    import os
+    l = NAMDLogParser()
+    nfields = len(l.default_etitle_nvt)  # NVT energy line width
+    good = 'ENERGY: ' + ' '.join(str(i) for i in range(nfields)) + os.linesep
+    # establishes etitle and one good sample
+    assert l.process_line(good) == 0
+    assert len(l.time_series_data['energy']) == 1
+    # one field is corrupted by interleaved output; same token count
+    bad_tokens = [str(i) for i in range(nfields)]
+    bad_tokens[13] = '0LINE'
+    bad = 'ENERGY: ' + ' '.join(bad_tokens) + os.linesep
+    # must not raise, and must not append a bogus sample
+    assert l.process_line(bad) == 0
+    assert len(l.time_series_data['energy']) == 1
