@@ -69,6 +69,23 @@ class TestNAMDLaunchCommand(unittest.TestCase):
         self.assertEqual(c.command, 'srun namd3 job.namd')
         self.assertFalse(p._single_node_launch)
 
+    def test_explicit_srun_with_mpi_type(self):
+        p = self._make_scripter(
+            slurmvars={'SLURM_NNODES': '4', 'SLURM_NTASKS_PER_NODE': '48'},
+            launcher='srun', ncpus=192)
+        p.namd_config = {'cpu-parallel-launcher': 'srun', 'srun-mpi-type': 'pmi2'}
+        c = p._build_launch_command()
+        self.assertEqual(c.command, 'srun --mpi=pmi2 namd3 job.namd')
+        self.assertFalse(p._single_node_launch)
+
+    def test_explicit_mpirun(self):
+        p = self._make_scripter(
+            slurmvars={'SLURM_NNODES': '4', 'SLURM_NTASKS_PER_NODE': '48'},
+            launcher='mpirun', ncpus=192)
+        c = p._build_launch_command()
+        self.assertEqual(c.command, 'mpirun -np 192 namd3 job.namd')
+        self.assertFalse(p._single_node_launch)
+
     def test_explicit_charmrun_uses_mpiexec(self):
         p = self._make_scripter(
             slurmvars={'SLURM_NNODES': '4', 'SLURM_NTASKS_PER_NODE': '48'},

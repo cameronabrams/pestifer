@@ -270,7 +270,18 @@ class NAMDScripter(TcLScripter):
                     # MPI build of NAMD: let SLURM spawn one rank per allocated task
                     # (SLURM_NNODES x SLURM_NTASKS_PER_NODE). Do NOT pass +p -- the rank
                     # count comes from the SLURM allocation; passing +p here would conflict.
-                    c = Command(f'srun {self.namd} {self.scriptname}')
+                    # Some MPI runtimes (notably Intel MPI) need an explicit PMI plugin or
+                    # every rank inits as an independent 1-PE job; set 'srun-mpi-type' to
+                    # e.g. pmi2 or pmix to emit 'srun --mpi=<type>'.
+                    mpi_type = self.namd_config.get('srun-mpi-type', '')
+                    mpi_flag = f'--mpi={mpi_type} ' if mpi_type else ''
+                    c = Command(f'srun {mpi_flag}{self.namd} {self.scriptname}')
+                    self._single_node_launch = False
+                elif launcher == 'mpirun':
+                    # MPI build launched by the MPI runtime's own process manager (e.g. Intel
+                    # MPI Hydra), which reads the SLURM allocation to place ranks across nodes.
+                    # Use this when plain srun fails to wire ranks into one MPI_COMM_WORLD.
+                    c = Command(f'mpirun -np {use_cpu_count} {self.namd} {self.scriptname}')
                     self._single_node_launch = False
                 elif launcher == 'charmrun':
                     # net (charmrun) build of NAMD: use charmrun's MPI launcher (++mpiexec)

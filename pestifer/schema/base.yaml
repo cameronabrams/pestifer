@@ -265,11 +265,21 @@ attributes:
           single-node multicore launch cannot span nodes. 'numactl' runs a single-node
           multicore/SMP NAMD build via 'numactl --interleave=all namd3 +p N'. 'srun' launches
           an MPI NAMD build across every allocated SLURM task (nodes x ntasks-per-node), which
-          is required to span multiple nodes. 'charmrun' launches a net (charmrun) NAMD build
-          across nodes via charmrun's MPI launcher.
+          is required to span multiple nodes. 'mpirun' launches an MPI NAMD build via the MPI
+          runtime's own process manager ('mpirun -np N namd3'); use this when plain srun leaves
+          ranks as independent 1-PE jobs (common with Intel MPI). 'charmrun' launches a net
+          (charmrun) NAMD build across nodes via charmrun's MPI launcher.
         type: str
-        choices: [auto, numactl, srun, charmrun]
+        choices: [auto, numactl, srun, mpirun, charmrun]
         default: auto
+      - name: srun-mpi-type
+        text: >-
+          PMI plugin passed to srun as '--mpi=<type>' (e.g. pmi2 or pmix) when
+          cpu-parallel-launcher resolves to 'srun'. Empty (the default) emits a bare 'srun'.
+          Set this if srun launches every rank as an independent 1-PE MPI job; the valid
+          values come from 'srun --mpi=list' on your cluster.
+        type: str
+        default: ''
       - name: gpu-resident
         type: dict
         text: Configuration parameter(s) required for GPU-resident NAMD3
