@@ -253,6 +253,10 @@ class NAMDScripter(TcLScripter):
             use_gpu_count = self.ngpus
             use_gpu_devices = self.gpu_devices
         logger.debug(f'NAMD using {use_cpu_count} PE(s)')
+        # Whether NAMD will run entirely on a single node. Node-local parameter staging
+        # ($TMPDIR scratch) is only valid in that case; a multi-node launch must read the
+        # parameter files from the shared filesystem visible to every node.
+        self._single_node_launch = True
         if self.namd_type == 'cpu' or kwargs.get('cpu_override', False):
             if self.slurmvars:
                 launcher = self.namd_config.get('cpu-parallel-launcher', 'auto')
@@ -267,10 +271,12 @@ class NAMDScripter(TcLScripter):
                     # (SLURM_NNODES x SLURM_NTASKS_PER_NODE). Do NOT pass +p -- the rank
                     # count comes from the SLURM allocation; passing +p here would conflict.
                     c = Command(f'srun {self.namd} {self.scriptname}')
+                    self._single_node_launch = False
                 elif launcher == 'charmrun':
                     # net (charmrun) build of NAMD: use charmrun's MPI launcher (++mpiexec)
                     # so Charm++ spawns PEs across the allocated nodes via SLURM.
                     c = Command(f'{self.charmrun} +p {use_cpu_count} ++mpiexec {self.namd} {self.scriptname}')
+                    self._single_node_launch = False
                 else:
                     # single-node multicore/SMP build: one process, N worker threads, node-local.
                     c = Command(f'numactl --interleave=all {self.namd} +p {use_cpu_count} {self.scriptname}')
@@ -305,7 +311,9 @@ class NAMDScripter(TcLScripter):
         assert hasattr(self, 'scriptname'), f'No scriptname set.'
         c = self._build_launch_command(**kwargs)
         logger.debug(f'NAMD launch command: {c.c}')
-        if self.slurmvars:
+        if self.slurmvars and self._single_node_launch:
+            # Node-local scratch is private to each node; only stage when the whole run is
+            # on one node. A multi-node launch reads parameters from the shared filesystem.
             self._stage_params_to_local_scratch()
         self.logname = f'{self.basename}.log'
         self.logparser = NAMDLogParser(basename=self.basename)

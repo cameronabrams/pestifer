@@ -40,6 +40,7 @@ class TestNAMDLaunchCommand(unittest.TestCase):
         p = self._make_scripter(slurmvars={})
         c = p._build_launch_command()
         self.assertEqual(c.command, 'charmrun +p 192 namd3 job.namd')
+        self.assertTrue(p._single_node_launch)
 
     def test_auto_single_node_uses_numactl(self):
         p = self._make_scripter(
@@ -48,6 +49,8 @@ class TestNAMDLaunchCommand(unittest.TestCase):
         c = p._build_launch_command()
         self.assertEqual(c.command,
                          'numactl --interleave=all namd3 +p 48 job.namd')
+        # single node -> node-local parameter staging is valid
+        self.assertTrue(p._single_node_launch)
 
     def test_auto_multi_node_uses_srun(self):
         p = self._make_scripter(
@@ -55,6 +58,8 @@ class TestNAMDLaunchCommand(unittest.TestCase):
             launcher='auto', ncpus=192)
         c = p._build_launch_command()
         self.assertEqual(c.command, 'srun namd3 job.namd')
+        # multi-node -> must NOT stage params to node-local scratch
+        self.assertFalse(p._single_node_launch)
 
     def test_explicit_srun(self):
         p = self._make_scripter(
@@ -62,6 +67,7 @@ class TestNAMDLaunchCommand(unittest.TestCase):
             launcher='srun')
         c = p._build_launch_command()
         self.assertEqual(c.command, 'srun namd3 job.namd')
+        self.assertFalse(p._single_node_launch)
 
     def test_explicit_charmrun_uses_mpiexec(self):
         p = self._make_scripter(
@@ -70,6 +76,7 @@ class TestNAMDLaunchCommand(unittest.TestCase):
         c = p._build_launch_command()
         self.assertEqual(c.command,
                          'charmrun +p 192 ++mpiexec namd3 job.namd')
+        self.assertFalse(p._single_node_launch)
 
     def test_explicit_numactl_even_multi_node(self):
         p = self._make_scripter(
@@ -78,6 +85,8 @@ class TestNAMDLaunchCommand(unittest.TestCase):
         c = p._build_launch_command()
         self.assertEqual(c.command,
                          'numactl --interleave=all namd3 +p 192 job.namd')
+        # user forced node-local launcher -> staging stays enabled
+        self.assertTrue(p._single_node_launch)
 
     def test_auto_default_when_option_absent(self):
         # namd_config without the key should still default to 'auto'
@@ -87,3 +96,4 @@ class TestNAMDLaunchCommand(unittest.TestCase):
         p.namd_config = {}
         c = p._build_launch_command()
         self.assertEqual(c.command, 'srun namd3 job.namd')
+        self.assertFalse(p._single_node_launch)
