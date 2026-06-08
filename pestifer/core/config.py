@@ -11,7 +11,7 @@ import os
 import copy
 import logging
 import shutil
-from GPUtil import getGPUs
+import subprocess
 from importlib.metadata import version
 from importlib.resources import files as pkg_files
 from ycleptic import Yclept
@@ -25,6 +25,28 @@ from ..scripters.namd import NAMDScripter
 from ..scripters.packmol import check_packmol_version
 
 logger = logging.getLogger(__name__)
+
+
+def detect_local_gpu_ids() -> list:
+    """Return the indices of local NVIDIA GPUs by querying ``nvidia-smi``.
+
+    Returns an empty list if ``nvidia-smi`` is not on PATH, fails, or reports no
+    GPUs.  This replaces the former GPUtil dependency, which was an unmaintained
+    wrapper around the same ``nvidia-smi`` query and pulled in ``distutils`` (and
+    hence ``setuptools``) on Python 3.12+.
+    """
+    exe = shutil.which('nvidia-smi')
+    if not exe:
+        return []
+    try:
+        out = subprocess.run([exe, '--query-gpu=index', '--format=csv,noheader'],
+                             capture_output=True, text=True, timeout=10)
+    except (OSError, subprocess.SubprocessError):
+        return []
+    if out.returncode != 0:
+        return []
+    return [int(tok) for tok in out.stdout.split() if tok.strip().isdigit()]
+
 
 class Config(Yclept):
     """ 
@@ -157,7 +179,7 @@ class Config(Yclept):
         Determine the number of CPUs and GPUs available for this process.
         This method checks if the process is running under SLURM (a job scheduler)
         and retrieves the number of nodes and tasks per node. If SLURM variables are not set,
-        it defaults to the local CPU count. It also checks for available GPUs using GPUtil.
+        it defaults to the local CPU count. It also checks for available GPUs via nvidia-smi.
         If running under SLURM, the return value includes the number of nodes and tasks per node.
         If running locally, it includes the local CPU count and the number of GPUs detected.
         If no GPUs are detected, it will not mention GPUs in the output.
@@ -188,10 +210,10 @@ class Config(Yclept):
         else:
             retstr += f'Local: {self.local_ncpus} cpus'
             ncpus = self.local_ncpus
-            gpus = getGPUs()
-            if len(gpus) > 0:
-                self.ngpus = len(gpus)
-                self.gpu_devices = ','.join([str(x.id) for x in gpus])
+            gpu_ids = detect_local_gpu_ids()
+            if gpu_ids:
+                self.ngpus = len(gpu_ids)
+                self.gpu_devices = ','.join(str(i) for i in gpu_ids)
                 ess = 's' if self.ngpus > 1 else ''
                 retstr += f'; {self.ngpus} gpu{ess}'
 

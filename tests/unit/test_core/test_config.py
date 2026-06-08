@@ -3,8 +3,10 @@
 import unittest
 import os
 import shutil
+import subprocess
+from unittest import mock
 import yaml
-from pestifer.core.config import Config
+from pestifer.core.config import Config, detect_local_gpu_ids
 from pestifer.core.labels import Labels
 
 class TestConfig(unittest.TestCase):
@@ -31,6 +33,31 @@ class TestConfig(unittest.TestCase):
         D = Config(userdict=ud).configure_new()
         self.assertTrue('user' in D)
         
+    def test_detect_local_gpu_ids_no_nvidia_smi(self):
+        # nvidia-smi not on PATH -> empty list (CPU-only workstation)
+        with mock.patch('pestifer.core.config.shutil.which', return_value=None):
+            self.assertEqual(detect_local_gpu_ids(), [])
+
+    def test_detect_local_gpu_ids_parses_indices(self):
+        fake = subprocess.CompletedProcess(args=[], returncode=0,
+                                           stdout='0\n1\n2\n3\n', stderr='')
+        with mock.patch('pestifer.core.config.shutil.which', return_value='/usr/bin/nvidia-smi'), \
+             mock.patch('pestifer.core.config.subprocess.run', return_value=fake):
+            self.assertEqual(detect_local_gpu_ids(), [0, 1, 2, 3])
+
+    def test_detect_local_gpu_ids_handles_failure(self):
+        # nvidia-smi present but errors (e.g. driver/library mismatch) -> empty list
+        fake = subprocess.CompletedProcess(args=[], returncode=9,
+                                           stdout='', stderr='boom')
+        with mock.patch('pestifer.core.config.shutil.which', return_value='/usr/bin/nvidia-smi'), \
+             mock.patch('pestifer.core.config.subprocess.run', return_value=fake):
+            self.assertEqual(detect_local_gpu_ids(), [])
+        # also tolerate the executable raising
+        with mock.patch('pestifer.core.config.shutil.which', return_value='/usr/bin/nvidia-smi'), \
+             mock.patch('pestifer.core.config.subprocess.run',
+                        side_effect=OSError('nope')):
+            self.assertEqual(detect_local_gpu_ids(), [])
+
     def test_taskless_subconfig_inherits_user_namd(self):
         # A subcontroller config (e.g. for make_membrane_system relaxation MD) must
         # inherit the parent's NAMD settings, not fall back to schema defaults.
