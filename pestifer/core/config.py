@@ -8,6 +8,7 @@ access to the contents of Pestifer's :mod:`pestifer.resources` subpackage.
 """
 
 import os
+import copy
 import logging
 import shutil
 from GPUtil import getGPUs
@@ -87,8 +88,17 @@ class Config(Yclept):
         return self
 
     def taskless_subconfig(self) -> 'Config':
-        """ Create a taskless subconfiguration from the progenitor configuration. """
-        subconfig = self.__class__(quiet=True, RM=self.RM).configure()
+        """ Create a taskless subconfiguration from the progenitor configuration.
+
+        The subconfiguration inherits the progenitor's user settings (NAMD launcher,
+        paths, force field, psfgen options, ...) so that tasks executed by a
+        subcontroller -- e.g. the relaxation MD inside ``make_membrane_system`` -- run
+        in the same execution environment as the top-level run.  Only the task list is
+        reset to empty; without this inheritance the subcontroller would fall back to
+        schema defaults (e.g. ``cpu-parallel-launcher: auto``) and ignore user overrides.
+        """
+        user_overrides = {k: copy.deepcopy(v) for k, v in self['user'].items() if k != 'tasks'}
+        subconfig = self.__class__(userdict=user_overrides, quiet=True, RM=self.RM).configure()
         subconfig['user']['tasks'] = TaskList([])
         return subconfig
 

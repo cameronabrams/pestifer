@@ -31,6 +31,19 @@ class TestConfig(unittest.TestCase):
         D = Config(userdict=ud).configure_new()
         self.assertTrue('user' in D)
         
+    def test_taskless_subconfig_inherits_user_namd(self):
+        # A subcontroller config (e.g. for make_membrane_system relaxation MD) must
+        # inherit the parent's NAMD settings, not fall back to schema defaults.
+        parent = Config(userdict={'namd': {'cpu-parallel-launcher': 'mpirun'}},
+                        quiet=True, RM=self.RM).configure()
+        self.assertEqual(parent['user']['namd']['cpu-parallel-launcher'], 'mpirun')
+        sub = parent.taskless_subconfig()
+        self.assertEqual(sub['user']['namd']['cpu-parallel-launcher'], 'mpirun')
+        self.assertEqual(len(sub['user']['tasks']), 0)
+        # the NAMD scripter the subcontroller would use must see it too
+        self.assertEqual(sub.get_scripter('namd').namd_config['cpu-parallel-launcher'],
+                         'mpirun')
+
     def test_config_user(self):
         tmpdir = '__test_config_user'
         if os.path.exists(tmpdir):
