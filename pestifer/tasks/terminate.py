@@ -212,6 +212,21 @@ class TerminateTask(MDTask):
         if charmmff_streamfiles:
             param_files.extend(fa.name for fa in charmmff_streamfiles if os.path.exists(fa.name))
 
+        # The standard CHARMM parameter (.prm) files are staged by NAMD/MD tasks; a build
+        # that runs no MD step (e.g. continuation -> psfgen -> terminate) never fetches them,
+        # so the registered artifacts above can be stream-files-only.  Consolidating from
+        # those alone yields a minimal .prm with an empty NONBONDED section (nonbonded=0),
+        # which makes NAMD fail with "DIDN'T FIND vdW PARAMETER FOR ATOM TYPE ...".  Always
+        # stage and include the standard parameter set so the consolidated file carries the
+        # vdW and bonded parameters for the standard atom types.
+        try:
+            namd_scripter = self.get_scripter('namd')
+            for p in namd_scripter.fetch_standard_charmm_parameters():
+                if p not in param_files and os.path.exists(p):
+                    param_files.append(p)
+        except Exception as exc:
+            logger.warning(f'generate_minimal_params: could not stage standard parameters: {exc}')
+
         if not param_files:
             logger.debug('generate_minimal_params: no parameter files available, skipping')
             return None
@@ -230,6 +245,11 @@ class TerminateTask(MDTask):
 
         minimal = combined.extract_for_atomtypes(atomtypes)
         logger.debug(f'generate_minimal_params: {minimal.summary()}')
+        if atomtypes and not minimal.nonbonded:
+            logger.warning(
+                f'generate_minimal_params: consolidated parameter file for {self.basename} '
+                f'has NO nonbonded (vdW) parameters for {len(atomtypes)} atom types; NAMD will '
+                f'fail with "DIDN\'T FIND vdW PARAMETER". Parsed files: {param_files}')
 
         outname = f'{self.basename}_minimal.prm'
         minimal.write(outname, title=f'Minimal CHARMM parameter file for {self.basename}')
