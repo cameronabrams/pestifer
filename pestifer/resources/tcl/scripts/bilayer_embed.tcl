@@ -234,7 +234,7 @@ if { $box_min_z < $bilayer_min_z } {
    set gapsize [expr $bilayer_min_z - $box_min_z]
    if {$gapsize < 3.0} {
       set extragap [expr 3.0 - $gapsize]
-      set $box_min_z [expr $box_min_z - $extragap]
+      set box_min_z [expr $box_min_z - $extragap]
    }
    vmdcon -info "solvating into {{0 0 $box_min_z} {$bilayer_box_Lx $bilayer_box_Ly $bilayer_min_z}}"
    vmdcon -info "Running solvate [list [list 0 0 $box_min_z] [list $bilayer_box_Lx $bilayer_box_Ly $bilayer_min_z]] -o ${outbasename}_water_lower"
@@ -261,7 +261,7 @@ if { $box_max_z > $bilayer_max_z } {
    set gapsize [expr $box_max_z - $bilayer_max_z]
    if {$gapsize < 3.0} {
       set extragap [expr 3.0 - $gapsize]
-      set $box_max_z [expr $box_max_z + $extragap]
+      set box_max_z [expr $box_max_z + $extragap]
    }
    vmdcon -info "Running solvate -minmax [list [list 0 0 $bilayer_max_z] [list $bilayer_box_Lx $bilayer_box_Ly $box_max_z]] -o ${outbasename}_water_upper"
    solvate -minmax [list [list 0 0 $bilayer_max_z] [list $bilayer_box_Lx $bilayer_box_Ly $box_max_z]] -o ${outbasename}_water_upper
