@@ -8,6 +8,7 @@ access to the contents of Pestifer's :mod:`pestifer.resources` subpackage.
 """
 
 import os
+import sys
 import copy
 import logging
 import shutil
@@ -279,7 +280,12 @@ class Config(Yclept):
         self.namd_deprecates = self['user']['namd']['deprecated3']
 
     def _set_internal_shortcuts(self):
-        self.use_terminal_progress = len(self.slurmvars) == 0
+        # Progress bars are a terminal animation (carriage-return redraws) rendered by
+        # progressbar2 on stderr -- the same stream pestifer logs to. When stderr is not a
+        # TTY (redirected to a log file, e.g. 'pestifer run x.yaml &> run.log'), each redraw
+        # becomes a separate line and floods the log, so only enable them for an interactive
+        # terminal session (and never under a batch scheduler).
+        self.use_terminal_progress = len(self.slurmvars) == 0 and sys.stderr.isatty()
         RM = self.RM
         self.tcl_root = RM.get_tcldir()
         assert os.path.exists(self.tcl_root)
