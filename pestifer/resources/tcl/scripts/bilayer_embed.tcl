@@ -184,9 +184,20 @@ set bad_membrane_sel [atomselect $bilayer "index $bad_membrane_idx"]
 readpsf $psf pdb ${outbasename}_embedded.pdb
 readpsf $bilayer_psf pdb $bilayer_pdb
 
-catch {foreach seg [$bad_membrane_sel get segname] resid [$bad_membrane_sel get resid] {
-   delatom $seg $resid
-}} result
+# 'measure contacts' returns per-atom indices, but 'delatom $seg $resid' deletes the
+# whole residue. Deduplicate (segname,resid) so each clashing residue is deleted exactly
+# once; otherwise delatom is re-invoked on already-deleted residues (once per contacting
+# atom), producing tens of thousands of "no residue ... of segment" messages.
+catch {
+   array unset _seen_membrane
+   array set _seen_membrane {}
+   foreach seg [$bad_membrane_sel get segname] resid [$bad_membrane_sel get resid] {
+      if {![info exists _seen_membrane($seg,$resid)]} {
+         set _seen_membrane($seg,$resid) 1
+         delatom $seg $resid
+      }
+   }
+} result
 regenerate angles dihedrals
 
 writepsf cmap ${outbasename}_prefill.psf
@@ -343,9 +354,18 @@ set water_sel [atomselect $embedded_system "segname $segs_to_search"]
 set bad_atoms [measure contacts 2.4 $water_sel $pro_sel]
 set bad_water_idx [lindex $bad_atoms 0]
 set bad_water_sel [atomselect $embedded_system "index $bad_water_idx"]
-catch {foreach seg [$bad_water_sel get segname] resid [$bad_water_sel get resid] {
-   delatom $seg $resid
-}} result
+# Deduplicate (segname,resid) so each clashing water residue is deleted exactly once
+# (see the membrane-deletion loop above for why).
+catch {
+   array unset _seen_water
+   array set _seen_water {}
+   foreach seg [$bad_water_sel get segname] resid [$bad_water_sel get resid] {
+      if {![info exists _seen_water($seg,$resid)]} {
+         set _seen_water($seg,$resid) 1
+         delatom $seg $resid
+      }
+   }
+} result
 regenerate angles dihedrals
 writepsf cmap ${outbasename}_filled.psf
 writepdb ${outbasename}_filled.pdb
