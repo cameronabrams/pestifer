@@ -544,3 +544,116 @@ class Bilayer:
                 pm.addline(f'nloop {nloop}', indents=1)
                 pm.addline(f'end structure')
         pm.writefile()
+
+    def _load_conformer(self, name, conf=0):
+        """Read a species conformer PDB into (coords Nx3, raw atom lines, head_idx,
+        tail_idxs), canonicalized so the head reference atom is at +z and the xy
+        centroid is at the origin.  Used by :meth:`write_grid_pdb`."""
+        pdbfile = self.species_data[name].get_pdb(conformerID=conf)
+        coords, lines, ser2i = [], [], {}
+        with open(pdbfile) as fh:
+            for ln in fh:
+                if ln.startswith(('ATOM', 'HETATM')):
+                    ser2i[int(ln[6:11])] = len(coords)
+                    coords.append((float(ln[30:38]), float(ln[38:46]), float(ln[46:54])))
+                    lines.append(ln)
+        coords = np.array(coords)
+        ref = self.species_data[name].get_ref_atoms()
+        head_i, tail_is = None, None
+        if ref.get('heads') and ref.get('tails'):
+            head_i = ser2i[ref['heads'][0]['serial']]
+            tail_is = [ser2i[t['serial']] for t in ref['tails']]
+            if coords[head_i, 2] < coords[tail_is, 2].mean():   # canonicalize head-up
+                coords = coords * np.array([1.0, -1.0, -1.0])
+        coords[:, 0] -= coords[:, 0].mean()
+        coords[:, 1] -= coords[:, 1].mean()
+        return coords, lines, head_i, tail_is
+
+    def write_grid_pdb(self, output_pdb, half_mid_zgap=1.0, seed=None, jitter=1.5):
+        """Deterministic grid placement of the bilayer patch -- a fast, packmol-free
+        alternative to :meth:`write_packmol`.
+
+        Lipids are dropped onto a per-leaflet 2D lattice (sized by the patch area and
+        leaflet count), oriented with head groups pointing away from the midplane and a
+        random in-plane spin, with tails aligned near the midplane.  Chamber solvent is
+        placed on a 3D lattice.  The result is a single coordinate PDB equivalent to the
+        packmol output (it feeds the same psfgen patch-build step).  Initial overlaps are
+        intentionally left for the downstream relaxation MD to resolve, which is far
+        cheaper than packmol's constrained packing.
+        """
+        rng = np.random.default_rng(seed)
+        ll, ur = self.patch_ll_corner, self.patch_ur_corner
+        Lx, Ly = ur[0] - ll[0], ur[1] - ll[1]
+        out, counters = [], {'serial': 0, 'resid': 0}
+
+        def emit(coords, lines):
+            counters['resid'] += 1
+            rr = counters['resid'] % 10000
+            for (x, y, z), ln in zip(coords, lines):
+                counters['serial'] += 1
+                out.append(f"{ln[:6]}{counters['serial'] % 100000:5d}{ln[11:22]}{rr:4d}"
+                           f"{ln[26:30]}{x:8.3f}{y:8.3f}{z:8.3f}{ln[54:].rstrip()}\n")
+
+        def zspin(c):
+            th = rng.uniform(0, 2 * np.pi)
+            cs, sn = np.cos(th), np.sin(th)
+            return c @ np.array([[cs, -sn, 0.0], [sn, cs, 0.0], [0.0, 0.0, 1.0]]).T
+
+        def bag_of(layer):
+            cache, bag = {}, []
+            for specs in layer['composition']:
+                nm = specs['name']
+                if nm not in cache:
+                    cache[nm] = self._load_conformer(nm, specs.get('conf', 0))
+                bag += [nm] * specs['patn']
+            rng.shuffle(bag)
+            return cache, bag
+
+        # lipids: per-leaflet 2D lattice, oriented, tails toward the midplane
+        for leaflet, upper in ((self.LL, False), (self.UL, True)):
+            cache, bag = bag_of(leaflet)
+            if not bag:
+                continue
+            n = len(bag)
+            nx = max(1, int(round(np.sqrt(n * Lx / Ly))))
+            ny = int(np.ceil(n / nx))
+            sx, sy = Lx / nx, Ly / ny
+            target_z = self.midplane_z + (half_mid_zgap if upper else -half_mid_zgap)
+            for k, nm in enumerate(bag):
+                coords, lines, _head_i, tail_is = cache[nm]
+                c = coords.copy()
+                if not upper:
+                    c = c * np.array([1.0, -1.0, -1.0])     # head -> -z for lower leaflet
+                c = zspin(c)
+                c[:, 2] += target_z - (c[tail_is, 2].mean() if tail_is is not None else c[:, 2].mean())
+                c[:, 0] += ll[0] + (k % nx) * sx + rng.uniform(-jitter, jitter)
+                c[:, 1] += ll[1] + (k // nx) * sy + rng.uniform(-jitter, jitter)
+                emit(c, lines)
+
+        # chamber solvent: 3D lattice
+        for chamber in (self.LC, self.UC):
+            cache, bag = bag_of(chamber)
+            if not bag:
+                continue
+            n = len(bag)
+            zlo, zhi = chamber['z-lo'], chamber['z-hi']
+            Lz = max(zhi - zlo, 1.0)
+            cell = (Lx * Ly * Lz / n) ** (1.0 / 3.0)
+            gx_n, gy_n = max(1, int(round(Lx / cell))), max(1, int(round(Ly / cell)))
+            gz_n = max(1, int(np.ceil(n / (gx_n * gy_n))))
+            sx, sy, sz = Lx / gx_n, Ly / gy_n, Lz / gz_n
+            for k, nm in enumerate(bag):
+                coords, lines, _h, _t = cache[nm]
+                c = zspin(coords.copy())
+                i, j, m = k % gx_n, (k // gx_n) % gy_n, k // (gx_n * gy_n)
+                c[:, 0] += ll[0] + (i + 0.5) * sx + rng.uniform(-jitter, jitter)
+                c[:, 1] += ll[1] + (j + 0.5) * sy + rng.uniform(-jitter, jitter)
+                c[:, 2] += zlo + (m + 0.5) * sz - c[:, 2].mean()
+                emit(c, lines)
+
+        with open(output_pdb, 'w') as fh:
+            fh.writelines(out)
+            fh.write("END\n")
+        logger.debug(f'write_grid_pdb: wrote {output_pdb} '
+                     f'({counters["serial"]} atoms, {counters["resid"]} residues)')
+        return output_pdb

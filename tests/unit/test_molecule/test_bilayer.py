@@ -350,4 +350,39 @@ class TestBilayer(unittest.TestCase):
         self.RM.charmmff_content.clean_local_charmmff_files()
 
         os.chdir('..')
+
+    def test_bilayer_write_grid_pdb(self):
+        self.charmmff_content.deprovision()
+        d = '__test_bilayer_write_grid_pdb'
+        if os.path.exists(d):
+            shutil.rmtree(d)
+        os.mkdir(d)
+        os.chdir(d)
+        cdict = specstrings_builddict(lipid_specstring='POPC:CHL1//POPC:CHL1',
+                                      lipid_ratio_specstring='0.7:0.3//0.7:0.3',
+                                      lipid_conformers_specstring='0:0')
+        b = Bilayer(composition_dict=cdict, leaflet_nlipids=dict(upper=64, lower=64),
+                    charmmffcontent=self.charmmff_content)
+        b.spec_out(SAPL=55.0)
+        out = b.write_grid_pdb('grid_patch.pdb', seed=1)
+        assert os.path.exists(out)
+        natoms = nwat = nlip_lower = nlip_upper = 0
+        with open(out) as fh:
+            for ln in fh:
+                if ln.startswith(('ATOM', 'HETATM')):
+                    natoms += 1
+                    z = float(ln[46:54])
+                    rn = ln[17:21].strip()
+                    if rn == 'TIP3':
+                        nwat += 1
+                    elif z < b.midplane_z:
+                        nlip_lower += 1
+                    else:
+                        nlip_upper += 1
+        # a complete patch: lipids in both leaflets and solvent in the chambers
+        assert natoms > 0
+        assert nwat > 0
+        assert nlip_lower > 0 and nlip_upper > 0
+        self.RM.charmmff_content.clean_local_charmmff_files()
+        os.chdir('..')
         

@@ -234,12 +234,17 @@ class MakeMembraneSystemTask(BaseTask):
             patch.spec_out(SAPL=SAPL, xy_aspect_ratio=xy_aspect_ratio,
                             rotation_pm=rotation_pm, solution_gcc=solution_gcc,
                             half_mid_zgap=half_mid_zgap)
-            self.pack_patch(patch, patch_name=f'patch{specbyte}', seed=seed,
-                            tolerance=tolerance,
-                            nloop_all=nloop_all,
-                            half_mid_zgap=half_mid_zgap,
-                            rotation_pm=rotation_pm,
-                            nloop=nloop)
+            packer = self.bilayer_specs.get('packer', 'packmol')
+            if packer == 'grid':
+                self.grid_patch(patch, patch_name=f'patch{specbyte}', seed=seed,
+                                half_mid_zgap=half_mid_zgap)
+            else:
+                self.pack_patch(patch, patch_name=f'patch{specbyte}', seed=seed,
+                                tolerance=tolerance,
+                                nloop_all=nloop_all,
+                                half_mid_zgap=half_mid_zgap,
+                                rotation_pm=rotation_pm,
+                                nloop=nloop)
             self.do_psfgen(patch, bilayer_name=f'patch{specbyte}')
             self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=relaxation_protocol)
 
@@ -345,6 +350,23 @@ class MakeMembraneSystemTask(BaseTask):
             logger.debug(f'PNGs:')
             my_logger(pngs, logger.debug)
             self.register([PNGImageFileArtifact(x) for x in pngs], key=f'{patch_name}_packmol_pngs', artifact_type=PNGImageFileArtifactList)
+
+    def grid_patch(self, patch: Bilayer, patch_name: str = None, seed=None, half_mid_zgap=1.0):
+        """Build a bilayer patch by deterministic grid placement -- a fast, packmol-free
+        alternative to :meth:`pack_patch`.
+
+        Produces a coordinate PDB equivalent to packmol's output (lipids on a per-leaflet
+        2D lattice, solvent on a 3D lattice) and registers it as the patch state for the
+        same downstream psfgen patch build.  Initial overlaps are left for the relaxation
+        MD, which is far cheaper than packmol's constrained packing.
+        """
+        self.next_basename(f'grid-{patch_name}')
+        output_pdb = f'{self.basename}.pdb'
+        patch.write_grid_pdb(output_pdb, half_mid_zgap=half_mid_zgap, seed=seed)
+        self.register(dict(pdb=PDBFileArtifact(self.basename, pytestable=True)),
+                      key=f'{patch_name}_state', artifact_type=StateArtifacts)
+        logger.debug(f'grid_patch: built {output_pdb} for {patch_name}')
+        return 0
 
     def equilibrate_bilayer(self, bilayer: Bilayer, bilayer_name: str, relaxation_protocol: list[dict] = None):
         """
