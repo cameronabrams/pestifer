@@ -179,19 +179,28 @@ set box_max_z [expr $pro_max_z + $zdist]
 # delete atoms that are in conflict with the protein
 set bad_atoms [measure contacts 2.4 $bilayer_sel $pro_sel]
 set bad_membrane_idx [lindex $bad_atoms 0]
-set bad_membrane_sel [atomselect $bilayer "index $bad_membrane_idx"]
 
 readpsf $psf pdb ${outbasename}_embedded.pdb
 readpsf $bilayer_psf pdb $bilayer_pdb
 
+# Map contacting atom indices -> (segname,resid) by reading straight from the parent
+# "all" selection ($bilayer_sel), NOT via [atomselect $bilayer "index <list>"].
+# VMD's atom-selection parse tree has one node per index and its destructor
+# (atomparser_node::~atomparser_node) is recursive, so an "index ..." selection over
+# ~10^5 contacting atoms recurses ~10^5 frames deep and overflows the stack when the
+# selection is freed at interpreter teardown -- a hard SIGSEGV at VMD exit.
+#
 # 'measure contacts' returns per-atom indices, but 'delatom $seg $resid' deletes the
-# whole residue. Deduplicate (segname,resid) so each clashing residue is deleted exactly
-# once; otherwise delatom is re-invoked on already-deleted residues (once per contacting
-# atom), producing tens of thousands of "no residue ... of segment" messages.
+# whole residue, so also deduplicate (segname,resid) and delete each residue once
+# (otherwise delatom is re-invoked per contacting atom -> "no residue ..." spam).
+set _mem_seg [$bilayer_sel get segname]
+set _mem_res [$bilayer_sel get resid]
 catch {
    array unset _seen_membrane
    array set _seen_membrane {}
-   foreach seg [$bad_membrane_sel get segname] resid [$bad_membrane_sel get resid] {
+   foreach idx $bad_membrane_idx {
+      set seg [lindex $_mem_seg $idx]
+      set resid [lindex $_mem_res $idx]
       if {![info exists _seen_membrane($seg,$resid)]} {
          set _seen_membrane($seg,$resid) 1
          delatom $seg $resid
@@ -353,13 +362,19 @@ set segs_to_search [join $newsegids]
 set water_sel [atomselect $embedded_system "segname $segs_to_search"]
 set bad_atoms [measure contacts 2.4 $water_sel $pro_sel]
 set bad_water_idx [lindex $bad_atoms 0]
-set bad_water_sel [atomselect $embedded_system "index $bad_water_idx"]
-# Deduplicate (segname,resid) so each clashing water residue is deleted exactly once
-# (see the membrane-deletion loop above for why).
+# Map contacting atom indices -> (segname,resid) via the parent "all" selection rather
+# than [atomselect $embedded_system "index <list>"]; the slab-water clash list runs to
+# ~10^5 atoms, and such an "index ..." selection overflows the stack via the recursive
+# atomparser_node destructor when freed at VMD exit. Also dedup so each water residue is
+# deleted exactly once (see the membrane-deletion loop above).
+set _wat_seg [$all get segname]
+set _wat_res [$all get resid]
 catch {
    array unset _seen_water
    array set _seen_water {}
-   foreach seg [$bad_water_sel get segname] resid [$bad_water_sel get resid] {
+   foreach idx $bad_water_idx {
+      set seg [lindex $_wat_seg $idx]
+      set resid [lindex $_wat_res $idx]
       if {![info exists _seen_water($seg,$resid)]} {
          set _seen_water($seg,$resid) 1
          delatom $seg $resid
