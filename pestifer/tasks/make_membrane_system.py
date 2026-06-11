@@ -544,7 +544,12 @@ class MakeMembraneSystemTask(BaseTask):
         pg: PsfgenScripter = self.scripters['psfgen']
         pg.newscript(self.basename, additional_topologies=self.quilt.addl_streamfiles)
         pg.usescript('bilayer_embed')
-        pg.writescript(self.basename, guesscoord=False, regenerate=True, force_exit=True, writepsf=False, writepdb=False)
+        # regenerate=False: the bilayer_embed script does its own regenerate+writepsf for
+        # every structure it writes (prefill, filled, and the autoionized final psf). A
+        # trailing 'regenerate angles dihedrals' appended here would run after the final
+        # files are already written, with no consumer -- pure wasted work on a ~2M-atom
+        # psfgen context.
+        pg.writescript(self.basename, guesscoord=False, regenerate=False, force_exit=True, writepsf=False, writepdb=False)
         self.register(self.basename, key='tcl', artifact_type=PsfgenInputScriptArtifact)
         quilt_state: StateArtifacts = self.get_current_artifact('quilt_state')
         bilayer_psf: str = quilt_state.psf.name
