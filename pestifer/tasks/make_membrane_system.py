@@ -171,12 +171,18 @@ class MakeMembraneSystemTask(BaseTask):
             self.orient_protein()
         if not self.using_prebuilt_bilayer:
             packer = self.bilayer_specs.get('packer', 'packmol')
-            # grid placement can fill the whole box directly, so for a symmetric,
-            # non-embedding build we skip the patch->quilt tiling entirely. (Embedding,
-            # which sizes the box to the protein, and asymmetric builds still use the
+            # grid placement can fill the whole box directly, retiring the patch->quilt
+            # tiling. (Embedding, which sizes the box to the protein, still uses the
             # patch->quilt path for now.)
-            if packer == 'grid' and self.patch is not None and not self.embedding:
-                self.build_grid_membrane()
+            if packer == 'grid' and not self.embedding:
+                if self.patch is not None:
+                    # symmetric: grid the full membrane directly
+                    self.build_grid_membrane()
+                else:
+                    # asymmetric: relax the two symmetric patches as calibration cells,
+                    # then grid the membrane at stress-free per-leaflet counts
+                    self.build_patch()
+                    self.build_grid_membrane_asymmetric()
             else:
                 self.build_patch()
                 self.make_quilt_from_patch()
@@ -268,41 +274,74 @@ class MakeMembraneSystemTask(BaseTask):
             self.do_psfgen(patch, bilayer_name=f'patch{specbyte}')
             self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=relaxation_protocol)
 
-    def build_grid_membrane(self):
-        """Build the full-size membrane directly by grid placement, bypassing the
-        patch -> quilt tiling.
+    def _grid_membrane(self, leaflet_nlipids, box_SAPL):
+        """Grid, build, and relax a full-size membrane with the given per-leaflet counts.
 
-        Because the grid placer can fill any box in one shot, there is no need to pack a
-        small patch and replicate it.  The target box is sized from ``npatch`` x the patch
-        size (or an explicit ``dims``), the corresponding number of lipids per leaflet is
-        gridded directly, and the result is registered as ``quilt_state`` and relaxed with
-        the quilt relaxation protocol -- the same downstream the tiled quilt would produce,
-        minus the redundant re-segmentation and tiling artifacts.
+        ``box_SAPL`` sizes the box: :meth:`Bilayer.spec_out` sets the lateral area to
+        ``box_SAPL * leaflet_nlipids['upper']``.  Pass the upper leaflet's preferred APL as
+        ``box_SAPL`` so that area is the stress-free box area for the requested upper count;
+        the lower leaflet's (separately chosen) count then sits at its own preferred APL.
+        The result is registered as ``quilt_state`` and relaxed with the quilt protocol.
         """
         bs = self.bilayer_specs
-        SAPL = bs.get('SAPL', 75.0)
-        xy_aspect_ratio = bs.get('xy_aspect_ratio', 1.0)
-        rotation_pm = bs.get('rotation_pm', 10.0)
-        solution_gcc = bs.get('solution_gcc', 1.0)
-        half_mid_zgap = bs.get('half_mid_zgap', 1.0)
-        seed = bs.get('seed', 27021972)
-        patch_nlipids = bs.get('patch_nlipids', dict(upper=100, lower=100))
-        npatch = bs.get('npatch', [1, 1])
-        quilt_protocol = bs.get('relaxation_protocols', {}).get('quilt', {})
-        n_target = int(round(patch_nlipids['upper'] * npatch[0] * npatch[1]))
-        logger.debug(f'build_grid_membrane: {n_target} lipids per leaflet '
-                     f'(patch {patch_nlipids["upper"]} x npatch {npatch[0]}x{npatch[1]})')
-        membrane = Bilayer(leaflet_nlipids=dict(upper=n_target, lower=n_target),
+        membrane = Bilayer(leaflet_nlipids=leaflet_nlipids,
                            charmmffcontent=self.charmmff_content, **self._bilayer_kwargs)
-        membrane.spec_out(SAPL=SAPL, xy_aspect_ratio=xy_aspect_ratio,
-                          rotation_pm=rotation_pm, solution_gcc=solution_gcc,
-                          half_mid_zgap=half_mid_zgap)
+        membrane.spec_out(SAPL=box_SAPL, xy_aspect_ratio=bs.get('xy_aspect_ratio', 1.0),
+                          rotation_pm=bs.get('rotation_pm', 10.0),
+                          solution_gcc=bs.get('solution_gcc', 1.0),
+                          half_mid_zgap=bs.get('half_mid_zgap', 1.0))
         self.quilt = membrane
         for spdb in membrane.register_species_pdbs:
             self.register(spdb, key='species_pdb_for_packmol', artifact_type=PDBFileArtifact)
-        self.grid_patch(membrane, patch_name='quilt', seed=seed, half_mid_zgap=half_mid_zgap)
+        self.grid_patch(membrane, patch_name='quilt', seed=bs.get('seed', 27021972),
+                        half_mid_zgap=bs.get('half_mid_zgap', 1.0))
         self.do_psfgen(membrane, bilayer_name='quilt')
-        self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=quilt_protocol)
+        self.equilibrate_bilayer(membrane, bilayer_name='quilt',
+                                 relaxation_protocol=bs.get('relaxation_protocols', {}).get('quilt', {}))
+
+    def build_grid_membrane(self):
+        """Build a symmetric full-size membrane directly by grid placement, bypassing the
+        patch -> quilt tiling.  The box is sized from ``npatch`` x the patch size and the
+        corresponding number of lipids per leaflet is gridded directly."""
+        bs = self.bilayer_specs
+        patch_nlipids = bs.get('patch_nlipids', dict(upper=100, lower=100))
+        npatch = bs.get('npatch', [1, 1])
+        n_target = int(round(patch_nlipids['upper'] * npatch[0] * npatch[1]))
+        logger.debug(f'build_grid_membrane: {n_target} lipids per leaflet')
+        self._grid_membrane(dict(upper=n_target, lower=n_target), bs.get('SAPL', 75.0))
+
+    def build_grid_membrane_asymmetric(self):
+        """Build a stress-free asymmetric membrane directly by grid placement.
+
+        ``build_patch`` has already relaxed two symmetric calibration patches -- ``patchA``
+        (upper composition) and ``patchB`` (lower composition) -- and recorded their
+        equilibrium areas.  Each symmetric patch is tensionless by symmetry, so its
+        equilibrium area / lipid count gives the leaflet's preferred area-per-lipid (APL).
+        At a common box area both leaflets are tensionless when each is at its own preferred
+        APL, i.e. ``n_leaflet = box_area / APL_leaflet``.  We size the box from the requested
+        upper count and place ``n_upper`` and ``n_lower`` directly -> zero differential
+        stress by construction (to first order; a pressure-profile refinement can follow).
+        """
+        bs = self.bilayer_specs
+        patch_nlipids = bs.get('patch_nlipids', dict(upper=100, lower=100))
+        npatch = bs.get('npatch', [1, 1])
+        n_cal = patch_nlipids['upper']                        # per-leaflet count in patchA/patchB
+        apl_upper = self.patchA.area / n_cal
+        apl_lower = self.patchB.area / n_cal
+        n_upper = int(round(n_cal * npatch[0] * npatch[1]))   # requested upper count
+        n_lower = int(round(n_upper * apl_upper / apl_lower)) # stress-free count ratio
+        eq_area = n_upper * apl_upper                         # target equilibrium box area
+        # Grid at a box looser than equilibrium so the placement has no severe clashes;
+        # the NPT relaxation then shrinks it to eq_area, where each leaflet reaches its
+        # own preferred APL. The differential stress is fixed by the count RATIO, not the
+        # absolute initial area, so an over-loose start is harmless (and avoids the
+        # clash blow-up seen when gridding directly at the tight equilibrium APL).
+        box_SAPL = max(self.bilayer_specs.get('SAPL', 75.0), 1.15 * apl_upper, 1.15 * apl_lower)
+        logger.info(f'Calibrated preferred APL: upper {apl_upper:.2f}, lower {apl_lower:.2f} A^2 '
+                    f'(from relaxed symmetric patches)')
+        logger.info(f'Stress-free leaflet counts: upper {n_upper}, lower {n_lower} '
+                    f'(target equilibrium box area {eq_area:.0f} A^2); gridding at SAPL {box_SAPL:.1f}')
+        self._grid_membrane(dict(upper=n_upper, lower=n_lower), box_SAPL)
 
     def register_tops_streams_from_psfgen(self, filelist):
         self.register([CharmmffTopFileArtifact(x) for x in filelist if x.endswith('rtf')], key='charmmff_topfiles', artifact_type=CharmmffTopFileArtifacts)
