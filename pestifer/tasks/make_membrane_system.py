@@ -5,6 +5,7 @@ Definition of the :class:`MakeMembraneSystemTask` class for handling embedding p
 Usage is described in the :ref:`subs_buildtasks_make_membrane_system` documentation.
 """
 
+import copy
 import glob
 import logging
 import numpy as np
@@ -106,6 +107,17 @@ class MakeMembraneSystemTask(BaseTask):
                              solvent_to_key_lipid_ratio = solvent_to_lipid_ratio,
                              leaflet_nlipids = patch_nlipids,
                              charmmffcontent = self.charmmff_content)
+        # stash the construction kwargs so the grid packer can rebuild a Bilayer at the
+        # full target-box size (direct grid, no patch->quilt tiling). deepcopy the
+        # composition because the asymmetric branch below mutates it in place.
+        self._bilayer_kwargs = dict(
+            composition_dict=copy.deepcopy(composition_dict),
+            neutralizing_salt=neutralizing_salt,
+            salt_concentration=salt_con,
+            solvent_specstring=solvent_specstring,
+            solvent_ratio_specstring=solvent_ratio_specstring,
+            solvent_to_key_lipid_ratio=solvent_to_lipid_ratio,
+        )
         for spdb in self.patch.register_species_pdbs:
             self.register(spdb, key='species_pdb_for_packmol', artifact_type=PDBFileArtifact)
         logger.debug(f'Mature main composition dict:')
@@ -158,8 +170,16 @@ class MakeMembraneSystemTask(BaseTask):
         if self.embedding:
             self.orient_protein()
         if not self.using_prebuilt_bilayer:
-            self.build_patch()
-            self.make_quilt_from_patch()
+            packer = self.bilayer_specs.get('packer', 'packmol')
+            # grid placement can fill the whole box directly, so for a symmetric,
+            # non-embedding build we skip the patch->quilt tiling entirely. (Embedding,
+            # which sizes the box to the protein, and asymmetric builds still use the
+            # patch->quilt path for now.)
+            if packer == 'grid' and self.patch is not None and not self.embedding:
+                self.build_grid_membrane()
+            else:
+                self.build_patch()
+                self.make_quilt_from_patch()
         if self.embedding:
             self.embed_protein()
         else:
@@ -247,6 +267,42 @@ class MakeMembraneSystemTask(BaseTask):
                                 nloop=nloop)
             self.do_psfgen(patch, bilayer_name=f'patch{specbyte}')
             self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=relaxation_protocol)
+
+    def build_grid_membrane(self):
+        """Build the full-size membrane directly by grid placement, bypassing the
+        patch -> quilt tiling.
+
+        Because the grid placer can fill any box in one shot, there is no need to pack a
+        small patch and replicate it.  The target box is sized from ``npatch`` x the patch
+        size (or an explicit ``dims``), the corresponding number of lipids per leaflet is
+        gridded directly, and the result is registered as ``quilt_state`` and relaxed with
+        the quilt relaxation protocol -- the same downstream the tiled quilt would produce,
+        minus the redundant re-segmentation and tiling artifacts.
+        """
+        bs = self.bilayer_specs
+        SAPL = bs.get('SAPL', 75.0)
+        xy_aspect_ratio = bs.get('xy_aspect_ratio', 1.0)
+        rotation_pm = bs.get('rotation_pm', 10.0)
+        solution_gcc = bs.get('solution_gcc', 1.0)
+        half_mid_zgap = bs.get('half_mid_zgap', 1.0)
+        seed = bs.get('seed', 27021972)
+        patch_nlipids = bs.get('patch_nlipids', dict(upper=100, lower=100))
+        npatch = bs.get('npatch', [1, 1])
+        quilt_protocol = bs.get('relaxation_protocols', {}).get('quilt', {})
+        n_target = int(round(patch_nlipids['upper'] * npatch[0] * npatch[1]))
+        logger.debug(f'build_grid_membrane: {n_target} lipids per leaflet '
+                     f'(patch {patch_nlipids["upper"]} x npatch {npatch[0]}x{npatch[1]})')
+        membrane = Bilayer(leaflet_nlipids=dict(upper=n_target, lower=n_target),
+                           charmmffcontent=self.charmmff_content, **self._bilayer_kwargs)
+        membrane.spec_out(SAPL=SAPL, xy_aspect_ratio=xy_aspect_ratio,
+                          rotation_pm=rotation_pm, solution_gcc=solution_gcc,
+                          half_mid_zgap=half_mid_zgap)
+        self.quilt = membrane
+        for spdb in membrane.register_species_pdbs:
+            self.register(spdb, key='species_pdb_for_packmol', artifact_type=PDBFileArtifact)
+        self.grid_patch(membrane, patch_name='quilt', seed=seed, half_mid_zgap=half_mid_zgap)
+        self.do_psfgen(membrane, bilayer_name='quilt')
+        self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=quilt_protocol)
 
     def register_tops_streams_from_psfgen(self, filelist):
         self.register([CharmmffTopFileArtifact(x) for x in filelist if x.endswith('rtf')], key='charmmff_topfiles', artifact_type=CharmmffTopFileArtifacts)
