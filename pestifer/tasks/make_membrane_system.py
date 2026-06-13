@@ -171,16 +171,14 @@ class MakeMembraneSystemTask(BaseTask):
             self.orient_protein()
         if not self.using_prebuilt_bilayer:
             packer = self.bilayer_specs.get('packer', 'packmol')
-            # grid placement can fill the whole box directly, retiring the patch->quilt
-            # tiling. (Embedding, which sizes the box to the protein, still uses the
-            # patch->quilt path for now.)
-            if packer == 'grid' and not self.embedding:
+            # grid placement fills the whole box directly, retiring the patch->quilt
+            # tiling: symmetric builds grid the box (sized to the protein when embedding);
+            # asymmetric non-embedding builds calibrate then grid at stress-free counts.
+            # (Asymmetric + embedding still uses the patch->quilt path for now.)
+            if packer == 'grid' and (self.patch is not None or not self.embedding):
                 if self.patch is not None:
-                    # symmetric: grid the full membrane directly
                     self.build_grid_membrane()
                 else:
-                    # asymmetric: relax the two symmetric patches as calibration cells,
-                    # then grid the membrane at stress-free per-leaflet counts
                     self.build_patch()
                     self.build_grid_membrane_asymmetric()
             else:
@@ -274,19 +272,23 @@ class MakeMembraneSystemTask(BaseTask):
             self.do_psfgen(patch, bilayer_name=f'patch{specbyte}')
             self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=relaxation_protocol)
 
-    def _grid_membrane(self, leaflet_nlipids, box_SAPL):
+    def _grid_membrane(self, leaflet_nlipids, box_SAPL, aspect=None):
         """Grid, build, and relax a full-size membrane with the given per-leaflet counts.
 
         ``box_SAPL`` sizes the box: :meth:`Bilayer.spec_out` sets the lateral area to
         ``box_SAPL * leaflet_nlipids['upper']``.  Pass the upper leaflet's preferred APL as
         ``box_SAPL`` so that area is the stress-free box area for the requested upper count;
         the lower leaflet's (separately chosen) count then sits at its own preferred APL.
-        The result is registered as ``quilt_state`` and relaxed with the quilt protocol.
+        ``aspect`` (Ly/Lx) defaults to the configured ``xy_aspect_ratio``; pass an explicit
+        value to match a non-square target box (e.g. a protein footprint).  The result is
+        registered as ``quilt_state`` and relaxed with the quilt protocol.
         """
         bs = self.bilayer_specs
+        if aspect is None:
+            aspect = bs.get('xy_aspect_ratio', 1.0)
         membrane = Bilayer(leaflet_nlipids=leaflet_nlipids,
                            charmmffcontent=self.charmmff_content, **self._bilayer_kwargs)
-        membrane.spec_out(SAPL=box_SAPL, xy_aspect_ratio=bs.get('xy_aspect_ratio', 1.0),
+        membrane.spec_out(SAPL=box_SAPL, xy_aspect_ratio=aspect,
                           rotation_pm=bs.get('rotation_pm', 10.0),
                           solution_gcc=bs.get('solution_gcc', 1.0),
                           half_mid_zgap=bs.get('half_mid_zgap', 1.0))
@@ -299,16 +301,42 @@ class MakeMembraneSystemTask(BaseTask):
         self.equilibrate_bilayer(membrane, bilayer_name='quilt',
                                  relaxation_protocol=bs.get('relaxation_protocols', {}).get('quilt', {}))
 
+    def _protein_box_dims(self):
+        """Lateral (Lx, Ly) the gridded membrane must span to embed the oriented protein:
+        the protein's xy extent plus ``embed.xydist`` margin on each side (the same sizing
+        the quilt uses, but applied directly so no patch tiling is needed)."""
+        margin = self.embed_specs.get('xydist', 10.0)
+        state: StateArtifacts = self.get_current_artifact('state')
+        xs, ys = [], []
+        with open(state.pdb.name) as fh:
+            for ln in fh:
+                if ln.startswith(('ATOM', 'HETATM')):
+                    xs.append(float(ln[30:38]))
+                    ys.append(float(ln[38:46]))
+        pro_Lx, pro_Ly = max(xs) - min(xs), max(ys) - min(ys)
+        Lx, Ly = pro_Lx + 2 * margin, pro_Ly + 2 * margin
+        logger.info(f'Sizing gridded membrane to protein {pro_Lx:.1f} x {pro_Ly:.1f} A '
+                    f'+ {margin} A margin -> box {Lx:.1f} x {Ly:.1f} A')
+        return Lx, Ly
+
     def build_grid_membrane(self):
         """Build a symmetric full-size membrane directly by grid placement, bypassing the
-        patch -> quilt tiling.  The box is sized from ``npatch`` x the patch size and the
+        patch -> quilt tiling.  When embedding a protein the box is sized to the protein
+        footprint + margin; otherwise it is sized from ``npatch`` x the patch size.  The
         corresponding number of lipids per leaflet is gridded directly."""
         bs = self.bilayer_specs
-        patch_nlipids = bs.get('patch_nlipids', dict(upper=100, lower=100))
-        npatch = bs.get('npatch', [1, 1])
-        n_target = int(round(patch_nlipids['upper'] * npatch[0] * npatch[1]))
-        logger.debug(f'build_grid_membrane: {n_target} lipids per leaflet')
-        self._grid_membrane(dict(upper=n_target, lower=n_target), bs.get('SAPL', 75.0))
+        SAPL = bs.get('SAPL', 75.0)
+        if self.embedding:
+            Lx, Ly = self._protein_box_dims()
+            n_target = int(round(Lx * Ly / SAPL))
+            aspect = Ly / Lx
+        else:
+            patch_nlipids = bs.get('patch_nlipids', dict(upper=100, lower=100))
+            npatch = bs.get('npatch', [1, 1])
+            n_target = int(round(patch_nlipids['upper'] * npatch[0] * npatch[1]))
+            aspect = bs.get('xy_aspect_ratio', 1.0)
+        logger.debug(f'build_grid_membrane: {n_target} lipids per leaflet (aspect {aspect:.2f})')
+        self._grid_membrane(dict(upper=n_target, lower=n_target), SAPL, aspect)
 
     def build_grid_membrane_asymmetric(self):
         """Build a stress-free asymmetric membrane directly by grid placement.
