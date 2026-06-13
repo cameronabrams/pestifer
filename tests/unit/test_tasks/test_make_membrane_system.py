@@ -3,6 +3,9 @@ import os
 import shutil
 import unittest
 
+import numpy as np
+import pandas as pd
+
 from pestifer.core.artifacts import DataArtifact, StateArtifacts
 from pestifer.core.config import Config
 from pestifer.core.controller import Controller
@@ -10,10 +13,53 @@ from pestifer.core.controller import Controller
 from pestifer.scripters import PsfgenScripter
 
 from pestifer.scripters.vmd import VMDScripter
-from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
+from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask, _AREA_CONVERGENCE_TOL
 
 from pestifer.tasks.validate import ValidateTask
 from pestifer.util.util import protect_str_arg
+
+class _StubMDPlot:
+    """Minimal stand-in for the trailing mdplot task: just carries a ``dataframes`` dict."""
+    def __init__(self, xst=None):
+        self.dataframes = {} if xst is None else {'xst': xst}
+
+
+def _xst_from_area(area):
+    """Build an xst-style dataframe whose a_x*b_y equals the given area trajectory."""
+    area = np.asarray(area, dtype=float)
+    return pd.DataFrame({'a_x': area, 'b_y': np.ones_like(area)})
+
+
+class TestAreaConvergence(unittest.TestCase):
+    """Unit tests for the calibration-cell area-convergence guard (no NAMD required)."""
+
+    # _area_convergence does not touch self, so an unbound call with None is fine
+    _check = staticmethod(lambda task, name: MakeMembraneSystemTask._area_convergence(None, task, name))
+
+    def test_plateaued_area_is_converged(self):
+        # a flat tail (already equilibrated) -> drift well under tolerance
+        area = np.concatenate([np.linspace(8000, 6000, 60), np.full(60, 6000.0)])
+        drift = self._check(_StubMDPlot(_xst_from_area(area)), 'flat')
+        self.assertIsNotNone(drift)
+        self.assertLess(abs(drift), _AREA_CONVERGENCE_TOL)
+
+    def test_still_shrinking_area_flagged(self):
+        # area decreasing monotonically right to the end -> drift exceeds tolerance, negative
+        area = np.linspace(7000, 6000, 120)
+        drift = self._check(_StubMDPlot(_xst_from_area(area)), 'shrinking')
+        self.assertIsNotNone(drift)
+        self.assertGreater(abs(drift), _AREA_CONVERGENCE_TOL)
+        self.assertLess(drift, 0.0)
+
+    def test_missing_trajectory_returns_none(self):
+        self.assertIsNone(self._check(_StubMDPlot(None), 'nodata'))
+        self.assertIsNone(self._check(None, 'notask'))
+
+    def test_too_short_trajectory_returns_none(self):
+        # only 10 frames -> tail of 5 < 8, cannot judge
+        drift = self._check(_StubMDPlot(_xst_from_area(np.linspace(7000, 6000, 10))), 'short')
+        self.assertIsNone(drift)
+
 
 class TestMakeMembraneSystem(unittest.TestCase):
     

@@ -31,6 +31,13 @@ from ..util.units import _UNITS_
 
 sA2_ = _UNITS_['SQUARE-ANGSTROMS']
 
+# Fractional lateral-area drift over the final half of a bilayer relaxation above which
+# the cell is flagged as not yet equilibrated.  An unconverged calibration cell yields an
+# untrustworthy preferred area-per-lipid, which in turn corrupts the stress-free leaflet
+# counts of an asymmetric build (the failure mode where an under-relaxed cholesterol
+# leaflet fails to condense and its APL comes out spuriously close to a pure-PC leaflet).
+_AREA_CONVERGENCE_TOL = 0.005
+
 logger = logging.getLogger(__name__)
 
 class MakeMembraneSystemTask(BaseTask):
@@ -356,6 +363,18 @@ class MakeMembraneSystemTask(BaseTask):
         n_cal = patch_nlipids['upper']                        # per-leaflet count in patchA/patchB
         apl_upper = self.patchA.area / n_cal
         apl_lower = self.patchB.area / n_cal
+        # the stress-free counts are only as trustworthy as the calibrated APLs: if either
+        # calibration cell had not equilibrated, warn that the resulting membrane may carry
+        # residual differential stress (the classic symptom is two leaflets of different
+        # composition reporting near-equal APLs because one under-condensed)
+        for patch, lname in ((self.patchA, 'upper'), (self.patchB, 'lower')):
+            drift = getattr(patch, 'area_drift', None)
+            if drift is not None and abs(drift) > _AREA_CONVERGENCE_TOL:
+                logger.warning(
+                    f'Calibration cell for the {lname} leaflet had not equilibrated '
+                    f'(area drift {100 * drift:+.2f}%); its preferred APL '
+                    f'({patch.area / n_cal:.2f} {sA2_}) and the resulting stress-free leaflet '
+                    f'counts may be unreliable. Lengthen bilayer.relaxation_protocols.patch.')
         n_upper = int(round(n_cal * npatch[0] * npatch[1]))   # requested upper count
         n_lower = int(round(n_upper * apl_upper / apl_lower)) # stress-free count ratio
         eq_area = n_upper * apl_upper                         # target equilibrium box area
@@ -491,6 +510,32 @@ class MakeMembraneSystemTask(BaseTask):
         logger.debug(f'grid_patch: built {output_pdb} for {patch_name}')
         return 0
 
+    def _area_convergence(self, mdplot_task, name: str):
+        """Estimate whether a just-relaxed bilayer's lateral area has plateaued.
+
+        Reads the cell-vector trajectory (``a_x``, ``b_y`` over all relaxation stages)
+        that the trailing mdplot task has already parsed and concatenated, and compares
+        the mean area over the final quarter of the run to the mean over the preceding
+        quarter.  A large systematic change means the area -- and any preferred APL
+        calibrated from it -- has not yet converged.  Returns the signed fractional drift
+        (second-half minus first-half of the trajectory tail, divided by the mean), or
+        ``None`` if the trajectory is unavailable or too short to judge."""
+        xst = getattr(mdplot_task, 'dataframes', {}).get('xst')
+        if xst is None or not {'a_x', 'b_y'}.issubset(xst.columns):
+            logger.debug(f'{name}: no cell-vector trajectory; skipping area-convergence check')
+            return None
+        area = xst['a_x'].to_numpy() * xst['b_y'].to_numpy()
+        # restrict to the final half: skips the initial condensation transient and the
+        # short early stages, leaving the long equilibrium-sampling tail
+        tail = area[len(area) // 2:]
+        if tail.size < 8:
+            logger.debug(f'{name}: only {tail.size} cell-vector frames in tail; '
+                         'skipping area-convergence check')
+            return None
+        h = tail.size // 2
+        m1, m2 = tail[:h].mean(), tail[h:].mean()
+        return float((m2 - m1) / m1)
+
     def equilibrate_bilayer(self, bilayer: Bilayer, bilayer_name: str, relaxation_protocol: list[dict] = None):
         """
         Equilibrates the bilayer patch using the specified user dictionary and relaxation protocol.
@@ -581,6 +626,19 @@ class MakeMembraneSystemTask(BaseTask):
         bilayer.box, bilayer.origin = cell_from_xsc(bilayer_state.xsc.name)
         bilayer.area = bilayer.box[0][0] * bilayer.box[1][1]
         logger.debug(f'{self.basename} area after equilibration: {bilayer.area:.3f} {sA2_}')
+        # flag (and record on the bilayer) whether its area actually equilibrated, so an
+        # asymmetric build can tell whether the preferred APLs it calibrates are trustworthy
+        bilayer.area_drift = self._area_convergence(last_task, bilayer_name)
+        if bilayer.area_drift is not None:
+            pct = 100.0 * bilayer.area_drift
+            if abs(bilayer.area_drift) > _AREA_CONVERGENCE_TOL:
+                logger.warning(
+                    f'{bilayer_name} lateral area still drifting {pct:+.2f}% over the final '
+                    f'half of relaxation (tolerance {100 * _AREA_CONVERGENCE_TOL:.1f}%); its '
+                    f'equilibrium area may be unconverged. Consider lengthening the '
+                    f'relaxation protocol.')
+            else:
+                logger.debug(f'{bilayer_name} area converged (final-half drift {pct:+.2f}%)')
 
     def make_quilt_from_patch(self):
         """
