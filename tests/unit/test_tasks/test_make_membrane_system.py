@@ -544,3 +544,81 @@ class TestMakeMembraneSystem(unittest.TestCase):
         os.chdir('..')
         assert result[0]['result'] == 0
 
+    @pytest.mark.slow
+    def test_makemembranesystem_5e8w_grid_asymmetric_embed(self):
+        # asymmetric (PSM/CHL1 over POPE/CHL1) bilayer embedded around the 5e8w fragment,
+        # built with the packmol-free grid packer: calibrate two symmetric patches, size the
+        # box to the protein, grid at stress-free per-leaflet counts, stage the relaxation,
+        # then embed. Exercises the asymmetric + embedding grid path end to end.
+        test_dir = '__test_makemembranesystem_5e8w_grid_asymmetric_embed'
+        if os.path.exists(test_dir):
+            shutil.rmtree(test_dir)
+        os.mkdir(test_dir)
+        os.chdir(test_dir)
+        psf = '5e8w-proteinonly.psf'
+        pdb = '5e8w-proteinonly.pdb'
+        task_list = [
+            {'continuation': {'psf': psf, 'pdb': pdb}},
+            {'make_membrane_system': {
+                'bilayer': {
+                    'packer': 'grid',
+                    'SAPL': 70.0,
+                    'patch_nlipids': {'upper': 36, 'lower': 36},
+                    'composition': {
+                        'upper_leaflet': [
+                            {'name': 'PSM', 'frac': 0.5},
+                            {'name': 'CHL1', 'frac': 0.5}
+                        ],
+                        'lower_leaflet': [
+                            {'name': 'POPE', 'frac': 0.5},
+                            {'name': 'CHL1', 'frac': 0.5}
+                        ]
+                    },
+                    'relaxation_protocols': {
+                        'patch': self.common_patch_relaxation_protocols,
+                        'quilt': self.common_quilt_relaxation_protocols
+                    }
+                },
+                'embed': {
+                    'z_head_group': 'protein and resid 667',
+                    'z_tail_group': 'protein and resid 710',
+                    'z_ref_group': {
+                        'text': 'protein and resid 696',
+                        'z_value': 0.0,
+                        'z_dist': 10.0
+                    }
+                }
+            }},
+            {'validate': {
+                'tests': [
+                    {'residue_test': {
+                        'name': 'Count of PSM residues', 'selection': 'resname PSM',
+                        'measure': 'residue_count', 'relation': '<=', 'value': 200}},
+                    {'residue_test': {
+                        'name': 'Count of POPE residues', 'selection': 'resname POPE',
+                        'measure': 'residue_count', 'relation': '<=', 'value': 200}},
+                    {'residue_test': {
+                        'name': 'Count of CHL1 residues', 'selection': 'resname CHL1',
+                        'measure': 'residue_count', 'relation': '<=', 'value': 400}},
+                    {'residue_test': {
+                        'name': 'Test of protein presence', 'selection': 'protein',
+                        'measure': 'residue_count', 'relation': '>=', 'value': 1}}
+                ]
+            }}
+        ]
+        input_data_dir = '../../fixtures/embed_inputs'
+        for ftype in [psf, pdb]:
+            shutil.copy(os.path.join(input_data_dir, ftype), '.')
+        self.controller.reconfigure_tasks(task_list)
+        result = self.controller.do_tasks()
+        task = self.controller.tasks[1]
+        validation = self.controller.tasks[2]
+        state: StateArtifacts = task.get_current_artifact('state')
+        self.assertTrue(state is not None)
+        self.assertTrue(state.pdb.exists())
+        self.assertTrue(state.psf.exists())
+        validation_results = validation.get_current_artifact('validation_results')
+        self.assertEqual(validation_results.data['nfail'], 0)
+        os.chdir('..')
+        assert result[0]['result'] == 0
+
