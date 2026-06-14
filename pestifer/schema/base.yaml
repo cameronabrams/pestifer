@@ -1014,6 +1014,35 @@ attributes:
                 text: frequency of pressure profile output, in time steps (pressureProfileFreq)
                 type: int
                 default: 100
+          - name: diagnose_differential_stress
+            text: >-
+              After assembling a stress-free asymmetric membrane, run a short tensionless
+              pressure-profile pass and report the residual per-leaflet surface tensions,
+              their difference (the differential stress), and the leaflet-count adjustment
+              that would null it. Diagnostic only; the membrane is not rebuilt. Requires a
+              CPU (non-CUDA) NAMD build.
+            type: dict
+            attributes:
+              - name: enabled
+                text: turn on the differential-stress diagnostic for asymmetric builds
+                type: bool
+                default: False
+              - name: nsteps
+                text: number of MD steps in the tensionless pressure-profile pass
+                type: int
+                default: 100000
+              - name: slabs
+                text: number of z-slabs for the pressure profile (pressureProfileSlabs)
+                type: int
+                default: 40
+              - name: freq
+                text: steps between pressure-profile samples (pressureProfileFreq)
+                type: int
+                default: 500
+              - name: area_modulus
+                text: assumed per-leaflet area-compressibility modulus K_A (mN/m), used to convert the residual differential stress into a suggested leaflet-count change
+                type: float
+                default: 250.0
           - name: bilayer
             text: Parameters controlling bilayer generation
             type: dict

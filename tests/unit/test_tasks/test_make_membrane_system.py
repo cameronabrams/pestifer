@@ -13,7 +13,8 @@ from pestifer.core.controller import Controller
 from pestifer.scripters import PsfgenScripter
 
 from pestifer.scripters.vmd import VMDScripter
-from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask, _AREA_CONVERGENCE_TOL
+from pestifer.tasks.make_membrane_system import (
+    MakeMembraneSystemTask, _AREA_CONVERGENCE_TOL, _per_leaflet_tension)
 
 from pestifer.tasks.validate import ValidateTask
 from pestifer.util.util import protect_str_arg
@@ -59,6 +60,61 @@ class TestAreaConvergence(unittest.TestCase):
         # only 10 frames -> tail of 5 < 8, cannot judge
         drift = self._check(_StubMDPlot(_xst_from_area(np.linspace(7000, 6000, 10))), 'short')
         self.assertIsNone(drift)
+
+
+def _pp_df_from_dp(dp, nframes=4, c_z_unused=None):
+    """Build a pressureprofile-style dataframe whose Pzz-(Pxx+Pyy)/2 equals dp per slab.
+
+    Pxx=Pyy=0, Pzz=dp, repeated over nframes dynamics frames plus a junk TS=0 frame
+    (which the parser must discard)."""
+    nslabs = len(dp)
+    cols = {'TS': [0] + [1000 * (k + 1) for k in range(nframes)]}
+    for i in range(nslabs):
+        cols[f'x_{i}'] = [0.0] * (nframes + 1)
+        cols[f'y_{i}'] = [0.0] * (nframes + 1)
+        # TS=0 frame gets a wildly wrong value to prove it is dropped
+        cols[f'z_{i}'] = [1e6] + [float(dp[i])] * nframes
+    return pd.DataFrame(cols)
+
+
+class TestPerLeafletTension(unittest.TestCase):
+    """Unit tests for the differential-stress (per-leaflet tension) parser (no NAMD)."""
+
+    def test_symmetric_profile_zero_dgamma(self):
+        # profile symmetric about the midplane -> upper and lower tensions equal
+        nslabs = 40
+        idx = np.arange(nslabs)
+        dp = (idx - (nslabs - 1) / 2.0) ** 2          # symmetric about the central boundary
+        res = _per_leaflet_tension(_pp_df_from_dp(dp), c_z=80.0)
+        self.assertIsNotNone(res)
+        self.assertEqual(res['nslabs'], nslabs)
+        self.assertAlmostEqual(res['upper'], res['lower'], places=6)
+        self.assertAlmostEqual(res['dgamma'], 0.0, places=6)
+
+    def test_asymmetric_profile_signed_dgamma(self):
+        # make the upper half more tensile than the lower -> nonzero, positive dgamma
+        nslabs = 40
+        dp = np.ones(nslabs)
+        dp[nslabs // 2:] *= 3.0
+        res = _per_leaflet_tension(_pp_df_from_dp(dp), c_z=80.0)
+        self.assertIsNotNone(res)
+        self.assertGreater(res['dgamma'], 0.0)
+        # quantitative: gamma = 0.01 * dp * dz, dz = 80/40 = 2
+        dz = 80.0 / nslabs
+        self.assertAlmostEqual(res['lower'], 0.01 * (nslabs // 2) * 1.0 * dz, places=6)
+        self.assertAlmostEqual(res['upper'], 0.01 * (nslabs // 2) * 3.0 * dz, places=6)
+
+    def test_drops_pre_dynamics_frame(self):
+        # the TS=0 frame holds 1e6; if it were not dropped the tensions would explode
+        dp = np.ones(20)
+        res = _per_leaflet_tension(_pp_df_from_dp(dp, nframes=6), c_z=60.0)
+        self.assertIsNotNone(res)
+        self.assertLess(abs(res['total']), 10.0)      # sane magnitude, not ~1e6
+
+    def test_degenerate_inputs_return_none(self):
+        self.assertIsNone(_per_leaflet_tension(None, c_z=80.0))
+        self.assertIsNone(_per_leaflet_tension(pd.DataFrame(), c_z=80.0))
+        self.assertIsNone(_per_leaflet_tension(pd.DataFrame({'TS': [1000]}), c_z=80.0))
 
 
 class TestMakeMembraneSystem(unittest.TestCase):

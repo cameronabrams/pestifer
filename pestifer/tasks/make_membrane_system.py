@@ -38,7 +38,53 @@ sA2_ = _UNITS_['SQUARE-ANGSTROMS']
 # leaflet fails to condense and its APL comes out spuriously close to a pure-PC leaflet).
 _AREA_CONVERGENCE_TOL = 0.005
 
+# Assumed per-leaflet area-compressibility modulus K_A (mN/m), used only to translate a
+# measured residual differential stress into a suggested leaflet-count adjustment.  A
+# representative value for fluid lipid monolayers; the suggestion is a guide, not a fit.
+_DEFAULT_AREA_MODULUS = 250.0
+
 logger = logging.getLogger(__name__)
+
+
+def _per_leaflet_tension(pp_df, c_z, midplane_slab=None):
+    """Per-leaflet surface tension from a NAMD total pressure-profile trajectory.
+
+    ``pp_df`` is the ``pressureprofile`` dataframe produced by the NAMD log parser: a row
+    per output step with columns ``x_<i>``, ``y_<i>``, ``z_<i>`` giving the lateral/normal
+    pressure components (bar) of z-slab ``i`` (slab 0 lowest).  The kinetic contribution is
+    isotropic on average and cancels in ``Pzz - (Pxx+Pyy)/2``, so the total profile suffices.
+
+    The trajectory's second half is averaged (discarding equilibration).  The bilayer is
+    assumed centred in the cell, so the midplane is the central slab unless ``midplane_slab``
+    is given.  Per-slab tension ``gamma = 0.01 * [Pzz - (Pxx+Pyy)/2] * dz`` (mN/m, with
+    ``dz`` in A); leaflet tensions are the slab sums below/above the midplane.
+
+    Returns ``dict(total, lower, upper, dgamma, nslabs, nframes)`` (tensions in mN/m,
+    ``dgamma = upper - lower``), or ``None`` if the profile is unavailable/degenerate."""
+    if pp_df is None or len(pp_df) == 0:
+        return None
+    nslabs = sum(1 for col in pp_df.columns if str(col).startswith('z_'))
+    if nslabs == 0:
+        return None
+    frames = pp_df
+    if 'TS' in pp_df.columns:                       # drop the step-0 (pre-dynamics) frame
+        frames = pp_df[pp_df['TS'] > 0]
+    if len(frames) == 0:
+        return None
+    frames = frames.iloc[len(frames) // 2:]         # average the equilibrated second half
+    if len(frames) == 0:
+        return None
+    pxx = np.array([frames[f'x_{i}'].mean() for i in range(nslabs)])
+    pyy = np.array([frames[f'y_{i}'].mean() for i in range(nslabs)])
+    pzz = np.array([frames[f'z_{i}'].mean() for i in range(nslabs)])
+    dz = float(c_z) / nslabs
+    gamma_slab = 0.01 * (pzz - 0.5 * (pxx + pyy)) * dz   # mN/m per slab
+    if midplane_slab is None:
+        midplane_slab = nslabs // 2
+    lower = float(gamma_slab[:midplane_slab].sum())
+    upper = float(gamma_slab[midplane_slab:].sum())
+    return dict(total=float(gamma_slab.sum()), lower=lower, upper=upper,
+                dgamma=upper - lower, nslabs=nslabs, nframes=int(len(frames)))
 
 class MakeMembraneSystemTask(BaseTask):
     """ 
@@ -389,6 +435,74 @@ class MakeMembraneSystemTask(BaseTask):
         logger.info(f'Stress-free leaflet counts: upper {n_upper}, lower {n_lower} '
                     f'(target equilibrium box area {eq_area:.0f} A^2); gridding at SAPL {box_SAPL:.1f}')
         self._grid_membrane(dict(upper=n_upper, lower=n_lower), box_SAPL)
+        diag_specs = self.specs.get('diagnose_differential_stress', {})
+        if diag_specs.get('enabled', False):
+            self.diagnose_differential_stress(self.quilt, n_upper, n_lower, diag_specs)
+
+    def diagnose_differential_stress(self, membrane: Bilayer, n_upper: int, n_lower: int, diag_specs: dict):
+        """Measure and report the residual differential stress of an assembled asymmetric
+        membrane.  Diagnostic only -- the membrane is *not* rebuilt.
+
+        Runs a short tensionless (NPgammaT) pressure-profile pass continuing from the
+        relaxed membrane, splits the per-slab lateral pressure at the midplane into
+        per-leaflet surface tensions (gamma_upper, gamma_lower), and reports their
+        difference Dgamma along with the number of lipids that would have to move between
+        leaflets to null it (estimated from an assumed area-compressibility modulus).
+        Requires a CPU NAMD build (pressureProfile is unsupported on CUDA NAMD)."""
+        if self.provisions['processor-type'] == 'gpu':
+            logger.warning('diagnose_differential_stress is enabled but processor-type is '
+                           '"gpu"; CUDA-enabled NAMD does not support pressureProfile. '
+                           'Skipping the differential-stress diagnostic.')
+            return
+        nsteps = int(diag_specs.get('nsteps', 100000))
+        slabs = int(diag_specs.get('slabs', 40))
+        freq = int(diag_specs.get('freq', 500))
+        K_A = float(diag_specs.get('area_modulus', _DEFAULT_AREA_MODULUS))
+        logger.info(f'Differential-stress diagnostic: tensionless pressure-profile pass '
+                    f'({nsteps} steps, {slabs} slabs)')
+        # The diagnostic continues from the relaxed membrane's PDB (3-decimal precision)
+        # with fresh velocities, so a short minimize first reconditions the coordinates;
+        # going straight to NPT dynamics off the PDB triggers RATTLE blow-ups.  Pin xstfreq
+        # to the profile frequency so the cell-vector and pressure-profile samples share
+        # timesteps (mdplot merges them by matching TS).
+        pp_protocol = [
+            {'md': dict(ensemble='minimize', nsteps=500)},
+            {'md': dict(ensemble='NPT', nsteps=nsteps, xstfreq=freq,
+                        other_parameters=dict(pressureProfile=True,
+                                              pressureProfileSlabs=slabs,
+                                              pressureProfileFreq=freq,
+                                              surfaceTensionTarget=0.0))}]
+        self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=pp_protocol)
+        mdplot_task = self.subcontroller.tasks[-1]
+        pp_df = getattr(mdplot_task, 'dataframes', {}).get('pressureprofile')
+        # final cell depth is a good approximation of dz*nslabs for the averaged tail
+        c_z = membrane.box[2][2]
+        res = _per_leaflet_tension(pp_df, c_z)
+        if res is None:
+            logger.warning('Differential-stress diagnostic: no usable pressure profile was '
+                           'produced; cannot report per-leaflet tensions.')
+            return
+        membrane.dgamma = res['dgamma']
+        logger.info(f'Differential stress (averaged over {res["nframes"]} frames, '
+                    f'{res["nslabs"]} slabs):')
+        logger.info(f'  gamma_upper          = {res["upper"]:+.3f} mN/m')
+        logger.info(f'  gamma_lower          = {res["lower"]:+.3f} mN/m')
+        logger.info(f'  gamma_total          = {res["total"]:+.3f} mN/m '
+                    f'(sanity: ~0 for a tensionless run)')
+        logger.info(f'  Dgamma (upper-lower) = {res["dgamma"]:+.3f} mN/m '
+                    f'(target ~0 for a stress-free membrane)')
+        # gamma_leaflet ~ K_A*(A/A0 - 1); moving dm lipids from upper to lower changes
+        # Dgamma by K_A*dm*(1/n_upper + 1/n_lower), so dm = -Dgamma / [K_A*(...)]
+        denom = K_A * (1.0 / n_upper + 1.0 / n_lower)
+        dm = -res['dgamma'] / denom if denom else 0.0
+        if abs(dm) < 0.5:
+            logger.info(f'  Leaflet counts look balanced (suggested move < 1 lipid, '
+                        f'assuming K_A = {K_A:.0f} mN/m).')
+        else:
+            src, dst = ('upper', 'lower') if dm > 0 else ('lower', 'upper')
+            logger.info(f'  To reduce Dgamma, move ~{abs(dm):.1f} lipid(s) from the {src} '
+                        f'to the {dst} leaflet (assuming K_A = {K_A:.0f} mN/m): rebuild with '
+                        f'n_{src} lowered and n_{dst} raised by that count.')
 
     def register_tops_streams_from_psfgen(self, filelist):
         self.register([CharmmffTopFileArtifact(x) for x in filelist if x.endswith('rtf')], key='charmmff_topfiles', artifact_type=CharmmffTopFileArtifacts)
@@ -571,7 +685,12 @@ class MakeMembraneSystemTask(BaseTask):
             logger.debug(f'Using user-specified relaxation protocol:')
             my_logger(relaxation_protocol, logger.debug)
         pp_specs = self.specs.get('compute_pressure_profile', {})
-        pp_requested = bool(pp_specs.get('enabled', False))
+        # pressure profiling is requested either globally (compute_pressure_profile) or
+        # for an individual stage (e.g. the differential-stress diagnostic pass, which sets
+        # pressureProfile directly in that stage's other_parameters)
+        pp_in_protocol = any(stage.get('md', {}).get('other_parameters', {}).get('pressureProfile')
+                             for stage in relaxation_protocol)
+        pp_requested = bool(pp_specs.get('enabled', False)) or pp_in_protocol
         is_gpu = self.provisions['processor-type'] == 'gpu'
         if pp_requested and is_gpu:
             raise PestiferBuildError(
