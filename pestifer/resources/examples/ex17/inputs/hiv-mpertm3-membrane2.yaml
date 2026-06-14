@@ -4,15 +4,20 @@
 #
 # Membrane-embedded build of HIV-1 gp41 MPER-TM trimer (6e8w)
 #
-# NOTE: This example uses NAMD's on-the-fly pressureProfile calculation in the
-# post-equilibration NPAT stage and in the packaged production run. CUDA-enabled
-# (GPU) NAMD does not support pressureProfile, so this example must be run with
-# a CPU NAMD build. Remove the `pressureProfile*` keys from the relevant
-# `other_parameters` blocks (or omit `--gpu`) to use a GPU build.
+# The asymmetric viral bilayer is built with the grid packer (bilayer.packer:
+# grid): two symmetric calibration patches (one per leaflet composition) are
+# relaxed to measure each leaflet's preferred area-per-lipid, then the membrane
+# is gridded directly at stress-free per-leaflet counts and sized to the protein
+# footprint -- no packmol required. The differential-stress diagnostic then
+# reports the residual per-leaflet surface tensions of the assembled membrane.
 #
-title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in model viral bilayer
-paths:
-  packmol: /usr/local/bin/packmol
+# NOTE: This example uses NAMD's on-the-fly pressureProfile calculation in the
+# differential-stress diagnostic, the post-equilibration NPAT stage, and the
+# packaged production run. CUDA-enabled (GPU) NAMD does not support
+# pressureProfile, so this example must be run with a CPU NAMD build. Remove the
+# `pressureProfile*` keys (and diagnose_differential_stress) to use a GPU build.
+#
+title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in model viral bilayer (grid packer)
 tasks:
   - fetch:
       sourceID: 6e8w
@@ -23,7 +28,13 @@ tasks:
       cpu-override: True
       ensemble: minimize
   - make_membrane_system:
+      diagnose_differential_stress:
+        enabled: true
+        nsteps: 50000
+        slabs: 40
+        freq: 500
       bilayer:
+        packer: grid
         SAPL: 60.0
         salt_con: 0.154
         half_mid_zgap: 0.0
@@ -47,9 +58,11 @@ tasks:
             - name: CHL1
               frac: 0.47
         seed: 270272
-        nloop: 100
-        nloop_all: 100
         relaxation_protocols:
+          # asymmetric grid: the patch protocol relaxes the two symmetric calibration
+          # patches (one per leaflet composition), the quilt protocol relaxes the gridded
+          # membrane. Long NPT/NPAT stages are auto-split into restarts so the condensing
+          # cell never outgrows NAMD's startup patch grid.
           patch:
             - md:
                 ensemble: minimize

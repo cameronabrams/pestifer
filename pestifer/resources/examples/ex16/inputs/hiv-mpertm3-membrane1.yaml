@@ -4,15 +4,17 @@
 #
 # Membrane-embedded build of HIV-1 gp41 MPER-TM trimer (6e8w)
 #
+# The DMPC bilayer is built with the grid packer (bilayer.packer: grid), which
+# places lipids on a lattice directly and sizes the membrane to the protein
+# footprint -- no packmol required.
+#
 # NOTE: This example uses NAMD's on-the-fly pressureProfile calculation in the
 # post-equilibration NPAT stage and in the packaged production run. CUDA-enabled
 # (GPU) NAMD does not support pressureProfile, so this example must be run with
 # a CPU NAMD build. Remove the `pressureProfile*` keys from the relevant
 # `other_parameters` blocks (or omit `--gpu`) to use a GPU build.
 #
-title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in DMPC bilayer
-paths:
-  packmol: /usr/local/bin/packmol
+title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in DMPC bilayer (grid packer)
 tasks:
   - fetch:
       sourceID: 6e8w
@@ -24,6 +26,7 @@ tasks:
       ensemble: minimize
   - make_membrane_system:
       bilayer:
+        packer: grid
         salt_con: 0.154
         cation: POT
         anion: CLA
@@ -37,52 +40,11 @@ tasks:
             - name: DMPC
               frac: 1.00
         seed: 270272
-        nloop: 100
-        nloop_all: 100
         relaxation_protocols:
-          patch:
-            - md:
-                ensemble: minimize
-                nsteps: 1000
-            - md:
-                ensemble: NVT
-                nsteps: 1000
-                temperature: 310
-            - md:
-                ensemble: NPT
-                nsteps: 500
-                temperature: 310
-                pressure: 10.0
-            - md:
-                ensemble: NPT
-                nsteps: 500
-                temperature: 310
-                pressure: 10.0
-            - md:
-                ensemble: NPT
-                nsteps: 1000
-                temperature: 310
-                pressure: 10.0
-            - md:
-                ensemble: NPT
-                nsteps: 1000
-                temperature: 310
-                pressure: 10.0
-            - md:
-                ensemble: NPT
-                nsteps: 4000
-                temperature: 310
-                pressure: 10.0
-            - md:
-                ensemble: NPT
-                nsteps: 8000
-                temperature: 310
-                pressure: 10.0
-            - md:
-                ensemble: NPAT
-                nsteps: 16000  # this is (probably) too short!
-                temperature: 310
-                pressure: 1.0
+          # symmetric grid builds the membrane directly (no calibration patches), so only
+          # the quilt protocol -- the relaxation of the gridded membrane -- is used. Long
+          # NPT/NPAT stages are auto-split into restarts so the condensing cell never
+          # outgrows NAMD's startup patch grid.
           quilt:
             - md:
                 ensemble: minimize
