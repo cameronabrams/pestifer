@@ -224,11 +224,12 @@ class MakeMembraneSystemTask(BaseTask):
             self.orient_protein()
         if not self.using_prebuilt_bilayer:
             packer = self.bilayer_specs.get('packer', 'packmol')
-            # grid placement fills the whole box directly, retiring the patch->quilt
-            # tiling: symmetric builds grid the box (sized to the protein when embedding);
-            # asymmetric non-embedding builds calibrate then grid at stress-free counts.
-            # (Asymmetric + embedding still uses the patch->quilt path for now.)
-            if packer == 'grid' and (self.patch is not None or not self.embedding):
+            # grid placement fills the whole box directly, retiring the patch->quilt tiling
+            # for every case: symmetric builds grid the box directly; asymmetric builds
+            # calibrate two symmetric patches then grid at stress-free per-leaflet counts.
+            # Either way the box is sized to the protein footprint when embedding. The
+            # patch->quilt path now serves only the packmol packer.
+            if packer == 'grid':
                 if self.patch is not None:
                     self.build_grid_membrane()
                 else:
@@ -325,6 +326,39 @@ class MakeMembraneSystemTask(BaseTask):
             self.do_psfgen(patch, bilayer_name=f'patch{specbyte}')
             self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=relaxation_protocol)
 
+    @staticmethod
+    def _autostage_protocol(protocol, first=100, cap=2000):
+        """Split long NPT/NPAT stages into progressively longer sub-runs (restarts).
+
+        A gridded membrane is placed deliberately loose and condenses on its first NPT
+        stage.  NAMD fixes its spatial-decomposition patch grid at startup, so a single
+        long run can shrink the cell past that grid and abort with ``Periodic cell has
+        become too small for original patch grid``.  Restarting rebuilds the grid for the
+        smaller cell, so we replace each long NPT/NPAT stage with a ramp of sub-runs
+        (100, 200, 400, ... up to ``cap`` steps) that sum to the original step count -- the
+        short early runs absorb the bulk of the condensation, each behind a fresh grid.
+        Stages already at or below ``first`` steps (and non-barostatted stages) pass through
+        unchanged.  Returns the original object untouched when it is empty/not a list."""
+        if not protocol or not isinstance(protocol, list):
+            return protocol
+        staged = []
+        for stage in protocol:
+            md = stage.get('md', {}) if isinstance(stage, dict) else {}
+            ens = str(md.get('ensemble', '')).casefold()
+            nsteps = md.get('nsteps', 0)
+            if ens in ('npt', 'npat') and isinstance(nsteps, int) and nsteps > first:
+                remaining, chunk = nsteps, first
+                while remaining > 0:
+                    this = min(chunk, remaining)
+                    sub = copy.deepcopy(stage)
+                    sub['md']['nsteps'] = this
+                    staged.append(sub)
+                    remaining -= this
+                    chunk = min(chunk * 2, cap)
+            else:
+                staged.append(stage)
+        return staged
+
     def _grid_membrane(self, leaflet_nlipids, box_SAPL, aspect=None):
         """Grid, build, and relax a full-size membrane with the given per-leaflet counts.
 
@@ -351,8 +385,10 @@ class MakeMembraneSystemTask(BaseTask):
         self.grid_patch(membrane, patch_name='quilt', seed=bs.get('seed', 27021972),
                         half_mid_zgap=bs.get('half_mid_zgap', 1.0))
         self.do_psfgen(membrane, bilayer_name='quilt')
-        self.equilibrate_bilayer(membrane, bilayer_name='quilt',
-                                 relaxation_protocol=bs.get('relaxation_protocols', {}).get('quilt', {}))
+        # the gridded membrane starts loose and condenses; stage the relaxation so the cell
+        # never shrinks past NAMD's startup patch grid in a single run
+        quilt_protocol = self._autostage_protocol(bs.get('relaxation_protocols', {}).get('quilt', {}))
+        self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=quilt_protocol)
 
     def _protein_box_dims(self):
         """Lateral (Lx, Ly) the gridded membrane must span to embed the oriented protein:
@@ -399,9 +435,13 @@ class MakeMembraneSystemTask(BaseTask):
         equilibrium areas.  Each symmetric patch is tensionless by symmetry, so its
         equilibrium area / lipid count gives the leaflet's preferred area-per-lipid (APL).
         At a common box area both leaflets are tensionless when each is at its own preferred
-        APL, i.e. ``n_leaflet = box_area / APL_leaflet``.  We size the box from the requested
-        upper count and place ``n_upper`` and ``n_lower`` directly -> zero differential
-        stress by construction (to first order; a pressure-profile refinement can follow).
+        APL, i.e. ``n_leaflet = box_area / APL_leaflet``; placing ``n_upper`` and ``n_lower``
+        in that ratio gives zero differential stress by construction (to first order; a
+        pressure-profile diagnostic can follow).
+
+        When embedding a protein the common box area is sized to the protein footprint +
+        margin (so the relaxed membrane is just large enough to embed into); otherwise it is
+        sized from the requested upper count (``patch_nlipids`` x ``npatch``).
         """
         bs = self.bilayer_specs
         patch_nlipids = bs.get('patch_nlipids', dict(upper=100, lower=100))
@@ -421,20 +461,30 @@ class MakeMembraneSystemTask(BaseTask):
                     f'(area drift {100 * drift:+.2f}%); its preferred APL '
                     f'({patch.area / n_cal:.2f} {sA2_}) and the resulting stress-free leaflet '
                     f'counts may be unreliable. Lengthen bilayer.relaxation_protocols.patch.')
-        n_upper = int(round(n_cal * npatch[0] * npatch[1]))   # requested upper count
-        n_lower = int(round(n_upper * apl_upper / apl_lower)) # stress-free count ratio
-        eq_area = n_upper * apl_upper                         # target equilibrium box area
-        # Grid at a box looser than equilibrium so the placement has no severe clashes;
-        # the NPT relaxation then shrinks it to eq_area, where each leaflet reaches its
-        # own preferred APL. The differential stress is fixed by the count RATIO, not the
-        # absolute initial area, so an over-loose start is harmless (and avoids the
-        # clash blow-up seen when gridding directly at the tight equilibrium APL).
-        box_SAPL = max(self.bilayer_specs.get('SAPL', 75.0), 1.15 * apl_upper, 1.15 * apl_lower)
+        if self.embedding:
+            # size the common box to the protein footprint and place each leaflet at its own
+            # preferred APL there; this keeps the stress-free ratio n_upper/n_lower = apl_lo/apl_up
+            Lx, Ly = self._protein_box_dims()
+            target_area = Lx * Ly
+            aspect = Ly / Lx
+            n_upper = int(round(target_area / apl_upper))
+            n_lower = int(round(target_area / apl_lower))
+        else:
+            aspect = bs.get('xy_aspect_ratio', 1.0)
+            n_upper = int(round(n_cal * npatch[0] * npatch[1]))   # requested upper count
+            n_lower = int(round(n_upper * apl_upper / apl_lower)) # stress-free count ratio
+            target_area = n_upper * apl_upper                     # target equilibrium box area
+        # Grid at a box looser than equilibrium so the placement has no severe clashes; the
+        # NPT relaxation then shrinks it to target_area, where each leaflet reaches its own
+        # preferred APL. The differential stress is fixed by the count RATIO, not the absolute
+        # initial area, so an over-loose start is harmless (and avoids the clash blow-up seen
+        # when gridding directly at the tight equilibrium APL).
+        box_SAPL = max(bs.get('SAPL', 75.0), 1.15 * apl_upper, 1.15 * apl_lower)
         logger.info(f'Calibrated preferred APL: upper {apl_upper:.2f}, lower {apl_lower:.2f} A^2 '
                     f'(from relaxed symmetric patches)')
         logger.info(f'Stress-free leaflet counts: upper {n_upper}, lower {n_lower} '
-                    f'(target equilibrium box area {eq_area:.0f} A^2); gridding at SAPL {box_SAPL:.1f}')
-        self._grid_membrane(dict(upper=n_upper, lower=n_lower), box_SAPL)
+                    f'(target equilibrium box area {target_area:.0f} A^2); gridding at SAPL {box_SAPL:.1f}')
+        self._grid_membrane(dict(upper=n_upper, lower=n_lower), box_SAPL, aspect)
         diag_specs = self.specs.get('diagnose_differential_stress', {})
         if diag_specs.get('enabled', False):
             self.diagnose_differential_stress(self.quilt, n_upper, n_lower, diag_specs)

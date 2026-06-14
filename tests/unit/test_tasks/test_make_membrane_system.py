@@ -117,6 +117,39 @@ class TestPerLeafletTension(unittest.TestCase):
         self.assertIsNone(_per_leaflet_tension(pd.DataFrame({'TS': [1000]}), c_z=80.0))
 
 
+class TestAutostageProtocol(unittest.TestCase):
+    """Unit tests for the relaxation auto-staging guard against patch-grid overflow."""
+
+    _stage = staticmethod(MakeMembraneSystemTask._autostage_protocol)
+
+    def test_long_npt_split_into_ramp(self):
+        out = self._stage([{'md': {'ensemble': 'NPT', 'nsteps': 2000}}], first=100, cap=2000)
+        steps = [s['md']['nsteps'] for s in out]
+        self.assertEqual(sum(steps), 2000)          # total preserved
+        self.assertEqual(steps[0], 100)             # first run is short
+        self.assertEqual(steps[0], min(steps))      # ...and the shortest (ramps up from there)
+        self.assertGreater(len(steps), 1)           # actually split
+        self.assertTrue(all(s <= 2000 for s in steps))
+
+    def test_short_stage_and_minimize_passthrough(self):
+        proto = [{'md': {'ensemble': 'minimize', 'nsteps': 500}},
+                 {'md': {'ensemble': 'NVT', 'nsteps': 1000}},
+                 {'md': {'ensemble': 'NPT', 'nsteps': 100}}]
+        self.assertEqual(self._stage(proto, first=100), proto)   # nothing exceeds first / is barostatted-long
+
+    def test_preserves_other_parameters(self):
+        proto = [{'md': {'ensemble': 'NPT', 'nsteps': 400,
+                         'other_parameters': {'useflexiblecell': True}}}]
+        out = self._stage(proto, first=100, cap=2000)
+        self.assertEqual(sum(s['md']['nsteps'] for s in out), 400)
+        self.assertTrue(all(s['md']['other_parameters'] == {'useflexiblecell': True} for s in out))
+
+    def test_empty_or_nonlist_passthrough(self):
+        self.assertEqual(self._stage({}), {})
+        self.assertEqual(self._stage([]), [])
+        self.assertIsNone(self._stage(None))
+
+
 class TestMakeMembraneSystem(unittest.TestCase):
     
     @classmethod
