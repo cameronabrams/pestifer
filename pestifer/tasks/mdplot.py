@@ -348,11 +348,22 @@ class MDPlotTask(BaseTask):
                             pprofilez_std = df.iloc[start:end, 3:-1:3].std(axis=0).to_numpy()
                             profilexy_std = (pprofilex_std + pprofiley_std) / 2.0
                             profile_std = (pprofilex_std + pprofiley_std + pprofilez_std) / 3.0
-                            xmin = (np.round(min(pprofilex.min()-pprofilex_std.min(), pprofiley.min()-pprofiley_std.min(), pprofilez.min()-pprofilez_std.min()),0)//500-1)*500*units
-                            xmax = (np.round(max(pprofilex.max()+pprofilex_std.max(), pprofiley.max()+pprofiley_std.max(), pprofilez.max()+pprofilez_std.max()),0)//500+1)*500*units
-                            ax[0].set_xlim(xmin, xmax)
-                            ax[1].set_xlim(xmin, xmax)
-                            ax[2].set_xlim(xmin, xmax)
+                            # std is NaN for a single-profile block (ddof=1); compute the
+                            # range nan-safely and only set explicit limits when finite,
+                            # otherwise let matplotlib autoscale (a NaN limit raises)
+                            with np.errstate(invalid='ignore'):
+                                lo = np.nanmin([pprofilex.min() - pprofilex_std.min(),
+                                                pprofiley.min() - pprofiley_std.min(),
+                                                pprofilez.min() - pprofilez_std.min()])
+                                hi = np.nanmax([pprofilex.max() + pprofilex_std.max(),
+                                                pprofiley.max() + pprofiley_std.max(),
+                                                pprofilez.max() + pprofilez_std.max()])
+                            xmin = (np.round(lo, 0) // 500 - 1) * 500 * units
+                            xmax = (np.round(hi, 0) // 500 + 1) * 500 * units
+                            if np.isfinite(xmin) and np.isfinite(xmax) and xmin < xmax:
+                                ax[0].set_xlim(xmin, xmax)
+                                ax[1].set_xlim(xmin, xmax)
+                                ax[2].set_xlim(xmin, xmax)
                             # get an average box depth for this time interval
                             Lz = df['c_z'].iloc[start:end].mean(axis=0)
                             logger.debug(f'Lz {Lz}')
