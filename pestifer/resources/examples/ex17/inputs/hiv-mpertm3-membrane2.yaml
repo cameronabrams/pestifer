@@ -37,7 +37,6 @@ tasks:
         packer: grid
         SAPL: 60.0
         salt_con: 0.154
-        half_mid_zgap: 0.0
         cation: POT
         anion: CLA
         composition:

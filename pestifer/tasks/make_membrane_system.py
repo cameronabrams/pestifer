@@ -43,6 +43,12 @@ _AREA_CONVERGENCE_TOL = 0.005
 # representative value for fluid lipid monolayers; the suggestion is a guide, not a fit.
 _DEFAULT_AREA_MODULUS = 250.0
 
+# Minimum half-midplane gap (A) for deterministic grid placement.  The grid packer puts
+# opposing-leaflet tail atoms at ``midplane_z +/- half_mid_zgap``; too small a gap makes
+# them coincide, and the relaxation minimize then diverges (NaN forces -> segfault).  packmol
+# resolves such overlaps with its packing tolerance, so this clamp applies only to grids.
+_MIN_GRID_HALF_MID_ZGAP = 1.0
+
 logger = logging.getLogger(__name__)
 
 
@@ -305,6 +311,9 @@ class MakeMembraneSystemTask(BaseTask):
         relaxation_protocol: dict = relaxation_protocols.get('patch',{})
         logger.debug('Relaxation protocols:')
         my_logger(relaxation_protocols, logger.debug)
+        packer = self.bilayer_specs.get('packer', 'packmol')
+        if packer == 'grid':
+            half_mid_zgap = self._grid_half_mid_zgap(half_mid_zgap)
         # we now build the patch, or if asymmetric, two patches
         for patch, specbyte in zip([self.patch, self.patchA, self.patchB], ['', 'A', 'B']):
             if patch is None:
@@ -312,7 +321,6 @@ class MakeMembraneSystemTask(BaseTask):
             patch.spec_out(SAPL=SAPL, xy_aspect_ratio=xy_aspect_ratio,
                             rotation_pm=rotation_pm, solution_gcc=solution_gcc,
                             half_mid_zgap=half_mid_zgap)
-            packer = self.bilayer_specs.get('packer', 'packmol')
             if packer == 'grid':
                 self.grid_patch(patch, patch_name=f'patch{specbyte}', seed=seed,
                                 half_mid_zgap=half_mid_zgap)
@@ -327,36 +335,52 @@ class MakeMembraneSystemTask(BaseTask):
             self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=relaxation_protocol)
 
     @staticmethod
-    def _autostage_protocol(protocol, first=100, cap=2000):
-        """Split long NPT/NPAT stages into progressively longer sub-runs (restarts).
+    def _autostage_protocol(protocol, chunk_min=500, cap=2000, margin=5.0):
+        """Make a gridded membrane's barostatted relaxation robust to large condensation.
 
-        A gridded membrane is placed deliberately loose and condenses on its first NPT
-        stage.  NAMD fixes its spatial-decomposition patch grid at startup, so a single
-        long run can shrink the cell past that grid and abort with ``Periodic cell has
-        become too small for original patch grid``.  Restarting rebuilds the grid for the
-        smaller cell, so we replace each long NPT/NPAT stage with a ramp of sub-runs
-        (100, 200, 400, ... up to ``cap`` steps) that sum to the original step count -- the
-        short early runs absorb the bulk of the condensation, each behind a fresh grid.
-        Stages already at or below ``first`` steps (and non-barostatted stages) pass through
-        unchanged.  Returns the original object untouched when it is empty/not a list."""
+        A gridded membrane is placed loose and -- because each leaflet is built at the
+        extended lipid length -- much thicker in z than its relaxed state, so it condenses
+        substantially (tens of percent) once a barostat is switched on.  NAMD fixes its
+        spatial-decomposition patch grid at startup, so a single long run can shrink the
+        cell past that grid and abort (``Periodic cell has become too small for original
+        patch grid``).  Two measures together fix this for every NPT/NPAT stage:
+
+        * a NAMD ``margin`` so the startup patch grid tolerates more shrinkage before it
+          becomes invalid, and
+        * splitting the stage into a ramp of sub-runs (``chunk_min``, ``2*chunk_min``, ...
+          up to ``cap`` steps) so the grid is rebuilt for the smaller cell at each restart.
+
+        The first sub-run is kept at ``chunk_min`` (>> the ~200-step Langevin-piston period)
+        so the barostat can actually move the cell: chunks shorter than the piston period
+        condense nothing and silently defer all the shrinkage to a later, longer -- and
+        overflow-prone -- run.  Non-barostatted stages pass through unchanged.  Returns the
+        input untouched when it is empty or not a list."""
         if not protocol or not isinstance(protocol, list):
             return protocol
         staged = []
         for stage in protocol:
             md = stage.get('md', {}) if isinstance(stage, dict) else {}
             ens = str(md.get('ensemble', '')).casefold()
-            nsteps = md.get('nsteps', 0)
-            if ens in ('npt', 'npat') and isinstance(nsteps, int) and nsteps > first:
-                remaining, chunk = nsteps, first
-                while remaining > 0:
-                    this = min(chunk, remaining)
-                    sub = copy.deepcopy(stage)
-                    sub['md']['nsteps'] = this
-                    staged.append(sub)
-                    remaining -= this
-                    chunk = min(chunk * 2, cap)
-            else:
+            if ens not in ('npt', 'npat'):
                 staged.append(stage)
+                continue
+
+            def _emit(steps):
+                sub = copy.deepcopy(stage)
+                sub['md']['nsteps'] = steps
+                sub['md'].setdefault('other_parameters', {}).setdefault('margin', margin)
+                staged.append(sub)
+
+            nsteps = md.get('nsteps', 0)
+            if not isinstance(nsteps, int) or nsteps <= chunk_min:
+                _emit(nsteps)
+                continue
+            remaining, chunk = nsteps, chunk_min
+            while remaining > 0:
+                this = min(chunk, remaining)
+                _emit(this)
+                remaining -= this
+                chunk = min(chunk * 2, cap)
         return staged
 
     def _grid_membrane(self, leaflet_nlipids, box_SAPL, aspect=None):
@@ -373,17 +397,18 @@ class MakeMembraneSystemTask(BaseTask):
         bs = self.bilayer_specs
         if aspect is None:
             aspect = bs.get('xy_aspect_ratio', 1.0)
+        half_mid_zgap = self._grid_half_mid_zgap(bs.get('half_mid_zgap', 1.0))
         membrane = Bilayer(leaflet_nlipids=leaflet_nlipids,
                            charmmffcontent=self.charmmff_content, **self._bilayer_kwargs)
         membrane.spec_out(SAPL=box_SAPL, xy_aspect_ratio=aspect,
                           rotation_pm=bs.get('rotation_pm', 10.0),
                           solution_gcc=bs.get('solution_gcc', 1.0),
-                          half_mid_zgap=bs.get('half_mid_zgap', 1.0))
+                          half_mid_zgap=half_mid_zgap)
         self.quilt = membrane
         for spdb in membrane.register_species_pdbs:
             self.register(spdb, key='species_pdb_for_packmol', artifact_type=PDBFileArtifact)
         self.grid_patch(membrane, patch_name='quilt', seed=bs.get('seed', 27021972),
-                        half_mid_zgap=bs.get('half_mid_zgap', 1.0))
+                        half_mid_zgap=half_mid_zgap)
         self.do_psfgen(membrane, bilayer_name='quilt')
         # the gridded membrane starts loose and condenses; stage the relaxation so the cell
         # never shrinks past NAMD's startup patch grid in a single run
@@ -474,12 +499,12 @@ class MakeMembraneSystemTask(BaseTask):
             n_upper = int(round(n_cal * npatch[0] * npatch[1]))   # requested upper count
             n_lower = int(round(n_upper * apl_upper / apl_lower)) # stress-free count ratio
             target_area = n_upper * apl_upper                     # target equilibrium box area
-        # Grid at a box looser than equilibrium so the placement has no severe clashes; the
-        # NPT relaxation then shrinks it to target_area, where each leaflet reaches its own
-        # preferred APL. The differential stress is fixed by the count RATIO, not the absolute
-        # initial area, so an over-loose start is harmless (and avoids the clash blow-up seen
-        # when gridding directly at the tight equilibrium APL).
-        box_SAPL = max(bs.get('SAPL', 75.0), 1.15 * apl_upper, 1.15 * apl_lower)
+        # Grid ~15% looser than the calibrated preferred APL so the placement has no severe
+        # clashes; the NPT relaxation then condenses it to target_area, where each leaflet
+        # reaches its own preferred APL. Base the loose target on the *calibrated* APL, not
+        # the nominal SAPL: SAPL can badly overestimate a condensed (e.g. cholesterol-rich)
+        # leaflet, which would grid the box so loose it has to shrink past NAMD's patch grid.
+        box_SAPL = 1.15 * max(apl_upper, apl_lower)
         logger.info(f'Calibrated preferred APL: upper {apl_upper:.2f}, lower {apl_lower:.2f} A^2 '
                     f'(from relaxed symmetric patches)')
         logger.info(f'Stress-free leaflet counts: upper {n_upper}, lower {n_lower} '
@@ -522,7 +547,10 @@ class MakeMembraneSystemTask(BaseTask):
                                               pressureProfileSlabs=slabs,
                                               pressureProfileFreq=freq,
                                               surfaceTensionTarget=0.0))}]
-        self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=pp_protocol)
+        # stage the long pp pass like any other gridded-membrane relaxation: if the membrane
+        # is still condensing, the unstaged single run would overflow the patch grid
+        self.equilibrate_bilayer(membrane, bilayer_name='quilt',
+                                 relaxation_protocol=self._autostage_protocol(pp_protocol))
         mdplot_task = self.subcontroller.tasks[-1]
         pp_df = getattr(mdplot_task, 'dataframes', {}).get('pressureprofile')
         # final cell depth is a good approximation of dz*nslabs for the averaged tail
@@ -656,6 +684,20 @@ class MakeMembraneSystemTask(BaseTask):
             logger.debug(f'PNGs:')
             my_logger(pngs, logger.debug)
             self.register([PNGImageFileArtifact(x) for x in pngs], key=f'{patch_name}_packmol_pngs', artifact_type=PNGImageFileArtifactList)
+
+    def _grid_half_mid_zgap(self, configured):
+        """Clamp ``half_mid_zgap`` to a minimum safe for deterministic grid placement.
+
+        With too small a gap, opposing-leaflet tail atoms coincide and the relaxation
+        minimize diverges (a ``half_mid_zgap: 0`` config -- harmless for packmol -- segfaults
+        the grid path).  Warns and uses :data:`_MIN_GRID_HALF_MID_ZGAP` when below it."""
+        if configured < _MIN_GRID_HALF_MID_ZGAP:
+            logger.warning(
+                f'half_mid_zgap={configured} A is too small for grid placement '
+                f'(opposing-leaflet tails would overlap); using {_MIN_GRID_HALF_MID_ZGAP} A. '
+                f'Set bilayer.half_mid_zgap >= {_MIN_GRID_HALF_MID_ZGAP} to silence this.')
+            return _MIN_GRID_HALF_MID_ZGAP
+        return configured
 
     def grid_patch(self, patch: Bilayer, patch_name: str = None, seed=None, half_mid_zgap=1.0):
         """Build a bilayer patch by deterministic grid placement -- a fast, packmol-free

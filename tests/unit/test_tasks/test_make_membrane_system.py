@@ -14,7 +14,8 @@ from pestifer.scripters import PsfgenScripter
 
 from pestifer.scripters.vmd import VMDScripter
 from pestifer.tasks.make_membrane_system import (
-    MakeMembraneSystemTask, _AREA_CONVERGENCE_TOL, _per_leaflet_tension)
+    MakeMembraneSystemTask, _AREA_CONVERGENCE_TOL, _per_leaflet_tension,
+    _MIN_GRID_HALF_MID_ZGAP)
 
 from pestifer.tasks.validate import ValidateTask
 from pestifer.util.util import protect_str_arg
@@ -123,31 +124,56 @@ class TestAutostageProtocol(unittest.TestCase):
     _stage = staticmethod(MakeMembraneSystemTask._autostage_protocol)
 
     def test_long_npt_split_into_ramp(self):
-        out = self._stage([{'md': {'ensemble': 'NPT', 'nsteps': 2000}}], first=100, cap=2000)
+        out = self._stage([{'md': {'ensemble': 'NPT', 'nsteps': 8000}}],
+                          chunk_min=500, cap=2000, margin=5.0)
         steps = [s['md']['nsteps'] for s in out]
-        self.assertEqual(sum(steps), 2000)          # total preserved
-        self.assertEqual(steps[0], 100)             # first run is short
+        self.assertEqual(sum(steps), 8000)          # total preserved
+        self.assertEqual(steps[0], 500)             # first run = chunk_min (barostat-adequate)
         self.assertEqual(steps[0], min(steps))      # ...and the shortest (ramps up from there)
         self.assertGreater(len(steps), 1)           # actually split
         self.assertTrue(all(s <= 2000 for s in steps))
+        # every sub-run carries the patch-grid margin
+        self.assertTrue(all(s['md']['other_parameters']['margin'] == 5.0 for s in out))
 
-    def test_short_stage_and_minimize_passthrough(self):
+    def test_minimize_nvt_passthrough_npt_gets_margin(self):
         proto = [{'md': {'ensemble': 'minimize', 'nsteps': 500}},
                  {'md': {'ensemble': 'NVT', 'nsteps': 1000}},
-                 {'md': {'ensemble': 'NPT', 'nsteps': 100}}]
-        self.assertEqual(self._stage(proto, first=100), proto)   # nothing exceeds first / is barostatted-long
+                 {'md': {'ensemble': 'NPT', 'nsteps': 200}}]   # NPT <= chunk_min: not split...
+        out = self._stage(proto, chunk_min=500)
+        self.assertEqual(out[0], proto[0])          # minimize unchanged
+        self.assertEqual(out[1], proto[1])          # NVT unchanged
+        self.assertEqual(out[2]['md']['nsteps'], 200)              # ...but still emitted once
+        self.assertIn('margin', out[2]['md']['other_parameters'])  # ...with a margin
 
     def test_preserves_other_parameters(self):
-        proto = [{'md': {'ensemble': 'NPT', 'nsteps': 400,
+        proto = [{'md': {'ensemble': 'NPT', 'nsteps': 4000,
                          'other_parameters': {'useflexiblecell': True}}}]
-        out = self._stage(proto, first=100, cap=2000)
-        self.assertEqual(sum(s['md']['nsteps'] for s in out), 400)
-        self.assertTrue(all(s['md']['other_parameters'] == {'useflexiblecell': True} for s in out))
+        out = self._stage(proto, chunk_min=500, cap=2000, margin=5.0)
+        self.assertEqual(sum(s['md']['nsteps'] for s in out), 4000)
+        self.assertTrue(all(s['md']['other_parameters']['useflexiblecell'] is True for s in out))
+        self.assertTrue(all(s['md']['other_parameters']['margin'] == 5.0 for s in out))
 
     def test_empty_or_nonlist_passthrough(self):
         self.assertEqual(self._stage({}), {})
         self.assertEqual(self._stage([]), [])
         self.assertIsNone(self._stage(None))
+
+
+class TestGridHalfMidZgap(unittest.TestCase):
+    """Unit tests for the grid-placement mid-plane-gap clamp (guards the segfault)."""
+
+    # _grid_half_mid_zgap only logs + returns; call unbound with a throwaway self
+    _clamp = staticmethod(lambda v: MakeMembraneSystemTask._grid_half_mid_zgap(None, v))
+
+    def test_zero_gap_clamped_up(self):
+        self.assertEqual(self._clamp(0.0), _MIN_GRID_HALF_MID_ZGAP)
+
+    def test_small_gap_clamped_up(self):
+        self.assertEqual(self._clamp(0.25), _MIN_GRID_HALF_MID_ZGAP)
+
+    def test_adequate_gap_preserved(self):
+        self.assertEqual(self._clamp(1.5), 1.5)
+        self.assertEqual(self._clamp(_MIN_GRID_HALF_MID_ZGAP), _MIN_GRID_HALF_MID_ZGAP)
 
 
 class TestMakeMembraneSystem(unittest.TestCase):
