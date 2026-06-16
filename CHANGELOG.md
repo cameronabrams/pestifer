@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [2.6.3] - 2026-06-16
+
 - bugfix: interrupting a build (Ctrl-C, or `kill`/scheduler signal) now shuts down cleanly instead of orphaning the running NAMD job. External commands are launched via `subprocess.Popen(..., shell=True)`, so the tracked pid was the shell/`charmrun` wrapper; a `SIGTERM` to it never reached `namd3`, leaving an N-PE NAMD process pinning every core after pestifer exited (the old `atexit`-based `kill_child` also never fired on a signal, only on a clean exit, and tracked a single module-global pid). Each external command now runs in its own session (`start_new_session=True`) so its whole process tree (`charmrun` → `namd3` → PEs) can be removed with one `killpg`; pestifer installs `SIGINT`/`SIGTERM` handlers that terminate every live child group (SIGTERM, then SIGKILL stragglers), log a clear `pestifer run INTERRUPTED by <signal>` message naming the working directory, and exit with status `128+signum`. Handler installation is a no-op off the main thread and under pytest
 
 ## [2.6.2] - 2026-06-16
