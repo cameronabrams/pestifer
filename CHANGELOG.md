@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [2.6.2] - 2026-06-16
+
 - bugfix: the `merge` task (and the `continuation` task) no longer abort when an input PSF was built outside pestifer and records a topology stream file pestifer does not ship. VMD writes `REMARKS topology .../toppar_water_ions_namd.str` (its NAMD-specific variant of the standard `toppar_water_ions.str`, which pestifer *does* ship and which covers the same residues); `merge` harvested that name from the PSF REMARKS and emitted a psfgen `topology toppar_water_ions_namd.str` line for it, but `copy_charmmfile_local` only warns and writes nothing for an unknown file, so psfgen died with `ERROR: Unable to open topology file ...` → `MOLECULE DESTROYED BY FATAL ERROR`. Both tasks now keep only the stream files that actually resolve locally (after the copy attempt), drop the rest with a clear per-file warning naming the file and the source PSF, and `merge` additionally strips the dropped file's carried-over `REMARKS topology` line from the merged PSF so a downstream task reading it cannot re-trigger the same failure. Dropping is safe because the merge is a pure `readpsf` of fully-built input PSFs (and the standard water/ions stream is still loaded)
 
 ## [2.6.1] - 2026-06-11
