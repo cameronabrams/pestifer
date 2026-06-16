@@ -98,6 +98,54 @@ class TestUniqueName(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# _strip_topology_remarks tests
+# ---------------------------------------------------------------------------
+
+class TestStripTopologyRemarks(unittest.TestCase):
+    """Dropping a topology stream file the merge could not resolve must also remove its
+    carried-over REMARKS line from the merged PSF, or a downstream task re-hits the bug."""
+
+    HEADER = (
+        "PSF EXT CMAP XPLOR\n\n"
+        "       5 !NTITLE\n"
+        " REMARKS topology /opt/charmm/top_all36_prot.rtf\n"
+        " REMARKS topology /run/toppar_water_ions.str\n"
+        " REMARKS topology /ifs/vmd/plugins/.../toppar_water_ions_namd.str\n"
+        " REMARKS patch DISU A:5 A:55\n\n"
+        "       2 !NATOM\n"
+        "       1 A    1    ALA  N    NH3   -0.30  14.007  0\n"
+        "       2 A    1    ALA  CA   CT1    0.21  12.011  0\n"
+    )
+
+    def _write(self, tmp):
+        p = os.path.join(tmp, 'merged.psf')
+        with open(p, 'w') as f:
+            f.write(self.HEADER)
+        return p
+
+    def test_drops_named_topology_remark_only(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._write(tmp)
+            MergeTask._strip_topology_remarks(p, ['toppar_water_ions_namd.str'])
+            body = open(p).read()
+            self.assertNotIn('toppar_water_ions_namd.str', body)   # dropped one gone
+            self.assertIn('toppar_water_ions.str', body)           # standard one kept
+            self.assertIn('top_all36_prot.rtf', body)              # rtf kept
+            self.assertIn('REMARKS patch DISU', body)              # patch remark kept
+            self.assertIn('!NATOM', body)                          # structure intact
+            self.assertEqual(body.count('NH3'), 1)                 # atoms untouched
+
+    def test_no_match_leaves_file_unchanged(self):
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._write(tmp)
+            before = open(p).read()
+            MergeTask._strip_topology_remarks(p, ['something_absent.str'])
+            self.assertEqual(open(p).read(), before)
+
+
+# ---------------------------------------------------------------------------
 # _resolve_collisions – no collisions
 # ---------------------------------------------------------------------------
 

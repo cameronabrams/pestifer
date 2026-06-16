@@ -117,9 +117,27 @@ class MergeTask(PsfgenTask):
                 if sf not in all_streamfiles:
                     all_streamfiles.append(sf)
 
-        # Copy stream files to CWD so psfgen can find them.
+        # Copy stream files to CWD so psfgen can find them, and drop any that cannot be
+        # resolved.  A PSF built outside pestifer can record a topology file pestifer does
+        # not ship -- e.g. VMD's NAMD-specific 'toppar_water_ions_namd.str' (the standard
+        # 'toppar_water_ions.str', which is shipped and already in this list, is its
+        # equivalent).  copy_charmmfile_local only warns on a miss and writes nothing, so
+        # passing the name on anyway would emit a 'topology <missing>' line that aborts
+        # psfgen with "Unable to open topology file".  The merge uses readpsf, so the full
+        # structure comes from the input PSFs and a missing template is safe to skip.
+        available_streamfiles: list[str] = []
+        dropped_streamfiles: list[str] = []
         for sf in all_streamfiles:
             CC.copy_charmmfile_local(sf)
+            if os.path.exists(sf):
+                available_streamfiles.append(sf)
+            else:
+                dropped_streamfiles.append(sf)
+                logger.warning(
+                    f'merge: topology stream file {sf!r} recorded in an input PSF is not '
+                    f'available in pestifer\'s force field and was not found locally; '
+                    f'skipping it (the merged structure is read from the input PSFs).')
+        all_streamfiles = available_streamfiles
 
         # Build a single VMD/psfgen script that (a) renames segments where
         # needed, then (b) merges all systems via readpsf.
@@ -184,6 +202,13 @@ class MergeTask(PsfgenTask):
                     seen_remarks.add(remark)
         if expected_remarks:
             self._inject_patch_remarks(f'{self.basename}.psf', expected_remarks)
+
+        # readpsf carries the input PSFs' topology remarks verbatim, including any
+        # unavailable stream file we dropped above; strip those so the merged PSF does not
+        # advertise a topology file pestifer cannot open (which would re-trigger the same
+        # failure in a downstream task that reads this PSF).
+        if dropped_streamfiles:
+            self._strip_topology_remarks(f'{self.basename}.psf', dropped_streamfiles)
 
         # Register temporary segment-rename intermediates (written by VMD in Step A).
         if tmp_psfs:
@@ -354,6 +379,27 @@ class MergeTask(PsfgenTask):
         new_lines.extend(lines[natom_idx:])  # !NATOM and everything after
         with open(psf_path, 'w') as f:
             f.writelines(new_lines)
+
+    @staticmethod
+    def _strip_topology_remarks(psf_path: str, dropped_basenames: list[str]) -> None:
+        """Remove ``REMARKS topology <file>`` header lines whose file basename is in
+        *dropped_basenames* from the PSF, so the merged structure does not advertise a
+        topology stream file that pestifer cannot resolve."""
+        dropped = set(dropped_basenames)
+        with open(psf_path) as f:
+            lines = f.readlines()
+        out, natom_seen, removed = [], False, False
+        for line in lines:
+            if not natom_seen and '!NATOM' in line:
+                natom_seen = True
+            if (not natom_seen and 'REMARKS topology' in line
+                    and line.split() and os.path.basename(line.split()[-1]) in dropped):
+                removed = True
+                continue
+            out.append(line)
+        if removed:
+            with open(psf_path, 'w') as f:
+                f.writelines(out)
 
     @staticmethod
     def _patch_remarks_from_psf(psf_filename: str) -> list[str]:

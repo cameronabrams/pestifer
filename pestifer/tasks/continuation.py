@@ -73,12 +73,25 @@ class ContinuationTask(PsfgenTask):
         # any md task will at a minimum ensure all of charmmff's top-level parameter
         # files are copied to the CWD.  Since this PSF also lists stream files
         # in its topology remarks, the continuation task will also preemptively
-        # copy them to cwd and register them as artifacts
+        # copy them to cwd and register them as artifacts.  A PSF built outside pestifer
+        # can record a stream file pestifer does not ship (e.g. VMD's NAMD-specific
+        # 'toppar_water_ions_namd.str'); copy_charmmfile_local only warns and writes
+        # nothing in that case, so registering it anyway would later emit a
+        # 'topology <missing>' line that aborts psfgen.  Keep only the ones that resolve.
         CC = self.resource_manager.charmmff_content
+        available_streamfiles = []
         for streamfile in streamfiles:
             CC.copy_charmmfile_local(streamfile)
-    
-        self.register([CharmmffStreamFileArtifact(x) for x in streamfiles], key='charmmff_streamfiles', artifact_type=CharmmffStreamFileArtifacts)
+            if os.path.exists(streamfile):
+                available_streamfiles.append(streamfile)
+            else:
+                logger.warning(
+                    f'continuation: topology stream file {streamfile!r} recorded in '
+                    f'{psf} is not available in pestifer\'s force field and was not found '
+                    f'locally; dropping it so it cannot abort a downstream psfgen run. If '
+                    f'this PSF genuinely needs it, place the file in the run directory.')
+
+        self.register([CharmmffStreamFileArtifact(x) for x in available_streamfiles], key='charmmff_streamfiles', artifact_type=CharmmffStreamFileArtifacts)
 
         self.register(dict(
                         psf=PSFFileArtifact(psf),
