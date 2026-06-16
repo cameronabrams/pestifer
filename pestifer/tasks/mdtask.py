@@ -21,6 +21,38 @@ from ..util.util import is_periodic
 
 logger = logging.getLogger(__name__)
 
+# 'NPgT' (preferred; 'npgt'/'NPGT' accepted) is the constant-lateral-ratio barostat
+# ensemble pestifer historically called 'NPAT'.  Pestifer's 'NPAT' has never been true
+# constant area -- it sets useFlexibleCell + useConstantRatio (x and y scale together,
+# the cross-sectional area is free to change), not useConstantArea.  'NPAT' is still
+# accepted but warns once that a future version will reserve it for genuine constant-area
+# runs, at which point 'NPgT' will be the name for this constant-ratio behavior.
+_VALID_ENSEMBLE_KEYS = ('minimize', 'nvt', 'npt', 'npgt')
+_npat_deprecation_warned = False
+
+
+def normalize_ensemble(ensemble: str) -> str:
+    """Casefold an ensemble name and fold the legacy ``NPAT`` alias onto ``npgt``.
+
+    Returns the canonical lowercase key (``minimize``/``nvt``/``npt``/``npgt``); raises for
+    anything else.  Emits a one-time deprecation warning when ``NPAT`` is used."""
+    global _npat_deprecation_warned
+    ens = str(ensemble).casefold()
+    if ens == 'npat':
+        if not _npat_deprecation_warned:
+            logger.warning(
+                "ensemble 'NPAT' currently runs a constant-x:y-ratio barostat (useFlexibleCell "
+                "+ useConstantRatio) -- this is NPgT, not constant area. Use 'NPgT' for this "
+                "behavior; a future pestifer version will reserve 'NPAT' for true constant-area "
+                "(useConstantArea) simulations.")
+            _npat_deprecation_warned = True
+        ens = 'npgt'
+    if ens not in _VALID_ENSEMBLE_KEYS:
+        raise PestiferBuildError(
+            f"Error: {ensemble} is not a valid ensemble type. "
+            f"Must be 'NPgT', 'NPAT', 'NPT', 'NVT', or 'minimize'")
+    return ens
+
 class MDTask(VMDTask):
     """ 
     A class for handling all NAMD runs
@@ -79,8 +111,7 @@ class MDTask(VMDTask):
         logger.debug(f'MD task specs:')
         my_logger(specs, logger.debug)
         ensemble: str = specs['ensemble']
-        if ensemble.casefold() not in ['NPAT'.casefold(), 'NPT'.casefold(), 'NVT'.casefold(), 'minimize'.casefold()]:
-            raise PestiferBuildError(f'Error: {ensemble} is not a valid ensemble type. Must be \'NPAT\', \'NPT\', \'NVT\', or \'minimize\'')
+        ens = normalize_ensemble(ensemble)   # casefold; 'NPAT' -> 'npgt' (warns once)
         if not baselabel:
             self.next_basename(ensemble)
         else:
@@ -108,7 +139,7 @@ class MDTask(VMDTask):
         xsc = state.xsc
         coor = state.coor
         temperature = specs['temperature']
-        if ensemble.casefold() == 'NPT'.casefold() or ensemble.casefold() == 'NPAT'.casefold():
+        if ens in ('npt', 'npgt'):
             pressure = specs['pressure']
         params['tcl'] = []
         params['tcl'].append(f'set temperature {temperature}')
@@ -133,7 +164,7 @@ class MDTask(VMDTask):
             del params['temperature']
         if state.xsc:
             params['extendedSystem'] = state.xsc.name
-            if (ensemble.casefold()=='NPT'.casefold() or ensemble.casefold()=='NPAT'.casefold()) and xstfreq:
+            if ens in ('npt', 'npgt') and xstfreq:
                 params['xstfreq'] = xstfreq
 
         if self.get_current_artifact_data('periodic'):
@@ -141,14 +172,14 @@ class MDTask(VMDTask):
         else:
             params.update(self.namd_global_config['vacuum'])
 
-        if ensemble.casefold() in ['NPT'.casefold(),'NVT'.casefold(), 'NPAT'.casefold()]:
+        if ens in ('npt', 'nvt', 'npgt'):
             params.update(self.namd_global_config['thermostat'])
-            if ensemble.casefold() == 'NPT'.casefold():
+            if ens == 'npt':
                 if not self.get_current_artifact_data('periodic'):
                     raise PestiferBuildError(f'Cannot use barostat on a system without PBCs')
                 params['tcl'].append(f'set pressure {pressure}')
                 params.update(self.namd_global_config['barostat'])
-            elif ensemble.casefold() == 'NPAT'.casefold():
+            elif ens == 'npgt':
                 params['tcl'].append(f'set pressure {pressure}')
                 params.update(self.namd_global_config['membrane'])
         params['outputName'] = f'{self.basename}'
@@ -182,10 +213,10 @@ class MDTask(VMDTask):
         params.update(other_params)
         params.update(extras)
         params['firsttimestep'] = firsttimestep
-        if ensemble.casefold() == 'minimize'.casefold():
+        if ens == 'minimize':
             assert specs['minimize'] > 0, f'Error: you must specify how many minimization cycles'
             params['minimize'] = specs['minimize']
-        elif ensemble.casefold() in ['NVT'.casefold(), 'NPT'.casefold(), 'NPAT'.casefold()]:
+        elif ens in ('nvt', 'npt', 'npgt'):
             assert nsteps > 0, f'Error: you must specify how many time steps to run'
             params['run'] = nsteps
 
@@ -251,7 +282,7 @@ class MDTask(VMDTask):
         if result != 0:
             return -1
 
-        if ensemble.casefold() != 'minimize'.casefold():
+        if ens != 'minimize':
             self.register(firsttimestep+nsteps, key='firsttimestep')
         else:
             self.register(firsttimestep+specs['minimize'], key='firsttimestep')

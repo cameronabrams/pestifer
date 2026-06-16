@@ -328,7 +328,7 @@ attributes:
           wrapAll: on
       - name: thermostat
         type: dict
-        text: NAMD thermostat parameters (NVT, NPT, and NPAT ensembles)
+        text: NAMD thermostat parameters (NVT, NPT, and NPgT/NPAT ensembles)
         default:
           langevin: on 
           langevinDamping: 5
@@ -347,7 +347,7 @@ attributes:
           useflexiblecell: no
       - name: membrane
         type: dict
-        text: NAMD parameters for membrane simulations (NPAT ensemble)
+        text: NAMD parameters for membrane simulations (NPgT ensemble -- constant x:y ratio via useConstantRatio, not constant area; the legacy name NPAT also selects this)
         default:
           langevinpiston: on 
           langevinpistontarget: $pressure
@@ -711,7 +711,7 @@ attributes:
                 text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                 type: str
                 case_sensitive: False
-                choices: [minimize, NVT, NPT, NPAT]
+                choices: [minimize, NVT, NPT, NPgT, NPAT]
                 default: NVT
               - name: force_constant
                 text: force constant (kcal/mol/Angstrom^2)
@@ -919,7 +919,7 @@ attributes:
             type: str
             text: ensemble in which MD is run [NVT]
             case_sensitive: False
-            choices: [minimize, NVT, NPT, NPAT]
+            choices: [minimize, NVT, NPT, NPgT, NPAT]
             default: NVT
       - name: solvate
         text: Parameters controlling solvation and ionization
@@ -1256,7 +1256,7 @@ attributes:
                             text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                             type: str
                             case_sensitive: False
-                            choices: [minimize, NVT, NPT, NPAT]
+                            choices: [minimize, NVT, NPT, NPgT, NPAT]
                             default: minimize
                           - name: nsteps
                             text: Number of MD time steps (or minimization steps if 'ensemble' is 'minimize')
@@ -1325,7 +1325,8 @@ attributes:
                           - name: ensemble
                             text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                             type: str
-                            choices: [minimize, NVT, NPT, NPAT]
+                            case_sensitive: False
+                            choices: [minimize, NVT, NPT, NPgT, NPAT]
                             default: minimize
                           - name: nsteps
                             text: Number of MD time steps (or minimization steps if 'ensemble' is 'minimize')
@@ -1415,7 +1416,7 @@ attributes:
           - name: ensemble
             text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
             type: str
-            choices: [minimize, NVT, NPT, NPAT]
+            choices: [minimize, NVT, NPT, NPgT, NPAT]
             default: NVT
             case_sensitive: False
           - name: minimize
@@ -1589,9 +1590,9 @@ attributes:
                 - name: ensemble
                   text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
                   type: str
-                  choices: [minimize, NVT, NPT, NPAT]
-                  default: NVT
                   case_sensitive: False
+                  choices: [minimize, NVT, NPT, NPgT, NPAT]
+                  default: NVT
                 - name: firsttimestep
                   text: First timestep number for the run (used in the 'run' command)
                   type: int

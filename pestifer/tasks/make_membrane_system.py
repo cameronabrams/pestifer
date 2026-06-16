@@ -361,7 +361,7 @@ class MakeMembraneSystemTask(BaseTask):
         for stage in protocol:
             md = stage.get('md', {}) if isinstance(stage, dict) else {}
             ens = str(md.get('ensemble', '')).casefold()
-            if ens not in ('npt', 'npat'):
+            if ens not in ('npt', 'npat', 'npgt'):   # barostatted stages only
                 staged.append(stage)
                 continue
 
@@ -797,7 +797,7 @@ class MakeMembraneSystemTask(BaseTask):
                 raise PestiferBuildError(
                     f'Stage {specs.get("ensemble", "?")} has pressureProfile set in other_parameters, '
                     f'but processor-type is "gpu"; CUDA-enabled NAMD does not support pressureProfile.')
-            if specs.get('ensemble', None) in ['NPT', 'npt', 'NPAT', 'npat']:
+            if str(specs.get('ensemble', '') or '').casefold() in ('npt', 'npat', 'npgt'):
                 other.setdefault('useflexiblecell', True)
                 other.setdefault('useconstantratio', True)
                 if pp_requested:
