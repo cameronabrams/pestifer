@@ -10,7 +10,7 @@ Example 17: HIV-1 Env MPER-TM Trimer in an Asymmetric, Model Viral Bilayer
 
 This example is the same as :ref:`example mper-tm symmetric bilayer`, but uses an asymmetric model viral bilayer instead of a symmetric DMPC bilayer.  The model viral bilayer is constructed from a mixture of lipids that are commonly found in the viral membrane.
 
-Because the leaflets differ in composition, the grid packer takes the asymmetric path: it first relaxes two symmetric *calibration* patches -- one per leaflet composition -- to measure each leaflet's preferred area per lipid, then grids the full membrane (sized to the protein footprint) at stress-free per-leaflet counts.  The optional ``diagnose_differential_stress`` block then runs a short tensionless pressure-profile pass on the assembled membrane and reports the residual per-leaflet surface tensions and their difference (the differential stress), which should be near zero for a stress-free asymmetric bilayer.
+Because the leaflets differ in composition, the grid packer takes the asymmetric path: it first relaxes two symmetric *calibration* patches -- one per leaflet composition -- to measure each leaflet's preferred area per lipid, then grids the full membrane (sized to the protein footprint) at stress-free per-leaflet counts.
 
 .. literalinclude:: ../../../../pestifer/resources/examples/ex17/inputs/hiv-mpertm3-membrane2.yaml
 

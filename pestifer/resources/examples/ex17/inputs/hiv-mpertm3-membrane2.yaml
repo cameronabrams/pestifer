@@ -8,14 +8,12 @@
 # grid): two symmetric calibration patches (one per leaflet composition) are
 # relaxed to measure each leaflet's preferred area-per-lipid, then the membrane
 # is gridded directly at stress-free per-leaflet counts and sized to the protein
-# footprint -- no packmol required. The differential-stress diagnostic then
-# reports the residual per-leaflet surface tensions of the assembled membrane.
+# footprint -- no packmol required.
 #
 # NOTE: This example uses NAMD's on-the-fly pressureProfile calculation in the
-# differential-stress diagnostic, the post-equilibration NPAT stage, and the
-# packaged production run. CUDA-enabled (GPU) NAMD does not support
-# pressureProfile, so this example must be run with a CPU NAMD build. Remove the
-# `pressureProfile*` keys (and diagnose_differential_stress) to use a GPU build.
+# post-equilibration NPAT stage and the packaged production run. CUDA-enabled
+# (GPU) NAMD does not support pressureProfile, so this example must be run with a
+# CPU NAMD build. Remove the `pressureProfile*` keys to use a GPU build.
 #
 title: HIV-1 gp41 MPER-TM trimer 6e8w embedded in model viral bilayer (grid packer)
 tasks:
@@ -28,11 +26,6 @@ tasks:
       cpu-override: True
       ensemble: minimize
   - make_membrane_system:
-      diagnose_differential_stress:
-        enabled: true
-        nsteps: 50000
-        slabs: 40
-        freq: 500
       bilayer:
         packer: grid
         SAPL: 60.0
