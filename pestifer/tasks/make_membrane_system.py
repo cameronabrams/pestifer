@@ -335,20 +335,21 @@ class MakeMembraneSystemTask(BaseTask):
             self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=relaxation_protocol)
 
     @staticmethod
-    def _autostage_protocol(protocol, chunk_min=500, cap=2000, margin=5.0):
-        """Make a gridded membrane's barostatted relaxation robust to large condensation.
+    def _autostage_protocol(protocol, chunk_min=500, cap=2000):
+        """Split a gridded membrane's long barostatted stages into a ramp of restarts.
 
         A gridded membrane is placed loose and -- because each leaflet is built at the
         extended lipid length -- much thicker in z than its relaxed state, so it condenses
         substantially (tens of percent) once a barostat is switched on.  NAMD fixes its
         spatial-decomposition patch grid at startup, so a single long run can shrink the
         cell past that grid and abort (``Periodic cell has become too small for original
-        patch grid``).  Two measures together fix this for every NPT/NPAT stage:
-
-        * a NAMD ``margin`` so the startup patch grid tolerates more shrinkage before it
-          becomes invalid, and
-        * splitting the stage into a ramp of sub-runs (``chunk_min``, ``2*chunk_min``, ...
-          up to ``cap`` steps) so the grid is rebuilt for the smaller cell at each restart.
+        patch grid``).  The NAMD-recommended remedy is to **restart** once the cell has
+        shrunk -- a fresh run rebuilds the patch grid for the smaller cell -- so we split
+        each long NPT/NPgT stage into a ramp of sub-runs (``chunk_min``, ``2*chunk_min``,
+        ... up to ``cap`` steps).  Each short sub-run condenses only a little before the
+        next restart re-grids, so no single run outgrows its startup grid.  (This is the
+        proper fix; raising NAMD's ``margin`` is only an easier-but-slower workaround and is
+        not used.)
 
         The first sub-run is kept at ``chunk_min`` (>> the ~200-step Langevin-piston period)
         so the barostat can actually move the cell: chunks shorter than the piston period
@@ -368,7 +369,6 @@ class MakeMembraneSystemTask(BaseTask):
             def _emit(steps):
                 sub = copy.deepcopy(stage)
                 sub['md']['nsteps'] = steps
-                sub['md'].setdefault('other_parameters', {}).setdefault('margin', margin)
                 staged.append(sub)
 
             nsteps = md.get('nsteps', 0)

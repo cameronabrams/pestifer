@@ -338,7 +338,7 @@ attributes:
         type: dict
         text: NAMD barostat parameters (NPT ensemble)
         default:
-          langevinpiston: on 
+          langevinpiston: on
           langevinpistontarget: $pressure
           langevinpistonperiod: 200
           langevinpistondecay: 100

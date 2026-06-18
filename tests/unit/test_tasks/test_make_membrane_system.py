@@ -125,33 +125,29 @@ class TestAutostageProtocol(unittest.TestCase):
 
     def test_long_npt_split_into_ramp(self):
         out = self._stage([{'md': {'ensemble': 'NPT', 'nsteps': 8000}}],
-                          chunk_min=500, cap=2000, margin=5.0)
+                          chunk_min=500, cap=2000)
         steps = [s['md']['nsteps'] for s in out]
         self.assertEqual(sum(steps), 8000)          # total preserved
         self.assertEqual(steps[0], 500)             # first run = chunk_min (barostat-adequate)
         self.assertEqual(steps[0], min(steps))      # ...and the shortest (ramps up from there)
-        self.assertGreater(len(steps), 1)           # actually split
+        self.assertGreater(len(steps), 1)           # actually split into restarts
         self.assertTrue(all(s <= 2000 for s in steps))
-        # every sub-run carries the patch-grid margin
-        self.assertTrue(all(s['md']['other_parameters']['margin'] == 5.0 for s in out))
+        # restart-based staging only -- no margin is injected (it is a slow workaround)
+        self.assertTrue(all('margin' not in s['md'].get('other_parameters', {}) for s in out))
 
-    def test_minimize_nvt_passthrough_npt_gets_margin(self):
+    def test_minimize_nvt_passthrough_short_npt_emitted_once(self):
         proto = [{'md': {'ensemble': 'minimize', 'nsteps': 500}},
                  {'md': {'ensemble': 'NVT', 'nsteps': 1000}},
-                 {'md': {'ensemble': 'NPT', 'nsteps': 200}}]   # NPT <= chunk_min: not split...
+                 {'md': {'ensemble': 'NPT', 'nsteps': 200}}]   # NPT <= chunk_min: not split
         out = self._stage(proto, chunk_min=500)
-        self.assertEqual(out[0], proto[0])          # minimize unchanged
-        self.assertEqual(out[1], proto[1])          # NVT unchanged
-        self.assertEqual(out[2]['md']['nsteps'], 200)              # ...but still emitted once
-        self.assertIn('margin', out[2]['md']['other_parameters'])  # ...with a margin
+        self.assertEqual(out, proto)                # nothing split, nothing injected
 
     def test_preserves_other_parameters(self):
         proto = [{'md': {'ensemble': 'NPT', 'nsteps': 4000,
                          'other_parameters': {'useflexiblecell': True}}}]
-        out = self._stage(proto, chunk_min=500, cap=2000, margin=5.0)
+        out = self._stage(proto, chunk_min=500, cap=2000)
         self.assertEqual(sum(s['md']['nsteps'] for s in out), 4000)
-        self.assertTrue(all(s['md']['other_parameters']['useflexiblecell'] is True for s in out))
-        self.assertTrue(all(s['md']['other_parameters']['margin'] == 5.0 for s in out))
+        self.assertTrue(all(s['md']['other_parameters'] == {'useflexiblecell': True} for s in out))
 
     def test_empty_or_nonlist_passthrough(self):
         self.assertEqual(self._stage({}), {})
