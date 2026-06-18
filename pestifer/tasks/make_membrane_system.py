@@ -20,7 +20,7 @@ from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
 from ..util.stringthings import __pestifer_version__
 
-from ..molecule.bilayer import Bilayer, specstrings_builddict
+from ..molecule.bilayer import Bilayer, BilayerSpecString, specstrings_builddict
 
 from ..psfutil.psfcontents import get_toppar_from_psf
 
@@ -156,6 +156,14 @@ class MakeMembraneSystemTask(BaseTask):
                                                      conformers_specstring,
                                                      solvent_specstring,
                                                      solvent_ratio_specstring)
+        # Ensure the solvent chambers are present: an explicit `composition:` block specifies
+        # only the leaflets, and the asymmetric branch below reads/swaps `upper_chamber`/
+        # `lower_chamber` in place.  (Bilayer's constructor fills these in too, but now on its
+        # own copy, so it no longer back-populates this shared dict.)
+        if 'upper_chamber' not in composition_dict or 'lower_chamber' not in composition_dict:
+            C = BilayerSpecString(specstring=solvent_specstring, fracstring=solvent_ratio_specstring)
+            composition_dict.setdefault('upper_chamber', C.left)
+            composition_dict.setdefault('lower_chamber', C.right)
         logger.debug(f'Naive main composition dict:')
         my_logger(composition_dict, logger.debug)
         self.patch = Bilayer(composition_dict,
