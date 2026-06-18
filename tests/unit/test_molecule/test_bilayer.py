@@ -48,6 +48,21 @@ class TestBilayer(unittest.TestCase):
         assert all([x in ['POPE', 'POPC'] for x in test_bilayer.lipid_names])
         os.chdir('..')
 
+    def test_constructor_does_not_mutate_composition_dict(self):
+        # Regression: the constructor fills per-species 'patn' from leaflet_nlipids, but must
+        # do so on its own copy. If it stamps 'patn' into the caller's dict, a small patch's
+        # counts leak into a larger membrane built from the same dict -- under-populating and
+        # under-hydrating it (the dehydrated bilayer then collapses laterally).
+        self.charmmff_content.deprovision()
+        cdict = specstrings_builddict(lipid_specstring='POPC', lipid_ratio_specstring='1',
+                                      lipid_conformers_specstring='1')
+        Bilayer(composition_dict=cdict, leaflet_nlipids={'upper': 100, 'lower': 100},
+                charmmffcontent=self.charmmff_content)
+        for key in ('upper_leaflet', 'lower_leaflet', 'upper_chamber', 'lower_chamber'):
+            for entry in cdict[key]:
+                self.assertNotIn('patn', entry, f'{key} entry was mutated with patn')
+                self.assertNotIn('charge', entry, f'{key} entry was mutated with charge')
+
     def test_bilayer_memgen_to_composition_simple_symm(self):
         self.charmmff_content.deprovision()
         cdict=specstrings_builddict(lipid_specstring='POPC',lipid_ratio_specstring='1',lipid_conformers_specstring='1')

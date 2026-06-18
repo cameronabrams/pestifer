@@ -3,6 +3,7 @@
 A module for handling bilayer structures in molecular simulations.
 """
 
+import copy
 import logging
 
 import numpy as np
@@ -216,6 +217,13 @@ class Bilayer:
         if not composition_dict:
             logger.debug('Empty bilayer')
             return None
+
+        # Work on our own copy: the per-species 'patn' counts are filled in below from
+        # leaflet_nlipids, and mutating the caller's dict in place would bake one Bilayer's
+        # counts into a composition_dict reused to build another (e.g. a 100-lipid patch's
+        # counts leaking into the full gridded membrane), under-populating and
+        # under-hydrating it.
+        composition_dict = copy.deepcopy(composition_dict)
         
         # user need not have specified the solvent composition in the upper and lower chambers
         if 'upper_chamber' not in composition_dict or 'lower_chamber' not in composition_dict:
