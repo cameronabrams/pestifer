@@ -94,6 +94,14 @@ tasks:
       constraints:
         k: 10
         atoms: protein and name CA
+  # --- post-embed equilibration ---
+  # A brief warm pass fluidizes the lipids around the freshly-embedded protein;
+  # staged isotropic NPT then condenses out the embedding voids (each stage is a
+  # restart, so the shrinking cell never outgrows NAMD's startup patch grid); and
+  # a long, restart-staged NPgT relaxes the lateral area at zero tension -- the
+  # only ensemble that can, and the one that actually sets the equilibrium area.
+  # Weak CA restraints hold the protein steady while the box relaxes and are
+  # released only on the final stage, on which the pressure profile is computed.
   - md:
       ensemble: NVT
       nsteps: 1000
@@ -103,33 +111,65 @@ tasks:
         atoms: protein and name CA
   - md:
       ensemble: NVT
-      nsteps: 1000
-      temperature: 410
+      nsteps: 4000
+      temperature: 310
       constraints:
         k: 1
         atoms: protein and name CA
   - md:
       ensemble: NPT
-      nsteps: 6400
-      temperature: 410
-  # post-embed NPgT equilibration, staged so the still-condensing (and now larger)
-  # system never shrinks past NAMD's startup patch grid in a single run; the pressure
-  # profile is computed only on the final, equilibrated stage
-  - md:
-      ensemble: NPgT
-      nsteps: 3200
+      nsteps: 2000
       temperature: 310
+      constraints:
+        k: 1
+        atoms: protein and name CA
   - md:
-      ensemble: NPgT
-      nsteps: 6400
+      ensemble: NPT
+      nsteps: 4000
       temperature: 310
+      constraints:
+        k: 1
+        atoms: protein and name CA
   - md:
-      ensemble: NPgT
-      nsteps: 12800
+      ensemble: NPT
+      nsteps: 8000
       temperature: 310
+      constraints:
+        k: 1
+        atoms: protein and name CA
+  - md:
+      ensemble: NPT
+      nsteps: 16000
+      temperature: 310
+      constraints:
+        k: 1
+        atoms: protein and name CA
   - md:
       ensemble: NPgT
-      nsteps: 25600  # this is (probably) way too short!!
+      nsteps: 16000
+      temperature: 310
+      constraints:
+        k: 1
+        atoms: protein and name CA
+  - md:
+      ensemble: NPgT
+      nsteps: 32000
+      temperature: 310
+      constraints:
+        k: 1
+        atoms: protein and name CA
+  - md:
+      ensemble: NPgT
+      nsteps: 64000
+      temperature: 310
+      constraints:
+        k: 1
+        atoms: protein and name CA
+  - md:
+      # final, unrestrained NPgT stage -- ~256 ps to let the lateral area plateau;
+      # the pressure profile is sampled only here, on the equilibrated cell
+      ensemble: NPgT
+      nsteps: 128000
       temperature: 310
       other_parameters:
         pressureProfile: on
