@@ -17,6 +17,7 @@ from .make_ligand_mol2 import MakeLigandMol2Subcommand
 from .make_pdbcollection import MakePDBCollectionSubcommand
 from .rebuild_charmmff_cache import RebuildCHARMMFFCache
 from .mdplot import MDPlotSubcommand
+from .density_profile import DensityProfileSubcommand
 from .setup_vmd import SetupVMDSubcommand
 
 package_path = Path(__file__).resolve().parent.parent.parent
@@ -35,6 +36,7 @@ _subcommands: list[Subcommand] = [
     MakePDBCollectionSubcommand(),
     WhereTCLSubcommand(),
     MDPlotSubcommand(),
+    DensityProfileSubcommand(),
     MakeNAMDRestartSubcommand(),
     RebuildCHARMMFFCache(),
     FollowNAMDLogSubcommand(),
