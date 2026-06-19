@@ -204,7 +204,11 @@ class DensityProfile:
         ax.set_xlim(centers.min(), centers.max())
         ax.set_ylim(bottom=0)
         ax.grid(alpha=0.25)
-        ax.legend(frameon=False, fontsize='small', ncol=2 if components else 1)
+        # place the legend outside the axes so it never collides with the data,
+        # however many lipid components are shown (bbox_inches='tight' below keeps
+        # it from being clipped)
+        ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5),
+                  frameon=False, fontsize='small')
         fig.tight_layout()
         fig.savefig(outfile, dpi=dpi, bbox_inches='tight')
         plt.close(fig)
