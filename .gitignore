@@ -148,3 +148,9 @@ dmypy.json
 
 # test-run artifacts (checked-out examples)
 tests/unit/test_core/bpti1.yaml
+
+# test-run residue: charmmff files copied into fixture dirs at runtime
+tests/unit/test_tasks/test_continuation/par_*.prm
+tests/unit/test_tasks/test_continuation/toppar_all36_carb_imlab.str
+# bilayer test working dir (created by tests/unit/test_molecule/test_bilayer.py)
+tests/unit/test_molecule/test_bilayer/
