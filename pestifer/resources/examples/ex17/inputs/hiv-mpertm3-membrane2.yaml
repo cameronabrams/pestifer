@@ -11,7 +11,7 @@
 # footprint -- no packmol required.
 #
 # NOTE: This example uses NAMD's on-the-fly pressureProfile calculation in the
-# post-equilibration NPAT stage and the packaged production run. CUDA-enabled
+# post-equilibration NPgT stage and the packaged production run. CUDA-enabled
 # (GPU) NAMD does not support pressureProfile, so this example must be run with a
 # CPU NAMD build. Remove the `pressureProfile*` keys to use a GPU build.
 #
@@ -53,7 +53,7 @@ tasks:
         relaxation_protocols:
           # asymmetric grid: the patch protocol relaxes the two symmetric calibration
           # patches (one per leaflet composition), the quilt protocol relaxes the gridded
-          # membrane. Long NPT/NPAT stages are auto-split into restarts so the condensing
+          # membrane. Long NPT/NPgT stages are auto-split into restarts so the condensing
           # cell never outgrows NAMD's startup patch grid.
           patch:
             - md:
@@ -89,7 +89,7 @@ tasks:
                 temperature: 310
                 pressure: 4.0
             - md:
-                ensemble: NPAT
+                ensemble: NPgT
                 nsteps: 16000  # this is probably too short!
                 temperature: 310
                 pressure: 1.0
@@ -112,12 +112,17 @@ tasks:
                 temperature: 310
                 pressure: 1.0
             - md:
-                ensemble: NPAT
+                ensemble: NPT
                 nsteps: 8000
                 temperature: 310
                 pressure: 1.0
+            - md:
+                ensemble: NPgT
+                nsteps: 16000
+                temperature: 310
+                pressure: 1.0
       embed:
-        xydist: 20
+        xydist: 40
         zdist: 10
         z_head_group: "protein and resid 667"
         z_tail_group: "protein and resid 710"
@@ -176,9 +181,24 @@ tasks:
       ensemble: NPT
       nsteps: 32000
       temperature: 310
+  # post-embed NPgT equilibration, staged so the still-condensing (and now larger)
+  # system never shrinks past NAMD's startup patch grid in a single run; the pressure
+  # profile is computed only on the final, equilibrated stage
   - md:
-      ensemble: NPAT
-      nsteps: 51200  # this is way too short!!
+      ensemble: NPgT
+      nsteps: 3200
+      temperature: 310
+  - md:
+      ensemble: NPgT
+      nsteps: 6400
+      temperature: 310
+  - md:
+      ensemble: NPgT
+      nsteps: 12800
+      temperature: 310
+  - md:
+      ensemble: NPgT
+      nsteps: 25600  # this is way too short!!
       temperature: 310
       other_parameters:
         pressureProfile: on
@@ -198,7 +218,7 @@ tasks:
       package:
         basename: prod_6e8w
         namd:
-          ensemble: NPAT
+          ensemble: NPgT
           firsttimestep: 0
           dcdfreq: 10000
           xstfreq: 10000
