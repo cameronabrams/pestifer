@@ -12,12 +12,15 @@
 # Each example runs in its own subdirectory so outputs don't collide.
 # Adjust #SBATCH directives and the environment setup below for your cluster.
 
-# --- environment setup ---
+# --- environment setup (adapt for your cluster) ---
 module purge
 module load vmd namd
-conda activate panacea
 
-PESTIFER=/home/cfa/anaconda3/envs/panacea/bin/pestifer
+# Invoke pestifer through uv.  Either activate the project venv beforehand so
+# that `pestifer` is on PATH, or point uv at the project here.  Override the
+# PESTIFER variable to taste, e.g.:
+#   export PESTIFER="uv run --project $HOME/pestifer pestifer"
+PESTIFER="${PESTIFER:-uv run pestifer}"
 N_EXAMPLES=22
 
 echo "Starting pestifer example runs at $(date)"
