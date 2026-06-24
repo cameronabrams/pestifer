@@ -12,6 +12,7 @@ The documentation of the pdb2pqr command is available at `readthedocs <https://p
 
 import logging
 import os
+import shutil
 
 import pandas as pd
 
@@ -113,6 +114,12 @@ class PDB2PQRTask(PsfgenTask):
             The pH value to be used for titration state calculations. Default is 7.
         """
         # runs PDB2PQR on the prepped PDB file, generating a PQR file with titration states, and parses the results
+        if shutil.which('pdb2pqr') is None:
+            raise FileNotFoundError(
+                "'pdb2pqr' executable not found on PATH. pdb2pqr is an optional external "
+                "dependency required by the 'pdb2pqr' task; install it into your environment "
+                "(e.g. 'uv pip install pdb2pqr' or 'pip install pdb2pqr') and make sure its "
+                "console script is on PATH.")
         c = Command(f'pdb2pqr --ff CHARMM --ffout CHARMM --with-ph {pH} --titration-state-method propka --pdb-output {self.basename}_pqr.pdb {self.basename}_pprep.pdb {self.basename}.pqr')
         self.log_parser = PDB2PQRLogParser(basename=f'{self.basename}_run')
         PS = PDB2PQRProgress()
