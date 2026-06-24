@@ -5,18 +5,19 @@ build:
   tools:
     python: "3.12"
   jobs:
+    # Build the docs environment with uv so pdb2pqr's stale `docutils<0.18` pin
+    # can be overridden (docs/overrides.txt) and coexist with the Sphinx
+    # toolchain's modern docutils.  Plain pip cannot relax a transitive pin, so
+    # this replaces the old `pip install pdb2pqr --no-deps` workaround.
+    pre_install:
+      - pip install uv
+    install:
+      - uv pip install --python "${READTHEDOCS_VIRTUALENV_PATH}/bin/python" --override docs/overrides.txt -r docs/requirements.txt
+      - uv pip install --python "${READTHEDOCS_VIRTUALENV_PATH}/bin/python" --override docs/overrides.txt .
     pre_build:
       - rm -rf docs/source/api/
       - sphinx-apidoc -f -M -e --implicit-namespaces --tocfile API -o docs/source/api pestifer/
       - cd docs/source && yclept make-doc ../../pestifer/schema/base.yaml --root config_ref --footer-style raw-html
-    post_install:
-      - pip install pdb2pqr --no-deps
 
 sphinx:
   configuration: docs/source/conf.py
-
-python:
-  install:
-    - requirements: docs/requirements.txt
-    - method: pip
-      path: .

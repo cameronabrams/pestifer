@@ -27,11 +27,13 @@ dependencies = [
   "networkx",
   "numpy>=1.24",
   "pandas",
-  "mmcif-pdbx>=1.1.2",  # pdb2pqr dep (installed --no-deps to avoid docutils conflict)
+  "mmcif-pdbx>=1.1.2",
+  "pdb2pqr>=3.6",       # pKa/protonation; its stale `docutils<0.18` pin is never
+                        # used and is overridden in [tool.uv] below
   "pidibble>=1.5.2",
   "platformdirs",
-  "propka>=3.5",        # pdb2pqr dep
-  "requests",           # pdb2pqr dep
+  "propka>=3.5",
+  "requests",
   "progressbar2",
   "pydantic",
   "pyyaml>=6",
@@ -56,16 +58,18 @@ pestifer = "pestifer.cli.pestifer:cli"
 "Documentation" = "https://pestifer.readthedocs.io/en/latest/"
 "Bug Tracker" = "https://github.com/cameronabrams/pestifer/issues"
 
+[tool.uv]
+# pdb2pqr declares `docutils<0.18` but never imports docutils; that stale pin is
+# otherwise unsatisfiable alongside the Sphinx docs toolchain (docutils>=0.21).
+# Override it so the two coexist.  (Read the Docs passes the same constraint via
+# docs/overrides.txt, since `uv pip` does not read this section.)
+override-dependencies = ["docutils>=0.21,<0.23"]
+
 [tool.pytest.ini_options]
 log_cli = false
 
 [project.entry-points.pytest11]
 pestifer = "pestifer.util.pytest_plugin"
-
-[tool.hatch.envs.default.scripts]
-post-install = [
-  "pip install pdb2pqr==3.7.1 --no-deps"
-]
 
 [tool.hatch.build]
 exclude = [

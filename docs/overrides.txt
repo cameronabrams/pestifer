@@ -1,0 +1,6 @@
+# uv override-dependencies for the Read the Docs build.
+# pdb2pqr declares a stale `docutils<0.18` pin that it never actually uses; this
+# overrides it so pdb2pqr can coexist with the Sphinx toolchain's modern docutils.
+# Mirrors [tool.uv] override-dependencies in pyproject.toml (uv pip does not read
+# that section, so RTD passes this file explicitly via --override).
+docutils>=0.21,<0.23
