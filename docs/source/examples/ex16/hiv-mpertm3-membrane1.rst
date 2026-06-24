@@ -48,6 +48,12 @@ The ``mdplot`` task generated the following plots for the membrane-embedded syst
 
            Pressure profiles for selected time intervals during the protein-embedded membrane relaxation.
 
+The ``density-profile`` subcommand produces a species-resolved mass-density profile along the bilayer normal from the equilibrated final frame.  Water is cleanly excluded from the hydrophobic core, the lipid shows the characteristic headgroup peaks and a terminal-methyl trough at the midplane, and the membrane-spanning protein appears at low density across the bilayer.
+
+.. figure:: 15-density-profile.png
+
+           Water, lipid, and protein mass density vs distance from the bilayer midplane.  Generated with ``pestifer density-profile``.
+
 .. raw:: html
 
     <div class="autogen-footer">

@@ -61,6 +61,13 @@ The ``mdplot`` task generated the following plots for the membrane-embedded syst
 .. figure:: 17-bilayer-pressureprofile.png
 
            Pressure profiles for selected time intervals during the protein-embedded membrane relaxation.
+
+The ``density-profile`` subcommand produces a species-resolved mass-density profile along the bilayer normal from the equilibrated final frame.  For a multicomponent bilayer the ``--lipid-components`` option decomposes the total lipid density into one curve per lipid species, which exposes the leaflet asymmetry: the outer-leaflet PSM and POPC peak on one side, the inner-leaflet SOPE, SOPS, and POPE on the other, while cholesterol (CHL1) populates both leaflets.
+
+.. figure:: 17-density-profile.png
+
+           Per-species mass density vs distance from the bilayer midplane, with the lipid total broken out into individual components.  Generated with ``pestifer density-profile --lipid-components``.
+
 .. raw:: html
 
     <div class="autogen-footer">
