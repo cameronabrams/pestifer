@@ -154,3 +154,8 @@ tests/unit/test_tasks/test_continuation/par_*.prm
 tests/unit/test_tasks/test_continuation/toppar_all36_carb_imlab.str
 # bilayer test working dir (created by tests/unit/test_molecule/test_bilayer.py)
 tests/unit/test_molecule/test_bilayer/
+# single-residue PDBs extracted by tests/unit/test_molecule tests
+tests/unit/test_molecule/POPC-01.pdb
+tests/unit/test_molecule/TIP3.pdb
+# charmmff parameter files copied into the cleave fixture dir at runtime
+tests/unit/test_tasks/test_cleave/par_*.prm
