@@ -10,6 +10,9 @@ import os
 import signal
 import shutil
 import subprocess
+import sys
+import threading
+import time
 
 from glob import glob
 
@@ -17,6 +20,90 @@ from ..logparsers import LogParser
 from ..util.util import running_under_pytest
 
 logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------------
+# Clean shutdown of external child processes (NAMD/VMD/packmol).
+#
+# Each external command is launched in its own session (``start_new_session``),
+# so the child is a process-group leader and its whole tree -- e.g.
+# ``charmrun`` -> ``namd3`` -> N PE processes -- can be taken down with a single
+# ``killpg``.  Without this, interrupting pestifer (Ctrl-C, or ``kill`` from a
+# scheduler) left orphaned NAMD jobs pinning every core, because the tracked pid
+# was the shell/charmrun wrapper and SIGTERM to it never reached ``namd3``.
+# ---------------------------------------------------------------------------
+
+_active_child_pgids: set[int] = set()
+_active_child_lock = threading.Lock()
+_signal_handlers_installed = False
+
+
+def _register_child(pid: int) -> None:
+    with _active_child_lock:
+        _active_child_pgids.add(pid)
+
+
+def _unregister_child(pid: int) -> None:
+    with _active_child_lock:
+        _active_child_pgids.discard(pid)
+
+
+def _terminate_children(sig: int) -> int:
+    """Send *sig* to every live child process group.  Returns the count signaled."""
+    with _active_child_lock:
+        pgids = list(_active_child_pgids)
+    n = 0
+    for pid in pgids:
+        try:
+            os.killpg(os.getpgid(pid), sig)
+            n += 1
+        except (ProcessLookupError, OSError):
+            pass
+    return n
+
+
+def _cleanup_children_atexit() -> None:
+    """Backstop for normal interpreter exit: make sure nothing was left running."""
+    if _terminate_children(signal.SIGTERM):
+        time.sleep(0.3)
+        _terminate_children(signal.SIGKILL)
+
+
+atexit.register(_cleanup_children_atexit)
+
+
+def _signal_handler(signum, frame):
+    name = signal.Signals(signum).name
+    with _active_child_lock:
+        n = len(_active_child_pgids)
+    logger.warning(f'Received {name}: shutting down and terminating '
+                   f'{n} running child process group(s)...')
+    _terminate_children(signal.SIGTERM)
+    time.sleep(0.5)
+    _terminate_children(signal.SIGKILL)
+    logger.warning(f'pestifer run INTERRUPTED by {name} before completion. '
+                   f'Any partially built files remain in {os.getcwd()}; the build is '
+                   f'incomplete and should be restarted.')
+    # exit through the normal Python path so logging/atexit flush cleanly, with an
+    # exit status that reflects the signal (128 + signum, the shell convention)
+    sys.exit(128 + signum)
+
+
+def install_signal_handlers() -> None:
+    """Install SIGINT/SIGTERM handlers that tear down child processes cleanly.
+
+    Idempotent, and a no-op off the main thread (where ``signal.signal`` is
+    illegal) or under pytest (so the test runner keeps its own signal handling)."""
+    global _signal_handlers_installed
+    if _signal_handlers_installed:
+        return
+    if threading.current_thread() is not threading.main_thread() or running_under_pytest():
+        return
+    for s in (signal.SIGINT, signal.SIGTERM):
+        try:
+            signal.signal(s, _signal_handler)
+        except (ValueError, OSError):
+            pass
+    _signal_handlers_installed = True
 
 class Command:
     """ 
@@ -92,44 +179,40 @@ class Command:
             stderr_redirect = subprocess.STDOUT
         else:
             stderr_redirect = subprocess.PIPE
-        process = subprocess.Popen(self.c, shell=True, stdout=subprocess.PIPE, stderr=stderr_redirect, text=True)
-        global pid
-        pid = process.pid
-        def kill_child():
-            if pid is None:
-                pass
-            else:
-                try:
-                    os.kill(pid, signal.SIGTERM)
-                except:
-                    pass
-        atexit.register(kill_child)
+        # run each external command in its own session so its whole process tree
+        # (e.g. charmrun -> namd3 -> PEs) can be torn down with one killpg on interrupt
+        install_signal_handlers()
+        process = subprocess.Popen(self.c, shell=True, stdout=subprocess.PIPE, stderr=stderr_redirect, text=True, start_new_session=True)
+        _register_child(process.pid)
         self.stdout = ''
         self.stderr = ''
         output = ''
 
-        while True:
-            output = process.stdout.readline()
-            self.stdout += output
-            if logparser:
-                logparser.update(output)
+        try:
+            while True:
+                output = process.stdout.readline()
+                self.stdout += output
+                if logparser:
+                    logparser.update(output)
+                    if not _pytest:
+                        logparser.update_progress_bar()
+                if log:
+                    log.write(output)
+                    log.flush()
+                if output == '' and process.poll() is not None:
+                    break
+            if hasattr(logparser, 'progress_bar') and logparser.progress_bar is not None:
                 if not _pytest:
-                    logparser.update_progress_bar()
-            if log: 
-                log.write(output)
-                log.flush()
-            if output == '' and process.poll() is not None:
-                break
-        if hasattr(logparser, 'progress_bar') and logparser.progress_bar is not None:
-            if not _pytest:
-                logparser.progress_bar.finish()
-            else:
-                print()
-        if logfile:
-            logger.debug(f'Log written to {logfile}')
-            log.close()
-        remaining_stdout, self.stderr = process.communicate()
-        self.stdout += remaining_stdout
+                    logparser.progress_bar.finish()
+                else:
+                    print()
+            if logfile:
+                logger.debug(f'Log written to {logfile}')
+                log.close()
+            remaining_stdout, self.stderr = process.communicate()
+            self.stdout += remaining_stdout
+        finally:
+            _unregister_child(process.pid)
         if logparser:
             logparser.update(remaining_stdout)
             if not _pytest and not (hasattr(logparser, 'progress_bar') and logparser.progress_bar is not None):
