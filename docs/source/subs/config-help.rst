@@ -51,8 +51,8 @@ Continuing to drill down is easy -- just add the next directive to the interacti
    pestifer-help: make_membrane_system
 
    make_membrane_system:
-       Parameters controlling packmol to generate a membrane system with an
-         embedded protein
+       Parameters to build a lipid bilayer (grid or packmol packer) and
+         optionally embed a protein in it
 
    base|tasks->make_membrane_system
        bilayer ->

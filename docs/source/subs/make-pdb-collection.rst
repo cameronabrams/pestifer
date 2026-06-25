@@ -83,7 +83,7 @@ Each RESI in a PDB collection is represented by a subdirectory named after the R
     └── init.tcl
 
 
-The pdb files ``DOPC-00.pdb`` through ``DOPC-09.pdb`` are the 10 different configurations of the DOPC molecule.  The ``DOPC-init.pdb`` and ``DOPC-init.psf`` files are the initial coordinates and topology of the molecule, and the ``init.tcl`` file is a psfgen script used to generate those two files.  The ``info.yaml`` file contains metadata about the RESI, such as its long name and measurements of its dimensions that ``packmol`` needs:
+The pdb files ``DOPC-00.pdb`` through ``DOPC-09.pdb`` are the 10 different configurations of the DOPC molecule.  The ``DOPC-init.pdb`` and ``DOPC-init.psf`` files are the initial coordinates and topology of the molecule, and the ``init.tcl`` file is a psfgen script used to generate those two files.  The ``info.yaml`` file contains metadata about the RESI, such as its long name and measurements of its dimensions and reference atoms that the bilayer packers (``packmol`` and ``grid``) need:
 
 .. code-block:: yaml
 

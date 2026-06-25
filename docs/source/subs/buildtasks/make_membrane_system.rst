@@ -3,7 +3,14 @@
 make_membrane_system 
 --------------------
 
-As an *alternative* to a ``solvate`` task, you can use a ``make_membrane_system`` task to build a lipid bilayer and *optionally* embed the protein into it.  Pestifer uses ``packmol`` to build a small bilayer "patch" of specified composition, and then replicates it in x and y to generate a sufficiently large bilayer "quilt".
+As an *alternative* to a ``solvate`` task, you can use a ``make_membrane_system`` task to build a lipid bilayer and *optionally* embed the protein into it.
+
+Pestifer offers two ways to generate the initial lipid and solvent coordinates, selected with the ``bilayer.packer`` option:
+
+- ``grid`` places lipids on a per-leaflet 2-D lattice (oriented, head groups out) and solvent on a 3-D lattice **directly**, and relies on the downstream relaxation MD to resolve the initial overlaps.  It builds the full-size membrane in one shot -- sized to the embedded protein's xy footprint plus the ``embed.xydist`` margin -- so there is no separate patch-packing or replication step, it needs **no** ``packmol`` installation (``paths.packmol`` is not consulted), and it is orders of magnitude faster than packmol.  Examples 16 and 17 use the grid packer.
+- ``packmol`` (the default) uses `packmol <https://m3g.github.io/packmol/>`_ to pack a small bilayer "patch" of the specified composition and then replicates it in x and y to form a sufficiently large "quilt".  It requires a ``packmol`` installation (see :ref:`installation <installation>`).
+
+Both packers feed the same relaxation and embedding steps; they differ only in how the starting coordinates are produced.  The `Task Flow`_ section below describes each.
 
 ``Pestifer`` comes prepackaged with a set of lipid PDB files you can use to build a bilayer.  You can see the full list of available lipids witht this command:
 
@@ -91,12 +98,13 @@ Bilayer composition is specified either using a single ``composition`` directive
 
    - **Optional subdirectives**: The ``bilayer`` subdirective can also include optional subdirectives to control how the bilayer is built and relaxed:
      
-     - ``SAPL`` specifies the target surface area per lipid (SAPL) for the bilayer.  This is a single value that applies to both leaflets.  Pestifer will use this value to determine how many lipids to include in each leaflet of the bilayer patch when using ``packmol``.  Note that this is only an *initial* value; the actual SAPL will be determined during the relaxation protocol specified in the ``relaxation_protocols`` directive.  If you do not specify a ``SAPL``, pestifer will use a default value of 75.0 :math:`Å^2` per lipid.
+     - ``packer`` selects the coordinate generator: ``packmol`` (the default) or ``grid`` (see the introduction above and `Task Flow`_).  The grid packer needs no ``packmol`` installation.
+     - ``SAPL`` specifies the target surface area per lipid (SAPL) for the bilayer, applied to both leaflets.  It sets how many lipids fill each leaflet (packmol patch) or the initial lattice spacing (grid).  This is only an *initial* value; the equilibrium area is found during the ``relaxation_protocols`` relaxation.  If you do not specify a ``SAPL``, pestifer will use a default value of 75.0 :math:`Å^2` per lipid.
    
-     - ``relaxation_protocols`` specifies protocols to relax the bilayer patch and quilt.  Each protocol is a list of tasks, and each task is a dictionary with a single key-value pair.  The key is the name of the task, and the value is a dictionary of options for that task.  The example above shows how to use ``md`` tasks to perform energy minimization, NVT, and NPT equilibration.  The ``patch`` protocol is used to relax the initial bilayer patch, and the ``quilt`` protocol is used to relax the final quilted bilayer system. (``md`` tasks are currently the only supported task type in a ``relaxation_protocols`` directive.  All ``md`` task options are documented in the Config Reference pages for :ref:`config_ref tasks md`.)
-     - ``solvents``, ``solvent_mole_fractions``, and  are optional packmol-memgen-style strings that specify the solvent composition in the bilayer patch.  Pestifer uses 100% TIP3P water by default.
-     - ``solvent_to_lipid_ratio`` specifies the number of waters to include in the extra-membrane region of the box as proportional to the number of lipids.  If you do not specify this, pestifer will use a default of 32 TIP3P water molecules per lipid in the bilayer patch.
-     - ``patch_nlipids`` specifies the number of lipids to include in each bilayer patch leaflet.  It expects a dictionary with keys ``upper`` and ``lower``, each with a value that is an integer.  If you do not specify this, pestifer will use a default of 100 lipids per leaflet in the bilayer patch.  This value is used to determine the size of the bilayer patch when using ``packmol``.
+     - ``relaxation_protocols`` specifies protocols to relax the bilayer before embedding.  Each protocol is a list of ``md`` tasks (the only supported task type), each a dictionary with a single ``md`` key whose value is a dictionary of options.  The ``patch`` protocol relaxes the small patches -- the packmol patch, or the grid packer's two per-leaflet *calibration* patches (asymmetric builds only) -- and the ``quilt`` protocol relaxes the full-size membrane (the replicated quilt for packmol, or the directly-gridded membrane for grid).  Long ``NPT``/``NPgT`` stages are automatically split into a ramp of restarts so the condensing cell never outgrows NAMD's startup patch grid.  All ``md`` task options are documented in the Config Reference pages for :ref:`config_ref tasks md`.
+     - ``solvents`` and ``solvent_mole_fractions`` are optional packmol-memgen-style strings that specify the solvent composition.  Pestifer uses 100% TIP3P water by default.
+     - ``solvent_to_lipid_ratio`` specifies the number of waters to include in the extra-membrane region of the box as proportional to the number of lipids.  If you do not specify this, pestifer will use a default of 32 TIP3P water molecules per lipid.
+     - ``patch_nlipids`` specifies the number of lipids in each patch leaflet (the packmol patch, or the grid calibration patches).  It expects a dictionary with keys ``upper`` and ``lower``, each an integer.  If you do not specify this, pestifer will use a default of 100 lipids per leaflet.
   
 ``embed``
 +++++++++
@@ -173,17 +181,42 @@ If you are including cholesterol or any other sterols in your bilayer, it is rec
 Task Flow
 =========
 
-As mentioned above, pestifer first uses packmol to make a minimal patch (of, say, 100 lipids per leaflet) of the desired composition.  If the system is to have a symmetric bilayer (same composition in each leaflet), then this patch is first relaxed and then replicated to form the final quilt, into which the protein is embedded (if there is one).  If the system is to have an asymmetric bilayer (different composition in each leaflet), then pestifer first makes *two symmetric* patches, where in the first the two leaflets have the same composition as the upper leaflet of the final system, and the second has the composition of the lower leaflet.  These two patches are relaxed independently.  Then a hybrid asymmetric patch is constructed by combining the upper leaflet of the first and the lower leaflet of the second.  The lateral box size is set as that of the larger of the two leaflets (laterally).  If there is a difference in lateral area of the two patches, this means the larger one has *excess lipids*.  However, we will not delete excess lipids until the quilt is made.  At this point, this fresh asymmetric patch is replicated to form the quilt.  The number of excess lipids in the larger patch is computed assuming that the equilibrated symmetric patch reports an accurate SAPL for that composition, and that the two leaflets in the quilt must have the *same* area, which is assumed at the outset to reflect a laterally equilibrated *smaller* leaflet.  The determined number of excess lipids is then deleted from the larger leaflet by random selection, and the system is relaxed again.  This is done to ensure the lateral pressure in the two leaflets is the same, minimizing any spontaneous curvature that would cause spurious "ripples" in the fully periodic system.
+The detailed flow depends on the ``packer``.
+
+Grid packer
++++++++++++
+
+For a **symmetric** bilayer, the grid packer builds the full-size membrane directly: it grids both leaflets at the requested composition and initial ``SAPL``, sizing the box to the embedded protein's xy footprint plus the ``embed.xydist`` margin (or to ``patch_nlipids`` otherwise).  The gridded membrane is relaxed with the ``quilt`` protocol, and the protein is then embedded.  There is no separate patch or replication step.
+
+For an **asymmetric** bilayer (different leaflet compositions), the grid packer first relaxes two symmetric *calibration* patches -- one per leaflet composition -- with the ``patch`` protocol, to measure each leaflet's preferred area per lipid (APL).  It then grids the full membrane (sized to the protein footprint when embedding) at per-leaflet counts in the stress-free ratio :math:`n_\text{upper}/n_\text{lower} = \text{APL}_\text{lower}/\text{APL}_\text{upper}`, so the two leaflets carry equal area at zero differential stress *by construction* -- no leaflet extraction or excess-lipid deletion is required.  The full membrane is then relaxed with the ``quilt`` protocol before embedding.
 
 .. mermaid::
-  :caption: Pestifer's algorithm for making a bilayer.
+  :caption: Grid packer flow.
 
   graph TD;
     A{Is bilayer asymmetric?};
-    A -- No --> B[Make patch];
+    A -- No --> B[Grid full membrane at initial SAPL];
+    A -- Yes --> C[Relax two per-leaflet calibration patches];
+    C --> D[Measure each leaflet's preferred APL];
+    D --> E[Grid full membrane at stress-free per-leaflet counts];
+    B --> F[Relax quilt];
+    E --> F;
+    F --> G[Embed protein];
+
+Packmol packer
+++++++++++++++
+
+The packmol packer first uses packmol to make a minimal patch (of, say, 100 lipids per leaflet) of the desired composition.  If the system is to have a symmetric bilayer (same composition in each leaflet), then this patch is first relaxed and then replicated to form the final quilt, into which the protein is embedded (if there is one).  If the system is to have an asymmetric bilayer (different composition in each leaflet), then pestifer first makes *two symmetric* patches, where in the first the two leaflets have the same composition as the upper leaflet of the final system, and the second has the composition of the lower leaflet.  These two patches are relaxed independently.  Then a hybrid asymmetric patch is constructed by combining the upper leaflet of the first and the lower leaflet of the second.  The lateral box size is set as that of the larger of the two leaflets (laterally).  If there is a difference in lateral area of the two patches, this means the larger one has *excess lipids*.  However, we will not delete excess lipids until the quilt is made.  At this point, this fresh asymmetric patch is replicated to form the quilt.  The number of excess lipids in the larger patch is computed assuming that the equilibrated symmetric patch reports an accurate SAPL for that composition, and that the two leaflets in the quilt must have the *same* area, which is assumed at the outset to reflect a laterally equilibrated *smaller* leaflet.  The determined number of excess lipids is then deleted from the larger leaflet by random selection, and the system is relaxed again.  This is done to ensure the lateral pressure in the two leaflets is the same, minimizing any spontaneous curvature that would cause spurious "ripples" in the fully periodic system.
+
+.. mermaid::
+  :caption: Packmol packer flow.
+
+  graph TD;
+    A{Is bilayer asymmetric?};
+    A -- No --> B[Pack patch];
     B --> H[Relax];
     H --> I[Replicate patch to quilt];
-    A -- Yes --> C[Make two symmetric patches];
+    A -- Yes --> C[Pack two symmetric patches];
     C --> D[Make patch for upper leaflet];
     C --> E[Make patch for lower leaflet];
     D --> F[Relax];
@@ -202,4 +235,4 @@ Other Notes
 
 Pestifer's ``make_membrane_system`` task is inspired by the `packmol-memgen package <https://ambermd.org/tutorials/advanced/tutorial38/index.php>`_.  For instance, we borrow ``packmol-memgen`` syntax for specifying composition (optionally; the preferred syntax is to use a ``composition`` dictionary in the yaml input).  However, we do not use any precomputed surface-areas per lipid.  Instead, we allow the user to specify a single value for SAPL and then use an MD-based relaxation protocol to achieve a laterally equilibrated bilayer system prior to any embedding.  Packmol-memgen allows for generation of asymmetric bilayers but does not provide a way to guarantee lack of spontaneous curvature that might result, beyond assuming its pre-computed SAPL's are correct.
 
-A moderately sized bilayer system can take *several hours* to pack and relax.  A typical bilayer patch of 100 lipids per leaflet with 32 waters per lipid will take between 15 and 30 minutes for ``packmol`` to pack; the remainder of the time is relaxation.  The relaxation protocols can take anywhere from a few minutes to several hours, depending on the size of the system and the number of steps specified in each protocol.  See :ref:`example mper-tm viral bilayer` for an example of a protein-embedded, heterogeneous asymmetric bilayer system built using the ``make_membrane_system`` task.
+Most of the wall-clock time for a membrane build is relaxation MD, which can run from a few minutes to several hours depending on the system size and the number of steps in each protocol.  The two packers differ markedly in how long the *coordinate generation* itself takes: the ``grid`` packer places lipids deterministically in seconds, whereas a packmol patch of 100 lipids per leaflet with 32 waters per lipid takes ``packmol`` roughly 15-30 minutes to pack.  See :ref:`example mper-tm viral bilayer` for an example of a protein-embedded, heterogeneous asymmetric bilayer system built using the grid packer.

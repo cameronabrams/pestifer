@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- docs: the `make_membrane_system` documentation now covers the grid packer alongside packmol -- a packer-agnostic intro, the `packer` option, separate grid/packmol task-flow descriptions and diagrams, and updated relaxation/SAPL notes. Membrane-building mentions elsewhere (introduction, installation, `make-pdb-collection`, the `make_membrane_system` schema description) no longer imply packmol is required
+
 ## [2.7.0] - 2026-06-25
 
 - bugfix: the `Bilayer` constructor filled per-species lipid/solvent counts (`patn`) into the caller's `composition_dict` **in place**. Because `make_membrane_system` builds a small calibration/initial patch (default 100 lipids/leaflet) from that dict before deep-copying it for the full gridded membrane, the patch's counts got baked in and reused: the full membrane was populated with only ~100 lipids and hydrated for only ~100 lipids regardless of its actual (often much larger) lipid count. Under-population + under-hydration (water-per-lipid far below the requested ratio) made the membrane condense far past its tensionless area into a gel-like collapse during relaxation, and left the embedded system grossly over-volume so production could not reach proper density. The constructor now works on its own copy, so each membrane computes counts from its own `leaflet_nlipids`. The symptom was masked at small box sizes (where ~100 lipids happened to match the protein-footprint box) and only surfaced once larger boxes needed more lipids

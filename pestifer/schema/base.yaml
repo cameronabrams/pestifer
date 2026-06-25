@@ -991,7 +991,7 @@ attributes:
             type: list
             default: ['lipid', 'glycan']
       - name: make_membrane_system
-        text: Parameters controlling packmol to generate a membrane system with an embedded protein
+        text: Parameters to build a lipid bilayer (grid or packmol packer) and optionally embed a protein in it
         type: dict
         attributes:
           - name: requires_subcontroller
