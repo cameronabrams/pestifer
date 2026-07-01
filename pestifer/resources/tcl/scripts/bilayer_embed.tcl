@@ -248,6 +248,15 @@ mol delete $raw_embedded_system
 
 set addl_water [list]
 
+# The added water slabs must span the periodic box laterally, centered on the membrane.
+# The old {0 0}-origin bounds assumed the membrane sat in the +x/+y quadrant starting at
+# the origin; after NAMD relaxation the (wrapped/re-centered) membrane is elsewhere, so the
+# added water came out offset in x and y.  Center the slab on the membrane instead.
+set water_min_x [expr $bilayer_mid_x - $bilayer_box_Lx / 2.0]
+set water_max_x [expr $bilayer_mid_x + $bilayer_box_Lx / 2.0]
+set water_min_y [expr $bilayer_mid_y - $bilayer_box_Ly / 2.0]
+set water_max_y [expr $bilayer_mid_y + $bilayer_box_Ly / 2.0]
+
 vmdcon -info "required box min z $box_min_z, current bilayer min z $bilayer_min_z"
 if { $box_min_z < $bilayer_min_z } {
    # make a slab of water thick enough to fill this gap
@@ -256,9 +265,9 @@ if { $box_min_z < $bilayer_min_z } {
       set extragap [expr 3.0 - $gapsize]
       set box_min_z [expr $box_min_z - $extragap]
    }
-   vmdcon -info "solvating into {{0 0 $box_min_z} {$bilayer_box_Lx $bilayer_box_Ly $bilayer_min_z}}"
-   vmdcon -info "Running solvate [list [list 0 0 $box_min_z] [list $bilayer_box_Lx $bilayer_box_Ly $bilayer_min_z]] -o ${outbasename}_water_lower"
-   solvate -minmax [list [list 0 0 $box_min_z] [list $bilayer_box_Lx $bilayer_box_Ly $bilayer_min_z]] -o ${outbasename}_water_lower
+   set lower_minmax [list [list $water_min_x $water_min_y $box_min_z] [list $water_max_x $water_max_y $bilayer_min_z]]
+   vmdcon -info "Running solvate -minmax $lower_minmax -o ${outbasename}_water_lower"
+   solvate -minmax $lower_minmax -o ${outbasename}_water_lower
    lappend tmp_files ${outbasename}_water_lower.psf
    lappend tmp_files ${outbasename}_water_lower.pdb
    lappend tmp_files ${outbasename}_water_lower.log
@@ -283,8 +292,9 @@ if { $box_max_z > $bilayer_max_z } {
       set extragap [expr 3.0 - $gapsize]
       set box_max_z [expr $box_max_z + $extragap]
    }
-   vmdcon -info "Running solvate -minmax [list [list 0 0 $bilayer_max_z] [list $bilayer_box_Lx $bilayer_box_Ly $box_max_z]] -o ${outbasename}_water_upper"
-   solvate -minmax [list [list 0 0 $bilayer_max_z] [list $bilayer_box_Lx $bilayer_box_Ly $box_max_z]] -o ${outbasename}_water_upper
+   set upper_minmax [list [list $water_min_x $water_min_y $bilayer_max_z] [list $water_max_x $water_max_y $box_max_z]]
+   vmdcon -info "Running solvate -minmax $upper_minmax -o ${outbasename}_water_upper"
+   solvate -minmax $upper_minmax -o ${outbasename}_water_upper
    lappend tmp_files ${outbasename}_water_upper.psf
    lappend tmp_files ${outbasename}_water_upper.pdb
    lappend tmp_files ${outbasename}_water_upper.log
