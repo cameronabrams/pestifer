@@ -80,6 +80,23 @@ class TestRingCheck(unittest.TestCase):
         self.assertEqual(p['piercer']['resid'],2)
         self.assertEqual(p['piercer']['segtype'],'lipid')
 
+    def test_ring_check_resname_and_only_piercees(self):
+        # new fields/filters used by the protein side-chain auto-rotate path
+        dir='5'
+        pdb=os.path.join(dir,'test.pdb')
+        psf=os.path.join(dir,'test.psf')
+        xsc=os.path.join(dir,'test.xsc')
+        result=ring_check(psf,pdb,xsc,cutoff=3.5,segtypes=['lipid','glycan'])
+        self.assertEqual(len(result),1)
+        # resname is now reported for both sides (needed to name the fix, e.g. 'HIS G-330')
+        self.assertIn('resname', result[0]['piercee'])
+        self.assertIn('resname', result[0]['piercer'])
+        # only_piercees restricts which rings are checked (targeted re-check after a rotation)
+        hit=ring_check(psf,pdb,xsc,cutoff=3.5,segtypes=['lipid','glycan'],only_piercees=[('AG01',1)])
+        self.assertEqual(len(hit),1)
+        miss=ring_check(psf,pdb,xsc,cutoff=3.5,segtypes=['lipid','glycan'],only_piercees=[('ZZZZ',999)])
+        self.assertEqual(len(miss),0)
+
     @pytest.mark.slow
     def test_ring_check_coords_4(self):
         # checks when molecules are in different periodic images

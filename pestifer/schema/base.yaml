@@ -987,9 +987,13 @@ attributes:
             type: float
             default: 10.0
           - name: segtypes
-            text: list of segment types to include in the ring-pierce check
+            text: "list of segment types whose rings are checked for piercing. Add 'protein' to also check side-chain rings (His/Phe/Tyr/Trp/Pro); a pierced protein ring is resolved by rotating the side-chain dihedral (chi2, then chi1) rather than by deletion"
             type: list
             default: ['lipid', 'glycan']
+          - name: max_ring_size
+            text: only rings of at most this many atoms are considered (keeps real 5/6-membered rings while skipping the giant chordless cycles a disulfide makes through the protein backbone)
+            type: int
+            default: 7
       - name: make_membrane_system
         text: Parameters to build a lipid bilayer (grid or packmol packer) and optionally embed a protein in it
         type: dict

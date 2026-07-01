@@ -425,11 +425,11 @@ proc PestiferCRot::SCrot_chi1 { r molid deg } {
 # rotate the side chain of residue r of chain c in mol molid around
 # chi2 by deg degrees
 proc PestiferCRot::SCrot_chi2 { r molid deg } {
-   set rot [atomselect $molid "residue $r and not name N HN CA CB HA C O HB1 HB2"]; checknum [$rot num] "no rot in SCrot_chi1";
-   set cb [atomselect $molid "residue $r and name CB"]; checknum [$cb num] "no CB in SCrot_chi1";
-   set cg [atomselect $molid "residue $r and name CG"]; checknum [$cg num] "no CG in SCrot_chi1";
+   set rot [atomselect $molid "residue $r and not name N HN CA CB HA C O HB1 HB2"]; checknum [$rot num] "no rot in SCrot_chi2";
+   set cb [atomselect $molid "residue $r and name CB"]; checknum [$cb num] "no CB in SCrot_chi2";
+   set cg [atomselect $molid "residue $r and name CG"]; checknum [$cg num] "no CG in SCrot_chi2";
    set p1 [lindex [$cb get {x y z}] 0]
-   set p2 [lindex [$cg get] {x y z}] 0]
+   set p2 [lindex [$cg get {x y z}] 0]
    set ax [vecsub $p1 $p2]
    $rot move [trans center $p1 axis $ax $deg degrees]
    $rot delete

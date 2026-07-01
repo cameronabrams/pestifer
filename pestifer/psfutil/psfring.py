@@ -136,9 +136,13 @@ class RingList(PSFTopoElementList):
         self.data=input_obj
     
     @__init__.register(nx.Graph)
-    def _from_graph(self,G):
+    def _from_graph(self,G,length_bound=None):
+        # length_bound keeps the cycle search cheap and macrocycle-free: a protein
+        # backbone closed by a disulfide is a huge chordless cycle, but every real
+        # chemical ring (aromatic 5/6, proline 5, sugar 6, sterol 5/6) is <= 6, so
+        # bounding to ~7 finds exactly those and skips the giant loops.
         L=[]
-        for ll in nx.chordless_cycles(G):
+        for ll in nx.chordless_cycles(G,length_bound=length_bound):
             L.append(PSFRing(ll))
         super().__init__(L)
 
@@ -146,7 +150,7 @@ class RingList(PSFTopoElementList):
         return ';'.join([str(x) for x in self])
     
 @countTime
-def ring_check(psf,pdb,xsc=None,cutoff=10.0,segtypes=['lipid']):
+def ring_check(psf,pdb,xsc=None,cutoff=10.0,segtypes=['lipid'],max_ring_size=7,only_piercees=None):
     """
     Check for rings in a molecular structure and identify bonds that pierce them.
     This function reads a PSF file and a PDB file, extracts the coordinates of atoms, and checks for rings in the structure.
@@ -184,6 +188,7 @@ def ring_check(psf,pdb,xsc=None,cutoff=10.0,segtypes=['lipid']):
     assert coorddf.shape[0] == len(topol.atoms), f'{psf} and {pdb} are incongruent'
     coorddf['segname'] = [a.segname for a in topol.atoms.data]
     segname_to_segtype = {a.segname: a.segtype for a in topol.atoms}
+    resname_of = {(a.segname, a.resid): a.resname for a in topol.atoms}
     logger.debug(f'ingesting coords into bonds...(could take a while)')
     topol.bonds.ingest_coordinates(coorddf, pos_key=['x', 'y', 'z'], meta_key=['segname', 'resid'])
     logger.debug(f'Assiging link-cell indices to each bond')
@@ -194,10 +199,16 @@ def ring_check(psf,pdb,xsc=None,cutoff=10.0,segtypes=['lipid']):
         if not b.linkcell_idx in bondlist_per_cell:
             bondlist_per_cell[b.linkcell_idx] = PSFBondList([])
         bondlist_per_cell[b.linkcell_idx].append(b)
-    Rings = RingList(topol.G)
+    Rings = RingList(topol.G, length_bound=max_ring_size)
     logger.debug(f'{len(Rings)} rings to be analyzed for piercings')
     logger.debug(f'ingesting coords into rings...')
     Rings.ingest_coordinates(coorddf, pos_key=['x', 'y', 'z'], meta_key=['segname', 'resid'])
+    if only_piercees is not None:
+        # targeted re-check: keep only the named (segname, resid) rings, so re-checking
+        # one candidate side-chain rotation does not re-scan every ring in the system
+        want = {(str(s), str(r)) for s, r in only_piercees}
+        Rings.data = [ring for ring in Rings.data if (str(ring.segname), str(ring.resid)) in want]
+        logger.debug(f'restricting to {len(Rings)} ring(s) matching only_piercees')
     piercespecs = []
     rdict = {}
     dtsum = 0.0
@@ -241,8 +252,8 @@ def ring_check(psf,pdb,xsc=None,cutoff=10.0,segtypes=['lipid']):
             logger.debug(f'ring {ringname}:')
             for bond in piercing_bonds:
                 piercespecs.append(dict(
-                    piercer=dict(segname=bond.segname, resid=bond.resid, segtype=segname_to_segtype.get(bond.segname, 'unknown')),
-                    piercee=dict(segname=ring.segname, resid=ring.resid, segtype=segname_to_segtype.get(ring.segname, 'unknown')),
+                    piercer=dict(segname=bond.segname, resid=bond.resid, resname=resname_of.get((bond.segname, bond.resid), '?'), segtype=segname_to_segtype.get(bond.segname, 'unknown')),
+                    piercee=dict(segname=ring.segname, resid=ring.resid, resname=resname_of.get((ring.segname, ring.resid), '?'), segtype=segname_to_segtype.get(ring.segname, 'unknown')),
                 ))
                 bondname = ' -- '.join([str(topol.included_atoms.get((lambda a: a.serial == x))) for x in bond.idx_list])
                 logger.debug(f'  pierced by bond [ {bondname} ]')
