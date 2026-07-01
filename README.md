@@ -20,7 +20,8 @@ Pestifer also requires access to the following executables:
 
 1. `namd3` and `charmrun`
 2. `vmd` and `catdcd`
-3. `packmol`
+
+Building membrane systems with the `packmol` packer additionally requires `packmol` (v. 20.15.1 or newer) on your path. This is **optional**: the `grid` packer (used by the membrane examples) places lipids on a lattice directly and needs no `packmol`.
 
 Pestifer **includes a copy of** the [Feb 2026 Charmm36 force field](https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_feb26.tgz).
 
