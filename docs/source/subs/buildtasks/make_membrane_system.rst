@@ -186,6 +186,15 @@ The detailed flow depends on the ``packer``.
 Grid packer
 +++++++++++
 
+.. note::
+
+   "Quilt" is a legacy label for the *full-size* membrane and its relaxation -- it
+   dates from the packmol packer, which tiles small patches into a quilt.  The grid
+   packer does no tiling, so a build's ``*-quilt`` artifacts (``grid-quilt``,
+   ``psfgen-quilt``, ``equilibration-quilt``) are the whole membrane, **not**
+   patches.  Patches appear only in *asymmetric* grid builds, as the per-leaflet
+   calibration patches described below.
+
 For a **symmetric** bilayer, the grid packer builds the full-size membrane directly: it grids both leaflets at the requested composition and initial ``SAPL``, sizing the box to the embedded protein's xy footprint plus the ``embed.xydist`` margin (or to ``patch_nlipids`` otherwise).  The gridded membrane is relaxed with the ``quilt`` protocol, and the protein is then embedded.  There is no separate patch or replication step.
 
 For an **asymmetric** bilayer (different leaflet compositions), the grid packer first relaxes two symmetric *calibration* patches -- one per leaflet composition -- with the ``patch`` protocol, to measure each leaflet's preferred area per lipid (APL).  It then grids the full membrane (sized to the protein footprint when embedding) at per-leaflet counts in the stress-free ratio :math:`n_\text{upper}/n_\text{lower} = \text{APL}_\text{lower}/\text{APL}_\text{upper}`, so the two leaflets carry equal area at zero differential stress *by construction* -- no leaflet extraction or excess-lipid deletion is required.  The full membrane is then relaxed with the ``quilt`` protocol before embedding.
