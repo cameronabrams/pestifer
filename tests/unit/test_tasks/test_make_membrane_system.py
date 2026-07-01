@@ -172,6 +172,31 @@ class TestGridHalfMidZgap(unittest.TestCase):
         self.assertEqual(self._clamp(_MIN_GRID_HALF_MID_ZGAP), _MIN_GRID_HALF_MID_ZGAP)
 
 
+class TestNpatch(unittest.TestCase):
+    """Normalization of the npatch tiling; guards an IndexError on a non-embedding
+    grid build when npatch is absent or the schema's empty-list default."""
+
+    @staticmethod
+    def _npatch(specs):
+        from types import SimpleNamespace
+        return MakeMembraneSystemTask._npatch(SimpleNamespace(bilayer_specs=specs))
+
+    def test_unset_defaults_to_1x1(self):
+        self.assertEqual(self._npatch({}), [1, 1])
+
+    def test_empty_list_defaults_to_1x1(self):
+        self.assertEqual(self._npatch({'npatch': []}), [1, 1])
+
+    def test_none_defaults_to_1x1(self):
+        self.assertEqual(self._npatch({'npatch': None}), [1, 1])
+
+    def test_malformed_defaults_to_1x1(self):
+        self.assertEqual(self._npatch({'npatch': [5]}), [1, 1])
+
+    def test_valid_preserved(self):
+        self.assertEqual(self._npatch({'npatch': [2, 3]}), [2, 3])
+
+
 class TestMakeMembraneSystem(unittest.TestCase):
     
     @classmethod

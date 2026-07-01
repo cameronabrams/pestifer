@@ -441,6 +441,15 @@ class MakeMembraneSystemTask(BaseTask):
                     f'+ {margin} A margin -> box {Lx:.1f} x {Ly:.1f} A')
         return Lx, Ly
 
+    def _npatch(self):
+        """Return the ``[nx, ny]`` patch tiling used to size a non-embedding build,
+        defaulting to ``[1, 1]`` when ``npatch`` is unset, empty (the schema default
+        for a list type), or malformed."""
+        npatch = self.bilayer_specs.get('npatch') or [1, 1]
+        if len(npatch) != 2:
+            npatch = [1, 1]
+        return npatch
+
     def build_grid_membrane(self):
         """Build a symmetric full-size membrane directly by grid placement, bypassing the
         patch -> quilt tiling.  When embedding a protein the box is sized to the protein
@@ -454,7 +463,7 @@ class MakeMembraneSystemTask(BaseTask):
             aspect = Ly / Lx
         else:
             patch_nlipids = bs.get('patch_nlipids', dict(upper=100, lower=100))
-            npatch = bs.get('npatch', [1, 1])
+            npatch = self._npatch()
             n_target = int(round(patch_nlipids['upper'] * npatch[0] * npatch[1]))
             aspect = bs.get('xy_aspect_ratio', 1.0)
         logger.debug(f'build_grid_membrane: {n_target} lipids per leaflet (aspect {aspect:.2f})')
@@ -478,7 +487,7 @@ class MakeMembraneSystemTask(BaseTask):
         """
         bs = self.bilayer_specs
         patch_nlipids = bs.get('patch_nlipids', dict(upper=100, lower=100))
-        npatch = bs.get('npatch', [1, 1])
+        npatch = self._npatch()
         n_cal = patch_nlipids['upper']                        # per-leaflet count in patchA/patchB
         apl_upper = self.patchA.area / n_cal
         apl_lower = self.patchB.area / n_cal
