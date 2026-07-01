@@ -322,12 +322,19 @@ class PipelineContext:
     def import_artifacts(self, other: PipelineContext):
         """
         Import artifacts from another pipeline context.
+
+        An imported head artifact **supersedes** any existing head entry with the
+        same key: the pre-existing entry is moved to history and the imported one
+        becomes current.  This makes results merged in from a sub-pipeline (e.g.
+        the relaxed bilayer state produced by an equilibration subcontroller)
+        authoritative, rather than being shadowed by a stale same-key artifact the
+        parent registered earlier (e.g. the pre-relaxation psfgen state).
         """
         logger.debug(f'Importing artifacts from {repr(other)} into {repr(self)}')
         for other_artifact_key, other_artifact in other.head.items():
-            if not other_artifact_key in self.head:
-                self.head[other_artifact_key] = other_artifact
-            else:
-                self.history.append(other_artifact)
+            existing = self.head.get(other_artifact_key)
+            if existing is not None:
+                self.history.append(existing)
+            self.head[other_artifact_key] = other_artifact
         self.history.extend(other.history)
         self.show_artifacts()

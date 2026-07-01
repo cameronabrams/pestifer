@@ -164,6 +164,23 @@ class TestPipeline(unittest.TestCase):
         self.assertNotIn('pdb', pipeline.head)
         self.assertEqual(len(pipeline.history), 1)
 
+    def test_import_artifacts_supersedes_existing_key(self):
+        # A sub-pipeline's result must supersede a stale same-key head entry in the
+        # parent (regression: the equilibrated bilayer state was being shadowed by
+        # the pre-relaxation psfgen state, so embedding used un-relaxed coordinates).
+        parent = PipelineContext()
+        child = PipelineContext()
+        parent.register('stale', key='quilt_state', requestor='parent', artifact_type=DataArtifact)
+        child.register('relaxed', key='quilt_state', requestor='child', artifact_type=DataArtifact)
+        child.register('extra', key='other', requestor='child', artifact_type=DataArtifact)
+        parent.import_artifacts(child)
+        # imported key that collided now wins
+        self.assertEqual(parent.get_current_artifact_data('quilt_state'), 'relaxed')
+        # a brand-new imported key is added
+        self.assertEqual(parent.get_current_artifact_data('other'), 'extra')
+        # the superseded entry is preserved in history, not discarded
+        self.assertTrue(any(getattr(h, 'data', None) == 'stale' for h in parent.history))
+
     def test_artifact_list_persistence(self):
         pipeline = PipelineContext()
         artifact1 = PDBFileArtifact('1gc1').stamp('First maker')

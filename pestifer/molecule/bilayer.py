@@ -623,20 +623,32 @@ class Bilayer:
             if not bag:
                 continue
             n = len(bag)
+            # Choose a row/column count near the box aspect, then distribute the
+            # lipids across the rows as evenly as possible and space each row across
+            # the full box width.  A naive row-major fill of a fixed nx*ny lattice
+            # leaves the trailing (nx*ny - n) positions empty -- a lipid-free strip
+            # at one box edge; distributing per row keeps the leaflet gap-free.
             nx = max(1, int(round(np.sqrt(n * Lx / Ly))))
-            ny = int(np.ceil(n / nx))
-            sx, sy = Lx / nx, Ly / ny
+            ny = max(1, int(np.ceil(n / nx)))
+            sy = Ly / ny
+            base, extra = divmod(n, ny)   # `extra` rows carry one more lipid
             target_z = self.midplane_z + (half_mid_zgap if upper else -half_mid_zgap)
-            for k, nm in enumerate(bag):
-                coords, lines, _head_i, tail_is = cache[nm]
-                c = coords.copy()
-                if not upper:
-                    c = c * np.array([1.0, -1.0, -1.0])     # head -> -z for lower leaflet
-                c = zspin(c)
-                c[:, 2] += target_z - (c[tail_is, 2].mean() if tail_is is not None else c[:, 2].mean())
-                c[:, 0] += ll[0] + (k % nx) * sx + rng.uniform(-jitter, jitter)
-                c[:, 1] += ll[1] + (k // nx) * sy + rng.uniform(-jitter, jitter)
-                emit(c, lines)
+            k = 0
+            for row in range(ny):
+                row_n = base + (1 if row < extra else 0)
+                sx = Lx / max(row_n, 1)
+                for col in range(row_n):
+                    nm = bag[k]
+                    k += 1
+                    coords, lines, _head_i, tail_is = cache[nm]
+                    c = coords.copy()
+                    if not upper:
+                        c = c * np.array([1.0, -1.0, -1.0])     # head -> -z for lower leaflet
+                    c = zspin(c)
+                    c[:, 2] += target_z - (c[tail_is, 2].mean() if tail_is is not None else c[:, 2].mean())
+                    c[:, 0] += ll[0] + (col + 0.5) * sx + rng.uniform(-jitter, jitter)
+                    c[:, 1] += ll[1] + (row + 0.5) * sy + rng.uniform(-jitter, jitter)
+                    emit(c, lines)
 
         # chamber solvent: 3D lattice
         for chamber in (self.LC, self.UC):
