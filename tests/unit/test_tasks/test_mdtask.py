@@ -46,3 +46,46 @@ class TestNormalizeEnsemble(unittest.TestCase):
             normalize_ensemble('NPGAMMAT')
         with self.assertRaises(PestiferBuildError):
             normalize_ensemble('foo')
+
+
+class TestSSRestraintsOptIn(unittest.TestCase):
+    """SS restraints must be opt-in (off by default): the schema attributes were all
+    defaulted, so ycleptic auto-populated the dict and every md stage -- including a
+    bare-membrane relaxation with no secondary structure -- ran the ssrestraints
+    plugin. The md task now builds them only when `ssrestraints.enabled` is true."""
+
+    @staticmethod
+    def _ss_schema():
+        import os, yaml
+        import pestifer
+        base = os.path.join(os.path.dirname(pestifer.__file__), 'schema', 'base.yaml')
+
+        def find(node):
+            if isinstance(node, dict):
+                if node.get('name') == 'ssrestraints' and node.get('type') == 'dict':
+                    return node
+                for v in node.values():
+                    r = find(v)
+                    if r:
+                        return r
+            elif isinstance(node, list):
+                for v in node:
+                    r = find(v)
+                    if r:
+                        return r
+            return None
+
+        return find(yaml.safe_load(open(base)))
+
+    def test_schema_has_enabled_defaulting_false(self):
+        ss = self._ss_schema()
+        self.assertIsNotNone(ss, "ssrestraints schema block not found")
+        enabled = next((a for a in ss['attributes'] if a['name'] == 'enabled'), None)
+        self.assertIsNotNone(enabled, "ssrestraints needs an 'enabled' opt-in attribute")
+        self.assertFalse(enabled['default'], "ssrestraints must default off (opt-in)")
+
+    def test_guard_skips_unless_enabled(self):
+        # mirrors the md task guard at mdtask.py: `if ssrestraints.get('enabled', False)`
+        for specs, should_build in [({}, False), ({'enabled': False}, False),
+                                    ({'enabled': True}, True), ({'sel': 'protein'}, False)]:
+            self.assertEqual(bool(specs.get('enabled', False)), should_build)

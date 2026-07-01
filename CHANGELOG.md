@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: secondary-structure restraints (`md.ssrestraints`) are now opt-in via `ssrestraints.enabled` (default off) instead of being built for every md stage. Every attribute of the `ssrestraints` schema dict was defaulted, so ycleptic auto-populated it and the md task ran the VMD ssrestraints plugin on *every* stage -- including bare-membrane bilayer-relaxation and calibration-patch stages, which have no secondary structure (each spun up VMD to select nothing and wrote an empty extraBonds file). Protein/nucleic stages that should hold their secondary structure must now set `ssrestraints: {enabled: true}`
+
 ## [2.7.1] - 2026-07-01
 
 - bugfix: the embed step (and the bare-membrane output path) used the *pre-relaxation* bilayer coordinates instead of the relaxed ones, silently discarding the quilt relaxation. `equilibrate_bilayer` relaxes the quilt in a subcontroller and rekeys the relaxed state to `<name>_state` before merging it back, but `import_artifacts` kept the parent pipeline's existing same-key head entry (the pre-relaxation psfgen state registered by `do_psfgen`) and buried the incoming relaxed one, so `embed_protein` read un-relaxed coordinates. This affected both packers; the grid packer made it obvious because its pre-relaxation lattice is loose. `import_artifacts` now lets an imported head artifact supersede a stale same-key entry (the superseded entry is moved to history), so the relaxed bilayer becomes current

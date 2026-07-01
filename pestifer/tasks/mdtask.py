@@ -205,7 +205,7 @@ class MDTask(VMDTask):
             self.register(f'{self.basename}-cv', key='in', artifact_type=NAMDColvarsConfigArtifact)
             params['colvars'] = 'on'
             params['colvarsconfig'] = self.get_current_artifact_path('in')
-        if ssrestraints:
+        if ssrestraints.get('enabled', False):
             eb_file = self.make_ssrestraints_file(ssrestraints)
             params['extraBonds'] = 'on'
             params['extraBondsFile'] = eb_file
