@@ -4,6 +4,7 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- bugfix: the grid packer builds the lipid and chamber-solvent lattices independently, so a solvent molecule could land almost coincident with a lipid atom (observed: a TIP3 0.39 A from a PSM choline methyl). Such a near-coincidence makes VMD infer spurious bonds (`Exceeded maximum number of bonds`) and psfgen then fails to read that lipid residue's coordinates and silently guesses them (a mis-placed hydrogen). `write_grid_pdb` now indexes the placed lipid atoms in a cKDTree and drops any chamber-solvent molecule within `clash_cutoff` (1.2 A) of a lipid -- a handful of waters, negligible for hydration, while the relaxation still resolves the milder overlaps
 - change: secondary-structure restraints (`md.ssrestraints`) are now opt-in via `ssrestraints.enabled` (default off) instead of being built for every md stage. Every attribute of the `ssrestraints` schema dict was defaulted, so ycleptic auto-populated it and the md task ran the VMD ssrestraints plugin on *every* stage -- including bare-membrane bilayer-relaxation and calibration-patch stages, which have no secondary structure (each spun up VMD to select nothing and wrote an empty extraBonds file). Protein/nucleic stages that should hold their secondary structure must now set `ssrestraints: {enabled: true}`
 
 ## [2.7.1] - 2026-07-01

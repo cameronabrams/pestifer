@@ -577,7 +577,8 @@ class Bilayer:
         coords[:, 1] -= coords[:, 1].mean()
         return coords, lines, head_i, tail_is
 
-    def write_grid_pdb(self, output_pdb, half_mid_zgap=1.0, seed=None, jitter=1.5):
+    def write_grid_pdb(self, output_pdb, half_mid_zgap=1.0, seed=None, jitter=1.5,
+                       clash_cutoff=1.2):
         """Deterministic grid placement of the bilayer patch -- a fast, packmol-free
         alternative to :meth:`write_packmol`.
 
@@ -585,9 +586,12 @@ class Bilayer:
         leaflet count), oriented with head groups pointing away from the midplane and a
         random in-plane spin, with tails aligned near the midplane.  Chamber solvent is
         placed on a 3D lattice.  The result is a single coordinate PDB equivalent to the
-        packmol output (it feeds the same psfgen patch-build step).  Initial overlaps are
-        intentionally left for the downstream relaxation MD to resolve, which is far
-        cheaper than packmol's constrained packing.
+        packmol output (it feeds the same psfgen patch-build step).  Mild initial overlaps
+        are intentionally left for the downstream relaxation MD to resolve, which is far
+        cheaper than packmol's constrained packing; but any chamber-solvent molecule that
+        lands within ``clash_cutoff`` of a lipid atom is dropped, since such a
+        near-coincidence corrupts VMD bond perception and psfgen's coordinate read before
+        relaxation ever runs.
         """
         rng = np.random.default_rng(seed)
         ll, ur = self.patch_ll_corner, self.patch_ur_corner
@@ -618,6 +622,7 @@ class Bilayer:
             return cache, bag
 
         # lipids: per-leaflet 2D lattice, oriented, tails toward the midplane
+        lipid_xyz = []   # placed lipid atom coords, indexed below for solvent clash removal
         for leaflet, upper in ((self.LL, False), (self.UL, True)):
             cache, bag = bag_of(leaflet)
             if not bag:
@@ -649,6 +654,17 @@ class Bilayer:
                     c[:, 0] += ll[0] + (col + 0.5) * sx + rng.uniform(-jitter, jitter)
                     c[:, 1] += ll[1] + (row + 0.5) * sy + rng.uniform(-jitter, jitter)
                     emit(c, lines)
+                    lipid_xyz.append(c)
+
+        # A chamber-solvent molecule dropped (independently) on top of a lipid ruins the
+        # structure before relaxation runs: a near-coincident water makes VMD infer
+        # spurious bonds ("Exceeded maximum number of bonds") and psfgen then fails to read
+        # that lipid's coordinates and silently guesses them.  Index the lipid atoms so
+        # such solvent molecules can be dropped (a handful of waters is negligible for
+        # hydration, and the relaxation still resolves the milder overlaps).
+        from scipy.spatial import cKDTree
+        lipid_tree = cKDTree(np.vstack(lipid_xyz)) if lipid_xyz else None
+        n_solvent_dropped = 0
 
         # chamber solvent: 3D lattice
         for chamber in (self.LC, self.UC):
@@ -669,11 +685,17 @@ class Bilayer:
                 c[:, 0] += ll[0] + (i + 0.5) * sx + rng.uniform(-jitter, jitter)
                 c[:, 1] += ll[1] + (j + 0.5) * sy + rng.uniform(-jitter, jitter)
                 c[:, 2] += zlo + (m + 0.5) * sz - c[:, 2].mean()
+                if lipid_tree is not None and lipid_tree.query(c)[0].min() < clash_cutoff:
+                    n_solvent_dropped += 1
+                    continue
                 emit(c, lines)
 
         with open(output_pdb, 'w') as fh:
             fh.writelines(out)
             fh.write("END\n")
+        if n_solvent_dropped:
+            logger.debug(f'write_grid_pdb: dropped {n_solvent_dropped} chamber solvent '
+                         f'molecule(s) clashing (<{clash_cutoff} A) with lipids')
         logger.debug(f'write_grid_pdb: wrote {output_pdb} '
                      f'({counters["serial"]} atoms, {counters["resid"]} residues)')
         return output_pdb

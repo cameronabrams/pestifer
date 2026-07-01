@@ -379,25 +379,36 @@ class TestBilayer(unittest.TestCase):
         b = Bilayer(composition_dict=cdict, leaflet_nlipids=dict(upper=64, lower=64),
                     charmmffcontent=self.charmmff_content)
         b.spec_out(SAPL=55.0)
-        out = b.write_grid_pdb('grid_patch.pdb', seed=1)
+        out = b.write_grid_pdb('grid_patch.pdb', seed=1, clash_cutoff=1.2)
         assert os.path.exists(out)
         natoms = nwat = nlip_lower = nlip_upper = 0
+        lip_xyz, sol_xyz = [], []
         with open(out) as fh:
             for ln in fh:
                 if ln.startswith(('ATOM', 'HETATM')):
                     natoms += 1
-                    z = float(ln[46:54])
+                    xyz = (float(ln[30:38]), float(ln[38:46]), float(ln[46:54]))
+                    z = xyz[2]
                     rn = ln[17:21].strip()
-                    if rn == 'TIP3':
+                    if rn in ('TIP3', 'POT', 'CLA', 'SOD'):
                         nwat += 1
-                    elif z < b.midplane_z:
-                        nlip_lower += 1
+                        sol_xyz.append(xyz)
                     else:
-                        nlip_upper += 1
+                        lip_xyz.append(xyz)
+                        if z < b.midplane_z:
+                            nlip_lower += 1
+                        else:
+                            nlip_upper += 1
         # a complete patch: lipids in both leaflets and solvent in the chambers
         assert natoms > 0
         assert nwat > 0
         assert nlip_lower > 0 and nlip_upper > 0
+        # no chamber-solvent atom may sit within the clash cutoff of a lipid atom
+        # (the near-coincidence that broke VMD bond perception / psfgen coordinate read)
+        import numpy as _np
+        from scipy.spatial import cKDTree
+        dmin = cKDTree(_np.array(lip_xyz)).query(_np.array(sol_xyz))[0].min()
+        assert dmin >= 1.2, f"solvent-lipid clash survived: min distance {dmin:.3f} A"
         self.RM.charmmff_content.clean_local_charmmff_files()
         os.chdir('..')
         
