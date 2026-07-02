@@ -2,11 +2,12 @@
 """
 Definition of the :class:`RingCheckTask` class for checking for pierced rings in a molecular structure.
 This class is a descendant of the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class and is used to check for pierced rings in a molecular structure.
-It identifies configurations where a ring is pierced by a bond, and resolves each according to the pierced ring's segtype:
+It identifies configurations where a ring is pierced by a bond and resolves each by whichever motion is available:
 
-- a pierced **lipid** ring deletes the offending segment (the piercer or the piercee, chosen by the ``delete`` option; ``none`` reports and stops);
-- a pierced **glycan** ring is fatal -- a glycan cannot be deleted without breaking the glycan tree, so the build stops and must be rebuilt (e.g. with a different random seed or more minimization);
-- a pierced **protein** side-chain ring (His/Phe/Tyr/Trp/Pro) is resolved by rotating the side chain (chi2, then chi1) until it clears; if no rotation clears it, the build stops with the residue named.
+- an **aromatic** protein side-chain ring (His/Phe/Tyr/Trp) pivots on its own dihedral, so it is swung off the piercing bond by rotating the side chain (chi2, then chi1);
+- a **rigid** ring that cannot itself move -- a **proline** side-chain ring (fused to the backbone) or a **glycan** ring -- when speared by a **glycan** bond is cleared by rotating the *glycan pendant* so the piercing bond is pulled out of the ring;
+- a pierced **lipid** ring deletes the offending segment (the piercer or the piercee, chosen by ``delete``; ``none`` reports and stops);
+- anything that no available rotation clears stops the build with the residue named.
 
 Which segtypes are checked is set by ``segtypes`` (there is no default, so it must be given explicitly).
 Usage is described in the :ref:`config_ref tasks ring_check` documentation.
@@ -15,19 +16,26 @@ import logging
 import os
 import shutil
 
+import numpy as np
+
 from .basetask import BaseTask
 from ..scripters import PsfgenScripter
 from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
 from ..psfutil.psfring import ring_check, RingChecker
+from ..util.coord import rotate_points_about_axis, pdb_replace_coords
+from ..util.util import cell_from_xsc
 
 logger=logging.getLogger(__name__)
 
-# side-chain dihedral rotations tried, in order, to swing a pierced ring off the
-# piercing bond; chi2 (about CB-CG) moves an aromatic ring most directly, chi1 is the
-# fallback
+# aromatic protein residues whose side-chain ring pivots freely on chi2/chi1 (proline is
+# NOT here: its ring is fused into the backbone, so a chi rotation cannot swing it clear)
+_AROMATIC = {'HIS', 'HSD', 'HSE', 'HSP', 'PHE', 'TYR', 'TRP'}
+# side-chain dihedral rotations tried, in order, to swing an aromatic ring off the bond
 _CHI2_DEGREES = [180, 120, 240, 90, 270, 60, 300]
 _CHI1_DEGREES = [120, 240, 180, 90, 270]
+# pendant rotations tried to pull a glycan piercing bond out of a rigid ring
+_PENDANT_DEGREES = [60, 120, 180, 240, 300, 90, 270]
 
 
 class RingCheckTask(BaseTask):
@@ -50,6 +58,17 @@ class RingCheckTask(BaseTask):
             level(f'  ring of {self._fmt(p["piercee"])} pierced by a bond in '
                   f'{self._fmt(p["piercer"])} ({p["piercer"]["segtype"]})')
 
+    @staticmethod
+    def _rotatable(p):
+        """True if some rotation can be tried on this piercing: an aromatic side-chain ring
+        (rotate the ring) or any rigid protein/glycan ring speared by a glycan bond (rotate
+        the glycan pendant)."""
+        piercee, piercer = p['piercee'], p['piercer']
+        aromatic = piercee['segtype'] == 'protein' and piercee.get('resname') in _AROMATIC
+        pendant = (piercee['segtype'] in ('protein', 'glycan')
+                   and piercer['segtype'] == 'glycan' and piercer.get('bond_serials'))
+        return bool(aromatic or pendant)
+
     def do(self):
         state: StateArtifacts = self.get_current_artifact('state')
         cutoff: float = self.specs.get('cutoff', 3.5)
@@ -70,25 +89,26 @@ class RingCheckTask(BaseTask):
                               segtypes=segtypes, max_ring_size=max_ring_size)
 
         npiercings = run_check(state)
+        if not npiercings:
+            self.result = 0
+            return self.result
 
-        # Protein side-chain rings cannot be deleted (they are the structure), so rotate
-        # the offending side chain out of the way.  Do this first, then re-check, so any
-        # remaining lipid/glycan piercings are handled against the rotated coordinates.
-        protein_piercings = [p for p in npiercings if p['piercee']['segtype'] == 'protein']
-        if protein_piercings:
-            ess = 's' if len(protein_piercings) > 1 else ''
-            logger.info(f'{len(protein_piercings)} protein side-chain ring piercing{ess} detected; '
-                        f'attempting to rotate the side chain(s) clear:')
-            self._report(protein_piercings, logger.info)
-            fixed_pdb = self._resolve_protein_piercings(state, protein_piercings, cutoff,
-                                                        segtypes, max_ring_size)
+        # First resolve everything that a rotation can fix (rings that can't be deleted):
+        # aromatic side-chain rings by rotating the ring, rigid rings (proline / glycan)
+        # speared by a glycan by rotating the glycan pendant.
+        rotatable = [p for p in npiercings if self._rotatable(p)]
+        if rotatable:
+            ess = 's' if len(rotatable) > 1 else ''
+            logger.info(f'{len(rotatable)} ring piercing{ess} to resolve by rotation:')
+            self._report(rotatable, logger.info)
+            fixed_pdb, failed = self._resolve_by_rotation(state, rotatable, cutoff, segtypes, max_ring_size)
             if fixed_pdb is None:
-                self._report(protein_piercings, logger.error)
+                self._report([failed], logger.error)
                 raise PestiferBuildError(
-                    f'{len(protein_piercings)} protein side-chain ring piercing{ess} could not be '
-                    f'rotated clear.  Suggested fix: manually rotate the named side-chain dihedral(s) '
-                    f'(chi2, then chi1) to swing the ring off the piercing bond, or rebuild with more '
-                    f'minimization before ring_check.')
+                    f'ring piercing of {self._fmt(failed["piercee"])} by a bond in '
+                    f'{self._fmt(failed["piercer"])} could not be cleared by rotation.  Suggested '
+                    f'fix: manually rotate the side-chain dihedral (aromatic ring) or the glycan '
+                    f'linkage (rigid ring) to un-thread it, or rebuild with more minimization.')
             # a rotation changes coordinates only, not topology: keep the PSF, new PDB
             self.next_basename('ring_check')
             shutil.copy(fixed_pdb, f'{self.basename}.pdb')
@@ -101,24 +121,19 @@ class RingCheckTask(BaseTask):
             self.result = 0
             return self.result
 
+        # Whatever remains was not rotation-resolvable.  Lipid rings can be deleted; protein
+        # or glycan rings that no rotation cleared are fatal.
         glycan_piercings = [p for p in npiercings if p['piercee']['segtype'] == 'glycan']
-        remaining_protein = [p for p in npiercings if p['piercee']['segtype'] == 'protein']
-        other_piercings   = [p for p in npiercings if p['piercee']['segtype'] not in ('glycan', 'protein')]
+        protein_piercings = [p for p in npiercings if p['piercee']['segtype'] == 'protein']
+        other_piercings = [p for p in npiercings if p['piercee']['segtype'] not in ('glycan', 'protein')]
 
-        if remaining_protein:
-            self._report(remaining_protein, logger.error)
+        if protein_piercings or glycan_piercings:
+            fatal = protein_piercings + glycan_piercings
+            self._report(fatal, logger.error)
             raise PestiferBuildError(
-                f'{len(remaining_protein)} protein side-chain ring piercing(s) remain after rotation; '
-                f'resolve manually (rotate the side-chain dihedral) or rebuild')
-
-        if glycan_piercings:
-            gess = 's' if len(glycan_piercings) > 1 else ''
-            logger.error(f'{len(glycan_piercings)} glycan ring piercing{gess} detected — glycan residues cannot be deleted to resolve:')
-            self._report(glycan_piercings, logger.error)
-            raise PestiferBuildError(
-                f'{len(glycan_piercings)} glycan ring piercing{gess} detected; '
-                f'rebuild the system to resolve (e.g. use a different random seed or add more minimization before ring_check)'
-            )
+                f'{len(fatal)} protein/glycan ring piercing(s) could not be resolved by rotation; '
+                f'rebuild the system to resolve (e.g. a different random seed or more minimization '
+                f'before ring_check)')
 
         if not other_piercings:
             self.result = 0
@@ -147,50 +162,110 @@ class RingCheckTask(BaseTask):
         self.result = 0
         return self.result
 
-    def _resolve_protein_piercings(self, state, protein_piercings, cutoff, segtypes, max_ring_size):
-        """Rotate each pierced protein side-chain ring out of the way, one residue at a
-        time, re-checking after each candidate rotation.  The topology is untouched (only
-        coordinates move).  Returns the path to a fixed PDB if every protein piercing
-        clears, otherwise ``None``."""
+    def _resolve_by_rotation(self, state, piercings, cutoff, segtypes, max_ring_size):
+        """Clear each rotation-resolvable piercing, one at a time.  The topology is untouched
+        (only coordinates move).  Candidates are scored in memory -- a candidate is accepted
+        only if it un-threads the ring, and among those the one that introduces the fewest new
+        heavy-atom clashes is chosen.  Returns ``(fixed_pdb, None)`` if every piercing clears,
+        or ``(None, failed_piercing)`` for the first that does not."""
         psf = state.psf.name
         xsc = state.xsc.name if state.xsc else None
+        box = cell_from_xsc(xsc)[0] if xsc else None
         working_pdb = state.pdb.name
-        # the PSF (topology, bond list, ring cycles) does not change as we try rotamers,
-        # so parse it once and re-check only coordinates for each candidate
+        # topology (bond list, ring cycles) is constant across trial rotations -> parse once
         checker = RingChecker(psf, cutoff=cutoff, segtypes=segtypes, max_ring_size=max_ring_size)
-        # unique protein residues whose rings are pierced
-        residues, seen = [], set()
-        for p in protein_piercings:
-            side = p['piercee']
-            key = (side['segname'], side['resid'])
-            if key not in seen:
-                seen.add(key)
-                residues.append(side)
-        for res in residues:
-            seg, resid, resname = res['segname'], res['resid'], res.get('resname', '?')
-            cleared = False
-            for chi, degrees in ((2, _CHI2_DEGREES), (1, _CHI1_DEGREES)):
-                prefix = f'{self.taskname}-declash-{seg}-{resid}-chi{chi}'
-                self._write_rotamer_candidates(psf, working_pdb, seg, resid, chi, degrees, prefix)
-                for deg in degrees:
-                    cand = f'{prefix}_{deg}.pdb'
-                    if not os.path.exists(cand):
-                        continue
-                    remaining = checker.check(cand, xsc=xsc, only_piercees=[(seg, resid)])
-                    if not remaining:
-                        logger.info(f'  {resname} {seg}-{resid}: chi{chi} rotation of {deg} deg clears the piercing')
-                        working_pdb = cand
-                        cleared = True
-                        break
-                if cleared:
-                    break
-            if not cleared:
-                logger.error(f'  {resname} {seg}-{resid}: no chi1/chi2 rotation cleared the ring piercing')
-                return None
-        return working_pdb
+        for p in piercings:
+            piercee, piercer = p['piercee'], p['piercer']
+            seg, resid, resname = piercee['segname'], piercee['resid'], piercee.get('resname', '?')
+            target = (seg, resid)
+            base = checker.load_coords(working_pdb)
+            out_prefix = f'{self.taskname}-declash-{seg}-{resid}'
+            cand = None
+            # 1. aromatic ring: rotate the side chain itself
+            if piercee['segtype'] == 'protein' and resname in _AROMATIC:
+                cand = self._try_sidechain(checker, psf, working_pdb, base, box, xsc,
+                                           seg, resid, resname, target, out_prefix)
+            # 2. rigid ring (proline / glycan) speared by a glycan: rotate the glycan pendant
+            if cand is None and piercer['segtype'] == 'glycan' and piercer.get('bond_serials'):
+                cand = self._try_glycan_pendant(checker, working_pdb, base, box, piercer,
+                                                target, self._fmt(piercee), out_prefix)
+            if cand is None:
+                return None, p
+            working_pdb = cand
+        return working_pdb, None
 
-    def _write_rotamer_candidates(self, psf, pdb, segname, resid, chi, degrees, out_prefix):
-        """Emit one PDB per candidate chi rotation of the given residue's side chain
+    def _try_sidechain(self, checker, psf, working_pdb, base, box, xsc, seg, resid, resname, target, out_prefix):
+        """Rotate the residue's side chain (chi2 then chi1); among the rotations that clear
+        the ring, keep the one with the fewest new heavy-atom clashes.  Returns the winning
+        PDB or ``None``."""
+        best = None  # (clash, pdb, chi, deg)
+        for chi, degrees in ((2, _CHI2_DEGREES), (1, _CHI1_DEGREES)):
+            prefix = f'{out_prefix}-chi{chi}'
+            self._write_sidechain_candidates(psf, working_pdb, seg, resid, chi, degrees, prefix)
+            for deg in degrees:
+                cand = f'{prefix}_{deg}.pdb'
+                if not os.path.exists(cand):
+                    continue
+                coords = checker.load_coords(cand)
+                if checker.check_coords(coords, box, [target]):
+                    continue  # still pierced
+                moved = np.where(np.abs(coords - base).max(axis=1) > 1e-3)[0]
+                clash = checker.clash_count(coords, moved)
+                if best is None or clash < best[0]:
+                    best = (clash, cand, chi, deg)
+                if clash == 0:
+                    break
+            if best is not None and best[0] == 0:
+                break
+        if best is None:
+            return None
+        clash, cand, chi, deg = best
+        logger.info(f'  {resname} {seg}-{resid}: chi{chi} rotation of {deg} deg clears the '
+                    f'piercing ({clash} new heavy-atom clash(es))')
+        return cand
+
+    def _try_glycan_pendant(self, checker, working_pdb, base, box, piercer, target, piercee_label, out_prefix):
+        """Rotate the glycan sub-branch carrying the piercing bond about an upstream rotatable
+        bond.  The rotation is done in memory (no per-candidate PDB); hinge axes come from
+        :meth:`RingChecker.pendant_axes` (smallest branch first) and each is swept over a
+        series of angles.  Among the rotations that clear the ring, the one with the fewest
+        new heavy-atom clashes wins, and only that single pose is written.  Returns the
+        winning PDB or ``None``."""
+        axes = checker.pendant_axes(piercer['bond_serials'], piercer['segname'])
+        if not axes:
+            logger.debug(f'  no rotatable glycan hinge found for {self._fmt(piercer)}')
+            return None
+        best = None  # (clash, coords, i_ser, j_ser, deg)
+        scratch = base.copy()
+        for ax in axes:
+            prows = ax['prows']
+            pivot = base[ax['j_row']]
+            axis = base[ax['j_row']] - base[ax['i_row']]
+            branch = base[prows]
+            for deg in _PENDANT_DEGREES:
+                scratch[prows] = rotate_points_about_axis(branch, pivot, axis, deg)
+                if checker.check_coords(scratch, box, [target]):
+                    continue  # still pierced
+                clash = checker.clash_count(scratch, prows)
+                if best is None or clash < best[0]:
+                    best = (clash, scratch.copy(), ax['i_ser'], ax['j_ser'], deg)
+                if clash == 0:
+                    break
+            scratch[prows] = branch  # restore before trying the next axis
+            if best is not None and best[0] == 0:
+                break
+        if best is None:
+            return None
+        clash, coords, i_ser, j_ser, deg = best
+        out_pdb = f'{out_prefix}-glycan.pdb'
+        pdb_replace_coords(working_pdb, out_pdb, coords, checker._row_of_serial)
+        logger.info(f'  {piercee_label}: rotating the {self._fmt(piercer)} glycan branch '
+                    f'{deg} deg about bond {i_ser}-{j_ser} clears the piercing '
+                    f'({clash} new heavy-atom clash(es))')
+        return out_pdb
+
+    def _write_sidechain_candidates(self, psf, pdb, segname, resid, chi, degrees, out_prefix):
+        """Emit one PDB per candidate chi rotation of the residue's side chain
         (``<out_prefix>_<deg>.pdb``), each measured from the input pose."""
         vm = self.get_scripter('vmd')
         vm.newscript(f'{out_prefix}-gen', packages=['PestiferCRot'])

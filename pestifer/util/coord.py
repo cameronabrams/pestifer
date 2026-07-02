@@ -186,3 +186,47 @@ def mic_shift(point, ref, box):
             d = cpoint - ref
             boxlengths[i] -= 1
     return cpoint, boxlengths
+
+
+def rotate_points_about_axis(points, pivot, axis, degrees):
+    """Rotate ``points`` (N x 3) by ``degrees`` about the line through ``pivot`` along
+    ``axis`` (right-handed).  Returns the rotated points; the input is not modified."""
+    axis = np.asarray(axis, dtype=float)
+    n = np.linalg.norm(axis)
+    if n == 0.0:
+        return np.array(points, dtype=float)
+    k = axis / n
+    theta = np.radians(degrees)
+    c, s = np.cos(theta), np.sin(theta)
+    p = np.asarray(points, dtype=float) - pivot
+    # Rodrigues' rotation formula, vectorized over rows of p
+    kxp = np.cross(np.broadcast_to(k, p.shape), p)
+    kdotp = p @ k
+    rotated = p * c + kxp * s + np.outer(kdotp, k) * (1.0 - c)
+    return rotated + pivot
+
+
+def pdb_replace_coords(src_pdb, out_pdb, coords, row_of_serial):
+    """Write ``out_pdb`` identical to ``src_pdb`` except that every ATOM/HETATM record's
+    x/y/z columns are replaced with ``coords[row_of_serial[serial]]``.
+
+    ``coords`` is an (Natoms x 3) array; ``row_of_serial`` maps a PDB atom serial to its row.
+    Records whose serial is absent from the map are copied verbatim.  Non-coordinate columns
+    are preserved byte-for-byte, so the result stays congruent with the companion PSF.
+    """
+    with open(src_pdb) as fh:
+        lines = fh.readlines()
+    out = []
+    for line in lines:
+        if line.startswith(('ATOM', 'HETATM')):
+            try:
+                serial = int(line[6:11])
+            except ValueError:
+                serial = None
+            row = row_of_serial.get(serial) if serial is not None else None
+            if row is not None:
+                x, y, z = coords[row]
+                line = f'{line[:30]}{x:8.3f}{y:8.3f}{z:8.3f}{line[54:]}'
+        out.append(line)
+    with open(out_pdb, 'w') as fh:
+        fh.writelines(out)

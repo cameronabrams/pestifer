@@ -8,6 +8,8 @@ import networkx as nx
 import numpy as np
 import time
 
+from scipy.spatial import cKDTree
+
 from functools import singledispatchmethod
 from itertools import pairwise
 
@@ -178,6 +180,34 @@ class RingChecker:
         # from the ingested coordinate frame as a string, so the tuples must be normalized
         self.resname_of = {(a.segname, str(a.resid)): a.resname for a in self.topol.atoms}
         self.rings = RingList(self.topol.G, length_bound=max_ring_size)
+        # Precompute the coordinate-independent maps used by the fast targeted path
+        # (:meth:`_check_fast`): atom-serial -> row, and per-ring / per-bond row indices,
+        # so a targeted re-check does only vectorized array lookups (no per-element pandas
+        # ``.loc`` and no link cell), turning a ~50 s whole-system scan into ~2 s.
+        self._atoms = list(self.topol.atoms.data)
+        self._serials = [a.serial for a in self._atoms]
+        row_of = {s: i for i, s in enumerate(self._serials)}
+        self._row_of_serial = row_of
+        # heavy-atom mask (hydrogens named H...) for clash scoring
+        self._heavy = np.array([not a.atomname.startswith('H') for a in self._atoms])
+        self._bonds = list(self.topol.bonds)
+        if self._bonds:
+            self._bond_rows = np.array([[row_of[b.idx_list[0]], row_of[b.idx_list[1]]]
+                                        for b in self._bonds], dtype=int)
+            self._bond_meta = [(self._atoms[r[0]].segname, self._atoms[r[0]].resid)
+                               for r in self._bond_rows]
+        else:
+            self._bond_rows = np.empty((0, 2), dtype=int)
+            self._bond_meta = []
+        # cache each ring's row indices and derive its segname/resid from its first atom so
+        # only_piercees filtering works without a full coordinate ingest
+        self._ring_index = {}
+        for ring in self.rings.data:
+            ring._rows = np.array([row_of[s] for s in ring.idx_list], dtype=int)
+            a0 = self._atoms[ring._rows[0]]
+            ring.segname = a0.segname
+            ring.resid = a0.resid
+            self._ring_index.setdefault((str(a0.segname), str(a0.resid)), []).append(ring)
         logger.debug(f'RingChecker: parsed topology once, {len(self.rings)} rings')
 
     def check(self, pdb, xsc=None, only_piercees=None):
@@ -190,19 +220,24 @@ class RingChecker:
         """
         topol = self.topol
         coorddf = coorddf_from_pdb(pdb)
+        assert coorddf.shape[0] == len(topol.atoms), f'{pdb} is incongruent with the PSF'
+        box = cell_from_xsc(xsc)[0] if xsc is not None else None
+        if only_piercees is not None:
+            # targeted re-check after a trial rotation: vectorized, no link cell.  Only a
+            # handful of named rings are tested, so skip the whole-system coordinate ingest.
+            coords = coorddf.loc[self._serials][['x', 'y', 'z']].values
+            return self._check_fast(coords, box, only_piercees)
         if xsc is not None:
-            box, orig = cell_from_xsc(xsc)
+            orig = cell_from_xsc(xsc)[1]
             sidelengths = np.diagonal(box)
             ll = orig - 0.5 * sidelengths
             ur = orig + 0.5 * sidelengths
         else:
-            box = None
             coords = coorddf[['x', 'y', 'z']].values
             ll = coords.min(axis=0) - self.cutoff
             ur = coords.max(axis=0) + self.cutoff
             logger.debug('No XSC file — treating system as non-periodic (vacuum)')
         LC = Linkcell(np.array([ll, ur]), self.cutoff)
-        assert coorddf.shape[0] == len(topol.atoms), f'{pdb} is incongruent with the PSF'
         coorddf['segname'] = [a.segname for a in topol.atoms.data]
         topol.bonds.ingest_coordinates(coorddf, pos_key=['x', 'y', 'z'], meta_key=['segname', 'resid'])
         topol.bonds.assign_cell_indexes(LC)
@@ -241,14 +276,138 @@ class RingChecker:
                 logger.debug(f'ring {ringname}:')
                 for bond in piercing_bonds:
                     piercespecs.append(dict(
-                        piercer=dict(segname=bond.segname, resid=bond.resid, resname=self.resname_of.get((bond.segname, str(bond.resid)), '?'), segtype=self.segname_to_segtype.get(bond.segname, 'unknown')),
-                        piercee=dict(segname=ring.segname, resid=ring.resid, resname=self.resname_of.get((ring.segname, str(ring.resid)), '?'), segtype=self.segname_to_segtype.get(ring.segname, 'unknown')),
+                        piercer=dict(segname=bond.segname, resid=bond.resid, resname=self.resname_of.get((bond.segname, str(bond.resid)), '?'), segtype=self.segname_to_segtype.get(bond.segname, 'unknown'), bond_serials=list(bond.idx_list)),
+                        piercee=dict(segname=ring.segname, resid=ring.resid, resname=self.resname_of.get((ring.segname, str(ring.resid)), '?'), segtype=self.segname_to_segtype.get(ring.segname, 'unknown'), ring_serials=list(ring.idx_list)),
                     ))
                     bondname = ' -- '.join([str(topol.included_atoms.get((lambda a: a.serial == x))) for x in bond.idx_list])
                     logger.debug(f'  pierced by bond [ {bondname} ]')
         for k, v in rdict.items():
             if v:
                 logger.debug(f'{k}: {v}')
+        return piercespecs
+
+    def load_coords(self, pdb):
+        """Read a PDB and return its coordinates as an (Natoms x 3) array in PSF atom order
+        (so ``coords[row]`` lines up with :attr:`_row_of_serial`)."""
+        coorddf = coorddf_from_pdb(pdb)
+        assert coorddf.shape[0] == len(self.topol.atoms), f'{pdb} is incongruent with the PSF'
+        return coorddf.loc[self._serials][['x', 'y', 'z']].values
+
+    def check_coords(self, coords, box, only_piercees):
+        """Targeted pierced-ring check on an in-memory coordinate array (see
+        :meth:`_check_fast`); no PDB round-trip, so a trial rotation can be scored directly."""
+        return self._check_fast(coords, box, only_piercees)
+
+    def clash_count(self, coords, moved_rows, cutoff=2.0):
+        """Number of heavy-atom contacts closer than ``cutoff`` between the moved atoms
+        (``moved_rows``) and the rest of the system, ignoring pairs that are covalently
+        bonded across the boundary.  A cheap proxy for how sterically clean a trial pose is
+        (lower is better)."""
+        moved = np.asarray(sorted(set(int(r) for r in moved_rows)), dtype=int)
+        if moved.size == 0:
+            return 0
+        moved_set = set(moved.tolist())
+        # unmoved atoms bonded to a moved atom are expected close contacts (the hinge) -> skip
+        bonded = set()
+        for r in moved:
+            for nb in self.topol.G.neighbors(self._serials[r]):
+                nr = self._row_of_serial.get(nb)
+                if nr is not None and nr not in moved_set:
+                    bonded.add(nr)
+        mv = moved[self._heavy[moved]]
+        um = np.array([r for r in range(len(self._serials))
+                       if r not in moved_set and r not in bonded and self._heavy[r]], dtype=int)
+        if mv.size == 0 or um.size == 0:
+            return 0
+        tree = cKDTree(coords[um])
+        return int(sum(len(hits) for hits in tree.query_ball_point(coords[mv], cutoff)))
+
+    def pendant_axes(self, bond_serials, segname, max_pendant=180, max_axes=10):
+        """Candidate hinge axes for swinging a glycan pendant (that contains the piercing
+        bond) out of a ring.
+
+        A ring is threaded by the bond ``bond_serials`` of glycan segment ``segname``.  To
+        un-thread it, the whole sub-branch carrying that bond is rotated as a rigid body
+        about an upstream rotatable bond -- a *bridge* of the glycan graph (ring bonds are
+        not bridges, so they are never chosen).  For each bridge, the branch containing the
+        piercing bond is the pendant.  Branches larger than ``max_pendant`` atoms are skipped
+        (too much collateral motion), and the axes are returned smallest-branch-first (least
+        disturbance) as dicts with the hinge endpoints' rows (``i_row`` on the axis, ``j_row``
+        the pivot end of the moving branch) and ``prows`` (the moving branch's atom rows).
+        """
+        a, b = bond_serials
+        seg_atoms = [at.serial for at in self._atoms if at.segname == segname]
+        Gg = self.topol.G.subgraph(seg_atoms).copy()
+        if a not in Gg or b not in Gg:
+            return []
+        N = Gg.number_of_nodes()
+        axes = []
+        for u, v in nx.bridges(Gg):
+            if {u, v} == {a, b}:
+                continue  # the piercing bond itself is a useless hinge
+            H = Gg.copy()
+            H.remove_edge(u, v)
+            cu = nx.node_connected_component(H, u)
+            # a and b are directly bonded, so they always share a side; the endpoint on
+            # that side (inner) is the pendant we rotate, hinging on the far endpoint (outer)
+            if a in cu:
+                inner, outer, branch = u, v, cu
+            else:
+                inner, outer, branch = v, u, nx.node_connected_component(H, v)
+            if len(branch) > max_pendant:
+                continue
+            prows = np.array([self._row_of_serial[s] for s in branch], dtype=int)
+            axes.append((len(branch), dict(i_ser=outer, j_ser=inner,
+                                           i_row=self._row_of_serial[outer],
+                                           j_row=self._row_of_serial[inner],
+                                           prows=prows)))
+        axes.sort(key=lambda t: t[0])
+        return [ax for _, ax in axes[:max_axes]]
+
+    def _piercespec(self, ring, bond, bond_row):
+        seg, resid = self._bond_meta[bond_row]
+        return dict(
+            piercer=dict(segname=seg, resid=resid,
+                         resname=self.resname_of.get((seg, str(resid)), '?'),
+                         segtype=self.segname_to_segtype.get(seg, 'unknown'),
+                         bond_serials=list(bond.idx_list)),
+            piercee=dict(segname=ring.segname, resid=ring.resid,
+                         resname=self.resname_of.get((ring.segname, str(ring.resid)), '?'),
+                         segtype=self.segname_to_segtype.get(ring.segname, 'unknown'),
+                         ring_serials=list(ring.idx_list)),
+        )
+
+    def _check_fast(self, coords, box, only_piercees):
+        """Vectorized targeted check: test only the named ``only_piercees`` rings, finding
+        candidate bonds by a direct distance filter instead of a whole-system link cell.
+
+        This is exact, not approximate -- :meth:`PSFRing.pierced_by` itself rejects any bond
+        whose midpoint is beyond ``cutoff`` of the ring COM, which is the same set the direct
+        filter selects.  It avoids the per-element pandas indexing and cell assignment that
+        make a full :meth:`check` cost tens of seconds.
+        """
+        piercespecs = []
+        if len(self._bonds) == 0:
+            return piercespecs
+        want = {(str(s), str(r)) for s, r in only_piercees}
+        target_rings = [ring for key in want for ring in self._ring_index.get(key, [])]
+        if not target_rings:
+            return piercespecs
+        bond_mid = coords[self._bond_rows].mean(axis=1)  # (Nbonds, 3)
+        for ring in target_rings:
+            ring.P = coords[ring._rows]
+            ring.calculate_stuff()
+            d = np.linalg.norm(bond_mid - ring.COM, axis=1)
+            ring_atoms = set(ring.idx_list)
+            for bi in np.where(d <= self.cutoff)[0]:
+                bond = self._bonds[bi]
+                if ring_atoms.intersection(bond.idx_list):
+                    continue
+                bond.P = coords[self._bond_rows[bi]]
+                bond.calculate_stuff()
+                test_bond = bond.mic_shift(ring.COM, box) if box is not None else bond
+                if ring.pierced_by(test_bond)['pierced']:
+                    piercespecs.append(self._piercespec(ring, test_bond, bi))
         return piercespecs
 
 
