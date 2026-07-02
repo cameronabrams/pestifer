@@ -194,7 +194,7 @@ class RingChecker:
         if self._bonds:
             self._bond_rows = np.array([[row_of[b.idx_list[0]], row_of[b.idx_list[1]]]
                                         for b in self._bonds], dtype=int)
-            self._bond_meta = [(self._atoms[r[0]].segname, self._atoms[r[0]].resid)
+            self._bond_meta = [(self._atoms[r[0]].segname, self._atoms[r[0]].resid.resid)
                                for r in self._bond_rows]
         else:
             self._bond_rows = np.empty((0, 2), dtype=int)
@@ -206,8 +206,8 @@ class RingChecker:
             ring._rows = np.array([row_of[s] for s in ring.idx_list], dtype=int)
             a0 = self._atoms[ring._rows[0]]
             ring.segname = a0.segname
-            ring.resid = a0.resid
-            self._ring_index.setdefault((str(a0.segname), str(a0.resid)), []).append(ring)
+            ring.resid = a0.resid.resid
+            self._ring_index.setdefault((str(a0.segname), str(a0.resid.resid)), []).append(ring)
         logger.debug(f'RingChecker: parsed topology once, {len(self.rings)} rings')
 
     def check(self, pdb, xsc=None, only_piercees=None):
@@ -225,7 +225,7 @@ class RingChecker:
         if only_piercees is not None:
             # targeted re-check after a trial rotation: vectorized, no link cell.  Only a
             # handful of named rings are tested, so skip the whole-system coordinate ingest.
-            coords = coorddf.loc[self._serials][['x', 'y', 'z']].values
+            coords = coorddf[['x', 'y', 'z']].values
             return self._check_fast(coords, box, only_piercees)
         if xsc is not None:
             orig = cell_from_xsc(xsc)[1]
@@ -233,54 +233,54 @@ class RingChecker:
             ll = orig - 0.5 * sidelengths
             ur = orig + 0.5 * sidelengths
         else:
-            coords = coorddf[['x', 'y', 'z']].values
+            ll = None
+            logger.debug('No XSC file — treating system as non-periodic (vacuum)')
+        coords = coorddf[['x', 'y', 'z']].values
+        return self._scan(coords, box, self.rings.data, ll=ll, ur=ur)
+
+    def _scan(self, coords, box, rings_to_check, ll=None, ur=None):
+        """Whole-system pierced-ring scan over ``rings_to_check`` using a link cell for
+        spatial acceleration.  Coordinates are taken from the ``coords`` array (in PSF atom
+        order) -- bond and ring positions are set by vectorized numpy indexing rather than a
+        per-element pandas ``.loc`` ingest, so a several-hundred-thousand-atom membrane scans
+        in seconds instead of minutes.  ``ll``/``ur`` bound the link cell (from the periodic
+        box when given, else the coordinate extents)."""
+        if ll is None or ur is None:
             ll = coords.min(axis=0) - self.cutoff
             ur = coords.max(axis=0) + self.cutoff
-            logger.debug('No XSC file — treating system as non-periodic (vacuum)')
         LC = Linkcell(np.array([ll, ur]), self.cutoff)
-        coorddf['segname'] = [a.segname for a in topol.atoms.data]
-        topol.bonds.ingest_coordinates(coorddf, pos_key=['x', 'y', 'z'], meta_key=['segname', 'resid'])
-        topol.bonds.assign_cell_indexes(LC)
+        # bucket every bond into its link cell by midpoint, vectorized.  The scalar cell
+        # index uses exactly LC.ldx_of_cellndx's formula so the per-ring neighbor search
+        # (LC.ldx_searchlist_of_ldx) sees the same cell numbering.
         bondlist_per_cell = {}
-        for b in topol.bonds:
-            bondlist_per_cell.setdefault(b.linkcell_idx, PSFBondList([])).append(b)
-        self.rings.ingest_coordinates(coorddf, pos_key=['x', 'y', 'z'], meta_key=['segname', 'resid'])
-        rings_to_check = self.rings.data
-        if only_piercees is not None:
-            # targeted re-check: only the named (segname, resid) rings, so re-checking one
-            # trial rotamer does not re-scan every ring in the system
-            want = {(str(s), str(r)) for s, r in only_piercees}
-            rings_to_check = [ring for ring in self.rings.data
-                              if (str(ring.segname), str(ring.resid)) in want]
-            logger.debug(f'restricting to {len(rings_to_check)} ring(s) matching only_piercees')
+        if len(self._bonds) > 0:
+            bond_mid = coords[self._bond_rows].mean(axis=1)
+            nc = LC.cells_per_dim
+            C = np.floor((bond_mid - LC.lower_left_corner) / LC.celldim).astype(int)
+            C = np.clip(C, 0, nc - 1)
+            bond_ldx = C[:, 2] * nc[0] * nc[1] + C[:, 1] * nc[1] + C[:, 0]
+            for bi, ldx in enumerate(bond_ldx.tolist()):
+                bondlist_per_cell.setdefault(ldx, []).append(bi)
         piercespecs = []
         rdict = {}
         for ring in rings_to_check:
+            ring.P = coords[ring._rows]
+            ring.calculate_stuff()
             oc = LC.ldx_of_cellndx(LC.cellndx_of_point(ring.COM))
-            searchcells = LC.ldx_searchlist_of_ldx(oc)
-            search_bonds = PSFBondList([])
-            for sc in searchcells:
-                search_bonds.extend(bondlist_per_cell.get(sc, PSFBondList([])))
-            piercing_bonds = PSFBondList([])
-            for bond in search_bonds:
-                if any([x in ring.idx_list for x in bond.idx_list]):
-                    continue
-                test_bond = bond.mic_shift(ring.COM, box) if box is not None else bond
-                pdict = ring.pierced_by(test_bond)
-                if pdict['pierced']:
-                    piercing_bonds.append(test_bond)
-                if 'reason' in pdict:
-                    rdict[pdict['reason']] = rdict.get(pdict['reason'], 0) + 1
-            if len(piercing_bonds) > 0:
-                ringname = '-|- ' + ' -- '.join([str(topol.included_atoms.get((lambda a: a.serial == x))) for x in ring.idx_list]) + ' -|-'
-                logger.debug(f'ring {ringname}:')
-                for bond in piercing_bonds:
-                    piercespecs.append(dict(
-                        piercer=dict(segname=bond.segname, resid=bond.resid, resname=self.resname_of.get((bond.segname, str(bond.resid)), '?'), segtype=self.segname_to_segtype.get(bond.segname, 'unknown'), bond_serials=list(bond.idx_list)),
-                        piercee=dict(segname=ring.segname, resid=ring.resid, resname=self.resname_of.get((ring.segname, str(ring.resid)), '?'), segtype=self.segname_to_segtype.get(ring.segname, 'unknown'), ring_serials=list(ring.idx_list)),
-                    ))
-                    bondname = ' -- '.join([str(topol.included_atoms.get((lambda a: a.serial == x))) for x in bond.idx_list])
-                    logger.debug(f'  pierced by bond [ {bondname} ]')
+            ring_atoms = set(ring.idx_list)
+            for sc in LC.ldx_searchlist_of_ldx(oc):
+                for bi in bondlist_per_cell.get(sc, ()):
+                    bond = self._bonds[bi]
+                    if ring_atoms.intersection(bond.idx_list):
+                        continue
+                    bond.P = coords[self._bond_rows[bi]]
+                    bond.calculate_stuff()
+                    test_bond = bond.mic_shift(ring.COM, box) if box is not None else bond
+                    pdict = ring.pierced_by(test_bond)
+                    if pdict['pierced']:
+                        piercespecs.append(self._piercespec(ring, test_bond, bi))
+                    if 'reason' in pdict:
+                        rdict[pdict['reason']] = rdict.get(pdict['reason'], 0) + 1
         for k, v in rdict.items():
             if v:
                 logger.debug(f'{k}: {v}')
@@ -291,7 +291,7 @@ class RingChecker:
         (so ``coords[row]`` lines up with :attr:`_row_of_serial`)."""
         coorddf = coorddf_from_pdb(pdb)
         assert coorddf.shape[0] == len(self.topol.atoms), f'{pdb} is incongruent with the PSF'
-        return coorddf.loc[self._serials][['x', 'y', 'z']].values
+        return coorddf[['x', 'y', 'z']].values
 
     def check_coords(self, coords, box, only_piercees):
         """Targeted pierced-ring check on an in-memory coordinate array (see

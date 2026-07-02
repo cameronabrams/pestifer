@@ -342,6 +342,32 @@ class MakeMembraneSystemTask(BaseTask):
             self.do_psfgen(patch, bilayer_name=f'patch{specbyte}')
             self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=relaxation_protocol)
 
+    def _guard_pierced_lipids(self, protocol):
+        """Insert a lipid ``ring_check`` before the first dynamics stage of a *grid*-packed
+        membrane's relaxation.
+
+        Grid placement itself leaves no pierced rings, but the condensing minimize that opens
+        the relaxation can pull a lipid tail through a sterol ring.  Such a threading survives
+        further minimization (it is topological, not just strained) and then RATTLE-fails the
+        first dynamics step.  Running ``ring_check`` (which deletes the offending lipid) right
+        after the minimize and before any dynamics removes it on the minimized coordinates.
+        Only grid builds need this; packmol places lipids with a hard overlap tolerance."""
+        if not isinstance(protocol, list) or self.bilayer_specs.get('packer') != 'grid':
+            return protocol
+        guarded, inserted = [], False
+        for stage in protocol:
+            ensemble = str(stage.get('md', {}).get('ensemble', '') or '').casefold()
+            if not inserted and ensemble and ensemble != 'minimize':
+                # runs on the just-minimized coordinates, before the first dynamics stage.
+                # cutoff 4.0 A: the piercing test itself accepts a bond only within ~3.5 A of
+                # the ring centre, so a slightly larger link-cell search radius finds every
+                # pierced lipid without the ~10x cost of the schema default (10.0 A), which on
+                # a ~350k-atom membrane only adds duplicate reports of the same lipid.
+                guarded.append({'ring_check': dict(segtypes=['lipid'], delete='piercee', cutoff=4.0)})
+                inserted = True
+            guarded.append(stage)
+        return guarded
+
     @staticmethod
     def _autostage_protocol(protocol, chunk_min=500, cap=2000):
         """Split a gridded membrane's long barostatted stages into a ramp of restarts.
@@ -827,7 +853,7 @@ class MakeMembraneSystemTask(BaseTask):
             profiles.append('pressure')
             timeseries.append('pressure')  # To do: change this to pressureProfile plotting
         tasklist_user = [{'continuation': dict(psf=state.psf.name, pdb=state.pdb.name, xsc=state.xsc.name)}]
-        tasklist_user.extend(relaxation_protocol)
+        tasklist_user.extend(self._guard_pierced_lipids(relaxation_protocol))
         tasklist_user.extend([
             {'mdplot': dict(timeseries=timeseries, profiles=profiles, legend=True, grid=True, basename=self.basename)},
             # {'terminate': dict(basename=self.basename, cleanup=False, chainmapfile=f'{self.basename}-chainmap.yaml', statefile=f'{self.basename}-state.yaml')}
