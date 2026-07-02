@@ -19,7 +19,7 @@ from .basetask import BaseTask
 from ..scripters import PsfgenScripter
 from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
-from ..psfutil.psfring import ring_check
+from ..psfutil.psfring import ring_check, RingChecker
 
 logger=logging.getLogger(__name__)
 
@@ -155,6 +155,9 @@ class RingCheckTask(BaseTask):
         psf = state.psf.name
         xsc = state.xsc.name if state.xsc else None
         working_pdb = state.pdb.name
+        # the PSF (topology, bond list, ring cycles) does not change as we try rotamers,
+        # so parse it once and re-check only coordinates for each candidate
+        checker = RingChecker(psf, cutoff=cutoff, segtypes=segtypes, max_ring_size=max_ring_size)
         # unique protein residues whose rings are pierced
         residues, seen = [], set()
         for p in protein_piercings:
@@ -173,8 +176,7 @@ class RingCheckTask(BaseTask):
                     cand = f'{prefix}_{deg}.pdb'
                     if not os.path.exists(cand):
                         continue
-                    remaining = ring_check(psf, cand, xsc, cutoff=cutoff, segtypes=segtypes,
-                                           max_ring_size=max_ring_size, only_piercees=[(seg, resid)])
+                    remaining = checker.check(cand, xsc=xsc, only_piercees=[(seg, resid)])
                     if not remaining:
                         logger.info(f'  {resname} {seg}-{resid}: chi{chi} rotation of {deg} deg clears the piercing')
                         working_pdb = cand

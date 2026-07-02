@@ -1,5 +1,5 @@
 import unittest
-from pestifer.psfutil.psfring import ring_check
+from pestifer.psfutil.psfring import ring_check, RingChecker
 import os
 import logging
 import pytest
@@ -98,6 +98,20 @@ class TestRingCheck(unittest.TestCase):
         self.assertEqual(len(hit),1)
         miss=ring_check(psf,pdb,xsc,cutoff=3.5,segtypes=['lipid','glycan'],only_piercees=[('ZZZZ',999)])
         self.assertEqual(len(miss),0)
+
+    def test_ringchecker_reuse_is_consistent(self):
+        # the auto-rotate path builds one RingChecker and calls check() per candidate;
+        # repeated checks (including a targeted only_piercees check) must not corrupt state
+        dir='5'
+        pdb=os.path.join(dir,'test.pdb')
+        psf=os.path.join(dir,'test.psf')
+        xsc=os.path.join(dir,'test.xsc')
+        c=RingChecker(psf,cutoff=3.5,segtypes=['lipid','glycan'])
+        self.assertEqual(len(c.check(pdb,xsc=xsc)),1)
+        self.assertEqual(len(c.check(pdb,xsc=xsc)),1)                       # reuse -> same
+        self.assertEqual(len(c.check(pdb,xsc=xsc,only_piercees=[('AG01',1)])),1)
+        self.assertEqual(len(c.check(pdb,xsc=xsc,only_piercees=[('ZZZZ',9)])),0)
+        self.assertEqual(len(c.check(pdb,xsc=xsc)),1)                       # filter didn't persist
 
     @pytest.mark.slow
     def test_ring_check_coords_4(self):
