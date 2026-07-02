@@ -160,14 +160,17 @@ class RingCheckTask(BaseTask):
                 pr = r['piercer']
                 if delete_these == 'piercer' or pr.get('segtype') == 'lipid':
                     to_delete.add((pr['segname'], str(pr['resid'])))
+        # deleting a lipid changes the system composition, so report it at INFO (the
+        # protein/glycan rotation path is already INFO; a silent lipid delete was misleading)
+        logger.info(f'{len(other_piercings)} lipid ring piercing{ess} detected:')
+        self._report(other_piercings, logger.info)
         self.next_basename('ring_check')
         pg: PsfgenScripter = self.get_scripter('psfgen')
         pg.newscript(self.basename)
         pg.load_project(state.psf.name, state.pdb.name)
-        logger.debug(f'Deleting {len(to_delete)} residue(s) (delete={delete_these}) from '
-                     f'{len(other_piercings)} pierced-ring configuration{ess}')
+        logger.info(f'Deleting {len(to_delete)} residue(s) (delete={delete_these}) to resolve them:')
         for seg, resid in sorted(to_delete):
-            logger.debug(f'   Deleting segname {seg} residue {resid}')
+            logger.info(f'   deleting segname {seg} residue {resid}')
             pg.addline(f'delatom {seg} {resid}')
         pg.writescript(self.basename)
         pg.runscript()
