@@ -80,6 +80,19 @@ class TestRingCheck(unittest.TestCase):
         self.assertEqual(p['piercer']['resid'],2)
         self.assertEqual(p['piercer']['segtype'],'lipid')
 
+    def test_ring_check_vacuum_full_scan(self):
+        # whole-system scan with no XSC (vacuum): the box is taken from the coordinate
+        # extents.  Guards the else-branch of check() where ll/ur must both be set (a
+        # regression: 'ur' was left unbound, raising UnboundLocalError on the first
+        # non-periodic ring_check of a build).
+        dir='5'
+        pdb=os.path.join(dir,'test.pdb')
+        psf=os.path.join(dir,'test.psf')
+        result=ring_check(psf,pdb,None,cutoff=3.5,segtypes=['lipid','glycan'])
+        self.assertEqual(len(result),1)
+        self.assertEqual(result[0]['piercee']['segname'],'AG01')
+        self.assertEqual(result[0]['piercer']['segname'],'LIP1')
+
     def test_ring_check_resname_and_only_piercees(self):
         # new fields/filters used by the protein side-chain auto-rotate path
         dir='5'

@@ -233,7 +233,7 @@ class RingChecker:
             ll = orig - 0.5 * sidelengths
             ur = orig + 0.5 * sidelengths
         else:
-            ll = None
+            ll = ur = None
             logger.debug('No XSC file — treating system as non-periodic (vacuum)')
         coords = coorddf[['x', 'y', 'z']].values
         return self._scan(coords, box, self.rings.data, ll=ll, ur=ur)
