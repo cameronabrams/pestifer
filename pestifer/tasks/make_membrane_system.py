@@ -343,27 +343,31 @@ class MakeMembraneSystemTask(BaseTask):
             self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=relaxation_protocol)
 
     def _guard_pierced_lipids(self, protocol):
-        """Insert a lipid ``ring_check`` before the first dynamics stage of a *grid*-packed
-        membrane's relaxation.
+        """Insert a lipid ``ring_check`` (and a follow-up minimize) before the first dynamics
+        stage of a *grid*-packed membrane's relaxation.
 
         Grid placement itself leaves no pierced rings, but the condensing minimize that opens
         the relaxation can pull a lipid tail through a sterol ring.  Such a threading survives
         further minimization (it is topological, not just strained) and then RATTLE-fails the
-        first dynamics step.  Running ``ring_check`` (which deletes the offending lipid) right
-        after the minimize and before any dynamics removes it on the minimized coordinates.
-        Only grid builds need this; packmol places lipids with a hard overlap tolerance."""
+        first dynamics step.  ``ring_check`` deletes the pierced lipid on the minimized
+        coordinates; the deletion frees the *other* (threading) lipid into a strained pose, so
+        a short minimize follows to relax it before any dynamics.  The minimize runs
+        regardless, but does real work only when a lipid was removed (otherwise it re-relaxes
+        an already-minimized structure).  Only grid builds need this; packmol places lipids
+        with a hard overlap tolerance."""
         if not isinstance(protocol, list) or self.bilayer_specs.get('packer') != 'grid':
             return protocol
         guarded, inserted = [], False
         for stage in protocol:
             ensemble = str(stage.get('md', {}).get('ensemble', '') or '').casefold()
             if not inserted and ensemble and ensemble != 'minimize':
-                # runs on the just-minimized coordinates, before the first dynamics stage.
                 # cutoff 4.0 A: the piercing test itself accepts a bond only within ~3.5 A of
                 # the ring centre, so a slightly larger link-cell search radius finds every
                 # pierced lipid without the ~10x cost of the schema default (10.0 A), which on
                 # a ~350k-atom membrane only adds duplicate reports of the same lipid.
                 guarded.append({'ring_check': dict(segtypes=['lipid'], delete='piercee', cutoff=4.0)})
+                # relax the lipid freed by the deletion (and the void) before dynamics
+                guarded.append({'md': dict(ensemble='minimize', minimize=1000)})
                 inserted = True
             guarded.append(stage)
         return guarded
@@ -832,7 +836,13 @@ class MakeMembraneSystemTask(BaseTask):
                 'compute_pressure_profile.enabled is true, but processor-type is "gpu"; '
                 'CUDA-enabled NAMD does not support pressureProfile. '
                 'Either disable compute_pressure_profile or use a CPU NAMD build.')
-        for stage in relaxation_protocol:
+        # a grid-packed membrane may get a ring_check (+ minimize) spliced in before its
+        # first dynamics stage; build that list now so the inserted minimize is configured
+        # (parameter files, flexible cell) alongside the user's own stages
+        guarded_protocol = self._guard_pierced_lipids(relaxation_protocol)
+        for stage in guarded_protocol:
+            if 'md' not in stage:
+                continue  # e.g. the spliced-in ring_check
             specs = stage['md']
             specs['addl_paramfiles'] = bilayer.addl_streamfiles
             other = specs.setdefault('other_parameters', {})
@@ -853,7 +863,7 @@ class MakeMembraneSystemTask(BaseTask):
             profiles.append('pressure')
             timeseries.append('pressure')  # To do: change this to pressureProfile plotting
         tasklist_user = [{'continuation': dict(psf=state.psf.name, pdb=state.pdb.name, xsc=state.xsc.name)}]
-        tasklist_user.extend(self._guard_pierced_lipids(relaxation_protocol))
+        tasklist_user.extend(guarded_protocol)
         tasklist_user.extend([
             {'mdplot': dict(timeseries=timeseries, profiles=profiles, legend=True, grid=True, basename=self.basename)},
             # {'terminate': dict(basename=self.basename, cleanup=False, chainmapfile=f'{self.basename}-chainmap.yaml', statefile=f'{self.basename}-state.yaml')}

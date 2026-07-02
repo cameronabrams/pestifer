@@ -978,10 +978,10 @@ attributes:
         type: dict
         attributes:
           - name: delete
-            text: "for a pierced LIPID ring, which of the piercer or piercee segment to delete; 'none' performs no deletion (the piercing is reported and the build stops). Does not apply to glycan or protein piercings"
+            text: "for a pierced LIPID ring, which segment(s) to delete: 'piercee' (the ring's segment), 'piercer' (the threading bond's segment), 'both' (piercee plus the piercer when it too is a lipid -- robust for inter-threaded lipids, which strain both molecules), or 'none' (no deletion; the piercing is reported and the build stops). Does not apply to glycan or protein piercings"
             type: string
             default: piercee
-            options: ['piercee','piercer','none']
+            options: ['piercee','piercer','both','none']
           - name: cutoff
             text: distance cutoff between bond and ring COM's for checking, Angstroms
             type: float

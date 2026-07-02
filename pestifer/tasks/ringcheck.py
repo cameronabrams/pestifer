@@ -146,14 +146,29 @@ class RingCheckTask(BaseTask):
                 f'{len(other_piercings)} pierced-ring configuration{ess} found; '
                 f'ring_check is configured with delete=none — resolve these manually or change the delete setting'
             )
+        # Collect the residues to delete.  A lipid tail threaded through a sterol ring
+        # contorts *both* lipids, so a single deletion can leave the other one in a
+        # high-energy pose that RATTLE-fails at the first dynamics step; ``both`` removes the
+        # piercee and (when it is also a lipid) the piercer, which is the robust choice for a
+        # membrane.  The piercer is only deleted if it is a lipid -- never a glycan/protein
+        # bond, which cannot be dropped without breaking the molecule.
+        to_delete = set()
+        for r in other_piercings:
+            if delete_these in ('piercee', 'both'):
+                to_delete.add((r['piercee']['segname'], str(r['piercee']['resid'])))
+            if delete_these in ('piercer', 'both'):
+                pr = r['piercer']
+                if delete_these == 'piercer' or pr.get('segtype') == 'lipid':
+                    to_delete.add((pr['segname'], str(pr['resid'])))
         self.next_basename('ring_check')
         pg: PsfgenScripter = self.get_scripter('psfgen')
         pg.newscript(self.basename)
         pg.load_project(state.psf.name, state.pdb.name)
-        logger.debug(f'Deleting all {delete_these}s from {len(other_piercings)} pierced-ring configuration{ess}')
-        for r in other_piercings:
-            logger.debug(f'   Deleting segname {r[delete_these]["segname"]} residue {r[delete_these]["resid"]}')
-            pg.addline(f'delatom {r[delete_these]["segname"]} {r[delete_these]["resid"]}')
+        logger.debug(f'Deleting {len(to_delete)} residue(s) (delete={delete_these}) from '
+                     f'{len(other_piercings)} pierced-ring configuration{ess}')
+        for seg, resid in sorted(to_delete):
+            logger.debug(f'   Deleting segname {seg} residue {resid}')
+            pg.addline(f'delatom {seg} {resid}')
         pg.writescript(self.basename)
         pg.runscript()
         self.register(dict(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), xsc=state.xsc), key='state', artifact_type=StateArtifacts)
