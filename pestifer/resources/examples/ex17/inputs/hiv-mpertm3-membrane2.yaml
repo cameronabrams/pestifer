@@ -135,7 +135,8 @@ tasks:
       constraints:
         k: 10
         atoms: protein and name CA
-  - ring_check:  # there are sterols!
+  - ring_check:  # there are sterols (cholesterol rings are lipid rings)
+      segtypes: [lipid, glycan]
   - validate:
       tests:
         - residue_test:

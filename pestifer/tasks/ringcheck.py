@@ -2,7 +2,13 @@
 """
 Definition of the :class:`RingCheckTask` class for checking for pierced rings in a molecular structure.
 This class is a descendant of the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class and is used to check for pierced rings in a molecular structure.
-It identifies configurations where a ring is pierced by another segment.  Lipid/glycan ring piercings are resolved by deleting the offending segment; a *protein* side-chain ring (His/Phe/Tyr/Trp/Pro) cannot be deleted, so it is resolved by rotating the side chain (chi2, then chi1) until the ring clears.
+It identifies configurations where a ring is pierced by a bond, and resolves each according to the pierced ring's segtype:
+
+- a pierced **lipid** ring deletes the offending segment (the piercer or the piercee, chosen by the ``delete`` option; ``none`` reports and stops);
+- a pierced **glycan** ring is fatal -- a glycan cannot be deleted without breaking the glycan tree, so the build stops and must be rebuilt (e.g. with a different random seed or more minimization);
+- a pierced **protein** side-chain ring (His/Phe/Tyr/Trp/Pro) is resolved by rotating the side chain (chi2, then chi1) until it clears; if no rotation clears it, the build stops with the residue named.
+
+Which segtypes are checked is set by ``segtypes`` (there is no default, so it must be given explicitly).
 Usage is described in the :ref:`config_ref tasks ring_check` documentation.
 """
 import logging
@@ -47,9 +53,14 @@ class RingCheckTask(BaseTask):
     def do(self):
         state: StateArtifacts = self.get_current_artifact('state')
         cutoff: float = self.specs.get('cutoff', 3.5)
-        segtypes: list = self.specs.get('segtypes', ['lipid', 'glycan'])
+        segtypes: list = self.specs.get('segtypes', []) or []
         delete_these: str = self.specs.get('delete', 'piercee')
         max_ring_size: int = self.specs.get('max_ring_size', 7)
+        if not segtypes:
+            logger.warning('ring_check: no segtypes specified (segtypes has no default) — '
+                           'nothing checked. Set e.g. segtypes: [lipid, glycan, protein].')
+            self.result = 0
+            return self.result
 
         def run_check(st):
             xsc = st.xsc.name if st.xsc else None

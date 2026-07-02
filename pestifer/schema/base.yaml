@@ -974,11 +974,11 @@ attributes:
             text: stride for output DCD file
             default: 1
       - name: ring_check
-        text: Parameters controlling pierced-ring checks
+        text: "Parameters controlling pierced-ring checks and how detected piercings are resolved. The action taken depends on the pierced ring's segtype (see segtypes)"
         type: dict
         attributes:
           - name: delete
-            text: which of the piercer or piercee to delete; if none, no deletions are performed
+            text: "for a pierced LIPID ring, which of the piercer or piercee segment to delete; 'none' performs no deletion (the piercing is reported and the build stops). Does not apply to glycan or protein piercings"
             type: string
             default: piercee
             options: ['piercee','piercer','none']
@@ -987,9 +987,8 @@ attributes:
             type: float
             default: 10.0
           - name: segtypes
-            text: "list of segment types whose rings are checked for piercing. Add 'protein' to also check side-chain rings (His/Phe/Tyr/Trp/Pro); a pierced protein ring is resolved by rotating the side-chain dihedral (chi2, then chi1) rather than by deletion"
+            text: "list of segment types whose rings are checked for piercing -- there is no default, so specify it explicitly (e.g. [lipid, glycan, protein]); an empty list checks nothing. The action on a detected piercing depends on the pierced ring's segtype: a pierced LIPID ring is resolved by deleting the offending segment (see delete); a pierced GLYCAN ring is fatal (a glycan cannot be deleted without breaking the glycan tree -- rebuild, e.g. with a different seed or more minimization); a pierced PROTEIN side-chain ring (His/Phe/Tyr/Trp/Pro) is resolved by rotating the side chain (chi2, then chi1) until it clears"
             type: list
-            default: ['lipid', 'glycan']
           - name: max_ring_size
             text: only rings of at most this many atoms are considered (keeps real 5/6-membered rings while skipping the giant chordless cycles a disulfide makes through the protein backbone)
             type: int
