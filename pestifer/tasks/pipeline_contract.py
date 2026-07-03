@@ -56,15 +56,20 @@ class TaskContract:
         True if the task closes the build (``terminate``); nothing may follow it.
     warn_if_present : iterable of str
         Currencies whose prior presence is suspicious (a warning, not an error).
+    standalone : bool
+        True if the task is a self-contained utility that operates on explicit inputs and
+        does not participate in the build data-flow (e.g. ``desolvate``); it is an error to
+        place it inside a build pipeline.
     """
 
     def __init__(self, requires=(STATE,), provides=(STATE,), discards_state=False,
-                 terminal=False, warn_if_present=()):
+                 terminal=False, warn_if_present=(), standalone=False):
         self.requires = frozenset(requires)
         self.provides = frozenset(provides)
         self.discards_state = discards_state
         self.terminal = terminal
         self.warn_if_present = frozenset(warn_if_present)
+        self.standalone = standalone
 
 
 # per-currency explanation used when a required currency is missing
@@ -95,6 +100,11 @@ def validate_pipeline(tasks):
     for task in tasks:
         contract = task.pipeline_contract(task.specs)
         label = f"task {task.index:02d} '{task.taskname}'"
+        if contract.standalone:
+            errors.append(f"{label} is a standalone utility that operates on explicit file inputs "
+                          f"(run it on its own, e.g. `pestifer {task.taskname} ...`); it does not "
+                          f"participate in the build data-flow and cannot be placed in a `tasks:` list")
+            continue  # contributes nothing to the pipeline
         if terminal_task is not None:
             errors.append(f"{label} is scheduled after the terminal task '{terminal_task}', which "
                           f"packages and closes the build -- nothing may run after it")

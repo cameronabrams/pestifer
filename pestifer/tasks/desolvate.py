@@ -26,6 +26,15 @@ class DesolvateTask(VMDTask):
     YAML header for the DesolvateTask, used to identify the task in configuration files as
     part of a ``tasks`` list.  This is not the normal use case for Desolvate.
     """
+
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract
+        # desolvate reads and writes explicit file paths (a PSF and DCD trajectories), not
+        # pipeline currencies; it is a standalone post-processing command (`pestifer
+        # desolvate`), not a build step
+        return TaskContract(standalone=True)
+
     def do(self) -> int:
         self.catdcd = self.provisions['shell-commands']['catdcd']
         self.do_idx_psf_gen()

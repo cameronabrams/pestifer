@@ -72,6 +72,11 @@ class TestPipelineContract(unittest.TestCase):
         self._assert_error([{'fetch': {'sourceID': '6pti'}}, {'psfgen': {}}, {'psfgen': {}}],
                            "discard")
 
+    def test_desolvate_rejected_in_build_pipeline(self):
+        # desolvate is a standalone utility; it must not appear in a build tasks list
+        self._assert_error([{'continuation': {'psf': 'x.psf', 'pdb': 'x.pdb'}}, {'desolvate': {}}],
+                           "standalone utility")
+
     # ---- contract details ----
     def test_membrane_contract_is_conditional_on_embed(self):
         from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask as MM
