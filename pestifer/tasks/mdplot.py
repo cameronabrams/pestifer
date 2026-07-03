@@ -50,6 +50,13 @@ class MDPlotTask(BaseTask):
     """
     YAML header for the MDPlotTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
+
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract, MD_OUTPUT
+        # plots molecular-dynamics output; needs an md task to have run
+        return TaskContract(requires=(MD_OUTPUT,), provides=())
+
     def do(self):
         self.next_basename()
         my_logger(self.specs, logger.debug)

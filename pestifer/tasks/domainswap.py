@@ -26,6 +26,12 @@ class DomainSwapTask(MDTask):
 
     _yaml_header = 'domainswap'
 
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract, STATE
+        # a steered-MD transform of the current state (overrides MDTask's md_output claim)
+        return TaskContract(requires=(STATE,), provides=(STATE,))
+
     def do(self):
         self.make_inputs()
         self.result = self.namdrun(

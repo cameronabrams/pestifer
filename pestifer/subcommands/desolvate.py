@@ -57,7 +57,7 @@ class DesolvateSubcommand(Subcommand):
                     }
                 }]
             },
-            terminate=False
+            terminate=False, validate=False  # standalone trajectory utility, not a build pipeline
         )
         return C.do_tasks()
 

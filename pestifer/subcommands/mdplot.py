@@ -58,7 +58,7 @@ class MDPlotSubcommand(Subcommand):
                     }
                 }]
             },
-            terminate=False
+            terminate=False, validate=False  # standalone plot utility, not a build pipeline
         )
         C.tasks[0].taskname = args.basename
         report = C.do_tasks()

@@ -30,6 +30,13 @@ class LigateTask(MDTask):
     """
     YAML header for the LigateTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
+
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract, STATE, MOLECULE
+        # closes protein loops on the in-memory molecule built by psfgen
+        return TaskContract(requires=(MOLECULE,), provides=(STATE, MOLECULE))
+
     def do(self) -> int:
         """
         Execute the ligate task. This method checks if the base molecule has loops,

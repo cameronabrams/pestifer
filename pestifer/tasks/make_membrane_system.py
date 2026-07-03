@@ -101,6 +101,17 @@ class MakeMembraneSystemTask(BaseTask):
     YAML header for the MakeMembraneSystemTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
 
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract, STATE, SOLVATED
+        embedding = bool(specs.get('embed'))
+        # embedding requires a protein state to insert; a bare membrane build is an origin.
+        # The builder solvates the assembled system itself, so a prior solvation is suspect.
+        return TaskContract(requires=(STATE,) if embedding else (),
+                            provides=(STATE, SOLVATED),
+                            discards_state=not embedding,
+                            warn_if_present=(SOLVATED,))
+
     def provision(self, packet: dict):
         logger.debug(f'Provisioning MakeMembraneSystemTask with packet:')
         my_logger(packet, logger.debug)

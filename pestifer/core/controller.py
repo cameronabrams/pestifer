@@ -14,6 +14,7 @@ from .config import Config
 from .pipeline import PipelineContext
 from ..tasks.taskcollections import TaskList
 from ..tasks import TerminateTask
+from ..tasks.pipeline_contract import validate_pipeline
 from ..util.stringthings import plu, my_logger
 from ..util.util import running_under_pytest
 from ..util._goldenmode import report_example_id
@@ -51,7 +52,8 @@ class Controller:
         self.pipeline = None
         self.parent = None
 
-    def configure(self, config: Config, userspecs: dict = {}, index: int = 0, terminate: bool = True):
+    def configure(self, config: Config, userspecs: dict = {}, index: int = 0, terminate: bool = True,
+                  validate: bool = True):
         self.index = index
         self.config = config
         self.config.update_user(userspecs)
@@ -63,6 +65,14 @@ class Controller:
             specs = self.config.make_default_specs('tasks','terminate')
             logger.debug('Adding default terminate task')
             self.tasks.append(TerminateTask(specs=specs, index=len(self.tasks)))
+
+        # static pre-execution check of the task hand-offs (only the user-facing top-level
+        # pipeline has tasks at configure() time; subcontrollers are populated later and are
+        # generated internally, so they are not checked here).  Standalone utility subcommands
+        # (mdplot, desolvate) that assemble a single-task controller operating on CLI inputs
+        # pass validate=False -- they are not build pipelines.
+        if validate and self.tasks:
+            validate_pipeline(self.tasks)
 
         self.pipeline = PipelineContext(controller_index=self.index)
         self.provision_tasks()

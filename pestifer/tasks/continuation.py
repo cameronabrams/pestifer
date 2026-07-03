@@ -31,7 +31,14 @@ class ContinuationTask(PsfgenTask):
     This task only resets the task chain to named values of the psf, pdb, xsc, and coor files 
     """
     _yaml_header = 'continuation'
-    
+
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract, STATE
+        # loads a pre-built system from files; an origin (would supersede any prior state).
+        # Note: it provides files but NOT the in-memory `base_molecule` object.
+        return TaskContract(requires=(), provides=(STATE,), discards_state=True)
+
     def do(self):
         self.next_basename()
         # must have psf, either coor or pdb

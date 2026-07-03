@@ -29,6 +29,13 @@ class SolvateTask(VMDTask):
     YAML header for the SolvateTask, used to identify the task in configuration files as part of a ``tasks`` list.
     This header is used to declare SolvateTask objects in YAML task lists.
     """
+
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract, STATE, SOLVATED
+        # adds bulk solvent; warns if the system is already solvated
+        return TaskContract(requires=(STATE,), provides=(STATE, SOLVATED), warn_if_present=(SOLVATED,))
+
     def do(self):
         """
         Execute the solvate task.

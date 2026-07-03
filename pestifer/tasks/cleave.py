@@ -42,6 +42,12 @@ class CleaveTask(PsfgenTask):
     YAML header for the CleaveTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
 
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract, STATE, MOLECULE
+        # operates on the in-memory molecule built by psfgen (not just files)
+        return TaskContract(requires=(MOLECULE,), provides=(STATE, MOLECULE))
+
     def do(self):
         """
         Execute the cleave task.

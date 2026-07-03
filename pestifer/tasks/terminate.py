@@ -37,6 +37,12 @@ class TerminateTask(MDTask):
     It is typically used at the end of a build workflow to finalize the state of the simulation and prepare for termination.
     """
 
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract, STATE
+        # packages the final system and closes the build -- nothing may follow it
+        return TaskContract(requires=(STATE,), provides=(), terminal=True)
+
     def do(self) -> int:
         self.next_basename()
         if 'chainmapfile' in self.specs:

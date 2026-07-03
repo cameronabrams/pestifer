@@ -45,6 +45,13 @@ class PsfgenTask(VMDTask):
     YAML header for the PsfgenTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
 
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract, SOURCE, STATE, MOLECULE
+        # builds a system from fetched source coordinates; running it on top of an existing
+        # state discards that state (it rebuilds from scratch)
+        return TaskContract(requires=(SOURCE,), provides=(STATE, MOLECULE), discards_state=True)
+
     def provision(self, packet: dict = {}):
         """
         Provision the task with the standard packet, and initialize molecule dict and base molecule placeholders.

@@ -23,7 +23,13 @@ class FetchTask(BaseTask):
     YAML header for the FetchTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
     _artifact_name = 'base_coordinates'
-    
+
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract, SOURCE
+        # provides raw source coordinates (for psfgen); does not build a system
+        return TaskContract(requires=(), provides=(SOURCE,))
+
     def do(self):
         """ Execute the fetch task. """
         source: str = self.specs.get('source', 'rcsb')

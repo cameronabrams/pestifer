@@ -43,6 +43,13 @@ class PDB2PQRTask(PsfgenTask):
     YAML header for the PDB2PQRTask, used to identify the task in configuration
     files as part of a ``tasks`` list.
     """
+
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract, STATE, MOLECULE
+        # needs the in-memory molecule built by psfgen
+        return TaskContract(requires=(MOLECULE,), provides=(STATE,))
+
     def do(self) -> int:
         """
             Execute the PDB2PQR task.

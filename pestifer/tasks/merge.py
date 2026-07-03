@@ -63,6 +63,13 @@ class MergeTask(PsfgenTask):
 
     _yaml_header = 'merge'
 
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract, STATE
+        # combines pre-built systems from its `systems` list, folding the current state in as
+        # one of them if present -- so it can start a pipeline and does not discard prior work
+        return TaskContract(requires=(), provides=(STATE,))
+
     def do(self) -> int:
         self.next_basename('merge')
         systems_specs: list[dict] = list(self.specs.get('systems', []))

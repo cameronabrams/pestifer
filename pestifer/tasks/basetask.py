@@ -149,6 +149,15 @@ class BaseTask(ABC):
         """
         return -1
 
+    @classmethod
+    def pipeline_contract(cls, specs):
+        """Declare this task's pipeline input/output contract for pre-execution validation
+        (see :mod:`pestifer.tasks.pipeline_contract`).  The default is a *transform*: it
+        requires an existing ``state`` and provides one.  Origin tasks (which build a system)
+        and tasks with special needs override this."""
+        from .pipeline_contract import TaskContract
+        return TaskContract()
+
     def execute(self) -> int:
         """
         Execute the task.

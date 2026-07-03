@@ -34,7 +34,9 @@ class TestController(unittest.TestCase):
     def test_controller_spawn_subcontroller(self):
         config=Config().configure_new()
         self.assertEqual(len(config['user']['tasks']),0)
-        config['user']['tasks'] = [{'fetch': {'sourceID': '6pti'}}]
+        # a valid minimal pipeline (fetch alone would leave nothing for the auto-appended
+        # terminate to package, which the pre-execution pipeline check now rejects)
+        config['user']['tasks'] = [{'fetch': {'sourceID': '6pti'}}, {'psfgen': {}}]
         C = Controller().configure(config, userspecs={'title': 'Test Controller'}, index=0)
         self.assertTrue(C.tasks[0].is_provisioned)
         subC = Controller.spawn_subcontroller(C)

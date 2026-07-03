@@ -61,7 +61,13 @@ class MDTask(VMDTask):
     """
     YAML header for the MDTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
-    
+
+    @classmethod
+    def pipeline_contract(cls, specs):
+        from .pipeline_contract import TaskContract, STATE, MD_OUTPUT
+        # runs dynamics on the current system and produces timeseries for mdplot
+        return TaskContract(requires=(STATE,), provides=(STATE, MD_OUTPUT))
+
     def provision(self, packet: dict):
         """
         Provision the MDTask with the provided packet of data.
