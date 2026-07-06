@@ -246,7 +246,14 @@ vmdcon -info "next solvent segname: WT$nextsolsegnum"
 set net_charge [vecsum [$allatoms get charge]]
 mol delete $raw_embedded_system
 
-set addl_water [list]
+# List of solvent slabs (lower/upper) to append into the embedded system.
+# Must be initialized so the append loop below is safe even when no slab is
+# generated (previously this initialized the unused name "addl_water", so a
+# skipped slab left addl_solution undefined -> "no such variable").
+set addl_solution [list]
+# Count of solvate slabs actually generated, so we can hard-fail below if slabs
+# were made but none got appended (which would silently yield an unsolvated system).
+set n_solvate_slabs 0
 
 # The added water slabs must span the periodic box laterally, centered on the membrane.
 # The old {0 0}-origin bounds assumed the membrane sat in the +x/+y quadrant starting at
@@ -268,6 +275,7 @@ if { $box_min_z < $bilayer_min_z } {
    set lower_minmax [list [list $water_min_x $water_min_y $box_min_z] [list $water_max_x $water_max_y $bilayer_min_z]]
    vmdcon -info "Running solvate -minmax $lower_minmax -o ${outbasename}_water_lower"
    solvate -minmax $lower_minmax -o ${outbasename}_water_lower
+   incr n_solvate_slabs
    lappend tmp_files ${outbasename}_water_lower.psf
    lappend tmp_files ${outbasename}_water_lower.pdb
    lappend tmp_files ${outbasename}_water_lower.log
@@ -275,8 +283,8 @@ if { $box_min_z < $bilayer_min_z } {
       vmdcon -info "Adding $sc M salt (cation $cation, anion $anion) to lower water slab"
       autoionize -psf ${outbasename}_water_lower.psf -pdb ${outbasename}_water_lower.pdb -o ${outbasename}_solution_lower -sc $sc -cation $cation -anion $anion
    } else {
-      file copy ${outbasename}_water_lower.psf ${outbasename}_solution_lower.psf
-      file copy ${outbasename}_water_lower.pdb ${outbasename}_solution_lower.pdb
+      file copy -force ${outbasename}_water_lower.psf ${outbasename}_solution_lower.psf
+      file copy -force ${outbasename}_water_lower.pdb ${outbasename}_solution_lower.pdb
    }
    lappend tmp_files ${outbasename}_solution_lower.psf
    lappend tmp_files ${outbasename}_solution_lower.pdb
@@ -295,6 +303,7 @@ if { $box_max_z > $bilayer_max_z } {
    set upper_minmax [list [list $water_min_x $water_min_y $bilayer_max_z] [list $water_max_x $water_max_y $box_max_z]]
    vmdcon -info "Running solvate -minmax $upper_minmax -o ${outbasename}_water_upper"
    solvate -minmax $upper_minmax -o ${outbasename}_water_upper
+   incr n_solvate_slabs
    lappend tmp_files ${outbasename}_water_upper.psf
    lappend tmp_files ${outbasename}_water_upper.pdb
    lappend tmp_files ${outbasename}_water_upper.log
@@ -302,8 +311,8 @@ if { $box_max_z > $bilayer_max_z } {
       vmdcon -info "Adding $sc M salt (cation $cation, anion $anion) to upper water slab"
       autoionize -psf ${outbasename}_water_upper.psf -pdb ${outbasename}_water_upper.pdb -o ${outbasename}_solution_upper -sc $sc -cation $cation -anion $anion
    } else {
-      file copy ${outbasename}_water_upper.psf ${outbasename}_solution_upper.psf
-      file copy ${outbasename}_water_upper.pdb ${outbasename}_solution_upper.pdb
+      file copy -force ${outbasename}_water_upper.psf ${outbasename}_solution_upper.psf
+      file copy -force ${outbasename}_water_upper.pdb ${outbasename}_solution_upper.pdb
    }
    lappend tmp_files ${outbasename}_solution_upper.psf
    lappend tmp_files ${outbasename}_solution_upper.pdb
@@ -353,6 +362,16 @@ foreach aw $addl_solution {
       lappend newsegids $is
    }
    mol delete $solution
+}
+
+# Fail loudly rather than silently shipping an unsolvated system: if solvate
+# produced water slab(s) but nothing was appended, the added water is missing
+# (e.g. a stale intermediate blocked a copy, or a slab failed to register). Such
+# a system passes minimize/NVT (fixed box) but collapses on the first NPT step
+# with "Periodic cell has become too small for original patch grid".
+if { $n_solvate_slabs > 0 && [llength $newsegids] == 0 } {
+   vmdcon -err "bilayer_embed: $n_solvate_slabs solvent slab(s) generated but none appended -> system would be unsolvated; aborting"
+   error "bilayer_embed: solvent append produced no water; refusing to write an unsolvated system"
 }
 
 writepsf cmap ${outbasename}_solvent_appended.psf
@@ -418,8 +437,8 @@ if {[expr abs($net_charge)] > 0.0001} {
    autoionize -psf ${outbasename}_filled.psf -pdb ${outbasename}_filled.pdb -o ${outbasename} -neutralize
 } else {
    vmdcon -info "no autoionization required; net charge is $net_charge"
-   file copy ${outbasename}_filled.psf ${outbasename}.psf
-   file copy ${outbasename}_filled.pdb ${outbasename}.pdb
+   file copy -force ${outbasename}_filled.psf ${outbasename}.psf
+   file copy -force ${outbasename}_filled.pdb ${outbasename}.pdb
 }
 mol new ${outbasename}.psf
 mol addfile ${outbasename}.pdb waitfor all
