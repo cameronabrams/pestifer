@@ -188,6 +188,43 @@ class ResourceManager:
                     msg = f.read()
                 out_stream(msg)
 
+    def lookup_resname(self, resname: str) -> dict:
+        """Look up a residue name in the CHARMM topologies/streams and in the built-in PDB
+        repository.
+
+        Returns a dict describing whether (and where) the residue is defined and whether
+        coordinates for it exist:
+
+        - ``resname``: the (upper-cased) name queried
+        - ``in_topology``: whether it is defined as a CHARMM ``RESI`` or ``PRES``
+        - ``kind``: ``'residue (RESI)'``, ``'patch (PRES)'``, or ``None``
+        - ``topfile``: the topology/stream file that defines it (or ``None``)
+        - ``segtype``: pestifer's segtype classification (or ``None``)
+        - ``charmm_alias``: the CHARMM resname a PDB resname maps to, if different
+        - ``in_pdbrepository``: whether the built-in PDB repository has coordinates
+        - ``longname``: the descriptive name from the PDB repository (or ``None``)
+        - ``nconformers``: number of stored conformers (0 if none)
+        """
+        cc = self.charmmff_content
+        if not cc.provisioned:
+            cc.provision()
+        query = resname.upper()
+        in_residues = query in cc.residues
+        in_patches = query in cc.patches
+        alias = self.labels.charmm_resname_of_pdb_resname.get(query)
+        pdbi = cc.checkout_pdb(query) if (cc.pdbrepository and query in cc.pdbrepository) else None
+        return {
+            'resname': query,
+            'in_topology': in_residues or in_patches,
+            'kind': 'residue (RESI)' if in_residues else ('patch (PRES)' if in_patches else None),
+            'topfile': cc.get_topfile_of_resname(query),
+            'segtype': self.labels.segtype_of_resname.get(query),
+            'charmm_alias': alias if (alias and alias != query) else None,
+            'in_pdbrepository': pdbi is not None,
+            'longname': pdbi.longname() if pdbi else None,
+            'nconformers': len(pdbi.pdbcontents) if pdbi else 0,
+        }
+
     def get_resource_path(self,r):
         """
         Get the path to a specific resource.

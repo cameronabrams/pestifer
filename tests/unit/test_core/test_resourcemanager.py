@@ -25,4 +25,25 @@ class TestResourceManager(unittest.TestCase):
         self.assertTrue(os.path.exists(self.RM.get_tcl_pkgdir()))
         self.assertTrue(os.path.exists(self.RM.get_tcl_scriptsdir()))
 
+    def test_lookup_resname(self):
+        # a lipid: defined in the topologies and present in the PDB repository
+        popc = self.RM.lookup_resname('popc')  # case-insensitive
+        self.assertEqual(popc['resname'], 'POPC')
+        self.assertTrue(popc['in_topology'])
+        self.assertEqual(popc['kind'], 'residue (RESI)')
+        self.assertTrue(popc['topfile'])
+        self.assertEqual(popc['segtype'], 'lipid')
+        self.assertTrue(popc['in_pdbrepository'])
+        self.assertGreaterEqual(popc['nconformers'], 1)
+        # a patch: defined in the topologies (PRES) but has no coordinates
+        aspp = self.RM.lookup_resname('ASPP')
+        self.assertTrue(aspp['in_topology'])
+        self.assertEqual(aspp['kind'], 'patch (PRES)')
+        self.assertFalse(aspp['in_pdbrepository'])
+        # a name that exists nowhere
+        bogus = self.RM.lookup_resname('ZZZZ')
+        self.assertFalse(bogus['in_topology'])
+        self.assertIsNone(bogus['topfile'])
+        self.assertFalse(bogus['in_pdbrepository'])
+
 
