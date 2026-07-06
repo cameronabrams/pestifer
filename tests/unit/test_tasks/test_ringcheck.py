@@ -1,9 +1,37 @@
 import unittest
 from pestifer.psfutil.psfring import ring_check, RingChecker
+from pestifer.tasks.ringcheck import RingCheckTask
 import os
+import tempfile
+import types
 import logging
 import pytest
 logger=logging.getLogger(__name__)
+
+
+class TestDeclashScratchCleanup(unittest.TestCase):
+    def test_cleanup_removes_only_declash_scratch(self):
+        # the rotation-resolution path leaves per-candidate trial PDBs and VMD gen
+        # scripts/logs (all prefixed '<taskname>-declash-'); cleanup must remove exactly
+        # those and nothing else (not the registered ring_check output, not other files)
+        d = tempfile.mkdtemp()
+        cwd = os.getcwd()
+        os.chdir(d)
+        try:
+            scratch = [
+                'ring_check-declash-G-330-chi1_120.pdb',
+                'ring_check-declash-G-330-chi2-gen.tcl',
+                'ring_check-declash-G-330-chi2-gen.log',
+                'ring_check-declash-I-417-glycan.pdb',
+            ]
+            keep = ['00-04-00_ring_check.pdb', 'unrelated.dat']
+            for n in scratch + keep:
+                open(n, 'w').close()
+            # call the method with a stand-in self (it only reads self.taskname)
+            RingCheckTask._cleanup_declash_scratch(types.SimpleNamespace(taskname='ring_check'))
+            self.assertEqual(sorted(os.listdir('.')), sorted(keep))
+        finally:
+            os.chdir(cwd)
 
 class TestRingCheck(unittest.TestCase):
     def test_ring_check_coords_1(self):

@@ -12,6 +12,7 @@ It identifies configurations where a ring is pierced by a bond and resolves each
 Which segtypes are checked is set by ``segtypes`` (there is no default, so it must be given explicitly).
 Usage is described in the :ref:`config_ref tasks ring_check` documentation.
 """
+import glob
 import logging
 import os
 import shutil
@@ -112,6 +113,10 @@ class RingCheckTask(BaseTask):
             # a rotation changes coordinates only, not topology: keep the PSF, new PDB
             self.next_basename('ring_check')
             shutil.copy(fixed_pdb, f'{self.basename}.pdb')
+            # the winning pose is now the registered artifact; the per-candidate trial PDBs
+            # and VMD gen scripts/logs are scratch -- remove them so they don't litter the
+            # run directory (they are kept on the failure path above, for debugging)
+            self._cleanup_declash_scratch()
             self.register(dict(psf=state.psf, pdb=PDBFileArtifact(self.basename), xsc=state.xsc),
                           key='state', artifact_type=StateArtifacts)
             state = self.get_current_artifact('state')
@@ -179,6 +184,18 @@ class RingCheckTask(BaseTask):
         self.register(self.basename, key='log', artifact_type=PsfgenLogFileArtifact)
         self.result = 0
         return self.result
+
+    def _cleanup_declash_scratch(self):
+        """Remove the transient files written during rotation resolution: the per-candidate
+        trial PDBs (``<taskname>-declash-<seg>-<resid>-chi{1,2}_<deg>.pdb`` and
+        ``...-glycan.pdb``) and the VMD gen scripts/logs (``...-gen.tcl``/``...-gen.log``).
+        The accepted pose has already been copied to the registered ``<basename>.pdb``
+        artifact, so all of these are scratch."""
+        for f in glob.glob(f'{self.taskname}-declash-*'):
+            try:
+                os.remove(f)
+            except OSError as e:
+                logger.debug(f'could not remove ring_check scratch file {f}: {e}')
 
     def _resolve_by_rotation(self, state, piercings, cutoff, segtypes, max_ring_size):
         """Clear each rotation-resolvable piercing, one at a time.  The topology is untouched
