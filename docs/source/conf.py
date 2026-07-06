@@ -12,7 +12,7 @@ version = '.'.join(release.split('.')[:2])  # major.minor
 # -- Project information
 
 # project = 'pestifer'
-copyright = '2023-2025, Cameron F. Abrams'
+copyright = '2023-2026, Cameron F. Abrams'
 author = 'cfa22@drexel.edu'
 
 # -- General configuration
