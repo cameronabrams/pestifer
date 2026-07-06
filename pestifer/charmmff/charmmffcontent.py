@@ -204,6 +204,7 @@ class ResnameIndex(CacheableObject):
     contaminate one another's cache.
     """
 
+    @with_spinner('Building CHARMMFF residue-name index...')
     def _build_from_resources(self, charmmff_path, **kwargs):
         cc = CHARMMFFContent(charmmff_path)
         cc.provision()  # the multi-second step, done once per (re)build of this cache
