@@ -1,12 +1,12 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
 Definition of the :class:`RingCheckTask` class for checking for pierced rings in a molecular structure.
-This class is a descendant of the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class and is used to check for pierced rings in a molecular structure.
+This class is a descendant of the :class:`BaseTask <pestifer.tasks.basetask.BaseTask>` class and is used to check for pierced rings in a molecular structure.
 It identifies configurations where a ring is pierced by a bond and resolves each by whichever motion is available:
 
 - an **aromatic** protein side-chain ring (His/Phe/Tyr/Trp) pivots on its own dihedral, so it is swung off the piercing bond by rotating the side chain (chi2, then chi1);
 - a **rigid** ring that cannot itself move -- a **proline** side-chain ring (fused to the backbone) or a **glycan** ring -- when speared by a **glycan** bond is cleared by rotating the *glycan pendant* so the piercing bond is pulled out of the ring;
-- a pierced **lipid** ring deletes the offending segment (the piercer or the piercee, chosen by ``delete``; ``none`` reports and stops);
+- a pierced **lipid** ring deletes a segment, chosen by ``delete``: ``piercee``, ``piercer``, ``both`` (the piercee plus the piercer when it too is a lipid, for inter-threaded lipids), or ``none`` (report and stop);
 - anything that no available rotation clears stops the build with the residue named.
 
 Which segtypes are checked is set by ``segtypes`` (there is no default, so it must be given explicitly).

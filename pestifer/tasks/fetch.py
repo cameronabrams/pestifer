@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
-Definition of the :class:`InitiateTask` class for initiating a pestifer build.
+Definition of the :class:`FetchTask` class for fetching an initial structure (from RCSB, AlphaFold, OPM, or a local file) to begin a pestifer build.
 """
 import logging
 import os

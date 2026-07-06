@@ -32,7 +32,7 @@ class PsfgenTask(VMDTask):
     """ 
     A class for handling invocations of psfgen which create a molecule from a base PDB/mmCIF file
     or from a PSF file generated previously by psfgen
-    This class is a descendant of the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class, and as such it has two parameters.
+    This class is a descendant of the :class:`BaseTask <pestifer.tasks.basetask.BaseTask>` class, and as such it has two parameters.
 
     Parameters
     ----------

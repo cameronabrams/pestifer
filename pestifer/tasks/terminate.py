@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
 Definition of the :class:`TerminateTask` class for terminating a pestifer build.
-This task is a descendant of the :class:`MDTask <pestifer.tasks.md.MDTask>` class and is used to prepare the system for termination.
+This task is a descendant of the :class:`MDTask <pestifer.tasks.mdtask.MDTask>` class and is used to prepare the system for termination.
 It handles the copying of state files, writing chain maps, and packaging the system for NAMD runs.
 The task also manages the state of the simulation, including the base molecule and various file extensions such as PSF, PDB, COOR, XSC, and VEL.
 The task is designed to be used in a workflow where the simulation needs to be gracefully terminated and packaged for further analysis or continuation.
@@ -27,7 +27,7 @@ logger = logging.getLogger(__name__)
 class TerminateTask(MDTask):
     """
     TerminateTask class for terminating a pestifer build.
-    This class inherits from the :class:`MDTask <pestifer.tasks.md.MDTask>` class and is used to prepare the system for termination.
+    This class inherits from the :class:`MDTask <pestifer.tasks.mdtask.MDTask>` class and is used to prepare the system for termination.
     It handles the copying of state files, writing chain maps, and packaging the system for NAMD runs.
     """
     _yaml_header = 'terminate'

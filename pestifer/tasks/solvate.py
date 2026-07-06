@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
 Definition of the :class:`SolvateTask` class for solvating a molecular structure.
-This class is a descendant of the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class and is used to solvate a molecular structure
+This class is a descendant of the :class:`BaseTask <pestifer.tasks.basetask.BaseTask>` class and is used to solvate a molecular structure
 using the VMD solvate and autoionize packages.
 It generates a solvated PDB and PSF file, optionally adding ions based on specified salt concentration and ion types.
 The task can also handle cubic or rectangular boxes for solvation based on the provided specifications.

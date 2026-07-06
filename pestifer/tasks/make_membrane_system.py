@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa2@drexel.edu>
 """
-Definition of the :class:`MakeMembraneSystemTask` class for handling embedding proteins into bilayers.
+Definition of the :class:`MakeMembraneSystemTask` class for building lipid bilayer systems, optionally embedding a protein into the bilayer.
 
 Usage is described in the :ref:`subs_buildtasks_make_membrane_system` documentation.
 """
@@ -93,8 +93,9 @@ def _per_leaflet_tension(pp_df, c_z, midplane_slab=None):
                 dgamma=upper - lower, nslabs=nslabs, nframes=int(len(frames)))
 
 class MakeMembraneSystemTask(BaseTask):
-    """ 
-    A class for handling embedding proteins into bilayers
+    """
+    A class for building a lipid bilayer system (with the packmol or grid packer),
+    optionally embedding a protein into the assembled bilayer.
     """
     _yaml_header = 'make_membrane_system'
     """
@@ -802,7 +803,7 @@ class MakeMembraneSystemTask(BaseTask):
 
     def equilibrate_bilayer(self, bilayer: Bilayer, bilayer_name: str, relaxation_protocol: list[dict] = None):
         """
-        Equilibrates the bilayer patch using the specified user dictionary and relaxation protocol.
+        Equilibrates the bilayer patch using the specified relaxation protocol.
         
         Parameters
         ----------

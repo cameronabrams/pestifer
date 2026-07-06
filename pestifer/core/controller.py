@@ -31,8 +31,9 @@ class Controller:
     are collected in a report. If the last task is not a :class:`pestifer.tasks.terminate.TerminateTask` task,
     a default :class:`pestifer.tasks.terminate.TerminateTask` is added to ensure proper termination.
 
-    Parameters
-    ----------
+    A Controller is constructed with no arguments and then set up with :meth:`configure`, whose
+    parameters are:
+
     config : Config
         The configuration object containing user specifications and settings.
     userspecs : dict, optional
@@ -43,6 +44,10 @@ class Controller:
         If True, a default terminate task will be added if the last task is not already a TerminateTask.
         This ensures that the runtime will always have a way to clean up and terminate properly.
         Default is True.
+    validate : bool, optional
+        If True (default), the assembled task list is statically checked for malformed hand-offs
+        (see :func:`pestifer.tasks.pipeline_contract.validate_pipeline`) before execution.  Standalone
+        utility subcommands set this False.
     """
 
     def __init__(self):

@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
-Definition of the :class:`ContinuationTask` class for resetting the task chain to named values of the psf, pdb, xsc, and coor files.
+Definition of the :class:`ContinuationTask` class for beginning (or resuming) a build from an existing, pre-built system: named ``psf``, ``pdb``, and optional ``xsc``, ``coor``, and ``vel`` files.  It copies the inputs into the working directory, resolves the topology stream files recorded in the PSF, rebuilds the in-memory molecule, and registers the resulting ``state``.
 
 Usage is described in the :ref:`config_ref tasks continuation` documentation.
 """
@@ -27,8 +27,9 @@ def _ensure_in_cwd(filepath: str) -> str:
     return src.name
 
 class ContinuationTask(PsfgenTask):
-    """ 
-    This task only resets the task chain to named values of the psf, pdb, xsc, and coor files 
+    """
+    Begins or resumes a build from a pre-built system given by named ``psf``, ``pdb``, and
+    optional ``xsc``, ``coor``, and ``vel`` files (registered as the current ``state``).
     """
     _yaml_header = 'continuation'
 

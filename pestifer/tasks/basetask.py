@@ -4,9 +4,9 @@ This module defines the :class:`BaseTask` class, which serves as a base class fo
 The :class:`BaseTask` class provides a common interface and some basic functionality for tasks, including task initialization,
 logging, state management, and file handling. It is intended to be subclassed by specific task types that implement their own
 specific behavior and functionality.
-The :class:`BaseTask` class includes methods for task execution, state variable management, file collection, and task name management.
-It also provides a mechanism for inheriting state from prior tasks, saving the task state to a YAML file, and copying the state to files based on specified extensions.
-The class also includes methods for converting coordinate files to PDB files and vice versa, as well as creating constraint PDB files based on task specifications.
+The :class:`BaseTask` class includes methods for task execution, artifact registration and retrieval, file collection, and task name management.
+Tasks hand off results to one another through the pipeline's artifact context (see :class:`~pestifer.core.pipeline.PipelineContext`); a task reads the current ``state`` and other artifacts registered by prior tasks and registers its own.
+(VMD-based helpers such as coordinate-file conversion and constraint-PDB generation live on the :class:`VMDTask` subclass, not :class:`BaseTask`.)
 The :class:`BaseTask` class is designed to be flexible and extensible, allowing for the creation of various task types that can perform different operations on molecular structures.
 
 Available tasks that inherit from :class:`BaseTask` include all those in the :mod:`pestifer.tasks` subpackage.

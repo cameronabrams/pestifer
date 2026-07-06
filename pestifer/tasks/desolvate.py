@@ -3,7 +3,7 @@
 Desolvate task for the Pestifer framework.  This is normally used as part of the ``pestifer desolvate`` command to process existing DCD files.
 This task is responsible for generating an index file and a PSF file from a given PSF and PDB file,
 and then pruning a DCD file based on the generated index.
-It inherits from the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class and uses the VMD scripter to create the necessary scripts for processing.
+It inherits from the :class:`BaseTask <pestifer.tasks.basetask.BaseTask>` class and uses the VMD scripter to create the necessary scripts for processing.
 
 Usage is described in the :ref:`subs_desolvate` documentation.
 """

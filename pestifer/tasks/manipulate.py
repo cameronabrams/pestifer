@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
 Definition of the :class:`ManipulateTask` class for performing coordinate manipulations.
-This class is a descendant of the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class and is used for manipulating molecular coordinates.
+This class is a descendant of the :class:`BaseTask <pestifer.tasks.basetask.BaseTask>` class and is used for manipulating molecular coordinates.
 
 Usage is described in the :ref:`config_ref tasks manipulate` documentation.
 """

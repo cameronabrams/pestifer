@@ -20,8 +20,10 @@ def is_S(G: nx.Graph, n: int, element_attr: str = 'element'):  return elem(G, n,
 def mark_cc_doubles_by_degree(G: nx.Graph, element_attr: str = 'element', set_other_cc_single: bool = True):
     """
     Set bond 'order' on C-C edges using node degrees only:
-      - C-C with both endpoints degree==3 -> order=2
-      - (optional) all other C-C -> order=1
+
+    - C-C with both endpoints degree==3 -> order=2
+    - (optional) all other C-C -> order=1
+
     Non-C-C edges are untouched.
     Returns the list of edges marked as double.
     """

@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
 Definition of the :class:`MDTask` class for handling molecular dynamics (MD) simulations using NAMD.
-This class is a descendant of the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class and is used to run NAMD simulations,
+This class is a descendant of the :class:`BaseTask <pestifer.tasks.basetask.BaseTask>` class and is used to run NAMD simulations,
 manage the state of the simulation, and handle various aspects of the MD task such as ensembles, constraints, and colvars.
 It manages the setup and execution of NAMD runs, including reading and writing necessary files,
 updating artifacts, and handling the results of the simulation.

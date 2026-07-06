@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
 Definition of the :class:`MDPlotTask` class for making plots of energy-like quantities from NAMD runs.
-This class is a descendant of the :class:`BaseTask <pestifer.core.basetask.BaseTask>` class and is used to extract energy-like data from NAMD log files,
+This class is a descendant of the :class:`BaseTask <pestifer.tasks.basetask.BaseTask>` class and is used to extract energy-like data from NAMD log files,
 pressure profiles, and XST files, and to generate plots based on this data.
 It handles the collection of energy data from multiple NAMD runs, creates CSV files for energy and pressure profile data,
 and generates plots for specified traces and profiles.
