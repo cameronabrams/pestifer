@@ -5,6 +5,7 @@ Defines the :class:`ResourceManager` class for managing access to :mod:`pestifer
 
 import logging
 import os
+import shutil
 
 from pathlib import Path
 from typing import Callable
@@ -294,6 +295,85 @@ class ResourceManager:
             The path to the custom CHARMM force field directory.
         """
         return str(self.charmmff_content.charmmff_path / 'custom')
+
+    def add_custom_residue(self, source_file, segtype: str = 'ligand', force: bool = False) -> dict:
+        """
+        Install a CHARMM topology/stream file as a pestifer built-in *custom*
+        residue definition.
+
+        The file is copied into the active force field's ``custom/`` directory, the
+        ``RESI`` names it defines are registered under ``segtype`` in
+        :mod:`pestifer.core.labels` (so psfgen classifies them correctly), and the
+        on-disk resource cache is cleared so the new residue is picked up on the
+        next run.
+
+        Parameters
+        ----------
+        source_file : str or Path
+            Path to a ``.str``/``.rtf``/``.top``/``.prm`` file containing at least
+            one ``RESI`` block.
+        segtype : str, optional
+            Segtype to classify the residue(s) under (default ``'ligand'``).
+        force : bool, optional
+            Overwrite an existing custom file and permit residue-name collisions
+            with definitions already in the force field.
+
+        Returns
+        -------
+        dict
+            Summary with keys ``resnames``, ``patch_names``, ``segtype``,
+            ``segtype_added``, ``dest``, ``labels_path``, and ``touched_paths``
+            (the repository files changed, for staging into a commit).
+        """
+        from ..charmmff.charmmffcontent import extract_resi_pres_blocks, CHARMMFFContent
+        from .labels import register_resnames_segtype, segtype_names
+
+        src = Path(source_file).expanduser().resolve()
+        if not src.is_file():
+            raise PestiferError(f'{src}: no such file')
+        if CHARMMFFContent.charmmff_filetype(src.name) is None:
+            raise PestiferError(f'{src.name}: not a CHARMM force field file (expected .str, .rtf, .top, or .prm)')
+        if segtype not in segtype_names():
+            raise PestiferError(f'unknown segtype {segtype!r}; choose from {sorted(segtype_names())}')
+
+        text = src.read_text()
+        resnames = [b.split()[1].upper() for b in extract_resi_pres_blocks(text, keywords=('RESI',)) if len(b.split()) > 1]
+        patch_names = [b.split()[1].upper() for b in extract_resi_pres_blocks(text, keywords=('PRES',)) if len(b.split()) > 1]
+        if not resnames and not patch_names:
+            raise PestiferError(f'{src.name}: no RESI or PRES blocks found; nothing to add')
+        if not resnames:
+            raise PestiferError(f'{src.name}: defines only PRES patch(es) {patch_names}; a custom RESI residue is required')
+
+        if not force:
+            clashes = sorted({n for n in resnames + patch_names if self.lookup_resname(n)['in_topology']})
+            if clashes:
+                raise PestiferError(f'residue name(s) already defined in the force field: {", ".join(clashes)}; use force=True to override')
+
+        customdir = Path(self.get_charmmff_customdir())
+        customdir.mkdir(parents=True, exist_ok=True)
+        dest = customdir / src.name
+        if dest.exists() and not force:
+            raise PestiferError(f'{dest} already exists; use force=True to overwrite')
+        shutil.copyfile(src, dest)
+
+        labels_path, added = register_resnames_segtype(resnames, segtype)
+        touched = [str(dest)] + ([str(labels_path)] if added else [])
+
+        # the cached CHARMMFF content and resname index no longer reflect the new
+        # custom file; clear them so the next run rebuilds
+        from ..util.cacheable_object import CacheableObject
+        CacheableObject.clear_cache()
+        self._resname_index_cache = None
+
+        return {
+            'resnames': resnames,
+            'patch_names': patch_names,
+            'segtype': segtype,
+            'segtype_added': added,
+            'dest': str(dest),
+            'labels_path': str(labels_path),
+            'touched_paths': touched,
+        }
 
     def get_tcldir(self):
         """

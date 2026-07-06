@@ -114,3 +114,46 @@ Satisfied with the example, I merged the branch back into ``main``:
 
 If you want to add an example, you can do so in your own fork of the repository, and then submit a pull request to have it merged into the main repository.
 
+.. _modify add residue:
+
+Contributing a New Custom Residue
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Pestifer ships a small set of **built-in custom** residue definitions (for example, the CGenFF ligands ``83G`` and ``LF0``) that live in the active force field's ``custom/`` directory and supplement the standard CHARMM release.  You can contribute a new one from any file containing a CHARMM ``RESI`` block (a ``.str``, ``.rtf``, or ``.top`` file), and ``modify-package`` will:
+
+1. validate the file and extract the ``RESI`` names it defines,
+2. refuse names that already exist in the force field (unless you pass ``--force``),
+3. copy the file into the force field's ``custom/`` directory,
+4. register each ``RESI`` name under a segtype in :mod:`pestifer.core.labels` (default ``ligand``; use ``--segtype`` to choose another), and
+5. clear the resource cache so the new residue is picked up on the next run.
+
+The simplest invocation makes the change in your working tree:
+
+.. code-block:: bash
+
+    $ pestifer modify-package --add-residue mylig.str --segtype ligand
+
+Folding in the git workflow
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Because a contribution is meant to become a pull request, the ``--branch`` option folds the branch-and-commit step into the command.  It **requires a clean working tree** (so the resulting branch contains only your contribution), creates a new branch off your current ``HEAD``, makes the change, and commits **exactly** the files it touched (the copied custom file and, if a segtype was registered, ``labels.py``) — never anything else in your tree:
+
+.. code-block:: bash
+
+    $ pestifer modify-package --add-residue mylig.str --branch add-mylig-residue
+
+    Installed custom residue file: .../charmmff/feb26/custom/mylig.str
+      RESI defined: MYLIG
+      classified MYLIG as segtype 'ligand'
+      resource cache cleared; it will rebuild on the next run.
+
+    Committed to new branch 'add-mylig-residue':
+        pestifer/resources/charmmff/feb26/custom/mylig.str
+        pestifer/core/labels.py
+
+    Review it with `git show`, then push and open a pull request:
+        git push -u origin add-mylig-residue
+        gh pr create      # or open the PR on GitHub
+
+Pushing the branch and opening the pull request are left to you — inspect the commit with ``git show`` first, then push to your fork and open a PR against ``cameronabrams/pestifer`` for review.
+

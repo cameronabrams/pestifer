@@ -1,6 +1,10 @@
 import unittest
 import os
+import tempfile
+from pathlib import Path
+from unittest import mock
 from pestifer.core.resourcemanager import ResourceManager
+from pestifer.core.errors import PestiferError
 from pestifer import resources
 
 class TestResourceManager(unittest.TestCase):
@@ -70,6 +74,46 @@ class TestResourceManager(unittest.TestCase):
             info = rm.lookup_resname('TESTLIG')
             self.assertTrue(info['in_topology'])
             self.assertEqual(info['source'], 'user')
+
+    def test_add_custom_residue(self):
+        # exercise the content mutation with its real-resource side effects redirected:
+        # the custom file goes to a temp dir, the segtype edit and cache clear are stubbed
+        d = tempfile.mkdtemp()
+        src = os.path.join(d, 'mylig.str')
+        with open(src, 'w') as f:
+            f.write('* my ligand\n*\nRESI ZZL1  0.000\nGROUP\nATOM C1 CG331 -0.27\n')
+        customdir = os.path.join(d, 'custom')
+        with mock.patch.object(self.RM, 'get_charmmff_customdir', return_value=customdir), \
+             mock.patch('pestifer.core.labels.register_resnames_segtype',
+                        return_value=(Path('/fake/labels.py'), ['ZZL1'])), \
+             mock.patch('pestifer.util.cacheable_object.CacheableObject.clear_cache',
+                        return_value=[]):
+            result = self.RM.add_custom_residue(src, segtype='ligand')
+        self.assertEqual(result['resnames'], ['ZZL1'])
+        self.assertEqual(result['segtype'], 'ligand')
+        self.assertTrue(os.path.exists(os.path.join(customdir, 'mylig.str')))
+        # both the copied file and the (stubbed) labels.py are staged for a commit
+        self.assertIn(os.path.join(customdir, 'mylig.str'), result['touched_paths'])
+        self.assertIn('/fake/labels.py', result['touched_paths'])
+
+    def test_add_custom_residue_rejects_collision(self):
+        # a RESI name that already exists in the force field must be refused unless forced
+        d = tempfile.mkdtemp()
+        src = os.path.join(d, 'dup.str')
+        with open(src, 'w') as f:
+            f.write('RESI POPC  0.000\nGROUP\nATOM C1 CG331 -0.27\n')
+        with mock.patch.object(self.RM, 'get_charmmff_customdir', return_value=os.path.join(d, 'custom')):
+            with self.assertRaises(PestiferError):
+                self.RM.add_custom_residue(src, segtype='ligand')
+
+    def test_add_custom_residue_rejects_pres_only(self):
+        d = tempfile.mkdtemp()
+        src = os.path.join(d, 'patch.str')
+        with open(src, 'w') as f:
+            f.write('PRES ZZP1  0.000\nATOM C1 CG331 -0.27\n')
+        with mock.patch.object(self.RM, 'get_charmmff_customdir', return_value=os.path.join(d, 'custom')):
+            with self.assertRaises(PestiferError):
+                self.RM.add_custom_residue(src, segtype='ligand')
 
     def test_search_resnames(self):
         allnames = self.RM.all_resnames()

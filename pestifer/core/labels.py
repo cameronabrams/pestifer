@@ -5,7 +5,10 @@ This module defines the segment types and residue names used in
 CHARMM and PDB files, along with their mappings. It also provides
 a class for managing these labels and mappings.
 """
+import ast
 import logging
+
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -299,8 +302,85 @@ class LabelMappers:
                 else:
                     fp.write(f"update_atomselect_macro {segtype} \"resname {macro_content}\" 0\n")
 
+def segtype_names() -> list:
+    """Return the list of segtype keys defined in :data:`_segtypes`."""
+    return list(_segtypes.keys())
+
+
+def register_resnames_segtype(resnames, segtype: str, labels_path=None):
+    """
+    Insert one or more residue names into the ``_segtypes[<segtype>]['resnames']``
+    list in this module's *source file*, so that a newly-contributed built-in
+    custom residue is classified under ``segtype`` on the next pestifer run.
+
+    The edit is made textually against the exact source span of the target list
+    (located with :mod:`ast`), preserving the surrounding formatting; names
+    already present are skipped.  The edited file is re-parsed to guarantee it is
+    still valid Python before it is written back.
+
+    Parameters
+    ----------
+    resnames : str or list of str
+        Residue name(s) to register (upper-cased).
+    segtype : str
+        Target segtype; must be an existing key of :data:`_segtypes`.
+    labels_path : str or Path, optional
+        Path to the ``labels.py`` source to edit; defaults to this module's file.
+
+    Returns
+    -------
+    tuple(Path, list)
+        The path of the edited file and the list of names actually added.
+    """
+    if isinstance(resnames, str):
+        resnames = [resnames]
+    resnames = [r.strip().upper() for r in resnames if r.strip()]
+    if segtype not in _segtypes:
+        raise ValueError(f'unknown segtype {segtype!r}; choose from {sorted(_segtypes)}')
+    already = set(_segtypes[segtype].get('resnames', []))
+    to_add = [r for r in dict.fromkeys(resnames) if r not in already]
+    labels_path = Path(labels_path) if labels_path else Path(__file__).resolve()
+    if not to_add:
+        return labels_path, []
+
+    src = labels_path.read_text()
+    tree = ast.parse(src)
+    # locate the module-level `_segtypes = { ... }` assignment
+    seg_dict = None
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == '_segtypes' for t in node.targets):
+            seg_dict = node.value
+            break
+    if not isinstance(seg_dict, ast.Dict):
+        raise RuntimeError(f'could not locate the _segtypes dict literal in {labels_path}')
+    # find the value dict for our segtype, then its 'resnames' list node
+    list_node = None
+    for key, value in zip(seg_dict.keys, seg_dict.values):
+        if isinstance(key, ast.Constant) and key.value == segtype and isinstance(value, ast.Dict):
+            for k2, v2 in zip(value.keys, value.values):
+                if isinstance(k2, ast.Constant) and k2.value == 'resnames' and isinstance(v2, ast.List):
+                    list_node = v2
+            break
+    if list_node is None:
+        raise RuntimeError(f'could not locate _segtypes[{segtype!r}]["resnames"] list in {labels_path}')
+
+    lines = src.splitlines(keepends=True)
+    # offset of the closing ']' : end_col_offset points just past it (0-based cols)
+    end_line_idx = list_node.end_lineno - 1
+    line = lines[end_line_idx]
+    bracket_col = list_node.end_col_offset - 1  # index of ']'
+    insert_text = ', '.join(repr(n) for n in to_add)
+    injection = (', ' + insert_text) if list_node.elts else insert_text
+    lines[end_line_idx] = line[:bracket_col] + injection + line[bracket_col:]
+    new_src = ''.join(lines)
+    ast.parse(new_src)  # guard: the result must still be valid Python
+    labels_path.write_text(new_src)
+    return labels_path, to_add
+
+
 Labels = LabelMappers()
-""" 
+"""
 Global instance of :class:`LabelMappers` class to access segment types and residue names.
 This instance provides access to the segment types and residue names used in CHARMM and PDB files.
 It allows for easy mapping between residue names and their corresponding segment types,

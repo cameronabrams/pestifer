@@ -1,22 +1,42 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
 """
 Subcommand to modify the pestifer package.  This subcommand is only exposed if the Pestifer installation includes the entire source tree (i.e., it was installed with pip -e from a git repository).
-The two main ways you can modify the package are
+The main ways you can modify the package are
 
 1. Managing examples, including adding, updating, and deleting example scripts.  Updating can include name-changes, adding new auxiliary inputs, and modifying expected outputs.
-2. Regenerating atomselect macros based on globals defined in :mod:`core/labels.py <pestifer.core.labels>`.
+2. Contributing a new built-in *custom* residue: install a CHARMM ``RESI`` definition (from a ``.str``/``.rtf``/``.top`` file) into the force field's ``custom/`` directory and register its segtype.
+3. Regenerating atomselect macros based on globals defined in :mod:`core/labels.py <pestifer.core.labels>`.
+
+For a contribution, the ``--branch`` option folds the git workflow into the command: it verifies your working tree is clean, makes the change on a new branch, and commits exactly the files it touched.  You then push the branch and open a pull request for review.
 """
 from dataclasses import dataclass
 
 import logging
+import os
 
 import argparse as ap
 
 from . import Subcommand
 
 from ..core.resourcemanager import ResourceManager
+from ..util import gitutil
 
 logger = logging.getLogger(__name__)
+
+
+def _add_residue(RM, args, out=print):
+    """Install a custom residue; return the list of repository paths it touched."""
+    result = RM.add_custom_residue(args.add_residue, segtype=args.segtype, force=args.force)
+    out(f"Installed custom residue file: {result['dest']}")
+    out(f"  RESI defined: {', '.join(result['resnames'])}")
+    if result['patch_names']:
+        out(f"  PRES defined: {', '.join(result['patch_names'])}")
+    if result['segtype_added']:
+        out(f"  classified {', '.join(result['segtype_added'])} as segtype '{result['segtype']}'")
+    else:
+        out(f"  (segtype already registered for {', '.join(result['resnames'])})")
+    out('  resource cache cleared; it will rebuild on the next run.')
+    return result['touched_paths'], result
 
 @dataclass
 class ModifyPackageSubcommand(Subcommand):
@@ -36,6 +56,24 @@ class ModifyPackageSubcommand(Subcommand):
         """
         # First, verify that the user has a full source tree by verifying the existence of the docs directory.  If not, raise an error.
         RM = ResourceManager()
+        contribute = bool(getattr(args, 'branch', None))
+        repo_root = gitutil.package_repo_root()
+        touched: list = []
+        commit_summary = None
+
+        if contribute:
+            if not gitutil.worktree_is_clean(repo_root):
+                raise RuntimeError(
+                    'working tree is not clean; commit or stash your changes before using --branch '
+                    '(the contribution branch must contain only the contribution)')
+            if gitutil.branch_exists(repo_root, args.branch):
+                raise gitutil.GitError(
+                    f"branch '{args.branch}' already exists; choose a different --branch name or delete it first")
+
+        if getattr(args, 'add_residue', None):
+            paths, commit_summary = _add_residue(RM, args)
+            touched += paths
+
         match args.example_action:
             case 'add':
                 example_id = args.example_id
@@ -88,10 +126,32 @@ class ModifyPackageSubcommand(Subcommand):
                 pass
         if args.update_atomselect_macros:
             RM.update_atomselect_macros()
+
+        if contribute:
+            if not touched:
+                raise RuntimeError('--branch was given but no package files were modified; nothing to commit')
+            if commit_summary is not None:
+                names = ', '.join(commit_summary['resnames'])
+                message = (f"contrib(residue): add {names} to built-in custom "
+                           f"[segtype: {commit_summary['segtype']}]")
+            else:
+                message = 'contrib: modify-package change'
+            gitutil.create_and_checkout_branch(repo_root, args.branch)
+            gitutil.stage_and_commit(repo_root, touched, message)
+            print(f"\nCommitted to new branch '{args.branch}':")
+            for p in touched:
+                print(f"    {os.path.relpath(p, repo_root)}")
+            print("\nReview it with `git show`, then push and open a pull request:")
+            print(f"    git push -u origin {args.branch}")
+            print("    gh pr create      # or open the PR on GitHub")
         return True
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
+        self.parser.add_argument('--add-residue', type=str, default=None, metavar='FILE', help='install FILE (a .str/.rtf/.top file with at least one RESI block) as a pestifer built-in custom residue, copying it into the force field custom/ directory and registering its segtype')
+        self.parser.add_argument('--segtype', type=str, default='ligand', help="segtype to classify the added residue's RESI name(s) under (default: ligand)")
+        self.parser.add_argument('--force', action='store_true', help='with --add-residue: overwrite an existing custom file and permit residue-name collisions with the force field')
+        self.parser.add_argument('--branch', type=str, default=None, metavar='NAME', help='make the change on a new git branch NAME (created off the current HEAD) and commit exactly the files it touches; requires a clean working tree')
         self.parser.add_argument('--update-atomselect-macros', action='store_true', help='update the resources/tcl/macros.tcl file based on content in core/labels.py; developer use only')
         self.parser.add_argument('--example-id', type=int, default=0, help='integer ID of example to modify; developer use only')
         self.parser.add_argument('--example-action', type=str, default=None, choices=[None, 'add', 'update', 'delete', 'rename', 'author'], help='action to perform on the example; choices are [add|update|delete|rename|author]; developer use only')
