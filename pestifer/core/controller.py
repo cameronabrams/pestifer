@@ -65,6 +65,7 @@ class Controller:
 
         # set up the task list
         self.tasks = TaskList.from_yaml(self.config['user'].get('tasks', []))
+        user_supplied_tasks = len(self.tasks) > 0
         if terminate and (len(self.tasks) == 0 or not isinstance(self.tasks[-1], TerminateTask)):
             # If the last task is not a TerminateTask, add one with default specs
             specs = self.config.make_default_specs('tasks','terminate')
@@ -75,8 +76,10 @@ class Controller:
         # pipeline has tasks at configure() time; subcontrollers are populated later and are
         # generated internally, so they are not checked here).  Standalone utility subcommands
         # (mdplot, desolvate) that assemble a single-task controller operating on CLI inputs
-        # pass validate=False -- they are not build pipelines.
-        if validate and self.tasks:
+        # pass validate=False -- they are not build pipelines.  A controller configured with no
+        # user tasks (a placeholder later populated via reconfigure_tasks, or a no-op build)
+        # holds only the auto-added terminate and is not a pipeline to validate.
+        if validate and user_supplied_tasks:
             validate_pipeline(self.tasks)
 
         self.pipeline = PipelineContext(controller_index=self.index)
