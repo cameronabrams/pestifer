@@ -11,17 +11,17 @@ To see as list of examples provided, use
 
     $ pestifer show-resources examples
 
-To see a list of all PDB input files suitable for ``make_membrane_system`` tasks, use
+To see the full list of residues in the built-in PDB repository (the coordinates ``make_membrane_system`` can place), use
 
 .. code-block:: console
 
-    $ pestifer show-resources charmmff --charmmff pdb
+    $ pestifer show-resources pdb-repo
 
-To see their full names:
+To see their full descriptive names:
 
 .. code-block:: console
 
-    $ pestifer show-resources charmmff --charmmff pdb --fullnames
+    $ pestifer show-resources pdb-repo --fullnames
 
 Looking up a residue name
 =========================

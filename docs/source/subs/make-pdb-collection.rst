@@ -12,7 +12,7 @@ You can see what RESIs are included in pestifer using the ``show-resources`` sub
 
 .. code-block:: bash
 
-    $ pestifer show-resources --charmmff pdb
+    $ pestifer show-resources pdb-repo
     ---------------------------------------------------------------------------
     PDB Collections:
     PDBCollection(registered_at=2, streamID=water_ions, path=water_ions.tgz, contains 12 resnames)

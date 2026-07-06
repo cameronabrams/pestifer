@@ -171,17 +171,6 @@ class ResourceManager:
             path = self.get_resource_path(c)
             if c == 'examples':
                 out_stream(f'\nExamples:\n\n{self.example_manager.report_examples(header=True)}')
-            elif c == 'charmmff':
-                if 'tarball' in spec:
-                    out_stream(f'{self.charmmff_content.tarfilename}')
-                if 'pdb' in spec:
-                    self.charmmff_content.provision_pdbrepository()
-                    self.charmmff_content.pdbrepository.show(out_stream, fullnames=fullnames, missing_fullnames=missing_fullnames)
-                if 'custom' in spec:
-                    path = self.get_charmmff_customdir()
-                    with open(os.path.join(path, '00PESTIFER-README.txt'), 'r') as f:
-                        msg = f.read()
-                    out_stream(msg)
             elif c == 'tcl':
                 path = self.get_tcldir()
                 with open(os.path.join(path, '00PESTIFER-README.txt'), 'r') as f:

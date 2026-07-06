@@ -16,7 +16,7 @@ Both packers feed the same relaxation and embedding steps; they differ only in h
 
 .. code-block:: console
 
-  $ pestifer show-resources --charmmff pdb
+  $ pestifer show-resources pdb-repo
 
 ``Pestifer`` provides 10 distinct conformers for each lipid molecule which are sampled from short vacuum MD simulations.  These are labelled "0" to "9".  By default, conformer "0" is used for each lipid.
 
