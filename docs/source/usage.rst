@@ -24,9 +24,9 @@ General options for all subcommands:
 
 .. code-block:: bash
 
-  --no-banner          turn off the banner
-  --loglevel LOGLEVEL  Log level for messages written to diagnostic log (debug|info)
-  --diag DIAG          diagnostic log file
+  --banner, --no-banner             enable or disable the banner
+  --log-level {info,debug,warning}  logging level (default: debug)
+  --log-file LOG_FILE               log file (default: subcommand-specific)
 
 Subcommands
 -----------

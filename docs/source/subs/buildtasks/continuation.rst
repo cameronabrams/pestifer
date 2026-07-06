@@ -16,7 +16,7 @@ task would look like this:
         pdb: my_6pti.pdb
         xsc: my_6pti.xsc
 
-**All three** of these files are required, and they should all correspond to the same state.
+A ``psf`` and either a ``pdb`` or a ``coor`` are required; ``xsc`` (periodic box), ``coor`` (binary coordinates), and ``vel`` (binary velocities) are optional.  All files provided should correspond to the same state.
 
 .. note::
 

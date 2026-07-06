@@ -21,7 +21,7 @@ config-ref:
 
 apidoc:
 	rm -rf $(APIDOC_OUT)
-	sphinx-apidoc -f -M -e --implicit-namespaces --tocfile API -o $(APIDOC_OUT) $(APIDOC_SRC)
+	sphinx-apidoc -f -M -e --implicit-namespaces --tocfile API -o $(APIDOC_OUT) $(APIDOC_SRC) $(APIDOC_SRC)/resources
 
 html: apidoc
 	@$(SPHINXBUILD) -M html "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

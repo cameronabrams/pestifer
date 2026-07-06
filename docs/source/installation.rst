@@ -34,7 +34,7 @@ The commands ``vmd`` (v. 1.9.4 or better; v. 2.0.0 or better recommended), ``cha
 Installation
 ------------
 
-To use Pestifer, install it from `PyPI <https://https://pypi.org/project/pestifer/>`_:
+To use Pestifer, install it from `PyPI <https://pypi.org/project/pestifer/>`_:
 
 .. code-block:: console
 

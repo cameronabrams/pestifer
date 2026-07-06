@@ -48,7 +48,7 @@ Note the various syntax used in the ``graft`` directives.  For example:
 .. code-block:: yaml
 
     graft:
-      - A_1304:4b7i,C_1-8 # 66
+      - A_1304:4b7i,C_1-8 # 61
 
 This indicates that the glycan from PDB ID 4b7i chain C, residues 1 to 8, is grafted onto resid 1304 of chain A on the spike.  That resid is not the asparagine at position 61; it is the primary NAG attached to Asn61.  Residue 1 of chain C of 4b71 is also a primary NAG, so the graft operation aligns the entire glycan such that its primary NAG aligns on the primary NAG already resolved in the spike's structure.  That NAG is deleted and then the glycan from 4b7i is attached directly from the C1 atom of the primary NAG to the ND2 atom of Asn61.
 

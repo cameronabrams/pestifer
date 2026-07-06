@@ -16,7 +16,7 @@ build:
       - uv pip install --python "${READTHEDOCS_VIRTUALENV_PATH}/bin/python" --override docs/overrides.txt .
     pre_build:
       - rm -rf docs/source/api/
-      - sphinx-apidoc -f -M -e --implicit-namespaces --tocfile API -o docs/source/api pestifer/
+      - sphinx-apidoc -f -M -e --implicit-namespaces --tocfile API -o docs/source/api pestifer/ pestifer/resources
       - cd docs/source && yclept make-doc ../../pestifer/schema/base.yaml --root config_ref --footer-style raw-html
 
 sphinx:
