@@ -65,3 +65,24 @@ class TestCacheableObject(unittest.TestCase):
         self.assertTrue(another_obj.from_cache)
 
         self.assertEqual(obj.data, another_obj.data)
+
+class TestCacheManagement(unittest.TestCase):
+    def test_cache_files_and_clear(self):
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d:
+            dpath = Path(d)
+            (dpath / 'cacheobj-foo-abc-v2.8.joblib').write_bytes(b'x')
+            (dpath / 'cacheobj-bar-def-v2.8.joblib').write_bytes(b'y')
+            (dpath / 'cacheobj-foo-abc-v2.8.joblib.lock').write_bytes(b'')
+            (dpath / 'unrelated.txt').write_text('keep me')
+            with mock.patch.object(CacheableObject, 'cache_directory', classmethod(lambda cls: dpath)):
+                files = CacheableObject.cache_files()
+                self.assertEqual(len(files), 2)
+                self.assertTrue(all(f.suffix == '.joblib' for f in files))
+                removed = CacheableObject.clear_cache()
+                self.assertEqual(len(removed), 2)
+                self.assertEqual(CacheableObject.cache_files(), [])
+            # non-cache files are left alone; lock files are removed
+            self.assertTrue((dpath / 'unrelated.txt').exists())
+            self.assertFalse((dpath / 'cacheobj-foo-abc-v2.8.joblib.lock').exists())

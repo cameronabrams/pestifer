@@ -50,7 +50,7 @@ Subcommands
    subs/mdplot
    subs/modify-package
    subs/setup-vmd
-   subs/rebuild-charmmff-cache
+   subs/cache
 
 .. _custom_charmm_stream_file:
 

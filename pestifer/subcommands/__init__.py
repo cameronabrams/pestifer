@@ -15,7 +15,7 @@ from .desolvate import DesolvateSubcommand
 from .modify_package import ModifyPackageSubcommand
 from .make_ligand_mol2 import MakeLigandMol2Subcommand
 from .make_pdbcollection import MakePDBCollectionSubcommand
-from .rebuild_charmmff_cache import RebuildCHARMMFFCache
+from .cache import CacheSubcommand
 from .mdplot import MDPlotSubcommand
 from .density_profile import DensityProfileSubcommand
 from .setup_vmd import SetupVMDSubcommand
@@ -38,7 +38,7 @@ _subcommands: list[Subcommand] = [
     MDPlotSubcommand(),
     DensityProfileSubcommand(),
     MakeNAMDRestartSubcommand(),
-    RebuildCHARMMFFCache(),
+    CacheSubcommand(),
     FollowNAMDLogSubcommand(),
     SetupVMDSubcommand(),
     ]

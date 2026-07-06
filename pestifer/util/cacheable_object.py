@@ -227,3 +227,35 @@ class CacheableObject:
             # basic slots copy (doesn't walk MRO deeply; override for complex cases)
             for slot in getattr(type(self), "__slots__", ()):
                 setattr(self, slot, getattr(other, slot))
+
+    # ----- cache management (all CacheableObject caches share one per-user directory) -----
+    @classmethod
+    def cache_directory(cls) -> Path:
+        """The per-user directory where all pestifer object caches are stored."""
+        return Path(user_cache_dir(cls.APP_NAME))
+
+    @classmethod
+    def cache_files(cls) -> list[Path]:
+        """The cache files currently on disk (``<prefix>-*.joblib``), sorted by name."""
+        d = cls.cache_directory()
+        return sorted(d.glob(f"{cls.CACHE_PREFIX}-*.joblib")) if d.is_dir() else []
+
+    @classmethod
+    def clear_cache(cls) -> list[Path]:
+        """Delete every cache file (and stale lock file); return the files removed."""
+        removed = []
+        d = cls.cache_directory()
+        if not d.is_dir():
+            return removed
+        for f in cls.cache_files():
+            try:
+                f.unlink()
+                removed.append(f)
+            except OSError:
+                pass
+        for lock in d.glob(f"{cls.CACHE_PREFIX}-*.joblib.lock"):
+            try:
+                lock.unlink()
+            except OSError:
+                pass
+        return removed
