@@ -12,6 +12,7 @@ import os
 
 from .basetask import VMDTask
 from ..core.command import Command
+from ..core.errors import PestiferError
 from ..scripters import VMDScripter
 from ..util.progress import PestiferProgress
 
@@ -38,6 +39,25 @@ class DesolvateTask(VMDTask):
     def do(self) -> int:
         self.catdcd = self.provisions['shell-commands']['catdcd']
         self.do_idx_psf_gen()
+        # Guard: catdcd (do_dcd_prune) consumes the index file the VMD step is
+        # supposed to write.  If VMD did not run (e.g. 'vmd' is not launchable on
+        # this PATH -- it can exit 0 having produced nothing), the index is missing
+        # or empty and catdcd fails downstream with a misleading "Error opening/
+        # reading index file", while the task still reports success.  Fail loudly
+        # here instead, pointing at the real culprit.
+        idx_outfile: str = self.specs['idx_outfile']
+        psf_outfile: str = self.specs['psf_outfile']
+        idx_ok = os.path.isfile(idx_outfile) and os.path.getsize(idx_outfile) > 0
+        psf_ok = os.path.isfile(psf_outfile) and os.path.getsize(psf_outfile) > 0
+        if self.result != 0 or not idx_ok or not psf_ok:
+            raise PestiferError(
+                f"desolvate: the index/PSF-generation step failed "
+                f"(VMD returncode {self.result}); expected outputs "
+                f"'{idx_outfile}' and '{psf_outfile}' were not produced. "
+                f"See '{self.basename}.log' -- most commonly VMD did not actually "
+                f"run (confirm 'vmd' is on PATH and launchable, e.g. "
+                f"`bash -c 'vmd -dispdev text -e /dev/null'`)."
+            )
         self.do_dcd_prune()
         return 0
 
@@ -125,4 +145,9 @@ class DesolvateTask(VMDTask):
         dcd_stride: int = self.specs['dcd_stride']
         progress_struct: PestiferProgress = PestiferProgress(name='catdcd', track_stdout=False)
         c: Command = Command(f'{self.catdcd} -i {idx_outfile} -stride {dcd_stride} -o {dcd_outfile} {" ".join(dcd_infiles)}')
-        c.run(progress=progress_struct)
+        rc = c.run(progress=progress_struct)
+        if rc:
+            raise PestiferError(
+                f"desolvate: catdcd failed (returncode {rc}) pruning DCDs to "
+                f"'{dcd_outfile}'; see the buffers logged above."
+            )
