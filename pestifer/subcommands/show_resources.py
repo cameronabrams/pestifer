@@ -12,6 +12,13 @@ from . import Subcommand
 from ..core.resourcemanager import ResourceManager
 
 
+_SOURCE_LABEL = {
+    'standard': 'native to the CHARMM release',
+    'custom': 'pestifer built-in custom file',
+    'user': 'user-custom file (e.g. ~/.pestifer/toppar or a configured searchpath)',
+}
+
+
 def _report_resname(info: dict, out_stream=print):
     """Format one :meth:`ResourceManager.lookup_resname` result as a short block."""
     out_stream(info['resname'])
@@ -20,6 +27,8 @@ def _report_resname(info: dict, out_stream=print):
         if info['segtype']:
             line += f" (segtype: {info['segtype']})"
         out_stream(line)
+        if info.get('source'):
+            out_stream(f"  source:   {_SOURCE_LABEL.get(info['source'], info['source'])}")
         if info['charmm_alias']:
             out_stream(f"           (looked up under CHARMM resname {info['charmm_alias']})")
     else:
@@ -42,6 +51,9 @@ def _report_resname(info: dict, out_stream=print):
     out_stream('')
 
 
+_SOURCE_TAG = {'standard': 'std', 'custom': 'custom', 'user': 'user'}
+
+
 def _report_resname_compact(info: dict, out_stream=print):
     """One aligned line summarizing a resname (used for substring search results)."""
     if info['in_topology']:
@@ -49,13 +61,14 @@ def _report_resname_compact(info: dict, out_stream=print):
         where = f"{kind} {info['segtype'] or ''}".strip()
     else:
         where = '-'
+    src = _SOURCE_TAG.get(info.get('source'), '-')
     if info.get('is_patch'):
         pdb = 'n/a'
     elif info['in_pdbrepository']:
         pdb = str(info['nconformers'])
     else:
         pdb = '-'
-    out_stream(f"  {info['resname']:<8s} {where:<14s} pdb: {pdb}")
+    out_stream(f"  {info['resname']:<8s} {where:<14s} {src:<7s} pdb: {pdb}")
 
 
 def _overview(out_stream=print):

@@ -208,14 +208,21 @@ class ResnameIndex(CacheableObject):
     def _build_from_resources(self, charmmff_path, **kwargs):
         cc = CHARMMFFContent(charmmff_path)
         cc.provision()  # the multi-second step, done once per (re)build of this cache
+        # a residue whose defining file lives in the force field's ``custom/`` directory is a
+        # pestifer built-in custom addition; everything else is native to the release
+        custom_files = set(cc.custom_files)
+
+        def _entry(obj, kind):
+            topfile = (getattr(obj, 'metadata', None) or {}).get('charmmfftopfile')
+            source = 'custom' if topfile in custom_files else 'standard'
+            return {'kind': kind, 'topfile': topfile, 'source': source}
+
         self.index = {}
         for name, resi in cc.residues.items():
-            self.index[name] = {'kind': 'RESI',
-                                'topfile': (getattr(resi, 'metadata', None) or {}).get('charmmfftopfile')}
+            self.index[name] = _entry(resi, 'RESI')
         for name, pres in cc.patches.items():
             # residues take precedence if a name is somehow both (matches the lookup's kind rule)
-            self.index.setdefault(name, {'kind': 'PRES',
-                                'topfile': (getattr(pres, 'metadata', None) or {}).get('charmmfftopfile')})
+            self.index.setdefault(name, _entry(pres, 'PRES'))
 
 
 class CHARMMFFContent(CacheableObject):

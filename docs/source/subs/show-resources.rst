@@ -26,11 +26,13 @@ To see their full descriptive names:
 Looking up a residue name
 =========================
 
-The ``resname`` mode reports, for one or more residue names (case-insensitive), whether pestifer knows the residue: whether it is defined in the CHARMM topology/stream files (and in which file, as a ``RESI`` residue or a ``PRES`` patch), and whether coordinates for it exist in the built-in PDB repository (used by ``make_membrane_system``).
+The ``resname`` mode reports, for one or more residue names (case-insensitive), whether pestifer knows the residue: whether it is defined in the CHARMM topology/stream files (and in which file, as a ``RESI`` residue or a ``PRES`` patch), where that definition comes from, and whether coordinates for it exist in the built-in PDB repository (used by ``make_membrane_system``).
+
+The **source** distinguishes the three tiers of CHARMM topology pestifer can draw on: ``standard`` (native to the CHARMM release as-provided), ``custom`` (a custom file that ships built-in with pestifer, in the force field's ``custom/`` directory), and ``user`` (a custom file you supplied, e.g. in ``~/.pestifer/toppar`` or a ``charmmff.user_custom.searchpath`` directory).
 
 .. code-block:: console
 
-    $ pestifer show-resources resname POPC CHL1 ASPP FOO
+    $ pestifer show-resources resname POPC 83G ASPP FOO
 
 produces, for each name, a short block such as
 
@@ -38,7 +40,13 @@ produces, for each name, a short block such as
 
     POPC
       topology: residue (RESI) defined in top_all36_lipid.rtf (segtype: lipid)
+      source:   native to the CHARMM release
       PDB repo: coordinates available (10 conformers) -- "3-palmitoyl-2-oleoyl-D-glycero-1-Phosphatidylcholine"
+
+    83G
+      topology: residue (RESI) defined in 83G-cgenff.str (segtype: ligand)
+      source:   pestifer built-in custom file
+      PDB repo: no coordinates in the built-in PDB repository
 
     ASPP
       topology: patch (PRES) defined in top_all36_prot.rtf
@@ -56,8 +64,10 @@ To discover residue names rather than look up an exact one, use ``--contains`` t
 
     $ pestifer show-resources resname --contains POPC
     2 residue name(s) contain "POPC":
-      POPC     RESI lipid     pdb: 10
-      POPCE    RESI lipid     pdb: -
+      POPC     RESI lipid     std     pdb: 10
+      POPCE    RESI lipid     std     pdb: -
+
+(the third column is the source: ``std``, ``custom``, or ``user``.)
 
 Overview
 ========

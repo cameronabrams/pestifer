@@ -55,6 +55,22 @@ class TestResourceManager(unittest.TestCase):
         self.assertIsNotNone(popc['charge'])
         self.assertGreater(popc['head_tail_length'], 0.0)
 
+    def test_lookup_resname_source(self):
+        # 'standard' = native to the CHARMM release
+        self.assertEqual(self.RM.lookup_resname('POPC')['source'], 'standard')
+        # 'custom' = a pestifer built-in custom file (charmmff/<ver>/custom/)
+        self.assertEqual(self.RM.lookup_resname('PO4')['source'], 'custom')
+        # 'user' = a user-custom directory (e.g. ~/.pestifer/toppar or a configured searchpath)
+        import tempfile
+        from pestifer.core.resourcemanager import ResourceManager
+        with tempfile.TemporaryDirectory() as d:
+            with open(os.path.join(d, 'mylig.str'), 'w') as f:
+                f.write('* test custom stream\n*\nRESI TESTLIG   0.000\nGROUP\nATOM C1 CG331 -0.27\n')
+            rm = ResourceManager(charmmff_config={'user_custom': {'searchpath': [d]}})
+            info = rm.lookup_resname('TESTLIG')
+            self.assertTrue(info['in_topology'])
+            self.assertEqual(info['source'], 'user')
+
     def test_search_resnames(self):
         allnames = self.RM.all_resnames()
         self.assertIn('POPC', allnames)

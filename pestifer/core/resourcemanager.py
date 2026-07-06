@@ -190,6 +190,9 @@ class ResourceManager:
         - ``kind``: ``'residue (RESI)'``, ``'patch (PRES)'``, or ``None``
         - ``is_patch``: True if it is a pure patch (the PDB repository is not searched)
         - ``topfile``: the topology/stream file that defines it (or ``None``)
+        - ``source``: where the definition comes from -- ``'standard'`` (native to the CHARMM
+          release), ``'custom'`` (a pestifer built-in custom file), ``'user'`` (a user-custom
+          directory such as ``~/.pestifer/toppar``), or ``None``
         - ``segtype``: pestifer's segtype classification (or ``None``)
         - ``charmm_alias``: the CHARMM resname a PDB resname maps to, if different
         - ``in_pdbrepository``: whether the built-in PDB repository has coordinates
@@ -211,6 +214,15 @@ class ResourceManager:
         # a pure patch (PRES) modifies a residue and has no coordinates of its own, so the
         # PDB repository is not applicable and is not searched
         is_patch = in_patches and not in_residues
+        # provenance: a user-custom directory (~/.pestifer/toppar or a configured searchpath)
+        # takes precedence; otherwise the cached index says 'standard' (native to the release)
+        # or 'custom' (a pestifer built-in custom file)
+        if user_custom:
+            source = 'user'
+        elif entry:
+            source = entry.get('source')
+        else:
+            source = None
         pdbi = None
         if not is_patch and cc.pdbrepository and query in cc.pdbrepository:
             pdbi = cc.pdbrepository.checkout(query)
@@ -221,6 +233,7 @@ class ResourceManager:
             'kind': 'residue (RESI)' if in_residues else ('patch (PRES)' if in_patches else None),
             'is_patch': is_patch,
             'topfile': (entry['topfile'] if entry else None) or cc.get_topfile_of_resname(query),
+            'source': source,
             'segtype': self.labels.segtype_of_resname.get(query),
             'charmm_alias': alias if (alias and alias != query) else None,
             'in_pdbrepository': pdbi is not None,
