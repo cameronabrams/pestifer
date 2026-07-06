@@ -127,6 +127,14 @@ class ModifyPackageSubcommand(Subcommand):
         if args.update_atomselect_macros:
             RM.update_atomselect_macros()
 
+        if getattr(args, 'regenerate_segtypes', False):
+            from ..core.labels import _DERIVED_SEGTYPES_PATH
+            derived = RM.regenerate_derived_segtypes()
+            n = sum(len(v) for v in derived.values())
+            print(f"Regenerated force-field-derived segtype classification: {n} residues "
+                  f"across {len(derived)} segtypes -> {os.path.relpath(_DERIVED_SEGTYPES_PATH, repo_root)}")
+            touched.append(str(_DERIVED_SEGTYPES_PATH))
+
         if contribute:
             if not touched:
                 raise RuntimeError('--branch was given but no package files were modified; nothing to commit')
@@ -153,6 +161,7 @@ class ModifyPackageSubcommand(Subcommand):
         self.parser.add_argument('--force', action='store_true', help='with --add-residue: overwrite an existing custom file and permit residue-name collisions with the force field')
         self.parser.add_argument('--branch', type=str, default=None, metavar='NAME', help='make the change on a new git branch NAME (created off the current HEAD) and commit exactly the files it touches; requires a clean working tree')
         self.parser.add_argument('--update-atomselect-macros', action='store_true', help='update the resources/tcl/macros.tcl file based on content in core/labels.py; developer use only')
+        self.parser.add_argument('--regenerate-segtypes', action='store_true', help='regenerate resources/labels/derived_segtypes.json (the force-field-derived residue->segtype classification) from the installed CHARMM force field(s); developer use only')
         self.parser.add_argument('--example-id', type=int, default=0, help='integer ID of example to modify; developer use only')
         self.parser.add_argument('--example-action', type=str, default=None, choices=[None, 'add', 'update', 'delete', 'rename', 'author'], help='action to perform on the example; choices are [add|update|delete|rename|author]; developer use only')
         self.parser.add_argument('--example-scriptname', type=str, default='', help='yaml file of example; developer use only')
