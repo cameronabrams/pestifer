@@ -42,7 +42,7 @@ produces, for each name, a short block such as
 
     ASPP
       topology: patch (PRES) defined in top_all36_prot.rtf
-      PDB repo: no coordinates in the built-in PDB repository
+      PDB repo: not applicable (a patch modifies a residue; it has no coordinates of its own)
 
     FOO
       topology: not found in any CHARMM topology or stream file

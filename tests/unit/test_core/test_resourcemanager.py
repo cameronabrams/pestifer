@@ -39,7 +39,8 @@ class TestResourceManager(unittest.TestCase):
         aspp = self.RM.lookup_resname('ASPP')
         self.assertTrue(aspp['in_topology'])
         self.assertEqual(aspp['kind'], 'patch (PRES)')
-        self.assertFalse(aspp['in_pdbrepository'])
+        self.assertTrue(aspp['is_patch'])          # a pure patch...
+        self.assertFalse(aspp['in_pdbrepository'])  # ...so the PDB repo is not searched
         # a name that exists nowhere
         bogus = self.RM.lookup_resname('ZZZZ')
         self.assertFalse(bogus['in_topology'])

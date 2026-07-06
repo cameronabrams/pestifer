@@ -24,7 +24,9 @@ def _report_resname(info: dict, out_stream=print):
             out_stream(f"           (looked up under CHARMM resname {info['charmm_alias']})")
     else:
         out_stream('  topology: not found in any CHARMM topology or stream file')
-    if info['in_pdbrepository']:
+    if info.get('is_patch'):
+        out_stream('  PDB repo: not applicable (a patch modifies a residue; it has no coordinates of its own)')
+    elif info['in_pdbrepository']:
         conf = f"{info['nconformers']} conformer" + ('s' if info['nconformers'] != 1 else '')
         long = f' -- "{info["longname"]}"' if info['longname'] else ''
         out_stream(f"  PDB repo: coordinates available ({conf}){long}")
@@ -47,7 +49,12 @@ def _report_resname_compact(info: dict, out_stream=print):
         where = f"{kind} {info['segtype'] or ''}".strip()
     else:
         where = '-'
-    pdb = str(info['nconformers']) if info['in_pdbrepository'] else '-'
+    if info.get('is_patch'):
+        pdb = 'n/a'
+    elif info['in_pdbrepository']:
+        pdb = str(info['nconformers'])
+    else:
+        pdb = '-'
     out_stream(f"  {info['resname']:<8s} {where:<14s} pdb: {pdb}")
 
 

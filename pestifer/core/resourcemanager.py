@@ -187,6 +187,7 @@ class ResourceManager:
         - ``resname``: the (upper-cased) name queried
         - ``in_topology``: whether it is defined as a CHARMM ``RESI`` or ``PRES``
         - ``kind``: ``'residue (RESI)'``, ``'patch (PRES)'``, or ``None``
+        - ``is_patch``: True if it is a pure patch (the PDB repository is not searched)
         - ``topfile``: the topology/stream file that defines it (or ``None``)
         - ``segtype``: pestifer's segtype classification (or ``None``)
         - ``charmm_alias``: the CHARMM resname a PDB resname maps to, if different
@@ -201,12 +202,18 @@ class ResourceManager:
         in_residues = query in cc.residues
         in_patches = query in cc.patches
         alias = self.labels.charmm_resname_of_pdb_resname.get(query)
-        pdbi = cc.checkout_pdb(query) if (cc.pdbrepository and query in cc.pdbrepository) else None
+        # a pure patch (PRES) modifies a residue and has no coordinates of its own, so the
+        # PDB repository is not applicable and is not searched
+        is_patch = in_patches and not in_residues
+        pdbi = None
+        if not is_patch and cc.pdbrepository and query in cc.pdbrepository:
+            pdbi = cc.checkout_pdb(query)
         head_tail = pdbi.get_head_tail_length(0) if pdbi else 0.0
         return {
             'resname': query,
             'in_topology': in_residues or in_patches,
             'kind': 'residue (RESI)' if in_residues else ('patch (PRES)' if in_patches else None),
+            'is_patch': is_patch,
             'topfile': cc.get_topfile_of_resname(query),
             'segtype': self.labels.segtype_of_resname.get(query),
             'charmm_alias': alias if (alias and alias != query) else None,
