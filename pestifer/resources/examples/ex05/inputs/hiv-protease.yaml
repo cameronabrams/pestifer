@@ -37,9 +37,9 @@ tasks:
           - B:LYS,7,GLN
           - A:ASN,25,ASP
           - B:ASN,25,ASP         
-        patches:
-          - ASPP:A:29
-          - ASPP:B:29
+        patches:  # protonation of the catalytic ASP25 residues
+          - ASPP:A:25
+          - ASPP:B:25
   - md:
       ensemble: minimize
   - validate:
@@ -56,14 +56,8 @@ tasks:
             value: GLN
             value_count: 2
         - attribute_test:
-            name: residue 25 is an ASP on chain A B
-            selection: protein and chain A B and resid 25 and name CA
-            attribute: resname
-            value: ASP
-            value_count: 2
-        - attribute_test:
-            name: ASP29 protonated on chain A
-            selection: protein and chain A B and resid 29
+            name: ASP25 protonated on chains A and B
+            selection: protein and chain A B and resid 25
             attribute: name
             value: HD2
             value_count: 2
