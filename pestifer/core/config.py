@@ -229,29 +229,43 @@ class Config(Yclept):
         return retstr
 
     def _set_shell_commands(self, verify_access=True):
-        """ Defines all shell commands used by Pestifer """
+        """ Defines all shell commands used by Pestifer.
+
+        When ``verify_access`` is True -- a build run, i.e. a user config file was
+        supplied -- every command in ``required_commands`` must resolve on PATH and
+        be executable, or a :class:`PestiferError` is raised.  When False -- a
+        standalone post-processing subcommand such as ``desolvate`` or ``mdplot``,
+        which uses only a subset (typically ``vmd``/``catdcd``) -- a missing command
+        is recorded and warned about rather than treated as fatal, so those
+        subcommands are not gated on the full NAMD toolchain being loaded.
+        The task that actually needs a given command fails loudly itself if the
+        command is missing when used (see e.g. ``DesolvateTask``).
+        """
         required_commands = ['charmrun', 'namd3', 'vmd', 'catdcd']
         command_alternates = {'namd3': 'namd2'}
         self.shell_commands = {}
+
+        def _missing(msg):
+            if verify_access:
+                raise PestiferError(msg)
+            logger.warning(f'{msg} Continuing; the task that uses it will fail if it is actually needed.')
+
         for rq in required_commands:
             self.shell_commands[rq] = self['user']['paths'][rq]
             rq_resolved = shutil.which(self.shell_commands[rq])
-            rq_alt = command_alternates.get(rq, None)
-            if not rq_resolved and not rq_alt:
-                raise PestiferError(f'Cannot find or execute required command {self.shell_commands[rq]!r}.')
-
+            if not rq_resolved and rq in command_alternates:
+                rqalt = command_alternates[rq]
+                self.shell_commands[rq] = self['user']['paths'][rqalt]
+                rq_resolved = shutil.which(self.shell_commands[rq])
+                if rq_resolved:
+                    logger.info(f'Using alternate command {self.shell_commands[rq]} for {rq}.')
             if not rq_resolved:
                 if rq in command_alternates:
-                    rqalt = command_alternates[rq]
-                    self.shell_commands[rq] = self['user']['paths'][rqalt]
-                    altrq_resolved = shutil.which(self.shell_commands[rq])
-                    if altrq_resolved:
-                        logger.info(f'Using alternate command {self.shell_commands[rq]} for {rq}.')
-                        rq_resolved = altrq_resolved
-                    else:
-                        raise PestiferError(f'Cannot find or execute required command {self.shell_commands[rq]!r} or alternate {self.shell_commands[rqalt]!r}.')
+                    _missing(f'Cannot find or execute required command '
+                             f'{self["user"]["paths"][rq]!r} or alternate '
+                             f'{self["user"]["paths"][command_alternates[rq]]!r}.')
                 else:
-                    raise PestiferError(f'Cannot find or execute required command {self.shell_commands[rq]!r}.')
+                    _missing(f'Cannot find or execute required command {self.shell_commands[rq]!r}.')
             if rq_resolved is not None and verify_access:
                 assert os.access(rq_resolved, os.X_OK), f'You do not have permission to execute {rq_resolved}'
         namd3_path = self.shell_commands['namd3']
