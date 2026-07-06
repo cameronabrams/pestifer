@@ -20,8 +20,6 @@ Single-valued attributes:
 
   * ``vmd``: Path for vmd executable (default: vmd)
 
-  * ``packmol``: Path to packmol executable (default: packmol)
-
   * ``catdcd``: Path to catdcd executable (default: catdcd)
 
 

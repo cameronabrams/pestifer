@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
 ## VMD/psfgen script for creating a new psf/pdb pair for a bilayer patch
-## from a packmol pdb output
+## from a grid-placed coordinate pdb
 
 # if referenced using the Psfgen scriptwriter, all common psfgen
 # pre-build commands are invoked automatically
@@ -12,7 +12,7 @@ namespace import ::PestiferEnviron::*
 
 set scriptname bilayer_patch
 
-set pdb "";  # output of packmol
+set pdb "";  # grid-placed coordinate pdb
 set outbasename "bilayer_patch-parameterized"
 
 for { set i 0 } { $i < [llength $argv] } { incr i } {

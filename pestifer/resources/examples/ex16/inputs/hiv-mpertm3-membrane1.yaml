@@ -4,9 +4,8 @@
 #
 # Membrane-embedded build of HIV-1 gp41 MPER-TM trimer (6e8w)
 #
-# The DMPC bilayer is built with the grid packer (bilayer.packer: grid), which
-# places lipids on a lattice directly and sizes the membrane to the protein
-# footprint -- no packmol required.
+# The DMPC bilayer is built with the grid packer, which places lipids on a
+# lattice directly and sizes the membrane to the protein footprint.
 #
 # NOTE: This example uses NAMD's on-the-fly pressureProfile calculation in the
 # post-equilibration NPgT stage and in the packaged production run. CUDA-enabled

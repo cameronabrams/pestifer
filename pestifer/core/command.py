@@ -22,7 +22,7 @@ from ..util.util import running_under_pytest
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Clean shutdown of external child processes (NAMD/VMD/packmol).
+# Clean shutdown of external child processes (NAMD/VMD).
 #
 # Each external command is launched in its own session (``start_new_session``),
 # so the child is a process-group leader and its whole tree -- e.g.

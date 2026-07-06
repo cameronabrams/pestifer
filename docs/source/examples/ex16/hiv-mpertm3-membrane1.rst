@@ -15,7 +15,7 @@ Example 16: HIV-1 Env MPER-TM Trimer in a DMPC Symmetric Bilayer
 
 .. task-table:: ../../../../pestifer/resources/examples/ex16/inputs/hiv-mpertm3-membrane1.yaml
 
-Notice that the bilayer is built with the grid packer (``bilayer.packer: grid``).  The grid packer places lipids on a lattice directly, so no ``packmol`` installation (or ``paths.packmol`` setting) is required.  For a symmetric bilayer it grids the full membrane in one shot, sized to the embedded protein's footprint plus the ``embed.xydist`` margin -- there is no separate ``packmol`` patch-packing step.
+The bilayer is built by placing lipids on a lattice directly.  For a symmetric bilayer it grids the full membrane in one shot, sized to the embedded protein's footprint plus the ``embed.xydist`` margin -- there is no separate patch-packing step.
 
 The key task in this example is the ``make_membrane_system`` task.  This task specifies a ``bilayer`` subtask and an ``embed`` subtask.  The ``bilayer`` subtask specifies the composition of the two leaflets and a ``quilt`` relaxation protocol that relaxes the gridded membrane prior to embedding the protein (the ``patch`` protocol is only used for asymmetric builds, which calibrate per-leaflet patches first -- see :ref:`example mper-tm viral bilayer`).  The ``embed`` subtask specifies how the protein is to be oriented and placed in the bilayer.  Immediately following the ``make_membrane_system`` task, the ``minimize`` task is used to relax the system after embedding the protein.  This is then followed by a series of ``md`` tasks to progressively equilibrate the system density and the bilayer area.
 

@@ -21,9 +21,8 @@ from .errors import PestiferError
 from .resourcemanager import ResourceManager
 from ..tasks.taskcollections import TaskList
 from ..util.stringthings import my_logger
-from ..scripters import PsfgenScripter, NAMDColvarInputScripter, PackmolScripter, VMDScripter, GenericScripter
+from ..scripters import PsfgenScripter, NAMDColvarInputScripter, VMDScripter, GenericScripter
 from ..scripters.namd import NAMDScripter
-from ..scripters.packmol import check_packmol_version
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +101,6 @@ class Config(Yclept):
         self.scripters = {
             'psfgen': PsfgenScripter(**self.kwargs_to_scripters),
             'namd': NAMDScripter(**self.kwargs_to_scripters),
-            'packmol': PackmolScripter(**self.kwargs_to_scripters),
             'tcl': VMDScripter(**self.kwargs_to_scripters),
             'data': GenericScripter(**self.kwargs_to_scripters),
             'vmd': VMDScripter(**self.kwargs_to_scripters),
@@ -132,7 +130,7 @@ class Config(Yclept):
         Parameters
         ----------
         scripter_name : str
-            The name of the scripter to retrieve. Must be one of 'psfgen', 'namd', 'packmol', 'tcl', 'data', or 'vmd'.
+            The name of the scripter to retrieve. Must be one of 'psfgen', 'namd', 'tcl', 'data', or 'vmd'.
 
         Returns
         -------
@@ -164,7 +162,6 @@ class Config(Yclept):
             namd_version = self['user']['namd'].get('version', '3.0'),
             ncpus = self.ncpus,
             ngpus = self.ngpus,
-            packmol = self.shell_commands['packmol'],
             psfgen_config = self['user']['psfgen'],
             progress = self.use_terminal_progress,
             slurmvars = self.slurmvars,
@@ -233,7 +230,7 @@ class Config(Yclept):
 
     def _set_shell_commands(self, verify_access=True):
         """ Defines all shell commands used by Pestifer """
-        required_commands = ['charmrun', 'namd3', 'vmd', 'catdcd', 'packmol']
+        required_commands = ['charmrun', 'namd3', 'vmd', 'catdcd']
         command_alternates = {'namd3': 'namd2'}
         self.shell_commands = {}
         for rq in required_commands:
@@ -257,11 +254,6 @@ class Config(Yclept):
                     raise PestiferError(f'Cannot find or execute required command {self.shell_commands[rq]!r}.')
             if rq_resolved is not None and verify_access:
                 assert os.access(rq_resolved, os.X_OK), f'You do not have permission to execute {rq_resolved}'
-        if verify_access:
-            try:
-                check_packmol_version(self.shell_commands['packmol'])
-            except RuntimeError as e:
-                raise PestiferError(str(e)) from e
         namd3_path = self.shell_commands['namd3']
         namd3gpu_path = self['user']['paths']['namd3gpu']
         self.shell_commands['namd3gpu'] = namd3gpu_path

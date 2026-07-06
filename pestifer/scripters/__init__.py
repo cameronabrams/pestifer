@@ -9,7 +9,6 @@ by pestifer. All scripters used in pestifer are subclasses of
   graph TD;
     GenericScripter --> TcLScripter;
     GenericScripter --> NAMDColvarInputScripter;
-    GenericScripter --> PackmolScripter;
     TcLScripter --> VMDScripter;
     TcLScripter --> NAMDScripter;
     VMDScripter --> PsfgenScripter;
@@ -19,7 +18,6 @@ by pestifer. All scripters used in pestifer are subclasses of
 from .generic import GenericScripter
 from .namd import NAMDScripter
 from .namd_colvar_input import NAMDColvarInputScripter
-from .packmol import PackmolScripter
 from .psfgen import PsfgenScripter
 from .tcl import TcLScripter
 from .vmd import VMDScripter
@@ -28,7 +26,6 @@ scripters = {
     'psfgen': PsfgenScripter,
     'vmd': VMDScripter,
     'tcl': TcLScripter,
-    'packmol': PackmolScripter,
     'data': GenericScripter,
     'namd': NAMDScripter,
     'namd_colvar': NAMDColvarInputScripter

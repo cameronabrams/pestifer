@@ -35,13 +35,7 @@ Single-valued attributes:
 
   * ``salt_con``: salt concentration in M
 
-  * ``packer``: How to place the lipids (and chamber solvent) in a patch. 'packmol' (the default) uses constrained packmol packing. 'grid' places lipids on a per-leaflet 2D lattice (oriented, tails toward the midplane) and solvent on a 3D lattice -- orders of magnitude faster than packmol, relying on the existing relaxation MD to resolve the initial overlaps. (default: packmol)
-
-  * ``nloop``: number of packmol GENCAN loops for every component
-
-  * ``nloop_all``: number of packmol GENCAN loops for altogether packing
-
-  * ``tolerance``: clash detection tolerance for packmol
+  * ``packer``: How to place the lipids (and chamber solvent). 'grid' (the only supported packer) places lipids on a per-leaflet 2D lattice (oriented, tails toward the midplane) and solvent on a 3D lattice, relying on the existing relaxation MD to resolve the initial overlaps. (default: grid)
 
   * ``seed``: RNG seed (optional)
 

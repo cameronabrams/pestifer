@@ -399,10 +399,6 @@ attributes:
         type: str
         text: Path for vmd executable
         default: vmd
-      - name: packmol
-        type: str
-        text: Path to packmol executable
-        default: packmol
       - name: catdcd
         type: str
         text: Path to catdcd executable
@@ -994,7 +990,7 @@ attributes:
             type: int
             default: 7
       - name: make_membrane_system
-        text: Parameters to build a lipid bilayer (grid or packmol packer) and optionally embed a protein in it
+        text: Parameters to build a lipid bilayer (grid packer) and optionally embed a protein in it
         type: dict
         attributes:
           - name: requires_subcontroller
@@ -1140,23 +1136,13 @@ attributes:
                 type: float
               - name: packer
                 text: >-
-                  How to place the lipids (and chamber solvent) in a patch. 'packmol' (the
-                  default) uses constrained packmol packing. 'grid' places lipids on a
-                  per-leaflet 2D lattice (oriented, tails toward the midplane) and solvent on
-                  a 3D lattice -- orders of magnitude faster than packmol, relying on the
-                  existing relaxation MD to resolve the initial overlaps.
+                  How to place the lipids (and chamber solvent). 'grid' (the only supported
+                  packer) places lipids on a per-leaflet 2D lattice (oriented, tails toward
+                  the midplane) and solvent on a 3D lattice, relying on the relaxation MD to
+                  resolve the initial overlaps. (The former 'packmol' packer has been removed.)
                 type: str
-                choices: [packmol, grid]
-                default: packmol
-              - name: nloop
-                text: number of packmol GENCAN loops for every component
-                type: int
-              - name: nloop_all
-                text: number of packmol GENCAN loops for altogether packing
-                type: int
-              - name: tolerance
-                text: clash detection tolerance for packmol
-                type: float
+                choices: [grid]
+                default: grid
               - name: seed
                 text: RNG seed (optional)
                 type: int
@@ -1299,7 +1285,7 @@ attributes:
                                 text: frequency of pressure profile calculation in time steps
                                 type: int
                   - name: quilt
-                    text: quilt-specific relaxation protocol; if patch is well-equilibrated and any lipids deleted due to asymmetry are small in number, this is usually much shorter
+                    text: relaxation protocol for the full gridded membrane; if the calibration patch is well-equilibrated this is usually much shorter
                     type: list
                     default:
                       - md:

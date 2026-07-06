@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """ 
-Defines the :class:`LogParser` class and its subclasses for parsing log files from various applications used by Pestifer, such as NAMD and Packmol.
+Defines the :class:`LogParser` class and its subclasses for parsing log files from various applications used by Pestifer, such as NAMD.
 """
 from __future__ import annotations
 import logging

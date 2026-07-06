@@ -13,7 +13,6 @@ from ..core.artifacts import ArtifactDict
 from ..core.errors import PestiferBuildError
 from ..util.stringthings import my_logger
 from ..util.units import _UNITS_, _SYMBOLS_, cuA_of_nmolec
-from ..scripters import PackmolScripter
 
 sA_  = _SYMBOLS_['ANGSTROM']
 sA2_ = _UNITS_['SQUARE-ANGSTROMS']
@@ -380,7 +379,7 @@ class Bilayer:
                             species['patn'] += nions
                             break
 
-        # finally, check out all required PDB input files for packmol
+        # finally, check out all required species PDB input files for grid placement
         self.register_species_pdbs = []
         for layer, data in self.slices.items():
             for species in data['composition']:
@@ -460,99 +459,6 @@ class Bilayer:
         self.box = np.array([[Lx, 0, 0], [0, Ly, 0], [0, 0, zmax - zmin]])
         self.origin = np.array([self.box[i][i] / 2 for i in range(3)])
 
-    def write_packmol(self, pm: PackmolScripter, half_mid_zgap=2.0, rotation_pm=0.0, nloop=100):
-        """
-        Writes the packmol input for the bilayer patch to the provided Packmol object.
-
-        Parameters
-        ----------
-        pm : Packmol
-            The Packmol ScriptWriter object to which the bilayer patch specifications will be written.
-        half_mid_zgap : float, optional
-            The half mid-plane gap in Å. Default is 2.0 Å.
-        rotation_pm : float, optional
-            The rotation angle in degrees for the patch. Default is 0.0 degrees.
-        nloop : int, optional
-            The number of loops for packing the bilayer. Default is 100.
-        """
-        pm.addline(f'pbc {" ".join([f"{_:.3f}" for _ in self.patch_ll_corner])} {" ".join([f"{_:.3f}" for _ in self.patch_ur_corner])}')
-        ll = self.patch_ll_corner
-        ur = self.patch_ur_corner
-        for leaflet in [self.LL, self.UL]:
-            logger.debug(f'Leaflet species to pack:')
-            my_logger(leaflet["composition"], logger.debug)
-            for specs in leaflet['composition']:
-                name = specs['name']
-                logger.debug(f'Packing {name}')
-                lipid_max_length = self.species_data[name].get_max_internal_length(conformerID=specs.get('conf', 0))
-                lipid_headtail_length = self.species_data[name].get_head_tail_length(conformerID=specs.get('conf', 0))
-                lipid_overhang = lipid_max_length - lipid_headtail_length
-                leaflet_thickness = leaflet['z-hi'] - leaflet['z-lo']
-                ref_atoms = self.species_data[name].get_ref_atoms()
-                hs = ' '.join([f"{x['serial']}" for x in ref_atoms['heads']])
-                ts = ' '.join([f"{x['serial']}" for x in ref_atoms['tails']])
-                n = specs['patn']
-                pm.addline(f'structure {specs["local_name"]}')
-                pm.comment(f'  max int length {lipid_max_length:.3f}, head-tail length {lipid_headtail_length:.3f}, overhang {lipid_overhang:.3f}')
-                pm.addline(f'number {n}', indents=1)
-                # if the maximum length of the lipid is less than the desired leaflet thickness minus a margin,
-                # we can pack directly into the leaflet slab using contstrained rotation to orient
-                if lipid_max_length < leaflet_thickness:
-                    logger.debug(f' -> lipid length {lipid_max_length:.3f} < leaflet thickness {leaflet_thickness:.3f}')
-                    if leaflet is self.LL:
-                        constrain_rotation = 180.0
-                    elif leaflet is self.UL:
-                        constrain_rotation = 0.0
-                    inside_z_lo = leaflet['z-lo']
-                    inside_z_hi = leaflet['z-hi']
-                    pm.addline(f'inside box {ll[0]:.3f} {ll[1]:.3f} {inside_z_lo:.3f} {ur[0]:.3f} {ur[1]:.3f} {inside_z_hi:.3f}', indents=1)
-                    pm.addline(f'constrain_rotation x {constrain_rotation} {rotation_pm}', indents=1)
-                    pm.addline(f'constrain_rotation y {constrain_rotation} {rotation_pm}', indents=1)
-                else:
-                    # we need to pack by specifying some atoms above a plane and other atoms below a different
-                    # plane, and the "inside box" should refer to the whole cell
-                    # if the head-tail length is GREATER than the leaflet thickness, we can use the
-                    # explicit leafleat boundaries as the planes
-                    if lipid_headtail_length > leaflet_thickness:
-                        below_plane_z = leaflet['z-lo']
-                        above_plane_z = leaflet['z-hi'] - half_mid_zgap
-                    else:
-                        # if the head-tail length is less than the leaflet thickness, while the max internal
-                        # length is still greater, then we can't use the leaflet boundaries as the planes
-                        span = leaflet_thickness - lipid_headtail_length
-                        below_plane_z = leaflet['z-lo'] + span / 2.0
-                        above_plane_z = leaflet['z-hi'] - span / 2.0
-                    pm.addline(f'inside box {ll[0]:.3f} {ll[1]:.3f} {ll[2]:.3f} {ur[0]:.3f} {ur[1]:.3f} {ur[2]:.3f}', indents=1)
-                    pm.addline(f'atoms {hs}', indents=1)
-                    if leaflet is self.LL: # heads are low
-                        pm.addline(f'below plane 0. 0. 1. {below_plane_z:.3f}', indents=2)
-                    elif leaflet is self.UL: # heads are high
-                        pm.addline(f'above plane 0. 0. 1. {above_plane_z:.3f}', indents=2)
-                    pm.addline('end atoms', indents=1)
-                    pm.addline(f'atoms {ts}', indents=1)
-                    if leaflet is self.LL: # tails are high
-                        pm.addline(f'above plane 0. 0. 1. {above_plane_z:.3f}', indents=2)
-                    elif leaflet is self.UL: # tails are low
-                        pm.addline(f'below plane 0. 0. 1. {below_plane_z:.3f}', indents=2)
-                    pm.addline('end atoms', indents=1)
-
-                pm.addline(f'nloop {nloop}', indents=1)
-                pm.addline(f'end structure')
-        for chamber in [self.LC, self.UC]:
-            logger.debug(f'Chamber species to pack:')
-            my_logger(chamber["composition"], logger.debug)
-            for specs in chamber['composition']:
-                name = specs['name']
-                n = specs['patn']
-                pm.addline(f'structure {specs["local_name"]}')
-                pm.addline(f'number {n}', indents=1)
-                inside_z_lo = chamber['z-lo']
-                inside_z_hi = chamber['z-hi']
-                pm.addline(f'inside box {ll[0]:.3f} {ll[1]:.3f} {inside_z_lo:.3f} {ur[0]:.3f} {ur[1]:.3f} {inside_z_hi:.3f}', indents=1)
-                pm.addline(f'nloop {nloop}', indents=1)
-                pm.addline(f'end structure')
-        pm.writefile()
-
     def _load_conformer(self, name, conf=0):
         """Read a species conformer PDB into (coords Nx3, raw atom lines, head_idx,
         tail_idxs), canonicalized so the head reference atom is at +z and the xy
@@ -579,19 +485,16 @@ class Bilayer:
 
     def write_grid_pdb(self, output_pdb, half_mid_zgap=1.0, seed=None, jitter=1.5,
                        clash_cutoff=1.2):
-        """Deterministic grid placement of the bilayer patch -- a fast, packmol-free
-        alternative to :meth:`write_packmol`.
+        """Deterministic grid placement of the bilayer patch.
 
         Lipids are dropped onto a per-leaflet 2D lattice (sized by the patch area and
         leaflet count), oriented with head groups pointing away from the midplane and a
         random in-plane spin, with tails aligned near the midplane.  Chamber solvent is
-        placed on a 3D lattice.  The result is a single coordinate PDB equivalent to the
-        packmol output (it feeds the same psfgen patch-build step).  Mild initial overlaps
-        are intentionally left for the downstream relaxation MD to resolve, which is far
-        cheaper than packmol's constrained packing; but any chamber-solvent molecule that
-        lands within ``clash_cutoff`` of a lipid atom is dropped, since such a
-        near-coincidence corrupts VMD bond perception and psfgen's coordinate read before
-        relaxation ever runs.
+        placed on a 3D lattice.  The result is a single coordinate PDB that feeds the psfgen
+        patch-build step.  Mild initial overlaps are intentionally left for the downstream
+        relaxation MD to resolve; but any chamber-solvent molecule that lands within
+        ``clash_cutoff`` of a lipid atom is dropped, since such a near-coincidence corrupts
+        VMD bond perception and psfgen's coordinate read before relaxation ever runs.
         """
         rng = np.random.default_rng(seed)
         ll, ur = self.patch_ll_corner, self.patch_ur_corner

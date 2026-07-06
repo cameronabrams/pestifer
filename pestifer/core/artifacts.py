@@ -837,13 +837,6 @@ class LogFileArtifactList(FileArtifactList):
     description: str = "List of log files"
 
 @dataclass
-class PackmolLogFileArtifact(LogFileArtifact):
-    """
-    A Packmol log file artifact.
-    """
-    description: str = "Log file for Packmol execution"
-
-@dataclass
 class NAMDLogFileArtifact(LogFileArtifact):
     """
     A NAMD log file artifact.
@@ -967,14 +960,6 @@ class PDBFileArtifactList(FileArtifactList):
     description: str = "List of PDB files"
 
 @dataclass
-class PackMolPDBForcedFileArtifact(PDBFileArtifact):
-    """
-    A Packmol PDB file artifact with forced formatting.
-    """
-    description: str = "Packmol-generated PDB file with forced formatting"
-    ext: str = 'pdb_FORCED'
-
-@dataclass
 class CIFFileArtifact(TXTFileArtifact):
     """
     A CIF file artifact.
@@ -1089,15 +1074,6 @@ class NAMDExtraBondsFileArtifact(TXTFileArtifact):
     """
     description: str = "NAMD extraBonds configuration file"
     ext: str = 'extrabonds'
-
-@dataclass
-class PackmolInputScriptArtifact(TXTFileArtifact):
-    """
-    A Packmol input script artifact.
-    """
-    description: str = "Packmol input script"
-    ext: str = 'inp'
-    
 
 @dataclass
 class NAMDColvarsTrajectoryArtifact(LogFileArtifact):

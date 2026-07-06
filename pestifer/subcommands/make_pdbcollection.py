@@ -2,8 +2,8 @@
 """
 The make-pdb-collection subcommand.  This allows a user to generate their own collection of
 sample PDB files for residues defined in the CHARMM force field (or in files that have
-CHARMM-format RESI blocks). These sample PDB's are specifically used as inputs to
-packmol.
+CHARMM-format RESI blocks). These sample PDB's are used as inputs to the grid packer when
+building membranes.
 """
 import argparse as ap
 

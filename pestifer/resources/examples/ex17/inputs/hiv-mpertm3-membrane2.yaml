@@ -4,11 +4,10 @@
 #
 # Membrane-embedded build of HIV-1 gp41 MPER-TM trimer (6e8w)
 #
-# The asymmetric viral bilayer is built with the grid packer (bilayer.packer:
-# grid): two symmetric calibration patches (one per leaflet composition) are
-# relaxed to measure each leaflet's preferred area-per-lipid, then the membrane
-# is gridded directly at stress-free per-leaflet counts and sized to the protein
-# footprint -- no packmol required.
+# The asymmetric viral bilayer is built with the grid packer: two symmetric
+# calibration patches (one per leaflet composition) are relaxed to measure each
+# leaflet's preferred area-per-lipid, then the membrane is gridded directly at
+# stress-free per-leaflet counts and sized to the protein footprint.
 #
 # NOTE: This example uses NAMD's on-the-fly pressureProfile calculation in the
 # post-equilibration NPgT stage and the packaged production run. CUDA-enabled

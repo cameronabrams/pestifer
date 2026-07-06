@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """ 
-Defines the PDBInput class for representing PDB files used as inputs for packmol.
+Defines the PDBInput class for representing PDB files used as inputs for grid-packed membrane building.
 Defines the PDBCollection class for managing the collection of said PDBs.
 """
 from collections import UserDict
@@ -20,7 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PDBInput:
     """ 
-    A ``PDBInput`` object represents the data needed to use a PDB file as input for packmol.
+    A ``PDBInput`` object represents the data needed to use a PDB file as input for grid-packed membrane building.
     """
     name: str = ''
     """ The name of the residue, which is also the base name of the PDB file. """

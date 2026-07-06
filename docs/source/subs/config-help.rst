@@ -53,7 +53,7 @@ Continuing to drill down is easy -- just add the next directive to the interacti
    pestifer-help: make_membrane_system
 
    make_membrane_system:
-       Parameters to build a lipid bilayer (grid or packmol packer) and
+       Parameters to build a lipid bilayer (grid packer) and
          optionally embed a protein in it
 
    base|tasks->make_membrane_system
@@ -84,9 +84,6 @@ Continuing to drill down is easy -- just add the next directive to the interacti
       cation
       anion
       salt_con
-      nloop
-      nloop_all
-      tolerance
       seed
       relaxation_protocols ->
       .. up

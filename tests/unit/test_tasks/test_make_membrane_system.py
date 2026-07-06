@@ -473,31 +473,6 @@ class TestMakeMembraneSystem(unittest.TestCase):
         os.chdir('..')
         assert result == 0
 
-    def test_makemembranesystem_quilt_from_patch(self):
-        test_dir = '__test_makemembranesystem_quilt_from_patch'
-        if os.path.exists(test_dir):
-            shutil.rmtree(test_dir)
-        os.mkdir(test_dir)
-        os.chdir(test_dir)
-        datadir = '../../fixtures/quilt_inputs'
-        basename = 'patch'
-        for ftype in ['.coor','.psf','.pdb','.xsc']:
-            shutil.copy(os.path.join(datadir,basename+ftype),'.')
-        psfA = psfB = basename+'.psf'
-        pdbA = pdbB = basename+'.pdb'
-        xscA = xscB = basename+'.xsc'
-        npatchx = npatchy = 3
-        pg: PsfgenScripter = self.scripters['psfgen']
-        pg.newscript(basename)
-        pg.usescript('bilayer_quilt')
-        pg.writescript(basename, guesscoord=False, regenerate=True, 
-                       force_exit=True, writepsf=False, writepdb=False)
-        result = pg.runscript(nx=npatchx, ny=npatchy, psfA=psfA, pdbA=pdbA,
-                              psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB,
-                              o='quilt_test_sym_3x3')
-        os.chdir('..')
-        assert result == 0
-
     @pytest.mark.slow
     def test_makemembranesystem_5e8w_psm_chl1_pope_chl1(self):
         test_dir='__test_makemembranesystem_5e8w_psm_chl1_pope_chl1'

@@ -6,7 +6,6 @@ Usage is described in the :ref:`subs_buildtasks_make_membrane_system` documentat
 """
 
 import copy
-import glob
 import logging
 import numpy as np
 from pathlib import Path
@@ -18,13 +17,12 @@ from ..charmmff.charmmffcontent import CHARMMFFContent
 
 from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
-from ..util.stringthings import __pestifer_version__
 
 from ..molecule.bilayer import Bilayer, BilayerSpecString, specstrings_builddict
 
 from ..psfutil.psfcontents import get_toppar_from_psf
 
-from ..scripters import PsfgenScripter, PackmolScripter, VMDScripter
+from ..scripters import PsfgenScripter, VMDScripter
 
 from ..util.util import cell_to_xsc,cell_from_xsc, protect_str_arg
 from ..util.units import _UNITS_
@@ -45,8 +43,7 @@ _DEFAULT_AREA_MODULUS = 250.0
 
 # Minimum half-midplane gap (A) for deterministic grid placement.  The grid packer puts
 # opposing-leaflet tail atoms at ``midplane_z +/- half_mid_zgap``; too small a gap makes
-# them coincide, and the relaxation minimize then diverges (NaN forces -> segfault).  packmol
-# resolves such overlaps with its packing tolerance, so this clamp applies only to grids.
+# them coincide, and the relaxation minimize then diverges (NaN forces -> segfault).
 _MIN_GRID_HALF_MID_ZGAP = 1.0
 
 logger = logging.getLogger(__name__)
@@ -94,7 +91,7 @@ def _per_leaflet_tension(pp_df, c_z, midplane_slab=None):
 
 class MakeMembraneSystemTask(BaseTask):
     """
-    A class for building a lipid bilayer system (with the packmol or grid packer),
+    A class for building a lipid bilayer system (with the grid packer),
     optionally embedding a protein into the assembled bilayer.
     """
     _yaml_header = 'make_membrane_system'
@@ -249,21 +246,15 @@ class MakeMembraneSystemTask(BaseTask):
         if self.embedding:
             self.orient_protein()
         if not self.using_prebuilt_bilayer:
-            packer = self.bilayer_specs.get('packer', 'packmol')
-            # grid placement fills the whole box directly, retiring the patch->quilt tiling
-            # for every case: symmetric builds grid the box directly; asymmetric builds
-            # calibrate two symmetric patches then grid at stress-free per-leaflet counts.
-            # Either way the box is sized to the protein footprint when embedding. The
-            # patch->quilt path now serves only the packmol packer.
-            if packer == 'grid':
-                if self.patch is not None:
-                    self.build_grid_membrane()
-                else:
-                    self.build_patch()
-                    self.build_grid_membrane_asymmetric()
+            # grid placement fills the whole box directly: a symmetric bilayer is gridded
+            # directly, while an asymmetric one first calibrates two symmetric patches to
+            # measure per-leaflet preferred areas, then grids at stress-free counts. Either
+            # way the box is sized to the protein footprint when embedding.
+            if self.patch is not None:
+                self.build_grid_membrane()
             else:
                 self.build_patch()
-                self.make_quilt_from_patch()
+                self.build_grid_membrane_asymmetric()
         if self.embedding:
             self.embed_protein()
         else:
@@ -311,10 +302,9 @@ class MakeMembraneSystemTask(BaseTask):
 
     def build_patch(self):
         """
-        Build the bilayer patch or patches based on the specifications provided in the configuration.
-        This method retrieves the bilayer specifications, including solution conditions, rotation parameters,
-        and other relevant settings.
-        It then constructs the patch or patches, packs them using Packmol, generates the PSF file, and then does a short series of equilibration MD simulations.
+        Build the symmetric calibration patch(es) used to measure per-leaflet preferred areas
+        for an asymmetric grid membrane.  Each patch is placed on the grid, its PSF generated,
+        and a short equilibration MD run so its relaxed area can be read back.
         """
         logger.debug(f'Bilayer specs:')
         my_logger(self.bilayer_specs, logger.debug)
@@ -323,17 +313,12 @@ class MakeMembraneSystemTask(BaseTask):
         half_mid_zgap: float = self.bilayer_specs.get('half_mid_zgap',1.0)
         SAPL: float = self.bilayer_specs.get('SAPL',75.0)
         seed: int = self.bilayer_specs.get('seed',27021972)
-        tolerance: float = self.bilayer_specs.get('tolerance',2.0)
         xy_aspect_ratio: float = self.bilayer_specs.get('xy_aspect_ratio',1.0)
-        nloop: int = self.bilayer_specs.get('nloop',100)
-        nloop_all: int = self.bilayer_specs.get('nloop_all',100)
         relaxation_protocols: dict = self.bilayer_specs.get('relaxation_protocols',{})
         relaxation_protocol: dict = relaxation_protocols.get('patch',{})
         logger.debug('Relaxation protocols:')
         my_logger(relaxation_protocols, logger.debug)
-        packer = self.bilayer_specs.get('packer', 'packmol')
-        if packer == 'grid':
-            half_mid_zgap = self._grid_half_mid_zgap(half_mid_zgap)
+        half_mid_zgap = self._grid_half_mid_zgap(half_mid_zgap)
         # we now build the patch, or if asymmetric, two patches
         for patch, specbyte in zip([self.patch, self.patchA, self.patchB], ['', 'A', 'B']):
             if patch is None:
@@ -341,22 +326,14 @@ class MakeMembraneSystemTask(BaseTask):
             patch.spec_out(SAPL=SAPL, xy_aspect_ratio=xy_aspect_ratio,
                             rotation_pm=rotation_pm, solution_gcc=solution_gcc,
                             half_mid_zgap=half_mid_zgap)
-            if packer == 'grid':
-                self.grid_patch(patch, patch_name=f'patch{specbyte}', seed=seed,
-                                half_mid_zgap=half_mid_zgap)
-            else:
-                self.pack_patch(patch, patch_name=f'patch{specbyte}', seed=seed,
-                                tolerance=tolerance,
-                                nloop_all=nloop_all,
-                                half_mid_zgap=half_mid_zgap,
-                                rotation_pm=rotation_pm,
-                                nloop=nloop)
+            self.grid_patch(patch, patch_name=f'patch{specbyte}', seed=seed,
+                            half_mid_zgap=half_mid_zgap)
             self.do_psfgen(patch, bilayer_name=f'patch{specbyte}')
             self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=relaxation_protocol)
 
     def _guard_pierced_lipids(self, protocol):
         """Insert a lipid ``ring_check`` (and a follow-up minimize) before the first dynamics
-        stage of a *grid*-packed membrane's relaxation.
+        stage of a gridded membrane's relaxation.
 
         Grid placement itself leaves no pierced rings, but the condensing minimize that opens
         the relaxation can pull a lipid tail through a sterol ring.  Such a threading survives
@@ -365,9 +342,8 @@ class MakeMembraneSystemTask(BaseTask):
         coordinates; the deletion frees the *other* (threading) lipid into a strained pose, so
         a short minimize follows to relax it before any dynamics.  The minimize runs
         regardless, but does real work only when a lipid was removed (otherwise it re-relaxes
-        an already-minimized structure).  Only grid builds need this; packmol places lipids
-        with a hard overlap tolerance."""
-        if not isinstance(protocol, list) or self.bilayer_specs.get('packer') != 'grid':
+        an already-minimized structure)."""
+        if not isinstance(protocol, list):
             return protocol
         guarded, inserted = [], False
         for stage in protocol:
@@ -668,7 +644,7 @@ class MakeMembraneSystemTask(BaseTask):
 
     def do_psfgen(self, patch: Bilayer, bilayer_name: str):
         """
-        Perform the psfgen operation to generate the PSF and PDB files for the bilayer patch from the packmol output.
+        Perform the psfgen operation to generate the PSF and PDB files for the gridded bilayer patch.
         """
         self.next_basename(f'psfgen-{bilayer_name}')
         pg: PsfgenScripter = self.get_scripter('psfgen')
@@ -690,66 +666,12 @@ class MakeMembraneSystemTask(BaseTask):
         self.register(self.basename, key='log', artifact_type=PsfgenLogFileArtifact)
         self.register_tmpfiles_from_tcl(f'{self.basename}.log')
 
-    def pack_patch(self, patch: Bilayer, patch_name: str = None, seed=None, tolerance=None, nloop_all=200, nloop=200, half_mid_zgap=1.0, rotation_pm=20):
-        """
-        Packs the bilayer patch using Packmol.
-        
-        Parameters
-        ----------
-        seed : int, optional
-            The random seed for the packing process. Default is None.
-        tolerance : float, optional
-            The tolerance for the packing process. Default is None.
-        nloop_all : int, optional
-            The total number of loops for the packing process. Default is 200.
-        nloop : int, optional
-            The number of loops for each individual structure in the packing process. Default is 200.
-        half_mid_zgap : float, optional
-            The half mid-plane gap in Å. Default is 1.0 Å.
-        rotation_pm : float, optional
-            The rotation angle in degrees for the patch. Default is 20.0 degrees.
-        """
-        self.next_basename(f'packmol-{patch_name}')
-        pm: PackmolScripter = self.get_scripter('packmol')
-        pm.newscript(self.basename)
-        packmol_output_pdb = f'{self.basename}.pdb'
-        pm.comment(f'packmol input automatically generated by pestifer {__pestifer_version__}')
-        pm.addline(f'output {packmol_output_pdb}')
-        pm.addline(f'filetype pdb')
-        if seed is not None:
-            pm.addline(f'seed {seed}')
-        pm.addline(f'tolerance {tolerance}')
-        pm.addline(f'nloop {nloop_all}')
-        patch.write_packmol(pm, half_mid_zgap=half_mid_zgap, rotation_pm=rotation_pm, nloop=nloop)
-        pm.writefile()
-        result = pm.runscript()
-        logger.debug(f'{self.basename} packmol result {result}')
-        if result != 0:
-            raise PestiferBuildError(f'Packmol failed with result {result}')
-        self.register(dict(pdb=PDBFileArtifact(self.basename, pytestable=True)), key=f'{patch_name}_state', artifact_type=StateArtifacts)
-        if os.path.exists(f'{self.basename}.pdb_FORCED'):
-            self.register(f'{self.basename}.pdb_FORCED', key=f'{patch_name}_packmol_forced', artifact_type=PackMolPDBForcedFileArtifact)
-        self.register(self.basename, key='packmol_tcl', artifact_type=PackmolInputScriptArtifact)
-        self.register(self.basename, key='packmol_log', artifact_type=PackmolLogFileArtifact)
-        if os.path.exists(f'{self.basename}_packmol-results.yaml'):
-            self.register(f'{self.basename}_packmol-results.yaml', key=f'{patch_name}_packmol_results', artifact_type=YAMLFileArtifact)
-        csvs = glob.glob(f'{self.basename}*_packmol.csv')
-        if len(csvs) > 0:
-            logger.debug(f'CSVs:')
-            my_logger(csvs, logger.debug)
-            self.register([CSVDataFileArtifact(x) for x in csvs], key=f'{patch_name}_packmol_csvs', artifact_type=CSVDataFileArtifactList)
-        pngs = glob.glob(f'{self.basename}*_packmol.png')
-        if len(pngs) > 0:
-            logger.debug(f'PNGs:')
-            my_logger(pngs, logger.debug)
-            self.register([PNGImageFileArtifact(x) for x in pngs], key=f'{patch_name}_packmol_pngs', artifact_type=PNGImageFileArtifactList)
-
     def _grid_half_mid_zgap(self, configured):
         """Clamp ``half_mid_zgap`` to a minimum safe for deterministic grid placement.
 
         With too small a gap, opposing-leaflet tail atoms coincide and the relaxation
-        minimize diverges (a ``half_mid_zgap: 0`` config -- harmless for packmol -- segfaults
-        the grid path).  Warns and uses :data:`_MIN_GRID_HALF_MID_ZGAP` when below it."""
+        minimize diverges (a ``half_mid_zgap: 0`` config segfaults the build).  Warns and
+        uses :data:`_MIN_GRID_HALF_MID_ZGAP` when below it."""
         if configured < _MIN_GRID_HALF_MID_ZGAP:
             logger.warning(
                 f'half_mid_zgap={configured} A is too small for grid placement '
@@ -759,13 +681,12 @@ class MakeMembraneSystemTask(BaseTask):
         return configured
 
     def grid_patch(self, patch: Bilayer, patch_name: str = None, seed=None, half_mid_zgap=1.0):
-        """Build a bilayer patch by deterministic grid placement -- a fast, packmol-free
-        alternative to :meth:`pack_patch`.
+        """Build a bilayer patch by deterministic grid placement.
 
-        Produces a coordinate PDB equivalent to packmol's output (lipids on a per-leaflet
-        2D lattice, solvent on a 3D lattice) and registers it as the patch state for the
-        same downstream psfgen patch build.  Initial overlaps are left for the relaxation
-        MD, which is far cheaper than packmol's constrained packing.
+        Places lipids on a per-leaflet 2D lattice (oriented, tails toward the midplane) and
+        solvent on a 3D lattice, writes the coordinate PDB, and registers it as the patch
+        state for the downstream psfgen patch build.  Initial overlaps are left for the
+        relaxation MD to resolve.
         """
         self.next_basename(f'grid-{patch_name}')
         output_pdb = f'{self.basename}.pdb'
@@ -915,84 +836,6 @@ class MakeMembraneSystemTask(BaseTask):
                     f'relaxation protocol.')
             else:
                 logger.debug(f'{bilayer_name} area converged (final-half drift {pct:+.2f}%)')
-
-    def make_quilt_from_patch(self):
-        """
-        Create a quilt from the bilayer patch or patches.
-        This method generates a quilt that combines the bilayer patches into a single structure.
-        It uses the psfgen scripter to create a script that builds the quilt based on the provided patches.
-        The quilt is then equilibrated and saved with the appropriate state variables.
-        """
-        
-        logger.debug(f'Creating quilt from patch')
-        self.next_basename('quilt')
-        additional_topologies=[]
-        if self.patch is not None:
-            patch_state: StateArtifacts = self.get_current_artifact('patch_state')
-            pdb = patch_state.pdb.name
-            xsc = patch_state.xsc.name
-            psf = patch_state.psf.name
-            pdbA = pdbB = pdb
-            psfA = psfB = psf
-            xscA = xscB = xsc
-        elif self.patchA is not None and self.patchB is not None:
-            patchA_state: StateArtifacts = self.get_current_artifact('patchA_state')
-            psfA = patchA_state.psf.name
-            pdbA = patchA_state.pdb.name
-            xscA = patchA_state.xsc.name
-            patchB_state: StateArtifacts = self.get_current_artifact('patchB_state')
-            psfB = patchB_state.psf.name
-            pdbB = patchB_state.pdb.name
-            xscB = patchB_state.xsc.name
-        else:
-            raise PestiferBuildError("No valid patch state found.")
-        for patch in [self.patch, self.patchA, self.patchB]:
-            if patch is None:
-                continue
-            additional_topologies += patch.addl_streamfiles
-        additional_topologies = list(set(additional_topologies))
-        pg: PsfgenScripter = self.get_scripter('psfgen')
-        pg.newscript(self.basename, additional_topologies=additional_topologies)
-        self.register_tops_streams_from_psfgen(pg.topologies)
-        pg.usescript('bilayer_quilt')
-        pg.writescript(self.basename, guesscoord=False, regenerate=False, force_exit=True, writepsf=False, writepdb=False)
-        self.register(self.basename, key='tcl', artifact_type=PsfgenInputScriptArtifact)
-        margin = self.embed_specs.get('xydist', 10.0)
-        protein_state: StateArtifacts = self.get_current_artifact('state')
-        if protein_state is not None and protein_state.pdb.exists():
-            # we will eventually embed a protein in here, so send its pdb along to help size the bilayer
-            result = pg.runscript(propdb=protein_state.pdb.name, margin=margin, psfA=psfA, pdbA=pdbA, psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
-        else:
-            dims = self.bilayer_specs.get('dims', [0,0])
-            if dims is None or len(dims) != 2:
-                dims = [0,0]
-            dimx, dimy = dims
-            npatch = self.bilayer_specs.get('npatch', [0,0])
-            if npatch is None or len(npatch) != 2:
-                npatch = [0,0]
-            npatchx, npatchy = npatch
-            if npatchx != 0 and npatchy != 0:
-                result = pg.runscript(nx=npatchx, ny=npatchy, psfA=psfA, pdbA=pdbA,
-                                      psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
-            elif dimx != 0 and dimy != 0:
-                result = pg.runscript(dimx=dimx, dimy=dimy, psfA=psfA, pdbA=pdbA,
-                                      psfB=psfB, pdbB=pdbB, xscA=xscA, xscB=xscB, o=self.basename)
-        if result != 0:
-            raise PestiferBuildError(f'psfgen failed with result {result} for {self.basename}')
-        self.register(self.basename, key='log', artifact_type=PsfgenLogFileArtifact)
-        self.register_tmpfiles_from_tcl(f'{self.basename}.log')
-        self.register(dict(
-            pdb=PDBFileArtifact(self.basename, pytestable=True), 
-            psf=PSFFileArtifact(self.basename, pytestable=True), 
-            xsc=NAMDXscFileArtifact(self.basename)), key='quilt_state', artifact_type=StateArtifacts)
-        self.quilt = Bilayer()
-        self.quilt.addl_streamfiles = additional_topologies
-        self.quilt.box, self.quilt.origin = cell_from_xsc(f'{self.basename}.xsc')
-        self.quilt.area = self.quilt.box[0][0] * self.quilt.box[1][1]
-        relaxation_protocol = self.bilayer_specs.get('relaxation_protocols', {}).get('quilt', {})
-        self.equilibrate_bilayer(self.quilt,
-                                 bilayer_name='quilt',
-                                 relaxation_protocol=relaxation_protocol)
 
     def embed_protein(self):
         """

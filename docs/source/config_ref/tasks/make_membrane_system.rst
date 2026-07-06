@@ -3,7 +3,7 @@
 ``make_membrane_system``
 ========================
 
-Parameters to build a lipid bilayer (grid or packmol packer) and optionally embed a protein in it
+Parameters to build a lipid bilayer (grid packer) and optionally embed a protein in it
 
 Single-valued attribute:
 

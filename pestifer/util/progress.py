@@ -75,10 +75,6 @@ class NAMDProgress(PestiferProgress):
     def __init__(self, **kwargs):
         super().__init__(max_value=200, name='namd', color='turquoise', **kwargs)
 
-class PackmolProgress(PestiferProgress):
-    def __init__(self, **kwargs):
-        super().__init__(max_value=200, name='packmol', color='orange', **kwargs)
-
 class PsfgenProgress(PestiferProgress):
     def __init__(self, **kwargs):
         super().__init__(name='psfgen', color='seafoam', **kwargs)
