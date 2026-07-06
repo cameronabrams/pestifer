@@ -35,6 +35,7 @@ Subcommands
    :maxdepth: 1
 
    subs/config-help
+   subs/config-default
    subs/build
    subs/build-example
    subs/new-system
@@ -42,12 +43,14 @@ Subcommands
    subs/make-pdb-collection
    subs/make-ligand-mol2
    subs/desolvate
+   subs/density-profile
    subs/make-namd-restart
    subs/show-resources
    subs/follow-namd-log
    subs/mdplot
    subs/modify-package
    subs/setup-vmd
+   subs/rebuild-charmmff-cache
 
 .. _custom_charmm_stream_file:
 

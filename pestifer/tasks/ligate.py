@@ -1,7 +1,7 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
 Definition of the :class:`LigateTask` class for ligating loops in molecular dynamics simulations.
-This class is a descendant of the :class:`MDTask <pestifer.tasks.md.MDTask>` class and is used to ligate loops
+This class is a descendant of the :class:`MDTask <pestifer.tasks.mdtask.MDTask>` class and is used to ligate loops
 in a molecular structure using the NAMD molecular dynamics engine.
 It measures the distances between loop termini, steers them toward each other, and connects them using a specified patch.
 The resulting structure is then saved as a PSF/PDB files.

@@ -2,7 +2,7 @@
 
 """
 Definition of the :class:`DomainSwapTask` class for performing domain swaps in molecular dynamics simulations.
-This class is a descendant of the :class:`MDTask <pestifer.tasks.md.MDTask>` class and is used to perform domain swaps
+This class is a descendant of the :class:`MDTask <pestifer.tasks.mdtask.MDTask>` class and is used to perform domain swaps
 using the NAMD molecular dynamics engine.
 It generates the necessary input files for a domain swap operation, runs NAMD to execute the swap,
 and saves the resulting state of the simulation.

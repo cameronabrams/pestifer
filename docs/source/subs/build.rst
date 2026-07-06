@@ -37,7 +37,7 @@ to minimization and a short NVT MD simulation, and finally packaging for product
            md:
              ensemble: NPT
 
-``pestifer build`` begins by parsing the configuration file, and then it sets up a ``Controller`` object that manages the tasks.  The controller executes each task in the order specified in the configuration file, and it handles any dependencies between tasks.  If a task fails, the controller will stop the build and report the error.
+``pestifer build`` begins by parsing the configuration file, and then it sets up a ``Controller`` object that manages the tasks.  Before running anything, the controller statically **validates the task list**: each task declares the pipeline "currencies" it requires and provides (a fetched coordinate source, the built ``state`` fileset, the in-memory molecule object, molecular-dynamics output), and the controller checks the hand-offs so malformed pipelines fail immediately with an explanation rather than partway through a long build.  It flags, for example, a transform task with no system to act on, a ``continuation`` followed by ``psfgen`` (which would rebuild from scratch and discard the continued system), an ``mdplot`` with no preceding ``md``, or a task placed after the terminal ``terminate``.  The controller then executes each task in the order specified in the configuration file; if a task fails, the controller stops the build and reports the error.
 
 .. mermaid:: 
    :caption: Execution flow for the pestifer controller
@@ -67,6 +67,7 @@ Detailed explanation of some *selected* common tasks you can use is below.
    buildtasks/manipulate
    buildtasks/ligate
    buildtasks/cleave
+   buildtasks/domainswap
    buildtasks/solvate
    buildtasks/make_membrane_system
    buildtasks/ring_check

@@ -1,3 +1,5 @@
+.. _subs_config_help:
+
 config-help
 -----------
 

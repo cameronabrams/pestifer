@@ -176,7 +176,7 @@ An example ``make_membrane_system`` task is specified below:
           text: "protein and resid 696"
           z_value: 0.0
 
-If you are including cholesterol or any other sterols in your bilayer, it is recommended that you follow the ``make_membrane_system`` task immediately with an energy minimization and then a ``ring_check`` task.  This will identify and delete any sterols whose rings are pierced by other molecules.  This is illustrated in :ref:`example mper-tm viral bilayer`.
+If you are including cholesterol or any other sterols in your bilayer, a **grid**-packed ``make_membrane_system`` build now guards against pierced sterol rings automatically: during the grid membrane's relaxation, just before the first dynamics stage, it inserts a lipid ``ring_check`` (which deletes the offending lipid) followed by a short minimize, so a lipid tail threaded through a sterol ring is removed before it can destabilize the run.  It is still recommended to follow the ``make_membrane_system`` task with an energy minimization and an explicit ``ring_check`` — for a packmol build, and to catch glycan or protein rings (which the automatic guard, checking only lipids, does not) when the embedded protein is glycosylated.  This is illustrated in :ref:`example mper-tm viral bilayer`.
 
 Task Flow
 =========

@@ -36,7 +36,7 @@ A partial list of things Pestifer can do
    * chain cleavage
    * domain-swapping
    * chain relabeling
-3. Generate membrane-embedded proteins using any lipids for which a PDB is available (fast grid placement or packmol), including automatic checking for pierced rings
+3. Generate membrane-embedded proteins using any lipids for which a PDB is available (fast grid placement or packmol), including automatic detection and resolution of pierced rings
 4. Generate restart files (NAMD configs and SLURM scripts) based on current runs 
 5. Generate solvent-stripped PSF and DCD files
 
