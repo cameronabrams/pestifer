@@ -29,11 +29,12 @@ class TestRegisterResnameSegtype(unittest.TestCase):
         self.assertIn('MYL2', m._segtypes['ligand']['resnames'])
         # the segtype map derived at import time picks it up
         self.assertEqual(m.Labels.segtype_of_resname['MYLIG'], 'ligand')
-        # existing names are preserved
-        self.assertIn('LF0', m._segtypes['ligand']['resnames'])
+        # existing curated names are preserved
+        self.assertIn('HEM', m._segtypes['ligand']['resnames'])
 
     def test_idempotent_for_existing_name(self):
-        _, added = labels.register_resnames_segtype('LF0', 'ligand', labels_path=self.tmp)
+        # HEM is a curated ligand; re-registering it is a no-op
+        _, added = labels.register_resnames_segtype('HEM', 'ligand', labels_path=self.tmp)
         self.assertEqual(added, [])
 
     def test_unknown_segtype_raises(self):

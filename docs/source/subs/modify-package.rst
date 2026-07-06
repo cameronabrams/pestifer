@@ -157,3 +157,16 @@ Because a contribution is meant to become a pull request, the ``--branch`` optio
 
 Pushing the branch and opening the pull request are left to you — inspect the commit with ``git show`` first, then push to your fork and open a PR against ``cameronabrams/pestifer`` for review.
 
+.. _modify regenerate segtypes:
+
+Regenerating the derived segtype classification
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Pestifer classifies most residues into a *segtype* (protein, lipid, glycan, nucleicacid, ligand, ion, water) by the CHARMM topology/stream file each residue is defined in, rather than from a hand-maintained list.  This classification is stored in the generated resource ``pestifer/resources/labels/derived_segtypes.json`` and merged into :attr:`Labels.segtype_of_resname <pestifer.core.labels.LabelMappers.segtype_of_resname>` at import.  After updating the bundled CHARMM force field (or adding a residue whose classification should follow from its defining file), regenerate it with
+
+.. code-block:: bash
+
+    $ pestifer modify-package --regenerate-segtypes
+
+This re-derives the classification from every installed CHARMM release, excluding the curated names in :mod:`pestifer.core.labels` (which always win), and rewrites the JSON.  Like the other developer actions, it can be combined with ``--branch`` to make the change on a fresh branch and commit it for review.
+
