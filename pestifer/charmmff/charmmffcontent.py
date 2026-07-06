@@ -190,6 +190,33 @@ class CHARMMFFResiTopCollection(CacheableObject):
         self.patches = local_charmmffcontent.patches
         logger.debug(f'CHARMMFFContentData initialized with {len(self.residues)} residues and {len(self.patches)} patches.')
 
+
+class ResnameIndex(CacheableObject):
+    """A compact, cached index mapping each built-in CHARMM ``RESI``/``PRES`` name to its
+    ``kind`` (``'RESI'`` or ``'PRES'``) and defining ``topfile``.
+
+    Loading the full parsed-residue collection (:class:`CHARMMFFResiTopCollection`, with an
+    atom/bond/charge object per residue) costs several seconds; a residue-name *lookup* needs
+    only the kind and source file.  This index summarizes exactly that, and -- gated on the
+    force-field path mtime, the same way the residue collection is -- loads in milliseconds
+    after its first build.  It is built from a bare :class:`CHARMMFFContent` (the built-in
+    force field only, no user-custom directories), so different pestifer configurations never
+    contaminate one another's cache.
+    """
+
+    def _build_from_resources(self, charmmff_path, **kwargs):
+        cc = CHARMMFFContent(charmmff_path)
+        cc.provision()  # the multi-second step, done once per (re)build of this cache
+        self.index = {}
+        for name, resi in cc.residues.items():
+            self.index[name] = {'kind': 'RESI',
+                                'topfile': (getattr(resi, 'metadata', None) or {}).get('charmmfftopfile')}
+        for name, pres in cc.patches.items():
+            # residues take precedence if a name is somehow both (matches the lookup's kind rule)
+            self.index.setdefault(name, {'kind': 'PRES',
+                                'topfile': (getattr(pres, 'metadata', None) or {}).get('charmmfftopfile')})
+
+
 class CHARMMFFContent(CacheableObject):
     """
     Holds all CHARMM force field content parsed for use within Pestifer.

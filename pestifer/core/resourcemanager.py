@@ -59,6 +59,7 @@ class ResourceManager:
         self._charmmff_config = charmmff_config
         self._charmmff_content = None
         self._example_manager = None
+        self._resname_index_cache = None
         self.labels = Labels
 
     def charmmff_version_dirs(self) -> list[Path]:
@@ -196,25 +197,30 @@ class ResourceManager:
         - ``nconformers``: number of stored conformers (0 if none)
         """
         cc = self.charmmff_content
-        if not cc.provisioned:
-            cc.provision()
+        if cc.pdbrepository is None:
+            cc.provision_pdbrepository()  # fast; also picks up any user PDB collections
         query = resname.upper()
-        in_residues = query in cc.residues
-        in_patches = query in cc.patches
+        index = self._resname_index()
+        entry = index.get(query)
+        # user-custom topology residues are read cheaply when CHARMMFFContent is constructed
+        # (they are not in the cached built-in index); treat them as residues
+        user_custom = query in getattr(cc, 'user_custom_resnames', set())
+        in_residues = (entry is not None and entry['kind'] == 'RESI') or (entry is None and user_custom)
+        in_patches = entry is not None and entry['kind'] == 'PRES'
         alias = self.labels.charmm_resname_of_pdb_resname.get(query)
         # a pure patch (PRES) modifies a residue and has no coordinates of its own, so the
         # PDB repository is not applicable and is not searched
         is_patch = in_patches and not in_residues
         pdbi = None
         if not is_patch and cc.pdbrepository and query in cc.pdbrepository:
-            pdbi = cc.checkout_pdb(query)
+            pdbi = cc.pdbrepository.checkout(query)
         head_tail = pdbi.get_head_tail_length(0) if pdbi else 0.0
         return {
             'resname': query,
             'in_topology': in_residues or in_patches,
             'kind': 'residue (RESI)' if in_residues else ('patch (PRES)' if in_patches else None),
             'is_patch': is_patch,
-            'topfile': cc.get_topfile_of_resname(query),
+            'topfile': (entry['topfile'] if entry else None) or cc.get_topfile_of_resname(query),
             'segtype': self.labels.segtype_of_resname.get(query),
             'charmm_alias': alias if (alias and alias != query) else None,
             'in_pdbrepository': pdbi is not None,
@@ -224,14 +230,24 @@ class ResourceManager:
             'head_tail_length': head_tail if head_tail else None,
         }
 
+    def _resname_index(self) -> dict:
+        """The cached name -> {kind, topfile} index of the built-in CHARMM residues/patches
+        (see :class:`~pestifer.charmmff.charmmffcontent.ResnameIndex`).  Built once (loading
+        the full residue collection), then cached, so residue lookups avoid that cost."""
+        if self._resname_index_cache is None:
+            from ..charmmff.charmmffcontent import ResnameIndex
+            self._resname_index_cache = ResnameIndex(self.charmmff_content.charmmff_path).index
+        return self._resname_index_cache
+
     def all_resnames(self) -> set:
         """Every residue/patch name pestifer knows about -- the union of the CHARMM
-        topology/stream ``RESI``/``PRES`` names and the resnames in the built-in PDB
-        repository."""
+        ``RESI``/``PRES`` names (from the cached index, plus any user-custom residues) and the
+        resnames in the PDB repository."""
         cc = self.charmmff_content
-        if not cc.provisioned:
-            cc.provision()
-        names = set(cc.resi_to_topfile_map.keys())
+        if cc.pdbrepository is None:
+            cc.provision_pdbrepository()
+        names = set(self._resname_index().keys())
+        names |= getattr(cc, 'user_custom_resnames', set())
         if cc.pdbrepository:
             for coll in cc.pdbrepository.collections.values():
                 names.update(coll.info.keys())

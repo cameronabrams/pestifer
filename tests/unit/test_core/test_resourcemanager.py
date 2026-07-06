@@ -41,6 +41,11 @@ class TestResourceManager(unittest.TestCase):
         self.assertEqual(aspp['kind'], 'patch (PRES)')
         self.assertTrue(aspp['is_patch'])          # a pure patch...
         self.assertFalse(aspp['in_pdbrepository'])  # ...so the PDB repo is not searched
+        # a residue defined in a stream/substream file: the cached index must be authoritative
+        # (this one is missed by a naive topology-file scan)
+        oct_ = self.RM.lookup_resname('OCT')
+        self.assertTrue(oct_['in_topology'])
+        self.assertEqual(oct_['kind'], 'residue (RESI)')
         # a name that exists nowhere
         bogus = self.RM.lookup_resname('ZZZZ')
         self.assertFalse(bogus['in_topology'])

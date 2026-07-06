@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 from ..cli.subcommand import Subcommand
 
-from ..charmmff.charmmffcontent import CHARMMFFContent
+from ..charmmff.charmmffcontent import CHARMMFFContent, ResnameIndex
 
 @dataclass
 class RebuildCHARMMFFCache(Subcommand):
@@ -24,6 +24,7 @@ class RebuildCHARMMFFCache(Subcommand):
         for version_dir in rm.charmmff_version_dirs():
             CC = CHARMMFFContent(version_dir, force_rebuild=True)
             CC.provision(force_rebuild=True)
+            ResnameIndex(version_dir, force_rebuild=True)  # also refresh the resname lookup index
         return True
 
     def add_subparser(self, subparsers):
