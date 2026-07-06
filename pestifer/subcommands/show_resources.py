@@ -28,9 +28,36 @@ def _report_resname(info: dict, out_stream=print):
         conf = f"{info['nconformers']} conformer" + ('s' if info['nconformers'] != 1 else '')
         long = f' -- "{info["longname"]}"' if info['longname'] else ''
         out_stream(f"  PDB repo: coordinates available ({conf}){long}")
+        detail = []
+        if info.get('charge') is not None:
+            detail.append(f"charge {info['charge']:+g}")
+        if info.get('head_tail_length'):
+            detail.append(f"head-to-tail {info['head_tail_length']:.1f} Å")
+        if detail:
+            out_stream(f"            ({', '.join(detail)})")
     else:
         out_stream('  PDB repo: no coordinates in the built-in PDB repository')
     out_stream('')
+
+
+def _report_resname_compact(info: dict, out_stream=print):
+    """One aligned line summarizing a resname (used for substring search results)."""
+    if info['in_topology']:
+        kind = 'RESI' if info['kind'] and 'RESI' in info['kind'] else 'PRES'
+        where = f"{kind} {info['segtype'] or ''}".strip()
+    else:
+        where = '-'
+    pdb = str(info['nconformers']) if info['in_pdbrepository'] else '-'
+    out_stream(f"  {info['resname']:<8s} {where:<14s} pdb: {pdb}")
+
+
+def _overview(out_stream=print):
+    """Print a one-line summary of each resource type (the no-argument default)."""
+    out_stream('pestifer packaged resources -- use `show-resources <type>`:')
+    out_stream('  examples   bundled example builds     (show-resources examples)')
+    out_stream('  charmmff   CHARMM force-field data     (show-resources charmmff --charmmff toppar|custom|pdb)')
+    out_stream('  tcl        packaged Tcl scripts        (show-resources tcl)')
+    out_stream('  resname    look up / search residues   (show-resources resname RESN ... | resname --contains STR)')
 
 
 @dataclass
@@ -48,10 +75,20 @@ class ShowResourcesSubcommand(Subcommand):
             charmmff_config['release'] = args.charmmff_release
         r = ResourceManager(charmmff_config=charmmff_config)
         resource_type = args.resource_type
+        if resource_type is None:
+            _overview(out_stream=print)
+            return True
         if resource_type == 'resname':
+            contains = getattr(args, 'contains', None)
             names = getattr(args, 'query', []) or []
+            if contains:
+                matches = r.search_resnames(contains)
+                print(f'{len(matches)} residue name(s) contain "{contains}":')
+                for name in matches:
+                    _report_resname_compact(r.lookup_resname(name), out_stream=print)
+                return True
             if not names:
-                print('Usage: pestifer show-resources resname RESNAME [RESNAME ...]')
+                print('Usage: pestifer show-resources resname RESNAME [RESNAME ...]  (or --contains SUBSTRING)')
                 return True
             for name in names:
                 _report_resname(r.lookup_resname(name), out_stream=print)
@@ -65,12 +102,15 @@ class ShowResourcesSubcommand(Subcommand):
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
-        self.parser.add_argument('resource_type', type=str, default='examples',
+        self.parser.add_argument('resource_type', type=str, nargs='?', default=None,
                                  choices=['tcl', 'examples', 'charmmff', 'resname'],
-                                 help='type of resource to show')
+                                 help='type of resource to show; omit for an overview of all types')
         self.parser.add_argument('query', type=str, nargs='*', default=[],
                                  help='for resource_type=resname: one or more residue names to look up '
                                       '(case-insensitive)')
+        self.parser.add_argument('--contains', type=str, default=None,
+                                 help='with resource_type=resname: list all known residue names '
+                                      'containing this substring (case-insensitive)')
         self.parser.add_argument('--charmmff', type=str, nargs='+', default=[], help='show sub-resources of charmmff resources (\'toppar\', \'custom\', \'pdb\')')
         self.parser.add_argument('--fullnames', default=False, action='store_true', help='show full names of any residues shown with --charmmff pdb')
         self.parser.add_argument('--user-pdbcollection', type=str, nargs='+', default=[], help='additional collections of PDB files outside pestifer installation')

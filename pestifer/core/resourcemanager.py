@@ -213,6 +213,7 @@ class ResourceManager:
         in_patches = query in cc.patches
         alias = self.labels.charmm_resname_of_pdb_resname.get(query)
         pdbi = cc.checkout_pdb(query) if (cc.pdbrepository and query in cc.pdbrepository) else None
+        head_tail = pdbi.get_head_tail_length(0) if pdbi else 0.0
         return {
             'resname': query,
             'in_topology': in_residues or in_patches,
@@ -223,7 +224,28 @@ class ResourceManager:
             'in_pdbrepository': pdbi is not None,
             'longname': pdbi.longname() if pdbi else None,
             'nconformers': len(pdbi.pdbcontents) if pdbi else 0,
+            'charge': pdbi.get_charge() if pdbi else None,
+            'head_tail_length': head_tail if head_tail else None,
         }
+
+    def all_resnames(self) -> set:
+        """Every residue/patch name pestifer knows about -- the union of the CHARMM
+        topology/stream ``RESI``/``PRES`` names and the resnames in the built-in PDB
+        repository."""
+        cc = self.charmmff_content
+        if not cc.provisioned:
+            cc.provision()
+        names = set(cc.resi_to_topfile_map.keys())
+        if cc.pdbrepository:
+            for coll in cc.pdbrepository.collections.values():
+                names.update(coll.info.keys())
+        return names
+
+    def search_resnames(self, substring: str) -> list:
+        """Return the sorted residue names (see :meth:`all_resnames`) that contain
+        ``substring`` (case-insensitive)."""
+        needle = substring.upper()
+        return sorted(name for name in self.all_resnames() if needle in name.upper())
 
     def get_resource_path(self,r):
         """

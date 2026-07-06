@@ -45,5 +45,18 @@ class TestResourceManager(unittest.TestCase):
         self.assertFalse(bogus['in_topology'])
         self.assertIsNone(bogus['topfile'])
         self.assertFalse(bogus['in_pdbrepository'])
+        # richer detail for a PDB-repo lipid: charge present, head-to-tail length > 0
+        self.assertIsNotNone(popc['charge'])
+        self.assertGreater(popc['head_tail_length'], 0.0)
+
+    def test_search_resnames(self):
+        allnames = self.RM.all_resnames()
+        self.assertIn('POPC', allnames)
+        self.assertIn('CHL1', allnames)
+        matches = self.RM.search_resnames('popc')  # case-insensitive substring
+        self.assertIn('POPC', matches)
+        self.assertTrue(all('POPC' in m for m in matches))
+        self.assertEqual(matches, sorted(matches))
+        self.assertEqual(self.RM.search_resnames('ZZZZZZ'), [])
 
 
