@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 # Path to the *generated* residue-name -> segtype classification.  This file is derived
 # from the CHARMM topology file each residue is defined in (see
 # :mod:`pestifer.charmmff.segtype_classifier`) and regenerated with
-# ``pestifer modify-package --regenerate-segtypes``.  It is loaded and merged into
+# ``pestifer modify-package charmmff regenerate-segtypes``.  It is loaded and merged into
 # :attr:`LabelMappers.segtype_of_resname` at import so that lipids, glycans, protein and
 # nucleic-acid residues, CGenFF ligands, etc. are classified without being hand-listed
 # below.  The ``_segtypes`` table here holds only the *curated* residue names: those not

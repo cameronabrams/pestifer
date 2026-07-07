@@ -53,7 +53,7 @@ That also built successfully, so I added a new example to the pestifer package *
     $ cd ~/Git/pestifer        # my local source repository
     $ git branch -b new-1mob   # create a new branch for the example
     $ cd ~/1mob_working_directory  # where I have the 1mob.yaml file
-    $ pestifer modify-package --add-example 1mob.yaml  # add the example to the package
+    $ pestifer modify-package example add 1mob.yaml  # add the example to the package
 
 This will copy the file ``1mob.yaml`` to the appropriate location in pestifer source package, and it will also update the ``docs/source/examples/ex19/1mob.rst`` file to include a link to the new example.  Then I edited the ``docs/source/examples/ex19/1mob.rst`` file to add a description of the example and how it works.  Finally, I committed the changes:
 
@@ -102,7 +102,7 @@ I then renamed this example using the ``modify-package`` subcommand:
 
 .. code-block:: bash
 
-    $ pestifer modify-package --example-action rename --example-id 19 --new-example-name sperm-whale-myoglobin
+    $ pestifer modify-package example rename 19 sperm-whale-myoglobin
 
 Satisfied with the example, I merged the branch back into ``main``:
 
@@ -131,7 +131,7 @@ The simplest invocation makes the change in your working tree:
 
 .. code-block:: bash
 
-    $ pestifer modify-package --add-residue mylig.str --segtype ligand
+    $ pestifer modify-package charmmff add-residue mylig.str --segtype ligand
 
 Folding in the git workflow
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -140,7 +140,7 @@ Because a contribution is meant to become a pull request, the ``--branch`` optio
 
 .. code-block:: bash
 
-    $ pestifer modify-package --add-residue mylig.str --branch add-mylig-residue
+    $ pestifer modify-package charmmff add-residue mylig.str --branch add-mylig-residue
 
     Installed custom residue file: .../charmmff/feb26/custom/mylig.str
       RESI defined: MYLIG
@@ -171,11 +171,11 @@ First generate the coordinates with :ref:`make-pdb-collection <sub_make_pdb_coll
     $ pestifer make-pdb-collection --resname MYLIP --output-dir mycoords
     # -> mycoords/MYLIP/{info.yaml, MYLIP-00.pdb, MYLIP-01.pdb, ...}
 
-Then install that entry into the repository with ``--add-pdb-entry``, which validates it (``info.yaml`` parses and every conformer PDB it names is present) and adds it under ``<collection>/MYLIP/`` in the target collection tarball, creating the tarball if the collection does not exist yet:
+Then install that entry into the repository with ``pdb-repo add-entry``, which validates it (``info.yaml`` parses and every conformer PDB it names is present) and adds it under ``<collection>/MYLIP/`` in the target collection tarball, creating the tarball if the collection does not exist yet:
 
 .. code-block:: bash
 
-    $ pestifer modify-package --add-pdb-entry mycoords/MYLIP --branch add-mylip-coords
+    $ pestifer modify-package pdb-repo add-entry mycoords/MYLIP --branch add-mylip-coords
 
 By default the collection is the residue's segtype (``lipid`` -> the ``lipid`` collection; ``ion``/``water`` -> ``water_ions``); use ``--collection NAME`` to choose another, and ``--force`` to replace an entry already present for that resname.  As with the other contribution flows, ``--branch`` requires a clean working tree and commits **exactly** the changed collection tarball on a new branch for you to push and open as a pull request.
 
@@ -188,7 +188,7 @@ Pestifer classifies most residues into a *segtype* (protein, lipid, glycan, nucl
 
 .. code-block:: bash
 
-    $ pestifer modify-package --regenerate-segtypes
+    $ pestifer modify-package charmmff regenerate-segtypes
 
 This re-derives the classification from every installed CHARMM release, excluding the curated names in :mod:`pestifer.core.labels` (which always win), and rewrites the JSON.  Like the other developer actions, it can be combined with ``--branch`` to make the change on a fresh branch and commit it for review.
 
