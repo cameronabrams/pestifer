@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.0.1] - 2026-07-07
+
 - bugfix: VMD steps silently did nothing on hosts whose `vmd` launcher wraps the binary in `rlwrap` (common in site VMD 2.x module builds). Pestifer launched every external command with `start_new_session=True` (so a NAMD `charmrun`->`namd3`->PE tree can be torn down with one `killpg` on interrupt), but a new session strips the controlling terminal, and an rlwrap-wrapped VMD then exits ~immediately (returncode 0, no output) without ever running its Tcl script. The visible symptom was `desolvate` failing its output guard ("VMD returncode 0 ... expected outputs were not produced") even though `vmd` ran fine by hand. VMD is now launched **in pestifer's own session** (`new_session=False`) and signaled by pid rather than process group, and its stdin is `/dev/null` so such a launcher never selects rlwrap in the first place; NAMD/charmrun keep their own session and `killpg` teardown. The `desolvate` guard message now distinguishes "VMD did not launch" (rc != 0) from "VMD ran but produced no output" (rc 0), instead of always blaming a missing `vmd`
 
 ## [3.0.0] - 2026-07-06
