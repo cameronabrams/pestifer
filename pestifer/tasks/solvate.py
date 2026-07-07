@@ -21,6 +21,7 @@ from pidibble.pdbparse import PDBParser
 from .basetask import VMDTask
 from ..core.artifacts import *
 from ..core.errors import PestiferError
+from ..psfutil.psfcontents import PSFContents
 from ..util.util import cell_from_xsc, cell_to_xsc
 from ..scripters import VMDScripter
 
@@ -47,25 +48,23 @@ class SolvateTask(VMDTask):
 
     def _ionization_plan(self, solvent):
         """
-        Return ``(do_ionize, is_water, ions_requested)``.  Autoionize adds ions by replacing
-        water, so it runs for water solvation always, but for a non-water solvent only when
-        the user explicitly asked for ions (``salt_con``/``cation``/``anion``).
+        Return ``(wants_ions, is_water, neutralize)``.  Ions are added when the system is to
+        be neutralized (``neutralize``, default True) or a salt concentration is requested.
+        Water uses ``autoionize``; a non-water solvent is ionized by solvent replacement.
         """
         is_water = solvent is None or solvent.upper() in self._WATER_SOLVENTS
-        ions_requested = (self.specs.get('salt_con') is not None
-                          or self.specs.get('cation') is not None
-                          or self.specs.get('anion') is not None)
-        return (is_water or ions_requested), is_water, ions_requested
+        neutralize = bool(self.specs.get('neutralize', True))
+        salt = self.specs.get('salt_con') is not None
+        return (neutralize or salt), is_water, neutralize
 
-    def _solvent_box_args(self, solvent: str) -> str:
+    def _solvent_box_entry(self, solvent: str):
         """
-        Return the trailing ``solvate`` arguments that select the solvent box, or ``''`` for
-        water (VMD's built-in box).  For a non-water solvent, look up a ``kind: box`` entry
-        in the ``solvent`` PDB collection, check out its psf/pdb, and build the
-        ``-spsf/-spdb/-ws/-ks`` arguments that make ``solvate`` tile that box instead.
+        Return the ``kind: box`` PDB-repository entry for a non-water ``solvent`` (checking it
+        out), or ``None`` for water.  Raises if the solvent has no box entry or is only a
+        single-molecule entry.
         """
         if solvent is None or solvent.upper() in self._WATER_SOLVENTS:
-            return ''
+            return None
         CC = self.resource_manager.charmmff_content
         if CC.pdbrepository is None:
             CC.provision_pdbrepository()
@@ -80,15 +79,82 @@ class SolvateTask(VMDTask):
             raise PestiferError(
                 f"solvent '{solvent}' is a single-molecule PDB entry, not a pre-equilibrated box; "
                 f"solvate needs a kind:box entry (build one with 'make-pdb-collection solvent')")
-        spsf = entry.get_box_psf()
-        spdb = entry.get_box_pdb()
-        ws = entry.get_box_edge()
-        ks = entry.get_key_atom()
+        return entry
+
+    def _write_solvent_topology(self, solvent: str, outpath: str) -> str:
+        """
+        Write a small self-contained CHARMM topology for ``solvent`` -- the ``MASS`` records for
+        the atom types its RESI uses (each atom knows its type/mass/element) followed by the RESI
+        block -- so VMD solvate's isolated psfgen context can build the solvent's replica residues
+        even when the solvent's stock topfile (e.g. a model-compound stream) omits those masses.
+        Returns ``outpath``.
+        """
+        import io
+        CC = self.resource_manager.charmmff_content
+        CC.provision()
+        topo = CC.get_resi(solvent)
+        masses = {}
+        for a in topo.atoms:
+            masses.setdefault(a.type, (a.mass, a.element))
+        resi = io.StringIO()
+        topo.to_file(resi)
+        with open(outpath, 'w') as f:
+            f.write(f'* self-contained topology for {solvent} (pestifer-generated)\n*\n   36  1\n\n')
+            for t, (m, el) in masses.items():
+                f.write(f'MASS  -1  {t:<8s}{m:>10.5f} {el}\n')
+            f.write('\n')
+            f.write(resi.getvalue())
+            f.write('\nEND\n')
+        return outpath
+
+    def _solvent_box_args(self, entry, solvent: str) -> str:
+        """
+        Build the trailing ``solvate`` arguments (``-spsf/-spdb/-ws/-ks``) that tile the given
+        box ``entry``, or ``''`` for water (``entry is None``).
+        """
+        if entry is None:
+            return ''
+        spsf, spdb, ws, ks = (entry.get_box_psf(), entry.get_box_pdb(),
+                              entry.get_box_edge(), entry.get_key_atom())
         logger.info(f"solvating with pre-equilibrated {solvent} box (edge {ws} A, key atom {ks})")
         args = f' -spsf {spsf} -spdb {spdb} -ws {ws}'
         if ks:
             args += f' -ks "name {ks}"'
         return args
+
+    # ion valences for neutralization/salt counts (CHARMM ion RESIs are monatomic; charge is
+    # taken from the PDB repository when available, else this fallback map)
+    _ION_CHARGE = {'SOD': 1, 'POT': 1, 'LIT': 1, 'CES': 1, 'RUB': 1,
+                   'CLA': -1, 'CAL': 2, 'MG': 2, 'ZN2': 2, 'BAR': 2, 'CD2': 2}
+
+    def _ion_charge(self, resname):
+        repo = getattr(self.resource_manager.charmmff_content, 'pdbrepository', None)
+        if repo is not None and resname in repo:
+            q = repo.checkout(resname).get_charge()
+            if q:
+                return q
+        return self._ION_CHARGE.get(resname.upper())
+
+    def _ion_counts(self, net_charge, box_volume_A3, cation, anion, salt_con, neutralize=True):
+        """
+        Return ``{resname: count}`` of ions to add: ``salt_con`` (mol/L) worth of
+        cation/anion pairs sized from the box volume, plus (when ``neutralize``) enough
+        counter-ions to cancel ``net_charge``.  Ion valences come from :meth:`_ion_charge`.
+        """
+        qcat = abs(self._ion_charge(cation) or 1)
+        qani = abs(self._ion_charge(anion) or 1)
+        counts = {}
+        if salt_con:
+            n_pairs = int(round(salt_con * box_volume_A3 * 1e-27 * 6.02214076e23))
+            counts[cation] = counts.get(cation, 0) + n_pairs
+            counts[anion] = counts.get(anion, 0) + n_pairs
+        if neutralize:
+            net = int(round(net_charge))
+            if net > 0:
+                counts[anion] = counts.get(anion, 0) + int(round(net / qani))
+            elif net < 0:
+                counts[cation] = counts.get(cation, 0) + int(round(-net / qcat))
+        return {k: v for k, v in counts.items() if v > 0}
 
     def do(self):
         """
@@ -138,10 +204,43 @@ class SolvateTask(VMDTask):
         # pre-equilibrated kind:box entry from the 'solvent' PDB collection (supplied to
         # solvate as -spsf/-spdb/-ws/-ks)
         solvent = self.specs.get('solvent', 'TIP3')
-        box_args = self._solvent_box_args(solvent)
+        box_entry = self._solvent_box_entry(solvent)
+        box_args = self._solvent_box_args(box_entry, solvent)
 
+        # For a non-water solvent, solvate tiles the box by building `segment {residue <solvent>}`
+        # replicas in its own (isolated) psfgen context, which needs the solvent's topology --
+        # the RESI block *and* the atom-type MASS records it references.  A solvent's stock topfile
+        # (e.g. a model-compound stream) may not carry those masses, so hand solvate a small
+        # self-contained topology we generate for just this solvent (-stop).
+        if box_entry is not None:
+            stop = self._write_solvent_topology(solvent, f'{self.basename}-{solvent}.rtf')
+            box_args += f' -stop {stop}'
+
+        # Ionization.  For water, VMD autoionize replaces water molecules with ions.  For a
+        # non-water solvent, autoionize cannot work (it needs water to make room), so we ionize
+        # only when the user explicitly asked -- by replacing solvent molecules with ions
+        # (PestiferIonize).  With no ions requested for a non-water solvent, the system keeps
+        # its net charge (NAMD neutralizes with a uniform background under PME).
+        sc = self.specs.get('salt_con', None)
+        cation = self.specs.get('cation', None) or 'SOD'
+        anion = self.specs.get('anion', None) or 'CLA'
+        wants_ions, is_water, neutralize = self._ionization_plan(solvent)
+        replace_ionize = wants_ions and not is_water
+
+        ion_counts, ion_topfile = {}, None
+        if replace_ionize:
+            CC = self.resource_manager.charmmff_content
+            net_charge = sum(a.charge for a in PSFContents(state.psf.name).atoms)
+            box_volume = float(abs(np.prod(basisvec)))
+            ion_counts = self._ion_counts(net_charge, box_volume, cation, anion, sc, neutralize)
+            if ion_counts:
+                topbn = (CC.get_topfile_of_resname(anion) or CC.get_topfile_of_resname(cation)
+                         or 'toppar_water_ions.str')
+                ion_topfile = CC.copy_charmmfile_local(topbn)
+
+        packages = ['PestiferIonize'] if (replace_ionize and ion_counts) else []
         vt: VMDScripter = self.scripters['vmd']
-        vt.newscript(self.basename)
+        vt.newscript(self.basename, packages=packages)
         vt.addline( 'package require solvate')
         vt.addline( 'package require autoionize')
         vt.addline( 'psfcontext mixedcase')
@@ -149,29 +248,29 @@ class SolvateTask(VMDTask):
         vt.addline(f'mol addfile {state.pdb.name} waitfor all')
         vt.addline(f'solvate {state.psf.name} {state.pdb.name} -minmax {box_tcl}{box_args} -o {self.basename}_solv')
 
-        # Ionization: VMD autoionize adds ions by carving space out of *water*, so it only
-        # works for water solvation.  For a non-water solvent, run it only if the user
-        # explicitly asked for ions (and warn it may not find room); otherwise skip it and
-        # keep the system's net charge (NAMD neutralizes with a uniform background under PME).
-        sc = self.specs.get('salt_con', None)
-        cation = self.specs.get('cation', None)
-        anion = self.specs.get('anion', None)
-        do_ionize, is_water, ions_requested = self._ionization_plan(solvent)
-        if not is_water and ions_requested:
-            logger.warning(f'ions requested with non-water solvent {solvent!r}: VMD autoionize '
-                           'places ions by replacing water and may fail to find room in a '
-                           'non-aqueous box')
-
-        if do_ionize:
-            ai_args = ['-neutralize' if sc is None else f'-sc {sc}']
-            if cation is not None:
-                ai_args.append(f'-cation {cation}')
-            if anion is not None:
-                ai_args.append(f'-anion {anion}')
+        if is_water and wants_ions:
+            # water: VMD autoionize (-sc also neutralizes; else -neutralize)
+            ai_args = [f'-sc {sc}'] if sc is not None else ['-neutralize']
+            if self.specs.get('cation'):
+                ai_args.append(f"-cation {self.specs['cation']}")
+            if self.specs.get('anion'):
+                ai_args.append(f"-anion {self.specs['anion']}")
             vt.addline(f'autoionize -psf {self.basename}_solv.psf -pdb {self.basename}_solv.pdb {" ".join(ai_args)} -o {self.basename}')
+        elif replace_ionize and ion_counts:
+            # non-water: replace solvent molecules with ions (autoionize can't ionize a
+            # non-aqueous box; see PestiferIonize)
+            ks = box_entry.get_key_atom()
+            ionlist = ' '.join(f'{rn} {cnt}' for rn, cnt in ion_counts.items())
+            logger.info(f'ionizing {solvent} box by solvent replacement: {ion_counts}')
+            vt.addline(f'PestiferIonize::ionize_by_replacement {self.basename}_solv.psf '
+                       f'{self.basename}_solv.pdb -o {self.basename} -solvent {solvent} '
+                       f'-keyatom {ks} -ions {{{ionlist}}} -topology {ion_topfile}')
         else:
-            logger.info(f'solvent {solvent!r} is not water and no ions were requested; skipping '
-                        'autoionize (the system keeps its net charge)')
+            if not wants_ions:
+                logger.info('ionization disabled (neutralize=false, no salt); the system keeps '
+                            'its net charge')
+            else:
+                logger.info(f'{solvent} system is already net-neutral; no ions needed')
             # promote the solvate output to the task basename so downstream naming is uniform
             vt.addline(f'file copy -force {self.basename}_solv.psf {self.basename}.psf')
             vt.addline(f'file copy -force {self.basename}_solv.pdb {self.basename}.pdb')
@@ -187,11 +286,11 @@ class SolvateTask(VMDTask):
         # expected outputs were actually produced before continuing
         for ext in ('psf', 'pdb'):
             if not os.path.isfile(f'{self.basename}.{ext}'):
-                if do_ionize and not is_water:
-                    hint = (f'autoionize could not place ions in the non-water solvent box '
-                            f'(no water to make room); build without ions, or use a water solvent')
-                elif do_ionize:
+                if is_water and wants_ions:
                     hint = 'autoionize failed to place ions; check the VMD log'
+                elif replace_ionize:
+                    hint = ('solvent-replacement ionization failed to place all ions; lower the '
+                            'ion count/concentration or use a larger box')
                 else:
                     hint = 'solvate produced no output; check the VMD log'
                 raise PestiferError(

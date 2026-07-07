@@ -104,38 +104,33 @@ def _segid(i: int) -> str:
     return s
 
 
+# VMD's solvate plugin hardwires the segid ``QQQ`` for the solvent box it tiles (it selects
+# ``segid QQQ`` and calls ``delatom QQQ``); a box built with any other segid does not tile --
+# solvate places a single copy and adds nothing.  So the box must use exactly this segid.
+SOLVATE_SEGID = 'QQQ'
+
+
 def write_box_pdb(placed: np.ndarray, template_lines: list, output_pdb: str,
-                  max_res_per_seg: int = 9999) -> list:
+                  segid: str = SOLVATE_SEGID) -> list:
     """
     Write an ``nmol``-molecule box PDB by rewriting one molecule's ATOM lines
     (``template_lines``, ``natom`` fixed-format PDB records) once per placed copy.
 
-    The molecules are grouped into segments of at most ``max_res_per_seg`` residues (so a
-    solvent box is a handful of segments of many residues each, like water in a membrane
-    build -- not one segment per molecule, which would exhaust chain IDs).  Each molecule
-    becomes one residue (``resSeq`` 1..k within its segment) with a shared ``segID``
-    (``W0``, ``W1``, ...).  ``placed`` is the ``(nmol, natom, 3)`` array from
-    :func:`pack_cubic`.  Returns a list of ``(segid, nresidues)`` for the segments written,
-    in order.
+    Every molecule becomes one residue (``resSeq`` 1..nmol) in a **single segment** named
+    ``segid`` -- which must be VMD solvate's expected ``QQQ`` for the box to tile.  ``placed``
+    is the ``(nmol, natom, 3)`` array from :func:`pack_cubic`.  Returns ``[(segid, nmol)]``.
     """
     nmol, natom, _ = placed.shape
     if len(template_lines) != natom:
         raise ValueError(f'template has {len(template_lines)} atom lines but placed has {natom} atoms')
+    if nmol > 9999:
+        raise ValueError(f'{nmol} molecules exceeds the single-segment PDB resid limit (9999); '
+                         'a solvent box should be small (VMD solvate tiles it)')
     tmpl = [ln.rstrip('\n').ljust(80) for ln in template_lines]
-    segments = []   # (segid, nres)
     serial = 0
-    _chain_pool = ([chr(c) for c in range(ord('A'), ord('Z') + 1)]
-                   + [chr(c) for c in range(ord('a'), ord('z') + 1)]
-                   + [chr(c) for c in range(ord('0'), ord('9') + 1)])
     with open(output_pdb, 'w') as f:
         for i in range(nmol):
-            seg_index, res_in_seg = divmod(i, max_res_per_seg)
-            sid = f'W{seg_index}'
-            chain = _chain_pool[seg_index % len(_chain_pool)]
-            resid = res_in_seg + 1
-            if resid == 1:
-                segments.append([sid, 0])
-            segments[-1][1] += 1
+            resid = i + 1
             for a in range(natom):
                 serial += 1
                 x, y, z = placed[i, a]
@@ -143,16 +138,16 @@ def write_box_pdb(placed: np.ndarray, template_lines: list, output_pdb: str,
                 rec = (ln[:6]
                        + f'{serial % 100000:5d}'
                        + ln[11:21]
-                       + chain                          # chainID must be in the manager's pool
+                       + 'A'                             # a valid chainID (in the manager's pool)
                        + f'{resid:4d}'
                        + ln[26:30]
                        + f'{x:8.3f}{y:8.3f}{z:8.3f}'
                        + ln[54:72]
-                       + f'{sid:<4s}'
+                       + f'{segid:<4s}'
                        + ln[76:80])
                 f.write(rec.rstrip() + '\n')
         f.write('END\n')
-    return [(sid, n) for sid, n in segments]
+    return [(segid, nmol)]
 
 
 def atom_lines_of(pdb_path: str) -> list:

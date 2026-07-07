@@ -932,6 +932,10 @@ attributes:
           - name: salt_con
             text: salt concentration (M); argument for -sc for autoionize
             type: float
+          - name: neutralize
+            text: "add counter-ions to cancel the system's net charge so the built system is neutral. Enabled by default. For water this is autoionize's usual neutralization; for a non-water solvent it replaces solvent molecules with ions. Set false to keep the system's net charge (NAMD neutralizes with a uniform background under PME)"
+            type: bool
+            default: True
           - name: cation
             text: name of cation
             type: string

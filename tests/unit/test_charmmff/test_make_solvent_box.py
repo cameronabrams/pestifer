@@ -68,22 +68,21 @@ class TestSolventBoxGeometry(unittest.TestCase):
         placed = pack_cubic(mol, 8, box_edge_for_density(8, 32.0, 0.79), seed=0)
         d = tempfile.mkdtemp()
         out = os.path.join(d, 'box.pdb')
-        # 8 molecules grouped into one segment of 8 residues (like water in a membrane build)
+        # 8 molecules become one segment 'QQQ' of 8 residues -- VMD solvate's custom-box path
+        # hardwires that segid, so a box with any other segid fails to tile
         segments = write_box_pdb(placed, template, out)
-        self.assertEqual(segments, [('W0', 8)])
+        self.assertEqual(segments, [('QQQ', 8)])
         lines = atom_lines_of(out)
         self.assertEqual(len(lines), 16)                       # 8 molecules x 2 atoms
-        self.assertEqual(lines[0][72:76].strip(), 'W0')        # segid written in the right column
+        self.assertEqual(lines[0][72:76].strip(), 'QQQ')       # segid written in the right column
         self.assertEqual(lines[0][21], 'A')                    # chainID stamped (in manager's pool)
         self.assertEqual(lines[0][22:26].strip(), '1')         # molecule 1 -> resid 1
         self.assertEqual(lines[2][22:26].strip(), '2')         # molecule 2 -> resid 2
         # coordinates round-trip back to the placed positions
         self.assertTrue(np.allclose(coords_of(lines[:2]), placed[0], atol=1e-3))
-        # a box larger than max_res_per_seg splits into multiple segments
-        many = pack_cubic(mol, 5, box_edge_for_density(5, 32.0, 0.79), seed=0)
-        out2 = os.path.join(d, 'box2.pdb')
-        segs2 = write_box_pdb(many, template, out2, max_res_per_seg=2)
-        self.assertEqual(segs2, [('W0', 2), ('W1', 2), ('W2', 1)])
+        # more than 9999 molecules cannot fit one segment's PDB resid field
+        with self.assertRaises(ValueError):
+            write_box_pdb(np.zeros((10001, 2, 3)), template, os.path.join(d, 'big.pdb'))
 
 
 class TestGraphToMolecule(unittest.TestCase):

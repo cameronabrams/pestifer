@@ -48,3 +48,22 @@ Pestifer ships pre-equilibrated boxes for **methanol (**\ ``MEOH``\ **), ethanol
 
    Building a solvent box needs a 3-D copy of the solvent molecule.  Water and ions have PDB-repository entries and most residues carry an internal-coordinate table; for small-molecule CGenFF solvents that have neither (e.g. ``MEOH``, ``ETOH``, ``DMSO``), pestifer falls back to **Open Babel** (``obabel --gen3d``) to generate coordinates from the RESI's atom+bond graph.  This requires ``obabel`` on the ``PATH``.  See :ref:`sub_make_pdb_collection`.
 
+Ions and neutralization
++++++++++++++++++++++++
+
+By default (``neutralize: true``) the built system is made **net-neutral** with counter-ions, and ``salt_con`` can add extra salt.  How the ions are placed depends on the solvent:
+
+- **Water** — VMD's ``autoionize`` replaces water molecules with ions (as usual).
+- **Non-water** — ``autoionize`` cannot ionize a non-aqueous box (it needs water to make room), so pestifer ionizes by **replacing solvent molecules with ions**, a solvent-agnostic analogue of autoionize.
+
+.. code-block:: yaml
+
+   - solvate:
+       solvent: DMSO
+       # neutralize: true        # default; counter-ions cancel the solute's net charge
+       # salt_con: 0.15          # (optional) also add this concentration of cation/anion pairs
+       # cation: SOD             # defaults: cation SOD, anion CLA
+       # anion: CLA
+
+For the non-water path, ions are placed at the positions of solvent molecules chosen far from the solute and from one another (default 5 Å), which are deleted to make room, then an ``ION`` segment is built.  Ion valences are honored (e.g. a divalent ``CAL`` needs half as many to neutralize).  Set ``neutralize: false`` (and no ``salt_con``) to keep the system's net charge instead — NAMD then neutralizes it with a uniform background under PME.
+
