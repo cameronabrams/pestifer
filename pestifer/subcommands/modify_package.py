@@ -38,6 +38,17 @@ def _add_residue(RM, args, out=print):
     out('  resource cache cleared; it will rebuild on the next run.')
     return result['touched_paths'], result
 
+
+def _add_pdb_entry(RM, args, out=print):
+    """Install a make-pdb-collection entry into the PDB repository; return touched paths."""
+    result = RM.add_pdb_entry(args.add_pdb_entry, collection=args.collection, force=args.force)
+    verb = 'created collection' if result['created_collection'] else 'added to collection'
+    out(f"Installed PDB-repo entry for {result['resname']} ({result['nconformers']} conformer"
+        f"{'s' if result['nconformers'] != 1 else ''}): {verb} '{result['collection']}'")
+    out(f"  tarball: {result['tarball']}")
+    out('  resource cache cleared; it will rebuild on the next run.')
+    return result['touched_paths'], result
+
 @dataclass
 class ModifyPackageSubcommand(Subcommand):
     name: str = 'modify-package'
@@ -72,6 +83,10 @@ class ModifyPackageSubcommand(Subcommand):
 
         if getattr(args, 'add_residue', None):
             paths, commit_summary = _add_residue(RM, args)
+            touched += paths
+
+        if getattr(args, 'add_pdb_entry', None):
+            paths, commit_summary = _add_pdb_entry(RM, args)
             touched += paths
 
         match args.example_action:
@@ -138,10 +153,13 @@ class ModifyPackageSubcommand(Subcommand):
         if contribute:
             if not touched:
                 raise RuntimeError('--branch was given but no package files were modified; nothing to commit')
-            if commit_summary is not None:
+            if commit_summary is not None and 'resnames' in commit_summary:
                 names = ', '.join(commit_summary['resnames'])
                 message = (f"contrib(residue): add {names} to built-in custom "
                            f"[segtype: {commit_summary['segtype']}]")
+            elif commit_summary is not None and 'collection' in commit_summary:
+                message = (f"contrib(pdb-repo): add {commit_summary['resname']} coordinates "
+                           f"to the {commit_summary['collection']} collection")
             else:
                 message = 'contrib: modify-package change'
             gitutil.create_and_checkout_branch(repo_root, args.branch)
@@ -158,7 +176,9 @@ class ModifyPackageSubcommand(Subcommand):
         super().add_subparser(subparsers)
         self.parser.add_argument('--add-residue', type=str, default=None, metavar='FILE', help='install FILE (a .str/.rtf/.top file with at least one RESI block) as a pestifer built-in custom residue, copying it into the force field custom/ directory and registering its segtype')
         self.parser.add_argument('--segtype', type=str, default='ligand', help="segtype to classify the added residue's RESI name(s) under (default: ligand)")
-        self.parser.add_argument('--force', action='store_true', help='with --add-residue: overwrite an existing custom file and permit residue-name collisions with the force field')
+        self.parser.add_argument('--add-pdb-entry', type=str, default=None, metavar='DIR', help='install a make-pdb-collection entry directory (named after the residue, containing info.yaml + conformer PDBs) into the built-in PDB repository so make_membrane_system can place the residue')
+        self.parser.add_argument('--collection', type=str, default=None, metavar='NAME', help='with --add-pdb-entry: the collection/stream tarball to install into (default: the residue segtype; created if absent)')
+        self.parser.add_argument('--force', action='store_true', help='overwrite existing content: with --add-residue, an existing custom file / force-field name collision; with --add-pdb-entry, an entry already present for this resname in the collection')
         self.parser.add_argument('--branch', type=str, default=None, metavar='NAME', help='make the change on a new git branch NAME (created off the current HEAD) and commit exactly the files it touches; requires a clean working tree')
         self.parser.add_argument('--update-atomselect-macros', action='store_true', help='update the resources/tcl/macros.tcl file based on content in core/labels.py; developer use only')
         self.parser.add_argument('--regenerate-segtypes', action='store_true', help='regenerate resources/labels/derived_segtypes.json (the force-field-derived residue->segtype classification) from the installed CHARMM force field(s); developer use only')

@@ -375,6 +375,100 @@ class ResourceManager:
             'touched_paths': touched,
         }
 
+    def add_pdb_entry(self, entry_dir, collection: str = None, force: bool = False) -> dict:
+        """
+        Install a PDB-repository entry -- a residue's sampled coordinate set produced by
+        ``make-pdb-collection`` -- into the built-in PDB repository, so that
+        ``make_membrane_system`` can place the residue.
+
+        A PDB repository is a set of *collections*, each a ``<stream>.tgz`` tarball whose
+        single top-level directory is the stream name and which holds one ``<RESI>/``
+        subdirectory per residue (its ``info.yaml`` plus conformer PDBs).  This method
+        adds (or, with ``force``, replaces) the ``<RESI>/`` entry inside the target
+        collection tarball, creating the tarball if it does not exist yet.
+
+        Parameters
+        ----------
+        entry_dir : str or Path
+            A directory named after the residue (its basename is the resname), containing
+            ``info.yaml`` and the conformer PDBs it references -- the output of
+            ``pestifer make-pdb-collection --resname <RESI> --output-dir <dir>`` (the
+            ``<dir>/<RESI>`` subdirectory).
+        collection : str, optional
+            Collection/stream to install into; the entry lands in
+            ``pdbrepository/<collection>.tgz`` under ``<collection>/<RESI>/``.  Defaults to
+            the residue's segtype (``ion``/``water`` map to ``water_ions``).
+        force : bool, optional
+            Overwrite an entry already present for this resname in the collection.
+
+        Returns
+        -------
+        dict
+            Summary with keys ``resname``, ``collection``, ``tarball``, ``nconformers``,
+            ``created_collection``, and ``touched_paths``.
+        """
+        import tarfile
+        import tempfile
+        import yaml
+
+        entry = Path(entry_dir).expanduser().resolve()
+        if not entry.is_dir():
+            raise PestiferError(f'{entry}: not a directory (expected a make-pdb-collection entry dir named after the residue)')
+        resname = entry.name
+        info_path = entry / 'info.yaml'
+        if not info_path.is_file():
+            raise PestiferError(f'{entry}: no info.yaml; is this a make-pdb-collection entry directory?')
+        with open(info_path) as f:
+            info = yaml.safe_load(f) or {}
+        conformers = info.get('conformers', [])
+        if not conformers:
+            raise PestiferError(f'{info_path}: no conformers listed')
+        for c in conformers:
+            if not (entry / c['pdb']).is_file():
+                raise PestiferError(f'{info_path} references conformer {c["pdb"]!r}, but {entry / c["pdb"]} is missing')
+
+        if not collection:
+            seg = self.labels.segtype_of_resname.get(resname) or self.labels.segtype_of_resname.get(resname.upper())
+            collection = {'ion': 'water_ions', 'water': 'water_ions'}.get(seg, seg)
+            if not collection:
+                raise PestiferError(f'cannot infer a collection for {resname} (its segtype is unknown); pass collection= explicitly')
+
+        pdbrepo_dir = Path(self.charmmff_content.charmmff_path) / 'pdbrepository'
+        pdbrepo_dir.mkdir(parents=True, exist_ok=True)
+        tarball = pdbrepo_dir / f'{collection}.tgz'
+        created = not tarball.exists()
+
+        # extract the existing collection (if any) into a staging tree, add/replace the
+        # <resname>/ entry, and re-tar with the single top-level directory <collection>
+        with tempfile.TemporaryDirectory() as td:
+            if tarball.exists():
+                with tarfile.open(tarball, 'r:gz') as tf:
+                    tf.extractall(td, filter='data')
+            staging = Path(td) / collection
+            staging.mkdir(parents=True, exist_ok=True)
+            dest = staging / resname
+            if dest.exists():
+                if not force:
+                    raise PestiferError(f'{resname} already present in collection {collection!r}; use force=True to overwrite')
+                shutil.rmtree(dest)
+            shutil.copytree(entry, dest)
+            with tarfile.open(tarball, 'w:gz') as tf:
+                tf.add(staging, arcname=collection)
+
+        # the cached PDB repository / resname index no longer reflect the new entry
+        from ..util.cacheable_object import CacheableObject
+        CacheableObject.clear_cache()
+        self._resname_index_cache = None
+
+        return {
+            'resname': resname,
+            'collection': collection,
+            'tarball': str(tarball),
+            'nconformers': len(conformers),
+            'created_collection': created,
+            'touched_paths': [str(tarball)],
+        }
+
     def get_tcldir(self):
         """
         Get the path to the TcL scripts and packages directory.

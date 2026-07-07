@@ -106,6 +106,50 @@ class TestResourceManager(unittest.TestCase):
             with self.assertRaises(PestiferError):
                 self.RM.add_custom_residue(src, segtype='ligand')
 
+    def test_add_pdb_entry(self):
+        import tempfile
+        import yaml
+        # synthetic make-pdb-collection entry: a residue dir with info.yaml + one conformer
+        d = tempfile.mkdtemp()
+        entry = os.path.join(d, 'ZZTESTL')
+        os.makedirs(entry)
+        with open(os.path.join(entry, 'ZZTESTL-00.pdb'), 'w') as f:
+            f.write('ATOM      1  C1  ZZL X   1       0.000   0.000   0.000  1.00  0.00      X    C\nEND\n')
+        with open(os.path.join(entry, 'info.yaml'), 'w') as f:
+            yaml.safe_dump({'charge': 0.0, 'defined-in': 'custom',
+                            'conformers': [{'pdb': 'ZZTESTL-00.pdb',
+                                            'head-tail-length': 1.0, 'max-internal-length': 1.0}]}, f)
+        fake_charmmff = os.path.join(d, 'charmmff')
+        os.makedirs(fake_charmmff)
+        # redirect the pdbrepository dir into the temp charmmff path and stub the cache clear
+        with mock.patch.object(self.RM.charmmff_content, 'charmmff_path', fake_charmmff), \
+             mock.patch('pestifer.util.cacheable_object.CacheableObject.clear_cache', return_value=[]):
+            res = self.RM.add_pdb_entry(entry, collection='testcoll')
+            self.assertEqual(res['resname'], 'ZZTESTL')
+            self.assertEqual(res['collection'], 'testcoll')
+            self.assertTrue(res['created_collection'])
+            self.assertEqual(res['nconformers'], 1)
+            self.assertTrue(os.path.exists(res['tarball']))
+            self.assertEqual(res['touched_paths'], [res['tarball']])
+            # the new collection tarball loads and contains the residue
+            from pestifer.charmmff.pdbrepository import PDBCollection
+            c = PDBCollection.build_from_resources(res['tarball'])
+            self.assertEqual(c.streamID, 'testcoll')
+            self.assertIn('ZZTESTL', c.contents)
+            # a second add of the same resname is refused unless forced
+            with self.assertRaises(PestiferError):
+                self.RM.add_pdb_entry(entry, collection='testcoll')
+            res2 = self.RM.add_pdb_entry(entry, collection='testcoll', force=True)
+            self.assertFalse(res2['created_collection'])
+
+    def test_add_pdb_entry_rejects_missing_info(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        entry = os.path.join(d, 'NOINFO')
+        os.makedirs(entry)  # no info.yaml
+        with self.assertRaises(PestiferError):
+            self.RM.add_pdb_entry(entry, collection='testcoll')
+
     def test_add_custom_residue_rejects_pres_only(self):
         d = tempfile.mkdtemp()
         src = os.path.join(d, 'patch.str')

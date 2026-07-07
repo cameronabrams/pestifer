@@ -157,6 +157,28 @@ Because a contribution is meant to become a pull request, the ``--branch`` optio
 
 Pushing the branch and opening the pull request are left to you — inspect the commit with ``git show`` first, then push to your fork and open a PR against ``cameronabrams/pestifer`` for review.
 
+.. _modify add pdb entry:
+
+Contributing PDB-repository coordinates for a residue
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Adding a residue's *topology* (:ref:`above <modify add residue>`) lets pestifer build the residue, but ``make_membrane_system`` also needs sampled *coordinates* to place a lipid on the grid.  Those live in pestifer's built-in **PDB repository**: a set of *collections*, each a ``<stream>.tgz`` tarball whose single top-level directory is the stream name and which holds one ``<RESI>/`` subdirectory per residue (its ``info.yaml`` plus a set of conformer PDBs).
+
+First generate the coordinates with :ref:`make-pdb-collection <sub_make_pdb_collection>`, which samples conformers of the residue and writes the entry directory:
+
+.. code-block:: bash
+
+    $ pestifer make-pdb-collection --resname MYLIP --output-dir mycoords
+    # -> mycoords/MYLIP/{info.yaml, MYLIP-00.pdb, MYLIP-01.pdb, ...}
+
+Then install that entry into the repository with ``--add-pdb-entry``, which validates it (``info.yaml`` parses and every conformer PDB it names is present) and adds it under ``<collection>/MYLIP/`` in the target collection tarball, creating the tarball if the collection does not exist yet:
+
+.. code-block:: bash
+
+    $ pestifer modify-package --add-pdb-entry mycoords/MYLIP --branch add-mylip-coords
+
+By default the collection is the residue's segtype (``lipid`` -> the ``lipid`` collection; ``ion``/``water`` -> ``water_ions``); use ``--collection NAME`` to choose another, and ``--force`` to replace an entry already present for that resname.  As with the other contribution flows, ``--branch`` requires a clean working tree and commits **exactly** the changed collection tarball on a new branch for you to push and open as a pull request.
+
 .. _modify regenerate segtypes:
 
 Regenerating the derived segtype classification
