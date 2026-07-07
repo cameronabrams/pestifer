@@ -166,6 +166,77 @@ def coords_of(atom_lines: list) -> np.ndarray:
     return np.array([[float(ln[30:38]), float(ln[38:46]), float(ln[46:54])] for ln in atom_lines])
 
 
+def _resi_to_molblock(topo) -> str:
+    """
+    Serialize a CHARMM RESI's atom+bond graph to an MDL V2000 molblock with zeroed
+    coordinates, atoms in RESI order.  This is the connectivity-only input Open Babel's
+    ``--gen3d`` expands into 3D coordinates; keeping RESI atom order means the generated
+    coordinates map 1:1 back to the CHARMM atom names with no re-matching.
+    """
+    atoms = topo.atoms
+    bonds = topo.bonds
+    name_to_idx = {a.name: i + 1 for i, a in enumerate(atoms)}
+    lines = [topo.resname, '  pestifer', '']
+    lines.append(f'{len(atoms):3d}{len(bonds):3d}  0  0  0  0  0  0  0  0999 V2000')
+    for a in atoms:
+        lines.append(f'{0.0:10.4f}{0.0:10.4f}{0.0:10.4f} {a.element:<3s} 0  0  0  0  0  0  0  0  0  0  0  0')
+    for b in bonds:
+        lines.append(f'{name_to_idx[b.name1]:3d}{name_to_idx[b.name2]:3d}{int(b.degree):3d}  0  0  0  0')
+    lines.append('M  END')
+    return '\n'.join(lines) + '\n'
+
+
+def single_molecule_from_graph(topo, output_pdb: str) -> str:
+    """
+    Build a single-molecule PDB for ``topo`` (a CHARMM RESI with no usable internal
+    coordinates) by generating 3D coordinates from its atom+bond graph with Open Babel's
+    ``--gen3d``, then writing them out under the RESI's own atom names.  Returns
+    ``output_pdb``.
+
+    The rough ``gen3d`` geometry only has to seed psfgen/``coordpdb``; the box is minimized
+    and NPT-equilibrated afterward, so small imperfections wash out.  Requires ``obabel`` on
+    PATH (already a pestifer dependency via the ligand-parametrization path).
+    """
+    from ..core.command import Command
+
+    resname = topo.resname
+    molblock = _resi_to_molblock(topo)
+    molpath = f'{resname}-seed.mol'
+    xyzpath = f'{resname}-seed.xyz'
+    with open(molpath, 'w') as f:
+        f.write(molblock)
+    c = Command(f'obabel {molpath} -O {xyzpath} --gen3d')
+    rc = c.run(quiet=True)
+    if rc != 0 or not os.path.exists(xyzpath):
+        raise RuntimeError(
+            f'obabel --gen3d failed to build coordinates for {resname} (rc={rc}); '
+            f'{c.stderr or c.stdout}')
+
+    with open(xyzpath) as f:
+        xyz_lines = f.read().splitlines()
+    # xyz: line 0 = atom count, line 1 = comment, then "<element> x y z" in molblock order
+    coords = []
+    for ln in xyz_lines[2:]:
+        parts = ln.split()
+        if len(parts) >= 4:
+            coords.append((float(parts[1]), float(parts[2]), float(parts[3])))
+    if len(coords) != len(topo.atoms):
+        raise RuntimeError(
+            f'obabel returned {len(coords)} atoms for {resname} but the RESI has '
+            f'{len(topo.atoms)}; cannot map coordinates to atom names')
+
+    with open(output_pdb, 'w') as f:
+        for i, (a, (x, y, z)) in enumerate(zip(topo.atoms, coords), start=1):
+            name = a.name
+            # PDB fixed columns: atom name 13-16 (<4-char names start in col 14),
+            # altLoc 17, resName 18-21, chainID 22 (blank), resSeq 23-26
+            namecol = f'{name:<4s}' if len(name) >= 4 else f' {name:<3s}'
+            f.write(f'ATOM  {i:5d} {namecol} {resname:<4s} {1:4d}    '
+                    f'{x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00      A   {a.element:>2s}\n')
+        f.write('END\n')
+    return output_pdb
+
+
 def make_solvent_box(resname, DB, RM=None, nmol: int = 216, density: float = 1.0,
                      temperature: float = 300.0, pressure: float = 1.0,
                      minimize_steps: int = 1000, npt_steps: int = 50000,
@@ -211,23 +282,34 @@ def make_solvent_box(resname, DB, RM=None, nmol: int = 216, density: float = 1.0
     if extension in ('rtf', 'str') and charmm_topfile not in W.charmmff_config['standard'][extension]:
         W.charmmff_config['standard'][extension].append(charmm_topfile)
 
-    # 1. single molecule: use an existing PDB-repository entry's coordinates when available
-    # (e.g. water/ions have no internal coordinates to build from), else build from ICs
+    # 1. single molecule: coordinates come from, in order of preference,
+    #    (a) an existing PDB-repository entry (e.g. water/ions have no ICs to build from),
+    #    (b) the RESI's internal coordinates via psfgen, or
+    #    (c) Open Babel's --gen3d applied to the RESI's atom+bond graph (for residues that
+    #        ship neither a PDB entry nor a usable IC table, e.g. many CGenFF solvents).
     if DB.pdbrepository is None:
         DB.provision_pdbrepository()
-    if resname in DB.pdbrepository:
-        template_pdb = DB.pdbrepository.checkout(resname).get_pdb(conformerID=0)
+
+    def _build_single_from_pdb(pdb_path):
         W.newscript('single', additional_topologies=[charmm_topfile])
         W.addline(f'segment A {{ first NONE; last NONE; residue 1 {resname} }}')
-        W.addline(f'coordpdb {template_pdb} A')
+        W.addline(f'coordpdb {pdb_path} A')
         W.writescript(f'{resname}-single')
         W.runscript()
+
+    if resname in DB.pdbrepository:
+        _build_single_from_pdb(DB.pdbrepository.checkout(resname).get_pdb(conformerID=0))
     else:
         W.newscript('single', additional_topologies=[charmm_topfile])
-        if topo.to_psfgen(W, refic_idx=refic_idx) == -1:
-            raise RuntimeError(f'no valid internal coordinates to build a single {resname} molecule')
-        W.writescript(f'{resname}-single')
-        W.runscript()
+        if topo.to_psfgen(W, refic_idx=refic_idx) != -1:
+            W.writescript(f'{resname}-single')
+            W.runscript()
+        else:
+            # no usable internal coordinates: build a seed molecule from the RESI's
+            # atom+bond graph with obabel --gen3d (fresh script; the failed one is discarded)
+            logger.info(f'{resname} has no usable internal coordinates; '
+                        f'generating a seed molecule with obabel --gen3d')
+            _build_single_from_pdb(single_molecule_from_graph(topo, f'{resname}-seed.pdb'))
 
     # 2. molar mass + geometry, then pack
     psf = PSFContents(f'{resname}-single.psf')

@@ -1,9 +1,8 @@
 # Design: a `solvent` PDB-repository collection & non-water solvation
 
 Status: **in progress** — steps 1–5 done (rename, `kind` schema, VMD-`solvate` spike, the
-`make-pdb-collection solvent` box builder, and the `solvate` task non-water path). Open
-follow-up: a coordinate source (`--from-pdb` seed) for solvents that lack ICs, and optional
-`bilayer_embed.tcl` non-water slabs.
+`make-pdb-collection solvent` box builder incl. the Open Babel coordinate fallback, and the
+`solvate` task non-water path). Open follow-up: optional `bilayer_embed.tcl` non-water slabs.
 
 ## Problem
 
@@ -223,12 +222,17 @@ entry.
    errors for a missing box or a molecule-only entry); 5 unit tests cover the branches, and
    a real VMD run confirmed the emitted argument form tiles a custom box onto a 1108-atom
    protein solute (→ 1756 atoms, 216 waters added) and produces a valid psf/pdb.
-   - **Known limitation surfaced here**: `make-pdb-collection solvent` can only build a box
-     for a solvent whose single molecule has a coordinate source — an existing
-     PDB-repository entry (water/ions) or a **complete IC table** in its CHARMM topology.
-     Small CGenFF solvents (`MEOH`, `ETOH`, `DMSO`, …) ship with **no ICs**, so their single
-     molecule can't be built from topology alone. The natural follow-up is a `--from-pdb`
-     seed option (supply a starting single-molecule PDB) so those solvents become buildable.
+   - **Coordinate-source gap — RESOLVED via Open Babel.** A box needs one 3-D copy of the
+     solvent. Water/ions have PDB-repository entries and most residues have IC tables, but
+     small CGenFF solvents (`MEOH`, `ETOH`, `DMSO`, …) have neither. `make_solvent_box` now
+     falls back to `single_molecule_from_graph()`: it serializes the RESI's atom+bond graph
+     (`topo.atoms` elements + `topo.bonds` orders) to an MDL molblock and runs
+     `obabel --gen3d`, then writes the coordinates back under the RESI atom names (RESI order
+     preserved → exact name mapping, no graph isomorphism needed). Better than the SMILES
+     route considered originally: SMILES would discard the CHARMM atom identity we must keep.
+     The rough gen3d geometry only seeds the build; minimize + NPT relaxes it. Validated end
+     to end: a `MEOH` box (no ICs) built this way (edge ~20.4 Å, ρ ~0.79 g/cc) solvates a
+     protein solute cleanly (125 methanols placed). Requires `obabel` on PATH.
 6. **Docs** + a worked example; extend to `bilayer_embed.tcl` slabs if desired. (The
    `make-pdb-collection solvent` docs are in `docs/source/subs/make-pdb-collection.rst`;
    the `solvate` `solvent` key is documented in `docs/source/subs/buildtasks/solvate.rst`.)

@@ -201,7 +201,7 @@ The default mode of ``make-pdb-collection`` samples *single-molecule* conformers
 
     $ pestifer make-pdb-collection solvent --resname TIP3 --nmol 216 --density 1.0
 
-The pipeline builds one molecule of the residue, packs ``--nmol`` randomly-oriented copies into a cube sized for ``--density``, then **minimize + NPT-equilibrates** the box under periodic boundary conditions so it relaxes to its equilibrium edge and density.  The equilibrated coordinates are shipped as the box (NAMD's ``wrapAll`` leaves every molecule whole and periodic-consistent, so the box tiles seamlessly under ``solvate -ws``).  The result is an installable entry directory ``<output-dir>/<RESN>/`` (default ``solvent/<RESN>/``):
+The pipeline builds one molecule of the residue, packs ``--nmol`` randomly-oriented copies into a cube sized for ``--density``, then **minimize + NPT-equilibrates** the box under periodic boundary conditions so it relaxes to its equilibrium edge and density.  The single molecule's coordinates come from, in order of preference, an existing PDB-repository entry, the residue's internal coordinates, or -- for residues that ship neither (e.g. many small-molecule CGenFF solvents like ``MEOH``) -- Open Babel's ``--gen3d`` applied to the RESI's atom+bond graph (see below).  The equilibrated coordinates are shipped as the box (NAMD's ``wrapAll`` leaves every molecule whole and periodic-consistent, so the box tiles seamlessly under ``solvate -ws``).  The result is an installable entry directory ``<output-dir>/<RESN>/`` (default ``solvent/<RESN>/``):
 
 .. code-block:: text
 
@@ -234,3 +234,8 @@ Install the box into the ``solvent`` collection with the same machinery used for
     $ pestifer modify-package pdb-repo add-entry solvent/TIP3 --collection solvent
 
 Useful options: ``--minimize-steps`` / ``--npt-steps`` control the equilibration length, ``--temperature`` / ``--pressure`` the ensemble, ``--seed`` makes the packing reproducible, and ``--key-atom`` overrides the auto-selected key atom (the residue's first atom).  Because it runs NAMD, this mode is heavier than the single-molecule conformer sampler.
+
+Coordinate source for the single molecule
+++++++++++++++++++++++++++++++++++++++++++
+
+Building the box needs one 3-D copy of the solvent molecule to replicate.  Water and ions have PDB-repository entries; most force-field residues carry a complete internal-coordinate (IC) table psfgen can build from.  Many small-molecule CGenFF solvents (``MEOH``, ``ETOH``, ``DMSO``, …) have **neither** -- their topology defines atoms, elements, and bonds but no coordinates.  For those, pestifer serializes the RESI's atom+bond graph to an MDL molblock and runs **Open Babel's** ``--gen3d`` to generate coordinates, which it then writes out under the RESI's own atom names (the RESI atom order is preserved, so the mapping is exact).  The rough geometry only seeds the build; the subsequent minimize + NPT equilibration relaxes it.  This requires ``obabel`` on the ``PATH`` (already used by pestifer's ligand-parametrization workflow); if it is absent and the residue has no other coordinate source, the build fails with a clear message.

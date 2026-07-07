@@ -46,5 +46,5 @@ You must first **build and install** the solvent box (see :ref:`sub_make_pdb_col
 
 .. note::
 
-   Building a solvent box currently requires a coordinate source for the single molecule -- either an existing PDB-repository entry (as water and ions have) or a complete internal-coordinate (IC) table in the residue's CHARMM topology.  Many small-molecule CGenFF solvents (e.g. ``MEOH``, ``ETOH``, ``DMSO``) ship without an IC table, so a starting single-molecule PDB for them is not yet auto-generated.
+   Building a solvent box needs a 3-D copy of the solvent molecule.  Water and ions have PDB-repository entries and most residues carry an internal-coordinate table; for small-molecule CGenFF solvents that have neither (e.g. ``MEOH``, ``ETOH``, ``DMSO``), pestifer falls back to **Open Babel** (``obabel --gen3d``) to generate coordinates from the RESI's atom+bond graph.  This requires ``obabel`` on the ``PATH``.  See :ref:`sub_make_pdb_collection`.
 
