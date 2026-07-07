@@ -19,9 +19,9 @@ class TestCommand(unittest.TestCase):
 
     def test_run_unregisters_child_when_done(self):
         # a completed command must leave nothing behind in the active-child registry
-        before = set(command_mod._active_child_pgids)
+        before = set(command_mod._active_children)
         Command('echo hi').run(quiet=True)
-        self.assertEqual(set(command_mod._active_child_pgids), before)
+        self.assertEqual(set(command_mod._active_children), before)
 
 
 class TestChildShutdown(unittest.TestCase):
@@ -55,13 +55,27 @@ class TestChildShutdown(unittest.TestCase):
 
     def test_register_unregister(self):
         command_mod._register_child(999999)
-        self.assertIn(999999, command_mod._active_child_pgids)
+        self.assertIn(999999, command_mod._active_children)
         command_mod._unregister_child(999999)
-        self.assertNotIn(999999, command_mod._active_child_pgids)
+        self.assertNotIn(999999, command_mod._active_children)
         # terminate on a dead/absent pid must not raise
         command_mod._register_child(999999)
         command_mod._terminate_children(signal.SIGTERM)
         command_mod._unregister_child(999999)
+
+    def test_non_session_child_signaled_by_pid_not_group(self):
+        # a child left in pestifer's own session (new_session=False, e.g. VMD) must be
+        # signaled by pid, never by killpg -- killpg would target pestifer's own group
+        from unittest import mock
+        command_mod._register_child(424242, new_session=False)
+        try:
+            with mock.patch.object(command_mod.os, 'kill') as m_kill, \
+                 mock.patch.object(command_mod.os, 'killpg') as m_killpg:
+                command_mod._terminate_children(signal.SIGTERM)
+            m_kill.assert_called_once_with(424242, signal.SIGTERM)
+            m_killpg.assert_not_called()
+        finally:
+            command_mod._unregister_child(424242)
 
     def test_install_signal_handlers_is_noop_under_pytest(self):
         # under pytest, install must leave the test runner's own SIGINT handling intact
