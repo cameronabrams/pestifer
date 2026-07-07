@@ -36,7 +36,7 @@ class TestCharmmffContent(unittest.TestCase):
         # logger.debug(f"Collections: {self.C.pdbrepository.collections.keys()}")
         # logger.debug(f"Info in lipid collection: {self.C.pdbrepository.collections['lipid'].info.keys()}")
         self.assertEqual(len(self.C.pdbrepository.collections['lipid'].info), 152)
-        self.assertEqual(len(self.C.pdbrepository.collections['water_ions'].info), 12)
+        self.assertEqual(len(self.C.pdbrepository.collections['solvent'].info), 12)
 
     def test_charmmffcontent_restricted_provisioning(self):
         self.C.deprovision()
@@ -96,7 +96,7 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertTrue(self.C.pdbrepository.collections!=None)
         self.assertTrue(len(self.C.pdbrepository.collections)>0)
         self.assertTrue('lipid' in self.C.pdbrepository.collections)
-        self.assertTrue('water_ions' in self.C.pdbrepository.collections)
+        self.assertTrue('solvent' in self.C.pdbrepository.collections)
         self.assertTrue('TIP3' in self.C.pdbrepository)
         self.assertTrue('PSM' in self.C.pdbrepository)
 

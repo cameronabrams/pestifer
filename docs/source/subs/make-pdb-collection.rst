@@ -15,7 +15,7 @@ You can see what RESIs are included in pestifer using the ``show-resources`` sub
     $ pestifer show-resources pdb-repo
     ---------------------------------------------------------------------------
     PDB Collections:
-    PDBCollection(registered_at=2, streamID=water_ions, path=water_ions.tgz, contains 12 resnames)
+    PDBCollection(registered_at=2, streamID=solvent, path=solvent.tgz, contains 12 resnames)
     BAR,    CAL,    CD2,    CES,    CLA,    LIT,     MG, 
     POT,    RUB,    SOD,   TIP3,    ZN2
     PDBCollection(registered_at=1, streamID=lipid, path=lipid.tgz, contains 130 resnames)

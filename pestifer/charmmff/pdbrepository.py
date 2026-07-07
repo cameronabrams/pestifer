@@ -359,7 +359,7 @@ class PDBCollectionDict(UserDict[str, PDBCollection]):
 
 class PDBRepository(CacheableObject):
     """
-    A ``PDBRepository`` is a set of _collections_, each of which respresents a CHARMMFF _stream_.  The base ``PDBRepository`` is the one that comes with pestifer, and it is located in ``PESTIFER/resources/charmmff/pdbrepository/``. The base ``PDBRepository`` contains a ``lipid`` collection and a ``water_ions`` collection (as of v 1.13.1).  A user may register additional collections by specifying them in the yaml config file. 
+    A ``PDBRepository`` is a set of _collections_, each of which respresents a CHARMMFF _stream_.  The base ``PDBRepository`` is the one that comes with pestifer, and it is located in ``PESTIFER/resources/charmmff/pdbrepository/``. The base ``PDBRepository`` contains a ``lipid`` collection and a ``solvent`` collection (water + ions, formerly ``water_ions``).  A user may register additional collections by specifying them in the yaml config file. 
     """
     
     @countTime

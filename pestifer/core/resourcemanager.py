@@ -397,7 +397,7 @@ class ResourceManager:
         collection : str, optional
             Collection/stream to install into; the entry lands in
             ``pdbrepository/<collection>.tgz`` under ``<collection>/<RESI>/``.  Defaults to
-            the residue's segtype (``ion``/``water`` map to ``water_ions``).
+            the residue's segtype (``ion``/``water`` map to ``solvent``).
         force : bool, optional
             Overwrite an entry already present for this resname in the collection.
 
@@ -429,7 +429,7 @@ class ResourceManager:
 
         if not collection:
             seg = self.labels.segtype_of_resname.get(resname) or self.labels.segtype_of_resname.get(resname.upper())
-            collection = {'ion': 'water_ions', 'water': 'water_ions'}.get(seg, seg)
+            collection = {'ion': 'solvent', 'water': 'solvent'}.get(seg, seg)
             if not collection:
                 raise PestiferError(f'cannot infer a collection for {resname} (its segtype is unknown); pass collection= explicitly')
 
