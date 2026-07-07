@@ -36,10 +36,10 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
 
 ## Ring-piercing
 
-- [ ] **Lower the `ring_check.cutoff` schema default** (currently 10.0 Å) toward the
-      `PSFRing.pierced_by` gate (3.5 Å) — the guard already uses 4.0 explicitly. A smaller
-      default cuts duplicate reports and ~10× cost on large membranes. Confirm the ex16/ex17
-      results are unchanged before flipping it.
+- [x] **Lower the `ring_check.cutoff` schema default** (10.0 → 4.0 Å) toward the
+      `PSFRing.pierced_by` gate (3.5 Å). Verified result-identical at 3.5/4.0/10.0 on the
+      known-piercing fixtures and the ex17 embedded membrane; ~3–7× faster whole-system scan.
+      Cutoff-invariance regression test added. (v3.1.0+, `[Unreleased]`.)
 - [ ] **Detect ring-piercings at glycan graft time.** Fold a winding-number piercing test
       (reuse `RingChecker` in `psfutil/psfring.py`) into the graft-time declashing
       (`PsfgenTask.declash` / `declash.tcl`), so a threaded glycan is rotated out before the

@@ -165,14 +165,18 @@ class RingChecker:
     psf : str
         Path to the PSF file.
     cutoff : float
-        Cutoff distance in Angstroms for identifying piercing bonds.
+        Candidate search radius in Angstroms (bond midpoint to ring COM).  Any value at or
+        above :meth:`PSFRing.pierced_by`'s 3.5 Å gate yields identical piercings; the default
+        (4.0) sits just above it to prune candidates and keep the scan fast on big membranes.
     segtypes : list
         Segment types whose rings are checked.
     max_ring_size : int
         Only rings of at most this many atoms are considered.
     """
 
-    def __init__(self, psf, cutoff=10.0, segtypes=['lipid'], max_ring_size=7):
+    def __init__(self, psf, cutoff=4.0, segtypes=['lipid'], max_ring_size=7):
+        # cutoff is the candidate search radius; any value >= pierced_by's 3.5 A gate gives
+        # identical results, so it stays just above the gate to keep the scan fast
         self.cutoff = cutoff
         self.topol = PSFContents(psf, parse_topology=['bonds'], topology_segtypes=segtypes)
         self.segname_to_segtype = {a.segname: a.segtype for a in self.topol.atoms}
@@ -412,7 +416,7 @@ class RingChecker:
 
 
 @countTime
-def ring_check(psf, pdb, xsc=None, cutoff=10.0, segtypes=['lipid'], max_ring_size=7, only_piercees=None):
+def ring_check(psf, pdb, xsc=None, cutoff=4.0, segtypes=['lipid'], max_ring_size=7, only_piercees=None):
     """Convenience wrapper: build a :class:`RingChecker` and check one coordinate frame.
 
     For repeated checks of the *same* topology (e.g. trial side-chain rotamers), build one

@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- performance: the ``ring_check`` task's ``cutoff`` default is lowered from 10.0 Å to 4.0 Å (and likewise the ``RingChecker``/``ring_check`` library defaults). ``cutoff`` is only the candidate search radius -- each candidate is then gated by ``PSFRing.pierced_by``'s fixed 3.5 Å test -- so any value at or above 3.5 Å yields **identical** piercings while a smaller radius prunes far more candidate bond/ring pairs. On a ~200k-atom membrane the whole-system scan drops from ~38 s to ~13 s (and ~62 s to ~8 s on a periodic lipid patch). Verified result-identical at 3.5/4.0/10.0 on the known-piercing fixtures (1 and 2 piercings) and on the ex17 embedded membrane; a cutoff-invariance regression test is added
+
 ## [3.1.0] - 2026-07-07
 
 - enhancement: ``modify-package pdb-repo add-entry`` now installs a whole **directory of entries** in one command, not just a single residue. ``make-pdb-collection --streamID <stream>`` writes a container directory with one ``<RESI>/`` subdirectory per residue; previously each had to be installed separately. Point ``add-entry`` at that container and it validates every entry up front, groups them by target collection (each residue's segtype default, or all into ``--collection NAME``), and repacks each affected tarball once. A single ``<RESI>/`` directory still works exactly as before -- the argument auto-detects which it is by the presence of ``info.yaml``. New ``ResourceManager.add_pdb_collection`` backs it (``add_pdb_entry`` remains the single-entry API); with ``--branch`` the commit message summarizes the batch

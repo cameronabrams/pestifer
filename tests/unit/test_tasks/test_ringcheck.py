@@ -49,6 +49,20 @@ class TestRingCheck(unittest.TestCase):
         self.assertEqual(p['piercer']['segname'],'S2')
         self.assertEqual(p['piercer']['segtype'],'lipid')
 
+    def test_cutoff_invariance(self):
+        # the search cutoff only prunes candidates before the 3.5 A pierced_by gate, so any
+        # cutoff >= 3.5 must find exactly the same piercings; the schema default is 4.0
+        dir='1'
+        pdb=os.path.join(dir,'S2.pdb')
+        psf=os.path.join(dir,'S2.psf')
+        xsc=os.path.join(dir,'test.xsc')
+        base=ring_check(psf,pdb,xsc,cutoff=3.5)
+        self.assertEqual(len(base),1)
+        key=lambda r:sorted(repr(p) for p in r)
+        for cut in (4.0,10.0):
+            self.assertEqual(key(ring_check(psf,pdb,xsc,cutoff=cut)),key(base),
+                             f'cutoff={cut} changed the detected piercings')
+
     @pytest.mark.slow
     def test_ring_check_coords_2(self):
         dir='2'

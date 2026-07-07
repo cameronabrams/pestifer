@@ -983,9 +983,9 @@ attributes:
             default: piercee
             options: ['piercee','piercer','both','none']
           - name: cutoff
-            text: distance cutoff between bond and ring COM's for checking, Angstroms
+            text: "candidate search radius (Å) between a bond midpoint and a ring COM; only candidates within this distance are tested for piercing. Any value >= the piercing gate (3.5 Å, in PSFRing.pierced_by) gives identical results, so the default is kept just above it to prune candidates and keep the whole-system scan fast on large membranes"
             type: float
-            default: 10.0
+            default: 4.0
           - name: segtypes
             text: "list of segment types whose rings are checked for piercing -- there is no default, so specify it explicitly (e.g. [lipid, glycan, protein]); an empty list checks nothing. The action on a detected piercing depends on the pierced ring's segtype: a pierced LIPID ring is resolved by deleting the offending segment (see delete); a pierced GLYCAN ring is fatal (a glycan cannot be deleted without breaking the glycan tree -- rebuild, e.g. with a different seed or more minimization); a pierced PROTEIN side-chain ring (His/Phe/Tyr/Trp/Pro) is resolved by rotating the side chain (chi2, then chi1) until it clears"
             type: list
