@@ -921,6 +921,10 @@ attributes:
         text: Parameters controlling solvation and ionization
         type: dict
         attributes:
+          - name: solvent
+            text: solvent species (RESI name); TIP3/water uses VMD's built-in pre-equilibrated water box, any other name is looked up as a kind:box entry in the 'solvent' PDB collection and tiled via solvate -spsf/-spdb/-ws/-ks
+            type: str
+            default: TIP3
           - name: pad
             text: padding value for determining the overall simulation box size (in Angstroms)
             type: float

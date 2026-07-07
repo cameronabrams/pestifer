@@ -11,14 +11,19 @@ The resulting solvated structure is saved with the specified basename, and the s
 
 Usage is described in the :ref:`subs_buildtasks_solvate` documentation.
 """
+import logging
+
 import numpy as np
 
 from pidibble.pdbparse import PDBParser
 
 from .basetask import VMDTask
 from ..core.artifacts import *
+from ..core.errors import PestiferError
 from ..util.util import cell_from_xsc, cell_to_xsc
 from ..scripters import VMDScripter
+
+logger = logging.getLogger(__name__)
 
 class SolvateTask(VMDTask):
     """
@@ -35,6 +40,42 @@ class SolvateTask(VMDTask):
         from .pipeline_contract import TaskContract, STATE, SOLVATED
         # adds bulk solvent; warns if the system is already solvated
         return TaskContract(requires=(STATE,), provides=(STATE, SOLVATED), warn_if_present=(SOLVATED,))
+
+    # solvent names that mean "use VMD's built-in pre-equilibrated water box" (no custom box)
+    _WATER_SOLVENTS = {'TIP3', 'TIP3P', 'WATER', 'WAT'}
+
+    def _solvent_box_args(self, solvent: str) -> str:
+        """
+        Return the trailing ``solvate`` arguments that select the solvent box, or ``''`` for
+        water (VMD's built-in box).  For a non-water solvent, look up a ``kind: box`` entry
+        in the ``solvent`` PDB collection, check out its psf/pdb, and build the
+        ``-spsf/-spdb/-ws/-ks`` arguments that make ``solvate`` tile that box instead.
+        """
+        if solvent is None or solvent.upper() in self._WATER_SOLVENTS:
+            return ''
+        CC = self.resource_manager.charmmff_content
+        if CC.pdbrepository is None:
+            CC.provision_pdbrepository()
+        repo = CC.pdbrepository
+        if solvent not in repo:
+            raise PestiferError(
+                f"solvent '{solvent}' is not in the PDB repository; build a box for it with "
+                f"'pestifer make-pdb-collection solvent --resname {solvent}' and install it into "
+                f"the solvent collection")
+        entry = repo.checkout(solvent)
+        if not entry.is_box():
+            raise PestiferError(
+                f"solvent '{solvent}' is a single-molecule PDB entry, not a pre-equilibrated box; "
+                f"solvate needs a kind:box entry (build one with 'make-pdb-collection solvent')")
+        spsf = entry.get_box_psf()
+        spdb = entry.get_box_pdb()
+        ws = entry.get_box_edge()
+        ks = entry.get_key_atom()
+        logger.info(f"solvating with pre-equilibrated {solvent} box (edge {ws} A, key atom {ks})")
+        args = f' -spsf {spsf} -spdb {spdb} -ws {ws}'
+        if ks:
+            args += f' -ks "name {ks}"'
+        return args
 
     def do(self):
         """
@@ -79,6 +120,13 @@ class SolvateTask(VMDTask):
         ll_tcl = r'{ ' + ' '.join([str(_) for _ in LL.tolist()]) + r' }'
         ur_tcl = r'{ ' + ' '.join([str(_) for _ in UR.tolist()]) + r' }'
         box_tcl = r'{ ' + ll_tcl + ' ' + ur_tcl + r' }'
+
+        # solvent species: TIP3/water -> VMD's built-in water box; anything else -> a
+        # pre-equilibrated kind:box entry from the 'solvent' PDB collection (supplied to
+        # solvate as -spsf/-spdb/-ws/-ks)
+        solvent = self.specs.get('solvent', 'TIP3')
+        box_args = self._solvent_box_args(solvent)
+
         vt: VMDScripter = self.scripters['vmd']
         vt.newscript(self.basename)
         vt.addline( 'package require solvate')
@@ -86,7 +134,7 @@ class SolvateTask(VMDTask):
         vt.addline( 'psfcontext mixedcase')
         vt.addline(f'mol new {state.psf.name}')
         vt.addline(f'mol addfile {state.pdb.name} waitfor all')
-        vt.addline(f'solvate {state.psf.name} {state.pdb.name} -minmax {box_tcl} -o {self.basename}_solv')
+        vt.addline(f'solvate {state.psf.name} {state.pdb.name} -minmax {box_tcl}{box_args} -o {self.basename}_solv')
         ai_args=[]
         sc=self.specs.get('salt_con',None)
         if sc is None:

@@ -1,8 +1,9 @@
 # Design: a `solvent` PDB-repository collection & non-water solvation
 
-Status: **in progress** — steps 1–4 done (rename, `kind` schema, VMD-`solvate` spike,
-and the `make-pdb-collection solvent` box builder); step 5 (`solvate` task non-water path)
-is next.
+Status: **in progress** — steps 1–5 done (rename, `kind` schema, VMD-`solvate` spike, the
+`make-pdb-collection solvent` box builder, and the `solvate` task non-water path). Open
+follow-up: a coordinate source (`--from-pdb` seed) for solvents that lack ICs, and optional
+`bilayer_embed.tcl` non-water slabs.
 
 ## Problem
 
@@ -214,6 +215,20 @@ entry.
    - `ResourceManager.add_pdb_entry` learned to install `kind: box` entries (validate the
      psf/pdb pair instead of conformers), so the standard `modify-package pdb-repo
      add-entry … --collection solvent` flow works for boxes.
-5. **`solvate` task**: the non-water box path. **NEXT.**
+5. ~~**`solvate` task**: the non-water box path.~~ **DONE.** The task grew a `solvent`
+   spec (default `TIP3`): `TIP3`/`water` keeps the built-in-box behavior, any other name
+   is resolved to a `kind: box` entry in the `solvent` collection and tiled via
+   `solvate -spsf <box.psf> -spdb <box.pdb> -ws <box_edge> -ks "name <key_atom>"`;
+   autoionize still runs afterward. `SolvateTask._solvent_box_args` does the lookup (clear
+   errors for a missing box or a molecule-only entry); 5 unit tests cover the branches, and
+   a real VMD run confirmed the emitted argument form tiles a custom box onto a 1108-atom
+   protein solute (→ 1756 atoms, 216 waters added) and produces a valid psf/pdb.
+   - **Known limitation surfaced here**: `make-pdb-collection solvent` can only build a box
+     for a solvent whose single molecule has a coordinate source — an existing
+     PDB-repository entry (water/ions) or a **complete IC table** in its CHARMM topology.
+     Small CGenFF solvents (`MEOH`, `ETOH`, `DMSO`, …) ship with **no ICs**, so their single
+     molecule can't be built from topology alone. The natural follow-up is a `--from-pdb`
+     seed option (supply a starting single-molecule PDB) so those solvents become buildable.
 6. **Docs** + a worked example; extend to `bilayer_embed.tcl` slabs if desired. (The
-   `make-pdb-collection solvent` docs are in `docs/source/subs/make-pdb-collection.rst`.)
+   `make-pdb-collection solvent` docs are in `docs/source/subs/make-pdb-collection.rst`;
+   the `solvate` `solvent` key is documented in `docs/source/subs/buildtasks/solvate.rst`.)
