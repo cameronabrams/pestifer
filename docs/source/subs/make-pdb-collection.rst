@@ -191,4 +191,46 @@ Suppose you want to use the PDB collection you just created in a ``make_membrane
     charmmff:
       pdbcollections:
         - ~/my_pestifer_project/lipid-yeast
-        
+
+Building a solvent box
+++++++++++++++++++++++
+
+The default mode of ``make-pdb-collection`` samples *single-molecule* conformers of RESIs from a CHARMM stream -- the artifact the grid membrane packer needs to place a molecule on its chamber lattice.  VMD's ``solvate`` plugin needs a different artifact to bulk-solvate with anything other than its built-in TIP3P water: a **pre-equilibrated periodic box** of the solvent, supplied to ``solvate`` as ``-spsf``/``-spdb`` plus its exact edge length (``-ws``).  The ``solvent`` mode builds exactly that:
+
+.. code-block:: bash
+
+    $ pestifer make-pdb-collection solvent --resname TIP3 --nmol 216 --density 1.0
+
+The pipeline builds one molecule of the residue, packs ``--nmol`` randomly-oriented copies into a cube sized for ``--density``, then **minimize + NPT-equilibrates** the box under periodic boundary conditions so it relaxes to its equilibrium edge and density.  The equilibrated coordinates are shipped as the box (NAMD's ``wrapAll`` leaves every molecule whole and periodic-consistent, so the box tiles seamlessly under ``solvate -ws``).  The result is an installable entry directory ``<output-dir>/<RESN>/`` (default ``solvent/<RESN>/``):
+
+.. code-block:: text
+
+    solvent/
+    └── TIP3
+        ├── info.yaml
+        ├── TIP3-box.pdb
+        └── TIP3-box.psf
+
+Its ``info.yaml`` declares ``kind: box`` and records the equilibrated edge length, density, and the key atom that ``solvate -ks`` uses to de-duplicate solvent:
+
+.. code-block:: yaml
+
+    kind: box
+    resname: TIP3
+    nmol: 216
+    box_edge: 18.63
+    density: 0.999
+    key_atom: OH2
+    defined-in: toppar_water_ions.str
+    parameters:
+    - ...
+    psf: TIP3-box.psf
+    pdb: TIP3-box.pdb
+
+Install the box into the ``solvent`` collection with the same machinery used for any PDB-repository entry (see :ref:`subs modify-package`):
+
+.. code-block:: bash
+
+    $ pestifer modify-package pdb-repo add-entry solvent/TIP3 --collection solvent
+
+Useful options: ``--minimize-steps`` / ``--npt-steps`` control the equilibration length, ``--temperature`` / ``--pressure`` the ensemble, ``--seed`` makes the packing reproducible, and ``--key-atom`` overrides the auto-selected key atom (the residue's first atom).  Because it runs NAMD, this mode is heavier than the single-molecule conformer sampler.

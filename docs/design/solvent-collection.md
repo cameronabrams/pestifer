@@ -1,6 +1,8 @@
 # Design: a `solvent` PDB-repository collection & non-water solvation
 
-Status: **draft for review** (no code yet)
+Status: **in progress** — steps 1–4 done (rename, `kind` schema, VMD-`solvate` spike,
+and the `make-pdb-collection solvent` box builder); step 5 (`solvate` task non-water path)
+is next.
 
 ## Problem
 
@@ -185,21 +187,33 @@ entry.
 3. ~~**Spike**: prove the VMD-`solvate` `-spsf/-spdb/-ws` round-trip.~~ **DONE** — see
    "Spike findings"; the mechanism works, and the box requirements (periodic-clean,
    exact `-ws` edge, one-per-residue `-ks` key atom) are pinned down.
-4. **`make-pdb-collection solvent`**: the pack + NPT-equilibrate + seam-check + edge
-   pipeline. **IN PROGRESS.**
-   - Deterministic core **DONE + committed** (`pestifer/charmmff/make_solvent_box.py`,
-     5 unit tests): `box_edge_for_density` (validated vs the 216-water box, ~18.6 Å),
-     `pack_cubic` (rigid random-orientation cubic lattice), `write_box_pdb` (one
-     molecule's ATOM lines → N unique-segid copies, one segment each for psfgen).
-   - Key MD unknown **resolved**: `mdtask.py` reads the PBC cell from `state.xsc`
-     (`extendedSystem`) and runs periodic/NPT when present — so the box just needs an
-     `xsc` from `cell_to_xsc(edge-cube)` and a `continuation → md minimize → md NPT`
-     task list (same machinery as the membrane relaxation). No new NAMD plumbing.
-   - **Remaining orchestration** (the iterative part): build the single molecule via
-     `topo.to_psfgen` (reuse `make_pdb_collection`); box psfgen (raw `addline`
-     `segment`/`coordpdb` per molecule, using the writer's segids); run NPT via a
-     `Controller`; measure the equilibrated edge from the final `xsc`, wrap, seam-check;
-     write `box.psf/pdb` + `info.yaml`. **First validation target: a TIP3 water box vs
-     VMD's 216-water reference (~18.77 Å, 1.0 g/cc).** Water needs `rigidBonds` + PME.
-5. **`solvate` task**: the non-water box path.
-6. **Docs** + a worked example; extend to `bilayer_embed.tcl` slabs if desired.
+4. ~~**`make-pdb-collection solvent`**: the pack + NPT-equilibrate + seam-check + edge
+   pipeline.~~ **DONE.**
+   - Deterministic core (`pestifer/charmmff/make_solvent_box.py`): `box_edge_for_density`
+     (validated vs the 216-water box, ~18.6 Å), `pack_cubic` (rigid random-orientation
+     cubic lattice), `write_box_pdb`.
+   - Orchestration `make_solvent_box()`: builds the single molecule (from a PDB-repository
+     entry when the residue has no ICs — e.g. water — else `topo.to_psfgen`), packs `nmol`
+     copies, psfgens the box, then runs `continuation → md minimize → md NPT` via a
+     `Controller`. `mdtask.py` reads the PBC cell from `state.xsc` (`extendedSystem`) and
+     runs NPT when present, so the box only needs an `xsc` from `cell_to_xsc(edge-cube)` —
+     no new NAMD plumbing.
+   - **Two non-obvious fixes** the iteration surfaced:
+     (a) build the box as a *few segments of many residues each* (like water in a membrane
+     build), **not** one segment per molecule — the latter exhausts the chain-ID manager
+     during the continuation task's molecule rebuild; and
+     (b) stamp a **valid chainID** (from the manager's `A–Za–z0–9` pool) into the box PDB —
+     `chainidmanager.touch()` removes the residue's chainID from its Unused pool, and the
+     PDB-repository single-molecule PDBs carry a *blank* chainID, which isn't in the pool.
+   - Ships the **equilibrated** NPT coordinates (NAMD `wrapAll` → whole, periodic-consistent
+     molecules — exactly what `solvate -ws` tiles) as `<RESN>-box.pdb`, not the initial
+     packed coordinates. `build_solvent_entry()` assembles the installable `<RESN>/` entry
+     (`info.yaml` `kind: box` + box psf/pdb); `make-pdb-collection solvent` is its CLI.
+   - **Validated**: TIP3, `--nmol 216 --density 1.0` → edge **18.63 Å**, density **0.999
+     g/cc**, min inter-molecular contact 1.60 Å (periodic-clean) — matches VMD's watbox.
+   - `ResourceManager.add_pdb_entry` learned to install `kind: box` entries (validate the
+     psf/pdb pair instead of conformers), so the standard `modify-package pdb-repo
+     add-entry … --collection solvent` flow works for boxes.
+5. **`solvate` task**: the non-water box path. **NEXT.**
+6. **Docs** + a worked example; extend to `bilayer_embed.tcl` slabs if desired. (The
+   `make-pdb-collection solvent` docs are in `docs/source/subs/make-pdb-collection.rst`.)
