@@ -57,6 +57,15 @@ that occurs once per molecule (→ `-ks`). These become required `info.yaml` fie
 
 ## Locked decisions
 
+- **The collection holds BOTH kinds, permanently — it is *not* boxes-only.** The
+  single-molecule (`kind: molecule`) entries stay: the **grid membrane packer's
+  chamber fill** checks out the water molecule (`checkout('TIP3')`) and ion molecules
+  and lattice-places them (`bilayer.py`/`write_grid_pdb`; `salt_concentration` just
+  sets how many ions to drop). They were *not* only for the removed packmol packer. So
+  `solvent` = molecule entries (grid chamber) **+** box entries (VMD `solvate`).
+- **Grid chamber-fill keeps single-molecule lattice placement** (it's validated and
+  fast). We are *not* migrating it to `solvate`/`autoionize`; therefore the molecule
+  entries are load-bearing and are not deleted.
 - **Single-species boxes first.** A box is one solvent RESI. Cosolvent *mixtures*
   (e.g. 80/20 water/glycerol) are deferred.
 - **Ions stay under the `solvent` umbrella.** `solvent` = "chamber-fill species:
