@@ -182,6 +182,8 @@ class TerminateTask(MDTask):
                 count = psf.token_count.get(key)
                 if count is not None:
                     logger.info(f'  {label:<16s} {count:>10,}')
+            total_charge = sum(a.charge for a in psf.atoms)
+            logger.info(f'  {"Total charge":<16s} {total_charge:>10.4f} e')
 
         # Box dimensions from XSC
         if state.xsc and state.xsc.exists():
