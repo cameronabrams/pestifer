@@ -25,11 +25,48 @@ class PDBInput:
     name: str = ''
     """ The name of the residue, which is also the base name of the PDB file. """
     pdbcontents: dict = field(default_factory=dict)
-    """ A dictionary containing the PDB contents for each conformer ID. The keys are conformer IDs and the values are the PDB contents as strings. """
+    """ A dictionary containing the PDB contents for each conformer ID. The keys are conformer IDs and the values are the PDB contents as strings.  For a ``box`` entry there is a single entry holding the box PDB. """
     info: dict = field(default_factory=dict)
     """ The metadata for the residue. """
     opt_tags: dict = field(default_factory=dict)
     """ A dictionary containing optional tags for the residue. """
+    psf_content: str = ''
+    """ The PSF contents of a pre-equilibrated solvent box (``kind: box`` entries only; empty for ``molecule`` entries). """
+
+    def is_box(self) -> bool:
+        """True if this is a pre-equilibrated solvent *box* entry (``kind: box``) rather
+        than a single-molecule conformer entry (``kind: molecule``, the default)."""
+        return self.info.get('kind', 'molecule') == 'box'
+
+    def get_box_edge(self):
+        """The equilibrated cubic edge length (Å) of a box entry -- VMD ``solvate``'s
+        ``-ws``. ``None`` for a molecule entry."""
+        return self.info.get('box_edge')
+
+    def get_key_atom(self):
+        """The atom name occurring once per molecule of a box entry -- VMD ``solvate``'s
+        ``-ks``. ``None`` for a molecule entry."""
+        return self.info.get('key_atom')
+
+    def get_box_pdb(self):
+        """Write the box PDB to ``<name>-box.pdb`` in the cwd and return the filename
+        (for VMD ``solvate -spdb``). ``None`` if this is not a box entry."""
+        if not self.is_box() or not self.pdbcontents:
+            return None
+        fn = f'{self.name}-box.pdb'
+        with open(fn, 'w') as f:
+            f.write(next(iter(self.pdbcontents.values())))
+        return fn
+
+    def get_box_psf(self):
+        """Write the box PSF to ``<name>-box.psf`` in the cwd and return the filename
+        (for VMD ``solvate -spsf``). ``None`` if this is not a box entry."""
+        if not self.is_box() or not self.psf_content:
+            return None
+        fn = f'{self.name}-box.psf'
+        with open(fn, 'w') as f:
+            f.write(self.psf_content)
+        return fn
 
     def get_pdb(self, conformerID=0, noh=False):
         """
@@ -237,11 +274,20 @@ class PDBCollection:
                     sd_member = info_search[0]
                     with pdbrepo_fs.open(sd_member['name'], 'r') as f:
                         info[resname] = yaml.safe_load(f)
-                    pdbcontents = {}
-                    for index, conformer in enumerate(info[resname]['conformers']):
-                        with pdbrepo_fs.open(os.path.join(subdir, conformer['pdb']), 'r') as f:
-                            pdbcontents[index] = f.read()
-                    contents[resname] = PDBInput(name=resname, pdbcontents=pdbcontents, info=info[resname])
+                    if info[resname].get('kind', 'molecule') == 'box':
+                        # a pre-equilibrated solvent box: one psf + one pdb, no conformers
+                        with pdbrepo_fs.open(os.path.join(subdir, info[resname]['pdb']), 'r') as f:
+                            box_pdb = f.read()
+                        with pdbrepo_fs.open(os.path.join(subdir, info[resname]['psf']), 'r') as f:
+                            box_psf = f.read()
+                        contents[resname] = PDBInput(name=resname, pdbcontents={0: box_pdb},
+                                                     info=info[resname], psf_content=box_psf)
+                    else:
+                        pdbcontents = {}
+                        for index, conformer in enumerate(info[resname].get('conformers', [])):
+                            with pdbrepo_fs.open(os.path.join(subdir, conformer['pdb']), 'r') as f:
+                                pdbcontents[index] = f.read()
+                        contents[resname] = PDBInput(name=resname, pdbcontents=pdbcontents, info=info[resname])
             if len(contents) == 0:
                 logger.debug(f'No valid PDB contents for {"any resnames" if not resnames else resnames} found in tarball {path_or_tarball}.')
             del pdbrepo_fs
@@ -259,17 +305,25 @@ class PDBCollection:
                     info[resname] = {}
                     with open(solo, 'r') as f:
                         contents[resname] = PDBInput(name=resname, pdbcontents={0: f.read()}, info=info[resname])
-            pdbcontents = {}
             for subdir in subdirs:
                 resname = subdir
                 if not resnames or resname in resnames:
                     if os.path.exists(os.path.join(subdir, 'info.yaml')):
                         with open(os.path.join(subdir, 'info.yaml'), 'r') as f:
                             info[resname] = yaml.safe_load(f)
-                    for index, conformer in enumerate(info[resname]['conformers']):
-                        with open(os.path.join(subdir, conformer['pdb']), 'r') as f:
-                            pdbcontents[index] = f.read()
-                    contents[resname] = PDBInput(name=resname, pdbcontents=pdbcontents, info=info[resname])
+                    if info[resname].get('kind', 'molecule') == 'box':
+                        with open(os.path.join(subdir, info[resname]['pdb']), 'r') as f:
+                            box_pdb = f.read()
+                        with open(os.path.join(subdir, info[resname]['psf']), 'r') as f:
+                            box_psf = f.read()
+                        contents[resname] = PDBInput(name=resname, pdbcontents={0: box_pdb},
+                                                     info=info[resname], psf_content=box_psf)
+                    else:
+                        pdbcontents = {}
+                        for index, conformer in enumerate(info[resname].get('conformers', [])):
+                            with open(os.path.join(subdir, conformer['pdb']), 'r') as f:
+                                pdbcontents[index] = f.read()
+                        contents[resname] = PDBInput(name=resname, pdbcontents=pdbcontents, info=info[resname])
             os.chdir(cwd)
             if len(contents) == 0:
                 logger.debug(f'No valid PDB contents for {"any resnames" if not resnames else resnames} found in directory {path_or_tarball}.')

@@ -178,8 +178,10 @@ entry.
    docstrings, docs, and tests. Left the CHARMM *stream* label `water_ions`
    (`CHARMMFFStreamID`, `segtype_classifier`, `toppar_water_ions.str`) untouched — the
    pestifer collection and the CHARMM stream intentionally diverge now.
-2. **Schema**: add `kind:` to `info.yaml` + loader (default `molecule`);
-   backward-compatible.
+2. ~~**Schema**: add `kind:` to `info.yaml` + loader (default `molecule`).~~ **DONE.**
+   `PDBCollection.build_from_resources` branches on `kind` (box → load psf+pdb+metadata;
+   molecule → conformers as before; missing `kind` = molecule), and `PDBInput` exposes
+   `is_box`/`get_box_edge`/`get_key_atom`/`get_box_psf`/`get_box_pdb`. Backward-compatible.
 3. ~~**Spike**: prove the VMD-`solvate` `-spsf/-spdb/-ws` round-trip.~~ **DONE** — see
    "Spike findings"; the mechanism works, and the box requirements (periodic-clean,
    exact `-ws` edge, one-per-residue `-ks` key atom) are pinned down.

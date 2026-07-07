@@ -23,6 +23,44 @@ class TestPDBCollection(unittest.TestCase):
         self.assertEqual(coll3.path_or_tarball, 'mylipid.tgz')
         self.assertTrue('C7DHPC' in coll3)
 
+    def test_pdbcollection_box_and_molecule_kinds(self):
+        # a collection with a kind:box entry (solvent box) alongside a solo molecule entry;
+        # the loader must distinguish them and expose the box's psf/pdb/edge/key-atom
+        import tempfile
+        import yaml
+        d = tempfile.mkdtemp()
+        coll_dir = os.path.join(d, 'testsolvent')
+        os.makedirs(os.path.join(coll_dir, 'GROL'))
+        with open(os.path.join(coll_dir, 'GROL', 'GROL-box.pdb'), 'w') as f:
+            f.write('ATOM      1  C1  GROL X   1       0.0     0.0     0.0  1.00  0.00      X    C\nEND\n')
+        with open(os.path.join(coll_dir, 'GROL', 'GROL-box.psf'), 'w') as f:
+            f.write('PSF\n')
+        with open(os.path.join(coll_dir, 'GROL', 'info.yaml'), 'w') as f:
+            yaml.safe_dump({'kind': 'box', 'resname': 'GROL', 'box_edge': 24.13,
+                            'key_atom': 'C1', 'nmol': 1, 'density': 1.26,
+                            'psf': 'GROL-box.psf', 'pdb': 'GROL-box.pdb'}, f)
+        with open(os.path.join(coll_dir, 'SOD.pdb'), 'w') as f:  # solo -> kind defaults to molecule
+            f.write('ATOM      1 SOD  SOD X   1       0.0     0.0     0.0  1.00  0.00      X   NA\nEND\n')
+        coll = PDBCollection.build_from_resources(coll_dir)
+
+        box = coll.contents['GROL']
+        self.assertTrue(box.is_box())
+        self.assertEqual(box.get_box_edge(), 24.13)
+        self.assertEqual(box.get_key_atom(), 'C1')
+        cwd = os.getcwd()
+        os.chdir(d)
+        try:
+            self.assertEqual(box.get_box_psf(), 'GROL-box.psf')
+            self.assertEqual(box.get_box_pdb(), 'GROL-box.pdb')
+            self.assertTrue(os.path.isfile('GROL-box.psf') and os.path.isfile('GROL-box.pdb'))
+        finally:
+            os.chdir(cwd)
+
+        mol = coll.contents['SOD']   # a molecule entry is not a box
+        self.assertFalse(mol.is_box())
+        self.assertIsNone(mol.get_box_edge())
+        self.assertIsNone(mol.get_box_psf())
+
 class TestPDBRepository(unittest.TestCase):
     
     def setUp(self):
