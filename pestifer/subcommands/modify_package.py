@@ -9,6 +9,11 @@ Modifications are organized under a required *category* positional and a *verb*:
 - ``charmmff`` -- modify CHARMM force-field content: contribute a built-in custom residue
   (``add-residue``), or regenerate force-field-derived resources (``regenerate-segtypes``,
   ``update-atomselect-macros``).
+- ``ledger`` -- inspect or reverse recorded modifications (``show``/``revert``).
+
+Every mutating command records what it did in an append-only ledger
+(``pestifer/resources/modifications.jsonl``); ``ledger show`` lists them and ``ledger revert``
+reverses one by git-reverting its commit and curating the ledger.
 
 Because every modification is meant to become a pull request, the git workflow is folded into
 the command and **runs by default**: each invocation verifies your working tree is clean, makes
@@ -26,6 +31,7 @@ import re
 
 from . import Subcommand
 
+from ..core import ledger
 from ..core.resourcemanager import ResourceManager
 from ..util import gitutil
 
@@ -92,6 +98,15 @@ def _slugify(text) -> str:
     return re.sub(r'[^a-z0-9]+', '-', str(text).lower()).strip('-')[:40]
 
 
+def _unique_branch(repo_root, base) -> str:
+    """Return ``base``, or ``base-2``/``base-3``/... if a branch by that name already exists."""
+    name, n = base, 2
+    while gitutil.branch_exists(repo_root, name):
+        name = f"{base}-{n}"
+        n += 1
+    return name
+
+
 def _auto_branch_name(repo_root, category, verb, args) -> str:
     """Derive a unique, readable branch name for a modify-package contribution."""
     detail = ''
@@ -103,11 +118,100 @@ def _auto_branch_name(repo_root, category, verb, args) -> str:
     elif category == 'charmmff' and verb == 'add-residue':
         detail = _slugify(os.path.splitext(os.path.basename(args.file))[0])
     base = f"modpkg/{category}-{verb}" + (f"-{detail}" if detail else '')
-    name, n = base, 2
-    while gitutil.branch_exists(repo_root, name):
-        name = f"{base}-{n}"
-        n += 1
-    return name
+    return _unique_branch(repo_root, base)
+
+
+def _summary_for(category, verb, args, commit_summary) -> str:
+    """One-line human description of a modification, used for the ledger and commit message."""
+    if category == 'example':
+        return {
+            'add': f"add example from {os.path.basename(getattr(args, 'scriptname', ''))}",
+            'rename': f"rename example {getattr(args, 'example_id', '')} to {getattr(args, 'new_name', '')}",
+            'delete': f"delete example {getattr(args, 'example_id', '')}",
+            'update': f"update example {getattr(args, 'example_id', '')}",
+            'author': f"set author for example {getattr(args, 'example_id', '')}",
+        }.get(verb, str(verb))
+    if commit_summary is not None and 'resnames' in commit_summary:
+        return (f"add {', '.join(commit_summary['resnames'])} to built-in custom "
+                f"[segtype: {commit_summary['segtype']}]")
+    if commit_summary is not None and 'entries' in commit_summary:
+        entries, colls = commit_summary['entries'], commit_summary['collections']
+        if len(entries) == 1:
+            resname, coll, _kind = entries[0]
+            return f"add {resname} coordinates to the {coll} collection"
+        return (f"add {len(entries)} entries to {'the ' if len(colls) == 1 else ''}"
+                f"{', '.join(colls)} collection{'s' if len(colls) != 1 else ''}")
+    if verb == 'regenerate-segtypes':
+        return 'regenerate derived segtype classification'
+    if verb == 'update-atomselect-macros':
+        return 'regenerate atomselect macros'
+    return 'modify-package change'
+
+
+def _ledger_show(RM, args):
+    """Print the modification ledger (optionally filtered/limited)."""
+    entries = ledger.read(RM.resources_path)
+    print(ledger.format_entries(entries, limit=args.limit, category=args.category_filter))
+
+
+def _ledger_revert(RM, args, repo_root):
+    """
+    Reverse a previously-recorded modification by git-reverting the commit that made it, then
+    curate the ledger to keep the audit trail (the original entry is marked reverted and a new
+    ``revert`` entry is appended).  Runs on a fresh branch by default (like the other verbs).
+    """
+    entry_id = args.id
+    snapshot = ledger.read(RM.resources_path)          # read BEFORE reverting (has the entry)
+    target = next((e for e in snapshot if e.get('id') == entry_id), None)
+    if target is None:
+        raise RuntimeError(f'no ledger entry #{entry_id}')
+    if target.get('category') == 'ledger':
+        raise RuntimeError(f'entry #{entry_id} is itself a ledger action and cannot be reverted')
+    if target.get('reverted'):
+        raise RuntimeError(f'ledger entry #{entry_id} is already reverted')
+
+    ledger_path = ledger.ledger_file(RM.resources_path)
+    sha = gitutil.commit_introducing(repo_root, ledger_path, f'"id": {entry_id},')
+    if not sha:
+        raise RuntimeError(
+            f'could not find the commit that recorded entry #{entry_id}; it may have been made '
+            'with --no-branch (uncommitted) or already rewritten -- revert it by hand')
+
+    contribute = not getattr(args, 'no_branch', False)
+    if contribute and not gitutil.worktree_is_clean(repo_root):
+        raise RuntimeError('working tree is not clean; commit or stash your changes first, '
+                           'or pass --no-branch')
+    branch_name = getattr(args, 'branch', None) or _unique_branch(repo_root, f'modpkg/revert-{entry_id}')
+    if contribute:
+        if gitutil.branch_exists(repo_root, branch_name):
+            raise gitutil.GitError(f"branch '{branch_name}' already exists")
+        gitutil.create_and_checkout_branch(repo_root, branch_name)
+
+    # reverse the recorded change into the working tree (this also removes the entry's own
+    # ledger line, since that commit added it); then rewrite the ledger from the snapshot with
+    # the original marked reverted and a new revert entry appended, so the audit trail survives
+    gitutil.revert_into_worktree(repo_root, sha)
+    new_id = max((e.get('id', 0) for e in snapshot), default=0) + 1
+    for e in snapshot:
+        if e.get('id') == entry_id:
+            e['reverted'] = True
+            e['reverted_by'] = new_id
+    snapshot.append({
+        'schema': ledger.SCHEMA_VERSION, 'id': new_id,
+        'timestamp': ledger._now(), 'category': 'ledger', 'verb': 'revert',
+        'summary': f"revert #{entry_id}: {target.get('summary', '')}",
+        'files': target.get('files', []), 'author': gitutil.git_identity(repo_root),
+        'branch': branch_name if contribute else None, 'reverted': False, 'reverts': entry_id,
+    })
+    ledger.write_all(RM.resources_path, snapshot)
+
+    print(f"Reverted modification #{entry_id} ({target.get('summary', '')}); recorded as #{new_id}.")
+    if contribute:
+        gitutil.commit_all(repo_root, f"revert(modify-package): #{entry_id} {target.get('summary', '')}")
+        print(f"\nCommitted the revert to new branch '{branch_name}':")
+        print("\nReview it with `git show`, then push and open a pull request:")
+        print(f"    git push -u origin {branch_name}")
+        print("    gh pr create      # or open the PR on GitHub")
 
 
 @dataclass
@@ -128,10 +232,19 @@ class ModifyPackageSubcommand(Subcommand):
         RM = ResourceManager()
         category = args.category
         verb = getattr(args, 'verb', None)
+        repo_root = gitutil.package_repo_root()
+
+        # ---- ledger category: read-only show, or the (self-contained) revert flow ---------
+        if category == 'ledger':
+            if verb == 'show':
+                _ledger_show(RM, args)
+            elif verb == 'revert':
+                _ledger_revert(RM, args, repo_root)
+            return True
+
         # a contribution branch is opened by default; --no-branch applies the change in place
         contribute = not getattr(args, 'no_branch', False)
         explicit_branch = getattr(args, 'branch', None)
-        repo_root = gitutil.package_repo_root()
         touched: list = []
         commit_summary = None
         branch_name = None
@@ -150,12 +263,12 @@ class ModifyPackageSubcommand(Subcommand):
             else:
                 branch_name = _auto_branch_name(repo_root, category, verb, args)
 
+        # ---- apply the modification -------------------------------------------------------
         if category == 'example':
             _do_example(RM, args)
-            if contribute:
-                # example management touches files it does not enumerate; the clean-tree
-                # precondition makes every current change attributable to this operation
-                touched = gitutil.changed_paths(repo_root)
+            # example management touches files it does not enumerate; with a clean tree
+            # (contribute mode) every current change is attributable to this operation
+            touched = gitutil.changed_paths(repo_root)
 
         elif category == 'pdb-repo':
             if verb == 'add-entry':
@@ -177,45 +290,24 @@ class ModifyPackageSubcommand(Subcommand):
                 RM.update_atomselect_macros()
                 touched.append(os.path.join(RM.resource_path['tcl'], 'macros.tcl'))
 
+        summary = _summary_for(category, verb, args, commit_summary)
+
+        # ---- record the modification in the ledger and fold it into the touched set -------
+        if touched:
+            rel_files = sorted(os.path.relpath(p, repo_root) for p in touched)
+            entry = ledger.append(
+                RM.resources_path, category=category, verb=verb, summary=summary,
+                files=rel_files, author=gitutil.git_identity(repo_root), branch=branch_name)
+            touched.append(str(ledger.ledger_file(RM.resources_path)))
+            print(f"Recorded modification #{entry['id']} in the ledger.")
+
+        # ---- commit on a fresh branch, or leave the change in the working tree -------------
         if contribute:
             if not touched:
                 raise RuntimeError('no package files were modified; nothing to commit '
                                    '(pass --no-branch if you did not intend to open a branch)')
-            if category == 'example':
-                if verb == 'add':
-                    message = f"contrib(example): add example from {os.path.basename(args.scriptname)}"
-                elif verb == 'rename':
-                    message = f"contrib(example): rename example {args.example_id} to {args.new_name}"
-                elif verb == 'delete':
-                    message = f"contrib(example): delete example {args.example_id}"
-                elif verb == 'update':
-                    message = f"contrib(example): update example {args.example_id}"
-                elif verb == 'author':
-                    message = f"contrib(example): set author for example {args.example_id}"
-                else:
-                    message = f"contrib(example): {verb}"
-            elif commit_summary is not None and 'resnames' in commit_summary:
-                names = ', '.join(commit_summary['resnames'])
-                message = (f"contrib(residue): add {names} to built-in custom "
-                           f"[segtype: {commit_summary['segtype']}]")
-            elif commit_summary is not None and 'entries' in commit_summary:
-                entries = commit_summary['entries']
-                colls = commit_summary['collections']
-                if len(entries) == 1:
-                    resname, coll, _kind = entries[0]
-                    message = f"contrib(pdb-repo): add {resname} coordinates to the {coll} collection"
-                else:
-                    message = (f"contrib(pdb-repo): add {len(entries)} entries to "
-                               f"{'the ' if len(colls) == 1 else ''}{', '.join(colls)} "
-                               f"collection{'s' if len(colls) != 1 else ''}")
-            elif verb == 'regenerate-segtypes':
-                message = 'contrib(charmmff): regenerate derived segtype classification'
-            elif verb == 'update-atomselect-macros':
-                message = 'contrib(charmmff): regenerate atomselect macros'
-            else:
-                message = 'contrib: modify-package change'
             gitutil.create_and_checkout_branch(repo_root, branch_name)
-            gitutil.stage_and_commit(repo_root, touched, message)
+            gitutil.stage_and_commit(repo_root, touched, f"contrib({category}): {summary}")
             print(f"\nCommitted to new branch '{branch_name}':")
             for p in touched:
                 print(f"    {os.path.relpath(p, repo_root)}")
@@ -239,7 +331,7 @@ class ModifyPackageSubcommand(Subcommand):
                        help='do not open a branch or commit; just apply the change to the working tree')
 
         cats = self.parser.add_subparsers(dest='category', required=True, metavar='CATEGORY',
-                                          help='category of modification: example | pdb-repo | charmmff')
+                                          help='category of modification: example | pdb-repo | charmmff | ledger')
 
         # ---- example ----------------------------------------------------------------
         ex = cats.add_parser('example', help='manage the example library')
@@ -291,5 +383,16 @@ class ModifyPackageSubcommand(Subcommand):
         p.add_argument('--force', action='store_true', help='overwrite an existing custom file and permit residue-name collisions with the force field')
         p = cfv.add_parser('regenerate-segtypes', parents=[contrib], help='regenerate the force-field-derived residue->segtype classification (developer use only)')
         p = cfv.add_parser('update-atomselect-macros', parents=[contrib], help='regenerate resources/tcl/macros.tcl from core/labels.py (developer use only)')
+
+        # ---- ledger -----------------------------------------------------------------
+        lg = cats.add_parser('ledger', help='inspect or revert recorded modifications')
+        lgv = lg.add_subparsers(dest='verb', required=True, metavar='VERB', help='show | revert')
+        p = lgv.add_parser('show', help='list recorded modifications')
+        p.add_argument('--limit', type=int, default=None, help='show only the most recent N entries')
+        p.add_argument('--category', dest='category_filter', type=str, default=None,
+                       help='show only entries in this category (example | pdb-repo | charmmff | ledger)')
+        p = lgv.add_parser('revert', parents=[contrib],
+                           help='reverse a recorded modification by its ledger id (git-revert on a fresh branch)')
+        p.add_argument('id', type=int, help='ledger id of the modification to revert (see `ledger show`)')
 
         return self.parser

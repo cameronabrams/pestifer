@@ -54,10 +54,11 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
 
 ## Tooling / packaging
 
-- [ ] **Ledger for `modify-package`.** Keep a record of the modifications `modify-package`
-      applies to the package (custom residues, PDB-repository entries, force-field changes),
-      so contributions are tracked, reviewable, and reversible rather than only visible as
-      individual git commits.
+- [x] **Ledger for `modify-package`.** Append-only record at
+      `pestifer/resources/modifications.jsonl`; every mutating command records an entry
+      (committed alongside the change). `ledger show` lists them; `ledger revert <id>`
+      git-reverts a recorded modification on a fresh branch and curates the ledger.
+      (v3.1.0+, `[Unreleased]`.)
 
 ## Ring-piercing
 

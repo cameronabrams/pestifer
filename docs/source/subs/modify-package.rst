@@ -210,3 +210,36 @@ Pestifer classifies most residues into a *segtype* (protein, lipid, glycan, nucl
 
 This re-derives the classification from every installed CHARMM release, excluding the curated names in :mod:`pestifer.core.labels` (which always win), and rewrites the JSON.  Like the other developer actions, it can be combined with ``--branch`` to make the change on a fresh branch and commit it for review.
 
+
+.. _modify ledger:
+
+The modification ledger
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Every mutating ``modify-package`` command records what it did in an append-only **ledger** at ``pestifer/resources/modifications.jsonl`` (one JSON object per line).  Each entry captures the category and verb, a one-line summary, the files touched, the committer, the branch, and a unique ``id``.  The ledger complements the resource *provenance* tags shown by :ref:`show-resources <subs_show_resources>` — provenance says a file is ``custom``; the ledger says *who added it, when, via which operation*.  Because the entry is committed alongside the change, it travels in the contribution's branch and PR.
+
+List what has been recorded with ``ledger show``:
+
+.. code-block:: bash
+
+    $ pestifer modify-package ledger show            # all entries, oldest first
+    $ pestifer modify-package ledger show --limit 10 --category charmmff
+
+    #1  2026-07-08  charmmff/add-residue  add MYLIG to built-in custom [segtype: ligand]
+    #2  2026-07-08  pdb-repo/add-entry    add MYLIG coordinates to the lipid collection
+
+Reverting a modification
+^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``ledger revert <id>`` reverses a recorded modification.  It finds the commit that made the change, ``git``-reverts it into the working tree, and then curates the ledger so the audit trail survives: the original entry is marked ``reverted`` and a new ``revert`` entry is appended.  Like the other verbs it runs on a fresh branch by default (``--branch NAME`` / ``--no-branch`` apply):
+
+.. code-block:: bash
+
+    $ pestifer modify-package ledger revert 1
+
+    Reverted modification #1 (add MYLIG to built-in custom [segtype: ligand]); recorded as #3.
+
+    Committed the revert to new branch 'modpkg/revert-1':
+    ...
+
+Revert uses ``git`` under the hood, so it works uniformly for any verb and surfaces a conflict if a later change touched the same files.  Only modifications that were **committed** (the default flow) can be reverted this way; a change made with ``--no-branch`` is left to you to undo by hand.

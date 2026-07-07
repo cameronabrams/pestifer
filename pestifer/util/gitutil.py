@@ -91,6 +91,53 @@ def stage_and_commit(repo_root, paths, message: str):
     _git(repo_root, 'commit', '-m', message)
 
 
+def git_identity(repo_root) -> str:
+    """Return the configured committer as ``"Name <email>"`` (best effort; may be empty)."""
+    name = _git(repo_root, 'config', 'user.name', check=False)
+    email = _git(repo_root, 'config', 'user.email', check=False)
+    if name and email:
+        return f'{name} <{email}>'
+    return name or email or ''
+
+
+def commit_introducing(repo_root, path, needle: str):
+    """
+    Return the SHA of the most recent commit whose change to ``path`` added or removed a line
+    containing ``needle`` (git pickaxe ``-S``), or ``None`` if none is found.  Used to locate
+    the commit that recorded a given ledger entry so it can be reverted.
+    """
+    sha = _git(repo_root, 'log', '-1', '--format=%H', f'-S{needle}', '--', str(path), check=False)
+    return sha or None
+
+
+def revert_into_worktree(repo_root, sha: str):
+    """
+    Reverse commit ``sha`` into the working tree and index **without committing**
+    (``git revert -n``), so the caller can adjust the result (e.g. curate the ledger) before
+    committing.  On conflict, restores the pre-revert clean state and raises :class:`GitError`.
+    Callers must ensure a clean working tree first.
+    """
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), 'revert', '-n', '--no-edit', sha],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        # clean up the partial revert (the tree was clean before this call)
+        subprocess.run(["git", "-C", str(repo_root), 'revert', '--quit'], capture_output=True, text=True)
+        subprocess.run(["git", "-C", str(repo_root), 'reset', '--hard', 'HEAD'], capture_output=True, text=True)
+        raise GitError(
+            f'could not revert commit {sha[:9]} cleanly (likely a conflict with later changes): '
+            f'{result.stderr.strip() or result.stdout.strip()}')
+
+
+def commit_all(repo_root, message: str):
+    """Stage every change in the working tree (``git add -A``) and commit it."""
+    _git(repo_root, 'add', '-A')
+    if _git(repo_root, 'diff', '--cached', '--name-only') == '':
+        raise GitError('no staged changes to commit')
+    _git(repo_root, 'commit', '-m', message)
+
+
 def get_git_origin_url():
     """
     Get the URL of the git origin remote.  This is necessary for developers who want to modify the package by adding examples, etc.
