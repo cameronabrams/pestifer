@@ -11,6 +11,8 @@ packing -- separately from the psfgen/NAMD build orchestration, so the geometry 
 unit-tested without a force field or MD engine.
 """
 import logging
+import os
+import shutil
 
 import numpy as np
 
@@ -102,34 +104,47 @@ def _segid(i: int) -> str:
     return s
 
 
-def write_box_pdb(placed: np.ndarray, template_lines: list, output_pdb: str) -> list:
+def write_box_pdb(placed: np.ndarray, template_lines: list, output_pdb: str,
+                  max_res_per_seg: int = 9999) -> list:
     """
     Write an ``nmol``-molecule box PDB by rewriting one molecule's ATOM lines
-    (``template_lines``, ``natom`` fixed-format PDB records) once per placed copy, with a
-    fresh serial, a per-molecule ``resSeq`` of 1, the placed coordinates, and a unique
-    4-character ``segID`` per copy (so psfgen can build one segment per molecule).
+    (``template_lines``, ``natom`` fixed-format PDB records) once per placed copy.
 
-    ``placed`` is the ``(nmol, natom, 3)`` array from :func:`pack_cubic`.  Returns the
-    list of segids used, in order.
+    The molecules are grouped into segments of at most ``max_res_per_seg`` residues (so a
+    solvent box is a handful of segments of many residues each, like water in a membrane
+    build -- not one segment per molecule, which would exhaust chain IDs).  Each molecule
+    becomes one residue (``resSeq`` 1..k within its segment) with a shared ``segID``
+    (``W0``, ``W1``, ...).  ``placed`` is the ``(nmol, natom, 3)`` array from
+    :func:`pack_cubic`.  Returns a list of ``(segid, nresidues)`` for the segments written,
+    in order.
     """
     nmol, natom, _ = placed.shape
     if len(template_lines) != natom:
         raise ValueError(f'template has {len(template_lines)} atom lines but placed has {natom} atoms')
     tmpl = [ln.rstrip('\n').ljust(80) for ln in template_lines]
-    segids = []
+    segments = []   # (segid, nres)
     serial = 0
+    _chain_pool = ([chr(c) for c in range(ord('A'), ord('Z') + 1)]
+                   + [chr(c) for c in range(ord('a'), ord('z') + 1)]
+                   + [chr(c) for c in range(ord('0'), ord('9') + 1)])
     with open(output_pdb, 'w') as f:
         for i in range(nmol):
-            sid = _segid(i)
-            segids.append(sid)
+            seg_index, res_in_seg = divmod(i, max_res_per_seg)
+            sid = f'W{seg_index}'
+            chain = _chain_pool[seg_index % len(_chain_pool)]
+            resid = res_in_seg + 1
+            if resid == 1:
+                segments.append([sid, 0])
+            segments[-1][1] += 1
             for a in range(natom):
                 serial += 1
                 x, y, z = placed[i, a]
                 ln = tmpl[a]
                 rec = (ln[:6]
                        + f'{serial % 100000:5d}'
-                       + ln[11:22]
-                       + f'{1:4d}'                      # resSeq = 1 for this molecule
+                       + ln[11:21]
+                       + chain                          # chainID must be in the manager's pool
+                       + f'{resid:4d}'
                        + ln[26:30]
                        + f'{x:8.3f}{y:8.3f}{z:8.3f}'
                        + ln[54:72]
@@ -137,7 +152,7 @@ def write_box_pdb(placed: np.ndarray, template_lines: list, output_pdb: str) -> 
                        + ln[76:80])
                 f.write(rec.rstrip() + '\n')
         f.write('END\n')
-    return segids
+    return [(sid, n) for sid, n in segments]
 
 
 def atom_lines_of(pdb_path: str) -> list:
@@ -149,3 +164,132 @@ def atom_lines_of(pdb_path: str) -> list:
 def coords_of(atom_lines: list) -> np.ndarray:
     """Parse the (natom, 3) coordinate array from fixed-format PDB ATOM lines."""
     return np.array([[float(ln[30:38]), float(ln[38:46]), float(ln[46:54])] for ln in atom_lines])
+
+
+def make_solvent_box(resname, DB, RM=None, nmol: int = 216, density: float = 1.0,
+                     temperature: float = 300.0, pressure: float = 1.0,
+                     minimize_steps: int = 1000, npt_steps: int = 50000,
+                     seed: int = None, key_atom: str = None, refic_idx: int = 0) -> dict:
+    """
+    Build a pre-equilibrated periodic solvent box for ``resname`` and return a summary.
+
+    Pipeline: build one molecule from the residue's internal coordinates (psfgen) ->
+    pack ``nmol`` randomly-oriented copies into a cube sized for ``density`` -> psfgen the
+    box (one segment per molecule) -> minimize + NPT-equilibrate under PBC -> measure the
+    equilibrated edge.  Leaves ``<resname>-box.psf``/``.pdb`` (the equilibrated box) and an
+    ``info.yaml`` (``kind: box``) in the cwd; the caller installs the entry into the
+    ``solvent`` collection.
+    """
+    import yaml
+
+    from ..core.config import Config
+    from ..core.controller import Controller
+    from ..scripters.psfgen import PsfgenScripter
+    from ..scripters.namd import NAMDScripter
+    from ..psfutil.psfcontents import PSFContents
+    from ..util.util import cell_to_xsc, cell_from_xsc
+
+    topo = DB.get_resi(resname)
+    meta = topo.metadata
+    charmm_topfile = os.path.basename(meta['charmmfftopfile'])
+    extension = os.path.splitext(charmm_topfile)[1][1:]
+
+    # Controller/config gives us the psfgen + namd scripters and drives the equilibration
+    tasklist = [
+        {'continuation': {'psf': f'{resname}-box.psf', 'pdb': f'{resname}-box.pdb', 'xsc': f'{resname}-box.xsc'}},
+        {'md': {'ensemble': 'minimize', 'nsteps': 0, 'minimize': minimize_steps,
+                'dcdfreq': 0, 'xstfreq': 0, 'temperature': temperature}},
+        {'md': {'ensemble': 'NPT', 'nsteps': npt_steps, 'dcdfreq': max(npt_steps, 1),
+                'xstfreq': 1000, 'temperature': temperature, 'pressure': pressure}},
+    ]
+    config = Config(quiet=True, RM=RM).configure_new()
+    C = Controller().configure(config=config,
+                               userspecs={'title': f'Solvent box for {resname}', 'tasks': tasklist},
+                               terminate=False)
+
+    W: PsfgenScripter = C.tasks[0].scripters['psfgen']
+    if extension in ('rtf', 'str') and charmm_topfile not in W.charmmff_config['standard'][extension]:
+        W.charmmff_config['standard'][extension].append(charmm_topfile)
+
+    # 1. single molecule: use an existing PDB-repository entry's coordinates when available
+    # (e.g. water/ions have no internal coordinates to build from), else build from ICs
+    if DB.pdbrepository is None:
+        DB.provision_pdbrepository()
+    if resname in DB.pdbrepository:
+        template_pdb = DB.pdbrepository.checkout(resname).get_pdb(conformerID=0)
+        W.newscript('single', additional_topologies=[charmm_topfile])
+        W.addline(f'segment A {{ first NONE; last NONE; residue 1 {resname} }}')
+        W.addline(f'coordpdb {template_pdb} A')
+        W.writescript(f'{resname}-single')
+        W.runscript()
+    else:
+        W.newscript('single', additional_topologies=[charmm_topfile])
+        if topo.to_psfgen(W, refic_idx=refic_idx) == -1:
+            raise RuntimeError(f'no valid internal coordinates to build a single {resname} molecule')
+        W.writescript(f'{resname}-single')
+        W.runscript()
+
+    # 2. molar mass + geometry, then pack
+    psf = PSFContents(f'{resname}-single.psf')
+    molweight = float(sum(a.atomicwt for a in psf.atoms))
+    atomlines = atom_lines_of(f'{resname}-single.pdb')
+    single_coords = coords_of(atomlines)
+    edge = box_edge_for_density(nmol, molweight, density)
+    logger.info(f'{resname} box: {nmol} molecules, MW {molweight:.2f}, target {density} g/cc -> initial edge {edge:.2f} A')
+    placed = pack_cubic(single_coords, nmol, edge, seed=seed)
+    segments = write_box_pdb(placed, atomlines, f'{resname}-boxin.pdb')
+
+    # 3. box psfgen: a few segments of many residues each (like water in a membrane build)
+    W.newscript('box', additional_topologies=[charmm_topfile])
+    for sid, nres in segments:
+        W.addline(f'segment {sid} {{')
+        W.addline('  first NONE')
+        W.addline('  last NONE')
+        for r in range(1, nres + 1):
+            W.addline(f'  residue {r} {resname}')
+        W.addline('}')
+        W.addline(f'coordpdb {resname}-boxin.pdb {sid}')
+    W.writescript(f'{resname}-box', guesscoord=True, regenerate=True)
+    W.runscript()
+
+    # 4. initial cubic cell centered on the packed box ([0, edge) per axis)
+    box = np.array([[edge, 0.0, 0.0], [0.0, edge, 0.0], [0.0, 0.0, edge]])
+    origin = np.array([edge / 2.0, edge / 2.0, edge / 2.0])
+    cell_to_xsc(box, origin, f'{resname}-box.xsc')
+
+    # 5. minimize + NPT-equilibrate under PBC
+    na: NAMDScripter = C.tasks[0].scripters['namd']
+    if extension in ('rtf', 'str') and charmm_topfile not in na.charmmff_config['standard'][extension]:
+        na.charmmff_config['standard'][extension].append(charmm_topfile)
+    result = C.do_tasks()
+    for k, v in result.items():
+        if v['result'] != 0:
+            raise RuntimeError(f'solvent-box equilibration task {v["taskname"]} failed (result {v["result"]})')
+
+    # 6. promote the equilibrated NPT output as the box coordinates.  NAMD's wrapAll leaves
+    # every molecule whole and periodic-consistent with the equilibrated cell, which is
+    # exactly what VMD's ``solvate -ws <edge>`` needs (atoms may poke just past an edge --
+    # those are the periodic images and tile cleanly).  The initial packed pdb is discarded.
+    final_task = C.tasks[-1]
+    final_pdb = f'{final_task.basename}.pdb'
+    final_xsc = f'{final_task.basename}.xsc'
+    shutil.copyfile(final_pdb, f'{resname}-box.pdb')
+
+    # read the equilibrated edge from the final NPT xsc
+    final_box, _ = cell_from_xsc(final_xsc)
+    final_edge = float(final_box[0][0])
+    final_density = nmol * molweight / (_N_AVOGADRO * (final_edge ** 3) * _CM3_PER_A3)
+    if key_atom is None:
+        key_atom = psf.atoms[0].atomname
+    logger.info(f'{resname} box equilibrated: edge {final_edge:.3f} A, density {final_density:.3f} g/cc')
+
+    info = {
+        'kind': 'box', 'resname': resname, 'nmol': nmol,
+        'box_edge': float(f'{final_edge:.4f}'), 'density': float(f'{final_density:.4f}'),
+        'key_atom': key_atom, 'defined-in': charmm_topfile,
+        'parameters': sorted(set(na.charmmff_config['standard']['prm'] + na.charmmff_config['standard']['str'])),
+        'psf': f'{resname}-box.psf', 'pdb': f'{resname}-box.pdb',
+    }
+    with open('info.yaml', 'w') as f:
+        yaml.dump(info, f)
+    return info
