@@ -48,8 +48,8 @@ class TestExampleManager(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.manager.path, self.manager.examples[1].inputspath, 'exB.yaml')))
         self.assertTrue(os.path.isfile(self.manager.sphinx_example_manager.examples_rst))
         self.assertTrue(os.path.isdir(self.manager.sphinx_example_manager.examples_folder_path))
-        self.assertTrue(os.path.isfile(os.path.join(self.manager.sphinx_example_manager.examples_folder_path, 'ex01', 'exA.rst')))
-        self.assertTrue(os.path.isfile(os.path.join(self.manager.sphinx_example_manager.examples_folder_path, 'ex02', 'exB.rst')))
+        self.assertTrue(os.path.isfile(os.path.join(self.manager.sphinx_example_manager.examples_folder_path, '01', 'exA.rst')))
+        self.assertTrue(os.path.isfile(os.path.join(self.manager.sphinx_example_manager.examples_folder_path, '02', 'exB.rst')))
     
     def test_example_manager_delete_example(self):
         self._build_example_set()
@@ -57,11 +57,11 @@ class TestExampleManager(unittest.TestCase):
         self.assertEqual(len(self.manager.examples), 1)
         self.assertTrue(os.path.isfile(os.path.join(self.manager.path, self.manager.examples[0].scriptpath)))
         self.assertFalse(os.path.isfile(os.path.join(self.manager.path, self.example2.scriptpath)))
-        self.assertFalse(os.path.isfile(os.path.join(self.manager.sphinx_example_manager.examples_folder_path, 'ex02', 'exB.rst')))
+        self.assertFalse(os.path.isfile(os.path.join(self.manager.sphinx_example_manager.examples_folder_path, '02', 'exB.rst')))
 
     def test_example_manager_update_example_inplace(self):
         self._build_example_set()
-        ex_rst = os.path.join(self.manager.sphinx_example_manager.examples_folder_path, 'ex01', 'exA.rst')
+        ex_rst = os.path.join(self.manager.sphinx_example_manager.examples_folder_path, '01', 'exA.rst')
         self.assertTrue(os.path.isfile(ex_rst))
         with open(ex_rst, 'r') as f:
             rst_current = f.read()
@@ -80,7 +80,7 @@ class TestExampleManager(unittest.TestCase):
         self.assertEqual(example.title, 'Updated title')
         self.assertEqual(example.author_name, 'Mel Brooks')
         self.assertEqual(example.shortname, 'exA')
-        ex_rst = os.path.join(self.manager.sphinx_example_manager.examples_folder_path, 'ex01', 'exA.rst')
+        ex_rst = os.path.join(self.manager.sphinx_example_manager.examples_folder_path, '01', 'exA.rst')
         self.assertTrue(os.path.isfile(ex_rst))
         with open(ex_rst, 'r') as f:
             rst_current = f.read()
@@ -107,7 +107,7 @@ class TestExampleManager(unittest.TestCase):
         example = self.manager.examples.get_example_by_example_id(1)
         self.assertEqual(example.title, 'exAA_updated')
         self.assertEqual(example.shortname, 'exAA')
-        ex_rst = os.path.join(self.manager.sphinx_example_manager.examples_folder_path, 'ex01', 'exAA.rst')
+        ex_rst = os.path.join(self.manager.sphinx_example_manager.examples_folder_path, '01', 'exAA.rst')
         self.assertTrue(os.path.isfile(ex_rst))
         with open(ex_rst, 'r') as f:
             rst_current = f.read()

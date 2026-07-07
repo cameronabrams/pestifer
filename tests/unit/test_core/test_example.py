@@ -10,9 +10,9 @@ class TestExample(unittest.TestCase):
         self.assertEqual(example.shortname, "example1")
         self.assertEqual(example.db_id, 'abc123')
         self.assertEqual(example.title, "This is an example")
-        self.assertEqual(example.inputspath, Path('ex01/inputs'))
-        self.assertEqual(example.outputspath, Path('ex01/outputs'))
-        self.assertEqual(example.scriptpath, Path('ex01/inputs/example1.yaml'))
+        self.assertEqual(example.inputspath, Path('01/inputs'))
+        self.assertEqual(example.outputspath, Path('01/outputs'))
+        self.assertEqual(example.scriptpath, Path('01/inputs/example1.yaml'))
 
     def test_example_report_line(self):
         example = Example(example_id=1, shortname="example1", db_id='abc1', title="This is an example")

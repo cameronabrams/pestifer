@@ -44,9 +44,9 @@ class TestSphinxExampleManager(unittest.TestCase):
         self._build_example_set()
         self.assertTrue(get_num_entries_in_toctree(self.manager.examples_rst) == 3)
         ex_folders = os.listdir(self.manager.examples_folder_path)
-        self.assertIn('ex01', ex_folders)
-        self.assertIn('ex02', ex_folders)
-        self.assertIn('ex03', ex_folders)
+        self.assertIn('01', ex_folders)
+        self.assertIn('02', ex_folders)
+        self.assertIn('03', ex_folders)
         self.assertTrue(len(ex_folders) == 3)
 
     def test_sphinx_example_manager_append_example(self):
@@ -55,13 +55,13 @@ class TestSphinxExampleManager(unittest.TestCase):
         toctree_path = self.manager.examples_rst
         with open(toctree_path, 'r') as f:
             toctree_lines = f.readlines()
-        exCidx=toctree_lines.index('  examples/ex03/exC\n')
-        exINSidx=toctree_lines.index('  examples/ex04/exD\n')
+        exCidx=toctree_lines.index('  examples/03/exC\n')
+        exINSidx=toctree_lines.index('  examples/04/exD\n')
         self.assertTrue(exCidx < exINSidx)
         example_folders = os.listdir(self.manager.examples_folder_path)
-        self.assertIn('ex04', example_folders)
+        self.assertIn('04', example_folders)
         self.assertTrue(len(example_folders) == 4)
-        new_example_folder = os.path.join(self.manager.examples_folder_path, 'ex04')
+        new_example_folder = os.path.join(self.manager.examples_folder_path, '04')
         self.assertTrue(os.path.exists(os.path.join(new_example_folder, 'exD.rst')))
 
     def test_sphinx_example_manager_delete_example(self):

@@ -33,7 +33,7 @@ class Example(BaseObj):
     inputs_subdir: ClassVar[str] = "inputs"
     outputs_subdir: ClassVar[str] = "outputs"
 
-    folder_name_format: ClassVar[str] = 'ex{example_id:02d}'
+    folder_name_format: ClassVar[str] = '{example_id:02d}'
     """ format for the name of the root folder of each example """
 
     def to_dict(self, ignore_none: bool = False) -> dict:

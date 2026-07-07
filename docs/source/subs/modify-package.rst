@@ -55,7 +55,7 @@ That also built successfully, so I added a new example to the pestifer package *
     $ cd ~/1mob_working_directory  # where I have the 1mob.yaml file
     $ pestifer modify-package example add 1mob.yaml  # add the example to the package
 
-This will copy the file ``1mob.yaml`` to the appropriate location in pestifer source package, and it will also update the ``docs/source/examples/ex19/1mob.rst`` file to include a link to the new example.  Then I edited the ``docs/source/examples/ex19/1mob.rst`` file to add a description of the example and how it works.  Finally, I committed the changes:
+This will copy the file ``1mob.yaml`` to the appropriate location in pestifer source package, and it will also update the ``docs/source/examples/19/1mob.rst`` file to include a link to the new example.  Then I edited the ``docs/source/examples/19/1mob.rst`` file to add a description of the example and how it works.  Finally, I committed the changes:
 
 .. code-block:: bash
 

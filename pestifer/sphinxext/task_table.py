@@ -9,7 +9,7 @@ with many equilibration phases.
 
 Usage in rst::
 
-    .. task-table:: ../../../../pestifer/resources/examples/ex01/inputs/bpti1.yaml
+    .. task-table:: ../../../../pestifer/resources/examples/01/inputs/bpti1.yaml
 
 The path is resolved relative to the rst source file (same convention as
 ``.. literalinclude::``).

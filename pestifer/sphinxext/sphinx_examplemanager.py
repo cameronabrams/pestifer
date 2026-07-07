@@ -85,7 +85,7 @@ class SphinxExampleManager:
             The contents of then new RST file
         """
         title = f"Example {example.example_id}: {example.title}"
-        example_folder_name = f'{example.example_id:02d}'
+        example_folder_name = Example.folder_name_format.format(example_id=example.example_id)
         yaml_script_name = example.shortname if example.shortname.endswith('.yaml') else f"{example.shortname}.yaml"
         url = self.structure_url(example)
         dbname = 'PDB' if 'rcsb' in url else 'Alphafold'
