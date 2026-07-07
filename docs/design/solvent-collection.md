@@ -186,6 +186,20 @@ entry.
    "Spike findings"; the mechanism works, and the box requirements (periodic-clean,
    exact `-ws` edge, one-per-residue `-ks` key atom) are pinned down.
 4. **`make-pdb-collection solvent`**: the pack + NPT-equilibrate + seam-check + edge
-   pipeline, for one test solvent.
+   pipeline. **IN PROGRESS.**
+   - Deterministic core **DONE + committed** (`pestifer/charmmff/make_solvent_box.py`,
+     5 unit tests): `box_edge_for_density` (validated vs the 216-water box, ~18.6 Å),
+     `pack_cubic` (rigid random-orientation cubic lattice), `write_box_pdb` (one
+     molecule's ATOM lines → N unique-segid copies, one segment each for psfgen).
+   - Key MD unknown **resolved**: `mdtask.py` reads the PBC cell from `state.xsc`
+     (`extendedSystem`) and runs periodic/NPT when present — so the box just needs an
+     `xsc` from `cell_to_xsc(edge-cube)` and a `continuation → md minimize → md NPT`
+     task list (same machinery as the membrane relaxation). No new NAMD plumbing.
+   - **Remaining orchestration** (the iterative part): build the single molecule via
+     `topo.to_psfgen` (reuse `make_pdb_collection`); box psfgen (raw `addline`
+     `segment`/`coordpdb` per molecule, using the writer's segids); run NPT via a
+     `Controller`; measure the equilibrated edge from the final `xsc`, wrap, seam-check;
+     write `box.psf/pdb` + `info.yaml`. **First validation target: a TIP3 water box vs
+     VMD's 216-water reference (~18.77 Å, 1.0 g/cc).** Water needs `rigidBonds` + PME.
 5. **`solvate` task**: the non-water box path.
 6. **Docs** + a worked example; extend to `bilayer_embed.tcl` slabs if desired.
