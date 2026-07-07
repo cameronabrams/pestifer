@@ -10,16 +10,19 @@ Modifications are organized under a required *category* positional and a *verb*:
   (``add-residue``), or regenerate force-field-derived resources (``regenerate-segtypes``,
   ``update-atomselect-macros``).
 
-For a contribution, the ``--branch`` option (available on the ``pdb-repo`` and ``charmmff``
-verbs) folds the git workflow into the command: it verifies your working tree is clean, makes
-the change on a new branch, and commits exactly the files it touched.  You then push the branch
-and open a pull request for review.
+Because every modification is meant to become a pull request, the git workflow is folded into
+the command and **runs by default**: each invocation verifies your working tree is clean, makes
+the change on a fresh branch (auto-named ``modpkg/<category>-<verb>-<detail>``), and commits
+exactly the files it touched -- then prints the ``git push`` / ``gh pr create`` steps.  Use
+``--branch NAME`` to name the branch yourself, or ``--no-branch`` to skip branching and commit
+and just apply the change to the working tree.
 """
 from dataclasses import dataclass
 
 import argparse as ap
 import logging
 import os
+import re
 
 from . import Subcommand
 
@@ -84,6 +87,29 @@ def _do_example(RM, args):
         RM.set_example_author(args.example_id, args.author_name, args.author_email)
 
 
+def _slugify(text) -> str:
+    """Lowercase, hyphenate, and trim a value for use in a branch name."""
+    return re.sub(r'[^a-z0-9]+', '-', str(text).lower()).strip('-')[:40]
+
+
+def _auto_branch_name(repo_root, category, verb, args) -> str:
+    """Derive a unique, readable branch name for a modify-package contribution."""
+    detail = ''
+    if category == 'example':
+        detail = _slugify(getattr(args, 'scriptname', '') or getattr(args, 'new_name', '')
+                          or getattr(args, 'example_id', ''))
+    elif category == 'pdb-repo':
+        detail = _slugify(os.path.basename(os.path.normpath(args.entry_dir)))
+    elif category == 'charmmff' and verb == 'add-residue':
+        detail = _slugify(os.path.splitext(os.path.basename(args.file))[0])
+    base = f"modpkg/{category}-{verb}" + (f"-{detail}" if detail else '')
+    name, n = base, 2
+    while gitutil.branch_exists(repo_root, name):
+        name = f"{base}-{n}"
+        n += 1
+    return name
+
+
 @dataclass
 class ModifyPackageSubcommand(Subcommand):
     name: str = 'modify-package'
@@ -102,22 +128,34 @@ class ModifyPackageSubcommand(Subcommand):
         RM = ResourceManager()
         category = args.category
         verb = getattr(args, 'verb', None)
-        contribute = bool(getattr(args, 'branch', None))
+        # a contribution branch is opened by default; --no-branch applies the change in place
+        contribute = not getattr(args, 'no_branch', False)
+        explicit_branch = getattr(args, 'branch', None)
         repo_root = gitutil.package_repo_root()
         touched: list = []
         commit_summary = None
+        branch_name = None
 
         if contribute:
             if not gitutil.worktree_is_clean(repo_root):
                 raise RuntimeError(
-                    'working tree is not clean; commit or stash your changes before using --branch '
-                    '(the contribution branch must contain only the contribution)')
-            if gitutil.branch_exists(repo_root, args.branch):
-                raise gitutil.GitError(
-                    f"branch '{args.branch}' already exists; choose a different --branch name or delete it first")
+                    'working tree is not clean; commit or stash your changes first, or pass '
+                    '--no-branch to apply the change in place (a contribution branch must '
+                    'contain only the contribution)')
+            if explicit_branch is not None:
+                if gitutil.branch_exists(repo_root, explicit_branch):
+                    raise gitutil.GitError(
+                        f"branch '{explicit_branch}' already exists; choose a different --branch name or delete it first")
+                branch_name = explicit_branch
+            else:
+                branch_name = _auto_branch_name(repo_root, category, verb, args)
 
         if category == 'example':
             _do_example(RM, args)
+            if contribute:
+                # example management touches files it does not enumerate; the clean-tree
+                # precondition makes every current change attributable to this operation
+                touched = gitutil.changed_paths(repo_root)
 
         elif category == 'pdb-repo':
             if verb == 'add-entry':
@@ -141,8 +179,22 @@ class ModifyPackageSubcommand(Subcommand):
 
         if contribute:
             if not touched:
-                raise RuntimeError('--branch was given but no package files were modified; nothing to commit')
-            if commit_summary is not None and 'resnames' in commit_summary:
+                raise RuntimeError('no package files were modified; nothing to commit '
+                                   '(pass --no-branch if you did not intend to open a branch)')
+            if category == 'example':
+                if verb == 'add':
+                    message = f"contrib(example): add example from {os.path.basename(args.scriptname)}"
+                elif verb == 'rename':
+                    message = f"contrib(example): rename example {args.example_id} to {args.new_name}"
+                elif verb == 'delete':
+                    message = f"contrib(example): delete example {args.example_id}"
+                elif verb == 'update':
+                    message = f"contrib(example): update example {args.example_id}"
+                elif verb == 'author':
+                    message = f"contrib(example): set author for example {args.example_id}"
+                else:
+                    message = f"contrib(example): {verb}"
+            elif commit_summary is not None and 'resnames' in commit_summary:
                 names = ', '.join(commit_summary['resnames'])
                 message = (f"contrib(residue): add {names} to built-in custom "
                            f"[segtype: {commit_summary['segtype']}]")
@@ -162,23 +214,29 @@ class ModifyPackageSubcommand(Subcommand):
                 message = 'contrib(charmmff): regenerate atomselect macros'
             else:
                 message = 'contrib: modify-package change'
-            gitutil.create_and_checkout_branch(repo_root, args.branch)
+            gitutil.create_and_checkout_branch(repo_root, branch_name)
             gitutil.stage_and_commit(repo_root, touched, message)
-            print(f"\nCommitted to new branch '{args.branch}':")
+            print(f"\nCommitted to new branch '{branch_name}':")
             for p in touched:
                 print(f"    {os.path.relpath(p, repo_root)}")
             print("\nReview it with `git show`, then push and open a pull request:")
-            print(f"    git push -u origin {args.branch}")
+            print(f"    git push -u origin {branch_name}")
             print("    gh pr create      # or open the PR on GitHub")
         return True
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
 
-        # shared contribute flag, mixed into the pdb-repo/charmmff verbs
+        # shared git-flow options, mixed into every verb.  By default modify-package opens a
+        # fresh contribution branch and commits exactly the files it touched; --branch names
+        # that branch explicitly, and --no-branch skips branching/committing entirely.
         contrib = ap.ArgumentParser(add_help=False)
-        contrib.add_argument('--branch', type=str, default=None, metavar='NAME',
-                             help='make the change on a new git branch NAME (off the current HEAD) and commit exactly the files it touches; requires a clean working tree')
+        g = contrib.add_mutually_exclusive_group()
+        g.add_argument('--branch', type=str, default=None, metavar='NAME',
+                       help='name for the contribution branch (default: an auto-generated name); '
+                            'the change is committed on a new branch off HEAD, requires a clean working tree')
+        g.add_argument('--no-branch', dest='no_branch', action='store_true',
+                       help='do not open a branch or commit; just apply the change to the working tree')
 
         cats = self.parser.add_subparsers(dest='category', required=True, metavar='CATEGORY',
                                           help='category of modification: example | pdb-repo | charmmff')
@@ -187,7 +245,7 @@ class ModifyPackageSubcommand(Subcommand):
         ex = cats.add_parser('example', help='manage the example library')
         exv = ex.add_subparsers(dest='verb', required=True, metavar='VERB',
                                 help='add | update | delete | rename | author')
-        p = exv.add_parser('add', help='add a new example from a YAML script')
+        p = exv.add_parser('add', parents=[contrib], help='add a new example from a YAML script')
         p.add_argument('scriptname', type=str, help='YAML file of the example')
         p.add_argument('--id', type=int, default=0, help='integer ID to assign (default: next available)')
         p.add_argument('--author-name', dest='author_name', type=str, default='', help='author name (default: extract from the script header)')
@@ -196,7 +254,7 @@ class ModifyPackageSubcommand(Subcommand):
         p.add_argument('--db-id', dest='db_id', type=str, default='', help="database ID (default: from the script's fetch task)")
         p.add_argument('--auxiliary-inputs', dest='auxiliary_inputs', type=str, nargs='*', default=[], help='auxiliary input files for the example')
         p.add_argument('--outputs', type=str, nargs='*', default=[], help='output files for the example')
-        p = exv.add_parser('update', help='update an existing example')
+        p = exv.add_parser('update', parents=[contrib], help='update an existing example')
         p.add_argument('example_id', type=int, help='integer ID of the example to update')
         p.add_argument('--name', type=str, default='', help='new short name for the example')
         p.add_argument('--author-name', dest='author_name', type=str, default='')
@@ -205,12 +263,12 @@ class ModifyPackageSubcommand(Subcommand):
         p.add_argument('--db-id', dest='db_id', type=str, default='')
         p.add_argument('--auxiliary-inputs', dest='auxiliary_inputs', type=str, nargs='*', default=[])
         p.add_argument('--outputs', type=str, nargs='*', default=[])
-        p = exv.add_parser('delete', help='delete an example by ID')
+        p = exv.add_parser('delete', parents=[contrib], help='delete an example by ID')
         p.add_argument('example_id', type=int, help='integer ID of the example to delete')
-        p = exv.add_parser('rename', help='rename an example')
+        p = exv.add_parser('rename', parents=[contrib], help='rename an example')
         p.add_argument('example_id', type=int, help='integer ID of the example to rename')
         p.add_argument('new_name', type=str, help='new name for the example')
-        p = exv.add_parser('author', help='set an example author')
+        p = exv.add_parser('author', parents=[contrib], help='set an example author')
         p.add_argument('example_id', type=int, help='integer ID of the example')
         p.add_argument('author_name', type=str, help='author name')
         p.add_argument('author_email', type=str, help='author email')

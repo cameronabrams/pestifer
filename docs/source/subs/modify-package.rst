@@ -13,11 +13,17 @@ This subcommand will only work on a full source repository, so if you want to us
     cd pestifer
     pip install -e . # so that you can tell `pestifer` to modify itself
 
-I also recommend creating a Git branch for your modifications, so you can easily revert them if needed:
+.. _modify branching:
 
-.. code-block:: bash
+The Git workflow is automatic
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    git checkout -b my-modifications
+Because every modification is meant to become a pull request, ``modify-package`` folds the Git workflow into each command and **runs it by default**: it verifies your working tree is clean, makes the change on a **fresh branch** (auto-named ``modpkg/<category>-<verb>-<detail>``), and commits **exactly** the files it touched — then prints the ``git push`` / ``gh pr create`` steps.  You do not need to create a branch or commit by hand.
+
+- ``--branch NAME`` — name the branch yourself instead of using the auto-generated name.
+- ``--no-branch`` — skip branching and committing entirely; just apply the change to your working tree (useful when you are already on a feature branch, or want to stage the change yourself).
+
+Both options are available on every ``example``, ``pdb-repo``, and ``charmmff`` verb.  The default (auto-branch) requires a clean working tree, so the branch contains only your contribution.
 
 .. _modify add example:
 
@@ -46,23 +52,22 @@ Then I edited ``1mob.yaml`` to add a salt concentration specification to the ``s
 
     $ pestifer build 1mob.yaml
 
-That also built successfully, so I added a new example to the pestifer package **after** switching to a new branch:
+That also built successfully, so I added a new example to the pestifer package (from a clean working tree, so the auto-created branch contains only the new example):
 
 .. code-block:: bash
 
-    $ cd ~/Git/pestifer        # my local source repository
-    $ git branch -b new-1mob   # create a new branch for the example
     $ cd ~/1mob_working_directory  # where I have the 1mob.yaml file
     $ pestifer modify-package example add 1mob.yaml  # add the example to the package
 
-This will copy the file ``1mob.yaml`` to the appropriate location in pestifer source package, and it will also update the ``docs/source/examples/19/1mob.rst`` file to include a link to the new example.  Then I edited the ``docs/source/examples/19/1mob.rst`` file to add a description of the example and how it works.  Finally, I committed the changes:
+This copies ``1mob.yaml`` to the appropriate location in the pestifer source package, updates the generated ``docs/source/examples/19/1mob.rst`` to link the new example, **and** — because the Git workflow is automatic (see :ref:`above <modify branching>`) — creates a branch ``modpkg/example-add-1mob-yaml`` and commits exactly those files.  Then I edited ``docs/source/examples/19/1mob.rst`` to add a description of the example, and folded that edit into the same commit:
 
 .. code-block:: bash
 
-    $ git add .
-    $ git commit -m "Add 1mob example"
+    $ cd ~/Git/pestifer
+    $ git add docs/source/examples/19/1mob.rst
+    $ git commit --amend --no-edit
 
-Then, I recompiled the documenation while my package was still in the ``new-1mob`` branch:
+Then, I recompiled the documenation while my package was still on the ``modpkg/example-add-1mob-yaml`` branch:
 
 .. code-block:: bash
 
@@ -136,7 +141,7 @@ The simplest invocation makes the change in your working tree:
 Folding in the git workflow
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Because a contribution is meant to become a pull request, the ``--branch`` option folds the branch-and-commit step into the command.  It **requires a clean working tree** (so the resulting branch contains only your contribution), creates a new branch off your current ``HEAD``, makes the change, and commits **exactly** the files it touched (the copied custom file and, if a segtype was registered, ``labels.py``) — never anything else in your tree:
+Because a contribution is meant to become a pull request, the branch-and-commit step runs automatically (see :ref:`above <modify branching>`): from a clean working tree it creates a fresh branch off ``HEAD``, makes the change, and commits **exactly** the files it touched (the copied custom file and, if a segtype was registered, ``labels.py``) — never anything else in your tree.  Pass ``--branch NAME`` to name the branch, or ``--no-branch`` to apply the change without committing:
 
 .. code-block:: bash
 
@@ -177,7 +182,7 @@ Then install that entry into the repository with ``pdb-repo add-entry``, which v
 
     $ pestifer modify-package pdb-repo add-entry mycoords/MYLIP --branch add-mylip-coords
 
-By default the collection is the residue's segtype (``lipid`` -> the ``lipid`` collection; ``ion``/``water`` -> ``solvent``); use ``--collection NAME`` to choose another, and ``--force`` to replace an entry already present for that resname.  As with the other contribution flows, ``--branch`` requires a clean working tree and commits **exactly** the changed collection tarball on a new branch for you to push and open as a pull request.
+By default the collection is the residue's segtype (``lipid`` -> the ``lipid`` collection; ``ion``/``water`` -> ``solvent``); use ``--collection NAME`` to choose another, and ``--force`` to replace an entry already present for that resname.  As with the other verbs, the change is committed on a fresh branch by default (``--branch NAME`` to name it, ``--no-branch`` to skip) — from a clean working tree, containing **exactly** the changed collection tarball for you to push and open as a pull request.
 
 Installing many entries at once
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

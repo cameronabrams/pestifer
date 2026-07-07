@@ -34,6 +34,24 @@ def worktree_is_clean(repo_root) -> bool:
     return _git(repo_root, 'status', '--porcelain') == ''
 
 
+def changed_paths(repo_root) -> list:
+    """
+    Absolute paths of every file changed, added, or deleted in the working tree, as
+    reported by ``git status --porcelain``.  Since callers require a clean tree before
+    running an operation, this attributes exactly that operation's changes -- useful when
+    an operation touches files it cannot easily enumerate itself (e.g. example management).
+    """
+    out = _git(repo_root, 'status', '--porcelain')
+    paths = []
+    for line in out.splitlines():
+        entry = line[3:]                       # strip the two-char status + space
+        if ' -> ' in entry:                    # rename: "old -> new"
+            entry = entry.split(' -> ', 1)[1]
+        entry = entry.strip().strip('"')       # git quotes paths with odd characters
+        paths.append(str(Path(repo_root) / entry))
+    return paths
+
+
 def current_branch(repo_root) -> str:
     """Name of the currently checked-out branch."""
     return _git(repo_root, 'rev-parse', '--abbrev-ref', 'HEAD')
