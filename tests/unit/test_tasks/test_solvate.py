@@ -16,6 +16,32 @@ def _make_task(repo):
     return t
 
 
+def _task_with_specs(specs):
+    t = SolvateTask.__new__(SolvateTask)
+    t.specs = specs
+    return t
+
+
+class TestIonizationPlan(unittest.TestCase):
+    def test_water_always_ionizes(self):
+        t = _task_with_specs({})
+        self.assertEqual(t._ionization_plan('TIP3'), (True, True, False))
+        self.assertEqual(t._ionization_plan(None)[0], True)
+
+    def test_non_water_skips_ionization_by_default(self):
+        do_ionize, is_water, ions_requested = _task_with_specs({})._ionization_plan('DMSO')
+        self.assertFalse(do_ionize)
+        self.assertFalse(is_water)
+        self.assertFalse(ions_requested)
+
+    def test_non_water_ionizes_when_ions_requested(self):
+        for specs in ({'salt_con': 0.15}, {'cation': 'SOD'}, {'anion': 'CLA'}):
+            do_ionize, is_water, ions_requested = _task_with_specs(specs)._ionization_plan('MEOH')
+            self.assertTrue(do_ionize)
+            self.assertTrue(ions_requested)
+            self.assertFalse(is_water)
+
+
 class TestSolventBoxArgs(unittest.TestCase):
     def test_water_uses_builtin_box(self):
         # every water alias returns no custom-box args (repo is never consulted)

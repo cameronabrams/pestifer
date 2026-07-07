@@ -12,6 +12,7 @@ The resulting solvated structure is saved with the specified basename, and the s
 Usage is described in the :ref:`subs_buildtasks_solvate` documentation.
 """
 import logging
+import os
 
 import numpy as np
 
@@ -43,6 +44,18 @@ class SolvateTask(VMDTask):
 
     # solvent names that mean "use VMD's built-in pre-equilibrated water box" (no custom box)
     _WATER_SOLVENTS = {'TIP3', 'TIP3P', 'WATER', 'WAT'}
+
+    def _ionization_plan(self, solvent):
+        """
+        Return ``(do_ionize, is_water, ions_requested)``.  Autoionize adds ions by replacing
+        water, so it runs for water solvation always, but for a non-water solvent only when
+        the user explicitly asked for ions (``salt_con``/``cation``/``anion``).
+        """
+        is_water = solvent is None or solvent.upper() in self._WATER_SOLVENTS
+        ions_requested = (self.specs.get('salt_con') is not None
+                          or self.specs.get('cation') is not None
+                          or self.specs.get('anion') is not None)
+        return (is_water or ions_requested), is_water, ions_requested
 
     def _solvent_box_args(self, solvent: str) -> str:
         """
@@ -135,19 +148,34 @@ class SolvateTask(VMDTask):
         vt.addline(f'mol new {state.psf.name}')
         vt.addline(f'mol addfile {state.pdb.name} waitfor all')
         vt.addline(f'solvate {state.psf.name} {state.pdb.name} -minmax {box_tcl}{box_args} -o {self.basename}_solv')
-        ai_args=[]
-        sc=self.specs.get('salt_con',None)
-        if sc is None:
-            ai_args.append('-neutralize')
+
+        # Ionization: VMD autoionize adds ions by carving space out of *water*, so it only
+        # works for water solvation.  For a non-water solvent, run it only if the user
+        # explicitly asked for ions (and warn it may not find room); otherwise skip it and
+        # keep the system's net charge (NAMD neutralizes with a uniform background under PME).
+        sc = self.specs.get('salt_con', None)
+        cation = self.specs.get('cation', None)
+        anion = self.specs.get('anion', None)
+        do_ionize, is_water, ions_requested = self._ionization_plan(solvent)
+        if not is_water and ions_requested:
+            logger.warning(f'ions requested with non-water solvent {solvent!r}: VMD autoionize '
+                           'places ions by replacing water and may fail to find room in a '
+                           'non-aqueous box')
+
+        if do_ionize:
+            ai_args = ['-neutralize' if sc is None else f'-sc {sc}']
+            if cation is not None:
+                ai_args.append(f'-cation {cation}')
+            if anion is not None:
+                ai_args.append(f'-anion {anion}')
+            vt.addline(f'autoionize -psf {self.basename}_solv.psf -pdb {self.basename}_solv.pdb {" ".join(ai_args)} -o {self.basename}')
         else:
-            ai_args.append(f'-sc {sc}')
-        cation=self.specs.get('cation',None)
-        if cation is not None:
-            ai_args.append(f'-cation {cation}')
-        anion=self.specs.get('anion',None)
-        if anion is not None:
-            ai_args.append(f'-anion {anion}')
-        vt.addline(f'autoionize -psf {self.basename}_solv.psf -pdb {self.basename}_solv.pdb {" ".join(ai_args)} -o {self.basename}')
+            logger.info(f'solvent {solvent!r} is not water and no ions were requested; skipping '
+                        'autoionize (the system keeps its net charge)')
+            # promote the solvate output to the task basename so downstream naming is uniform
+            vt.addline(f'file copy -force {self.basename}_solv.psf {self.basename}.psf')
+            vt.addline(f'file copy -force {self.basename}_solv.pdb {self.basename}.pdb')
+
         vt.writescript()
         self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
         self.result = vt.runscript(progress_title='solvate', progress_color='fluorescent_blue')
@@ -155,6 +183,20 @@ class SolvateTask(VMDTask):
         self.register(self.basename+'_solv', key='log', artifact_type=VMDLogFileArtifact)
         if self.result != 0:
             return self.result
+        # VMD exits 0 even when solvate/autoionize catch their own errors, so verify the
+        # expected outputs were actually produced before continuing
+        for ext in ('psf', 'pdb'):
+            if not os.path.isfile(f'{self.basename}.{ext}'):
+                if do_ionize and not is_water:
+                    hint = (f'autoionize could not place ions in the non-water solvent box '
+                            f'(no water to make room); build without ions, or use a water solvent')
+                elif do_ionize:
+                    hint = 'autoionize failed to place ions; check the VMD log'
+                else:
+                    hint = 'solvate produced no output; check the VMD log'
+                raise PestiferError(
+                    f'solvate task {self.taskname}: no {self.basename}.{ext} was produced '
+                    f'(VMD returned {self.result}) -- {hint}. See {self.basename}.log')
         psf1 = PSFFileArtifact(f'{self.basename}_solv.psf')
         pdb1 = PDBFileArtifact(f'{self.basename}_solv.pdb')
         self.register(dict(psf=psf1, pdb=pdb1, xsc=xsc), key='state', artifact_type=StateArtifacts)
