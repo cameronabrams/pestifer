@@ -39,24 +39,30 @@ class DesolvateTask(VMDTask):
     def do(self) -> int:
         self.catdcd = self.provisions['shell-commands']['catdcd']
         self.do_idx_psf_gen()
-        # Guard: catdcd (do_dcd_prune) consumes the index file the VMD step is
-        # supposed to write.  If VMD did not run (e.g. 'vmd' is not launchable on
-        # this PATH -- it can exit 0 having produced nothing), the index is missing
-        # or empty and catdcd fails downstream with a misleading "Error opening/
-        # reading index file", while the task still reports success.  Fail loudly
-        # here instead, pointing at the real culprit.
+        # Guard: catdcd (do_dcd_prune) consumes the index file the VMD step is supposed
+        # to write.  If that step did not produce the index/PSF, catdcd fails downstream
+        # with a misleading "Error opening/reading index file" while the task still
+        # reports success.  Fail loudly here instead, distinguishing the two failure
+        # modes: VMD not launching at all (rc != 0) vs. VMD running but its script
+        # producing nothing (rc 0 but no/empty outputs -- e.g. a Tcl error, or a VMD
+        # launcher that exits without running the script; see the log).
         idx_outfile: str = self.specs['idx_outfile']
         psf_outfile: str = self.specs['psf_outfile']
         idx_ok = os.path.isfile(idx_outfile) and os.path.getsize(idx_outfile) > 0
         psf_ok = os.path.isfile(psf_outfile) and os.path.getsize(psf_outfile) > 0
         if self.result != 0 or not idx_ok or not psf_ok:
+            if self.result != 0:
+                cause = (f"VMD exited with returncode {self.result} -- confirm 'vmd' is on "
+                         f"PATH and launchable (e.g. `vmd -dispdev text -e /dev/null`)")
+            else:
+                cause = ("VMD exited cleanly (returncode 0) but wrote no output -- its script "
+                         "did not run to completion; check the log for a Tcl error, and note "
+                         "that some site VMD launchers wrap the binary in rlwrap and exit "
+                         "without running the script when detached from a terminal")
             raise PestiferError(
-                f"desolvate: the index/PSF-generation step failed "
-                f"(VMD returncode {self.result}); expected outputs "
-                f"'{idx_outfile}' and '{psf_outfile}' were not produced. "
-                f"See '{self.basename}.log' -- most commonly VMD did not actually "
-                f"run (confirm 'vmd' is on PATH and launchable, e.g. "
-                f"`bash -c 'vmd -dispdev text -e /dev/null'`)."
+                f"desolvate: the index/PSF-generation step failed; expected outputs "
+                f"'{idx_outfile}' and '{psf_outfile}' were not produced. {cause}. "
+                f"See '{self.basename}.log'."
             )
         self.do_dcd_prune()
         return 0

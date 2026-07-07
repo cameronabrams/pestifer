@@ -3,6 +3,7 @@
 import datetime
 import logging
 import os
+import subprocess
 
 from .tcl import TcLScripter
 
@@ -267,7 +268,12 @@ class VMDScripter(TcLScripter):
         if self.progress and progress_title != '':
             progress_struct = PestiferProgress(name=progress_title, color=options.get('progress_color','fuchsia'))
             self.logparser.enable_progress_bar(progress_struct)
-        return c.run(logfile=self.logname, logparser=self.logparser)
+        # VMD runs in pestifer's own session (not a new one): a detached session strips
+        # the controlling terminal, and an rlwrap-wrapping VMD launcher then exits without
+        # running the script.  Feeding /dev/null on stdin also keeps such a launcher from
+        # choosing rlwrap at all (VMD -dispdev text -e … reads no stdin).
+        return c.run(logfile=self.logname, logparser=self.logparser,
+                     new_session=False, stdin=subprocess.DEVNULL)
 
     def cleanup(self, cleanup=False):
         """

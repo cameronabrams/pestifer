@@ -32,29 +32,37 @@ logger = logging.getLogger(__name__)
 # was the shell/charmrun wrapper and SIGTERM to it never reached ``namd3``.
 # ---------------------------------------------------------------------------
 
-_active_child_pgids: set[int] = set()
+# pid -> was it launched in its own session?  Session-detached children (NAMD via
+# charmrun) are torn down with ``killpg`` on their whole tree; children left in
+# pestifer's own session (VMD -- see below) must be signaled by pid only, never by
+# process group, or we would kill pestifer itself.
+_active_children: dict[int, bool] = {}
 _active_child_lock = threading.Lock()
 _signal_handlers_installed = False
 
 
-def _register_child(pid: int) -> None:
+def _register_child(pid: int, new_session: bool = True) -> None:
     with _active_child_lock:
-        _active_child_pgids.add(pid)
+        _active_children[pid] = new_session
 
 
 def _unregister_child(pid: int) -> None:
     with _active_child_lock:
-        _active_child_pgids.discard(pid)
+        _active_children.pop(pid, None)
 
 
 def _terminate_children(sig: int) -> int:
-    """Send *sig* to every live child process group.  Returns the count signaled."""
+    """Send *sig* to every live child.  Session-detached children are signaled by
+    process group (``killpg``); others by pid.  Returns the count signaled."""
     with _active_child_lock:
-        pgids = list(_active_child_pgids)
+        children = list(_active_children.items())
     n = 0
-    for pid in pgids:
+    for pid, new_session in children:
         try:
-            os.killpg(os.getpgid(pid), sig)
+            if new_session:
+                os.killpg(os.getpgid(pid), sig)
+            else:
+                os.kill(pid, sig)
             n += 1
         except (ProcessLookupError, OSError):
             pass
@@ -141,7 +149,7 @@ class Command:
         self.stdout = ''
         self.stderr = ''
 
-    def run(self, logfile=None, override=(), ignore_codes=[], quiet=True, logparser: LogParser = None, log_stderr=False, **kwargs):
+    def run(self, logfile=None, override=(), ignore_codes=[], quiet=True, logparser: LogParser = None, log_stderr=False, new_session=True, stdin=None, **kwargs):
         """
         Runs this Command instance
         
@@ -179,11 +187,16 @@ class Command:
             stderr_redirect = subprocess.STDOUT
         else:
             stderr_redirect = subprocess.PIPE
-        # run each external command in its own session so its whole process tree
-        # (e.g. charmrun -> namd3 -> PEs) can be torn down with one killpg on interrupt
+        # By default each external command runs in its own session so its whole process
+        # tree (e.g. charmrun -> namd3 -> PEs) can be torn down with one killpg on
+        # interrupt.  VMD passes new_session=False: a new session strips the controlling
+        # terminal, and a VMD launcher that wraps the binary in ``rlwrap`` (common in
+        # site VMD 2.x builds) then exits immediately without running the script -- so
+        # VMD stays in pestifer's session and is signaled by pid instead.
         install_signal_handlers()
-        process = subprocess.Popen(self.c, shell=True, stdout=subprocess.PIPE, stderr=stderr_redirect, text=True, start_new_session=True)
-        _register_child(process.pid)
+        process = subprocess.Popen(self.c, shell=True, stdout=subprocess.PIPE, stderr=stderr_redirect,
+                                   text=True, start_new_session=new_session, stdin=stdin)
+        _register_child(process.pid, new_session=new_session)
         self.stdout = ''
         self.stderr = ''
         output = ''
