@@ -420,12 +420,22 @@ class ResourceManager:
             raise PestiferError(f'{entry}: no info.yaml; is this a make-pdb-collection entry directory?')
         with open(info_path) as f:
             info = yaml.safe_load(f) or {}
-        conformers = info.get('conformers', [])
-        if not conformers:
-            raise PestiferError(f'{info_path}: no conformers listed')
-        for c in conformers:
-            if not (entry / c['pdb']).is_file():
-                raise PestiferError(f'{info_path} references conformer {c["pdb"]!r}, but {entry / c["pdb"]} is missing')
+        if info.get('kind') == 'box':
+            # a pre-equilibrated solvent box (make-pdb-collection solvent): psf + pdb, no conformers
+            conformers = []
+            for key in ('psf', 'pdb'):
+                fname = info.get(key)
+                if not fname:
+                    raise PestiferError(f'{info_path}: kind:box entry is missing its {key!r} file reference')
+                if not (entry / fname).is_file():
+                    raise PestiferError(f'{info_path} references {key} {fname!r}, but {entry / fname} is missing')
+        else:
+            conformers = info.get('conformers', [])
+            if not conformers:
+                raise PestiferError(f'{info_path}: no conformers listed')
+            for c in conformers:
+                if not (entry / c['pdb']).is_file():
+                    raise PestiferError(f'{info_path} references conformer {c["pdb"]!r}, but {entry / c["pdb"]} is missing')
 
         if not collection:
             seg = self.labels.segtype_of_resname.get(resname) or self.labels.segtype_of_resname.get(resname.upper())
@@ -464,6 +474,7 @@ class ResourceManager:
             'resname': resname,
             'collection': collection,
             'tarball': str(tarball),
+            'kind': info.get('kind', 'molecule'),
             'nconformers': len(conformers),
             'created_collection': created,
             'touched_paths': [str(tarball)],

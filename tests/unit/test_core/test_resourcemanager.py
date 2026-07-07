@@ -142,6 +142,48 @@ class TestResourceManager(unittest.TestCase):
             res2 = self.RM.add_pdb_entry(entry, collection='testcoll', force=True)
             self.assertFalse(res2['created_collection'])
 
+    def test_add_pdb_entry_box_kind(self):
+        import tempfile
+        import yaml
+        # a kind:box solvent-box entry (make-pdb-collection solvent): psf + pdb, no conformers
+        d = tempfile.mkdtemp()
+        entry = os.path.join(d, 'ZZBOX')
+        os.makedirs(entry)
+        with open(os.path.join(entry, 'ZZBOX-box.pdb'), 'w') as f:
+            f.write('ATOM      1  C1  ZZB A   1       0.000   0.000   0.000  1.00  0.00      W0   C\nEND\n')
+        with open(os.path.join(entry, 'ZZBOX-box.psf'), 'w') as f:
+            f.write('PSF\n')
+        with open(os.path.join(entry, 'info.yaml'), 'w') as f:
+            yaml.safe_dump({'kind': 'box', 'resname': 'ZZBOX', 'nmol': 1, 'box_edge': 18.6,
+                            'density': 1.0, 'key_atom': 'C1', 'defined-in': 'custom',
+                            'psf': 'ZZBOX-box.psf', 'pdb': 'ZZBOX-box.pdb'}, f)
+        fake_charmmff = os.path.join(d, 'charmmff')
+        os.makedirs(fake_charmmff)
+        with mock.patch.object(self.RM.charmmff_content, 'charmmff_path', fake_charmmff), \
+             mock.patch('pestifer.util.cacheable_object.CacheableObject.clear_cache', return_value=[]):
+            res = self.RM.add_pdb_entry(entry, collection='solvent')
+            self.assertEqual(res['kind'], 'box')
+            self.assertEqual(res['nconformers'], 0)
+            self.assertTrue(res['created_collection'])
+            from pestifer.charmmff.pdbrepository import PDBCollection
+            c = PDBCollection.build_from_resources(res['tarball'])
+            self.assertTrue(c.contents['ZZBOX'].is_box())
+            self.assertEqual(c.contents['ZZBOX'].get_box_edge(), 18.6)
+
+    def test_add_pdb_entry_box_missing_pdb_rejected(self):
+        import tempfile
+        import yaml
+        d = tempfile.mkdtemp()
+        entry = os.path.join(d, 'ZZBAD')
+        os.makedirs(entry)
+        with open(os.path.join(entry, 'ZZBAD-box.psf'), 'w') as f:
+            f.write('PSF\n')
+        with open(os.path.join(entry, 'info.yaml'), 'w') as f:   # references a pdb that isn't there
+            yaml.safe_dump({'kind': 'box', 'resname': 'ZZBAD',
+                            'psf': 'ZZBAD-box.psf', 'pdb': 'ZZBAD-box.pdb'}, f)
+        with self.assertRaises(PestiferError):
+            self.RM.add_pdb_entry(entry, collection='solvent')
+
     def test_add_pdb_entry_rejects_missing_info(self):
         import tempfile
         d = tempfile.mkdtemp()

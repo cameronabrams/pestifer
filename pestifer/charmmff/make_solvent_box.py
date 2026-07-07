@@ -293,3 +293,53 @@ def make_solvent_box(resname, DB, RM=None, nmol: int = 216, density: float = 1.0
     with open('info.yaml', 'w') as f:
         yaml.dump(info, f)
     return info
+
+
+def build_solvent_entry(args):
+    """
+    Driver for ``make-pdb-collection solvent``: build a ``kind: box`` solvent entry and
+    assemble it into an installable entry directory ``<output_dir>/<RESN>/`` containing
+    ``info.yaml`` + the equilibrated box psf/pdb.  Install it with
+    ``modify-package pdb-repo add-entry <output_dir>/<RESN> --collection solvent``.
+
+    The heavy NAMD build runs in a scratch working directory so its many intermediate
+    files stay out of the entry directory.
+    """
+    from ..core.resourcemanager import ResourceManager
+
+    resname = args.resname
+    charmmff_config = {'release': args.charmmff_release} if getattr(args, 'charmmff_release', '') else {}
+    RM = ResourceManager(charmmff_config=charmmff_config)
+    CC = RM.charmmff_content
+    CC.provision()
+    if resname not in CC:
+        raise ValueError(f'RESI {resname} not found in the CHARMM force field; cannot build a solvent box')
+
+    outdir = args.output_dir or 'solvent'
+    entrydir = os.path.abspath(os.path.join(outdir, resname))
+    workdir = os.path.abspath(os.path.join(outdir, f'{resname}-work'))
+    for d in (entrydir, workdir):
+        os.makedirs(d, exist_ok=True)
+
+    cwd = os.getcwd()
+    os.chdir(workdir)
+    try:
+        info = make_solvent_box(
+            resname, CC, RM=RM, nmol=args.nmol, density=args.density,
+            temperature=args.temperature, pressure=args.pressure,
+            minimize_steps=args.minimize_steps, npt_steps=args.npt_steps,
+            seed=args.seed, key_atom=(args.key_atom or None), refic_idx=args.refic_idx)
+        for fname in ('info.yaml', info['psf'], info['pdb']):
+            shutil.copyfile(fname, os.path.join(entrydir, fname))
+    finally:
+        os.chdir(cwd)
+    if getattr(args, 'cleanup', True):
+        shutil.rmtree(workdir, ignore_errors=True)
+
+    logger.info(f"solvent box entry for {resname} written to {os.path.relpath(entrydir, cwd)}/ "
+                f"(edge {info['box_edge']} A, density {info['density']} g/cc)")
+    print(f"Solvent box entry for {resname}: {os.path.relpath(entrydir, cwd)}/")
+    print(f"  edge {info['box_edge']} A, density {info['density']} g/cc, key atom {info['key_atom']}")
+    print("Install it into the solvent collection with:")
+    print(f"    pestifer modify-package pdb-repo add-entry {os.path.relpath(entrydir, cwd)} --collection solvent")
+    return info

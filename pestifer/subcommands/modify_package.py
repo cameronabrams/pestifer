@@ -48,8 +48,11 @@ def _add_pdb_entry(RM, args, out=print):
     """Install a make-pdb-collection entry into the PDB repository; return (touched, summary)."""
     result = RM.add_pdb_entry(args.entry_dir, collection=args.collection, force=args.force)
     verb = 'created collection' if result['created_collection'] else 'added to collection'
-    out(f"Installed PDB-repo entry for {result['resname']} ({result['nconformers']} conformer"
-        f"{'s' if result['nconformers'] != 1 else ''}): {verb} '{result['collection']}'")
+    if result['kind'] == 'box':
+        content = 'pre-equilibrated box'
+    else:
+        content = f"{result['nconformers']} conformer{'s' if result['nconformers'] != 1 else ''}"
+    out(f"Installed PDB-repo entry for {result['resname']} ({content}): {verb} '{result['collection']}'")
     out(f"  tarball: {result['tarball']}")
     out('  resource cache cleared; it will rebuild on the next run.')
     return result['touched_paths'], result
