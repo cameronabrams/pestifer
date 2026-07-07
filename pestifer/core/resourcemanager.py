@@ -375,40 +375,12 @@ class ResourceManager:
             'touched_paths': touched,
         }
 
-    def add_pdb_entry(self, entry_dir, collection: str = None, force: bool = False) -> dict:
+    def _validate_pdb_entry(self, entry_dir):
         """
-        Install a PDB-repository entry -- a residue's sampled coordinate set produced by
-        ``make-pdb-collection`` -- into the built-in PDB repository, so that
-        ``make_membrane_system`` can place the residue.
-
-        A PDB repository is a set of *collections*, each a ``<stream>.tgz`` tarball whose
-        single top-level directory is the stream name and which holds one ``<RESI>/``
-        subdirectory per residue (its ``info.yaml`` plus conformer PDBs).  This method
-        adds (or, with ``force``, replaces) the ``<RESI>/`` entry inside the target
-        collection tarball, creating the tarball if it does not exist yet.
-
-        Parameters
-        ----------
-        entry_dir : str or Path
-            A directory named after the residue (its basename is the resname), containing
-            ``info.yaml`` and the conformer PDBs it references -- the output of
-            ``pestifer make-pdb-collection --resname <RESI> --output-dir <dir>`` (the
-            ``<dir>/<RESI>`` subdirectory).
-        collection : str, optional
-            Collection/stream to install into; the entry lands in
-            ``pdbrepository/<collection>.tgz`` under ``<collection>/<RESI>/``.  Defaults to
-            the residue's segtype (``ion``/``water`` map to ``solvent``).
-        force : bool, optional
-            Overwrite an entry already present for this resname in the collection.
-
-        Returns
-        -------
-        dict
-            Summary with keys ``resname``, ``collection``, ``tarball``, ``nconformers``,
-            ``created_collection``, and ``touched_paths``.
+        Validate a single ``make-pdb-collection`` entry directory and return
+        ``(entry_path, resname, info)``.  A ``kind: box`` entry must ship its psf/pdb; a
+        molecule entry must list conformers whose PDBs all exist.
         """
-        import tarfile
-        import tempfile
         import yaml
 
         entry = Path(entry_dir).expanduser().resolve()
@@ -422,7 +394,6 @@ class ResourceManager:
             info = yaml.safe_load(f) or {}
         if info.get('kind') == 'box':
             # a pre-equilibrated solvent box (make-pdb-collection solvent): psf + pdb, no conformers
-            conformers = []
             for key in ('psf', 'pdb'):
                 fname = info.get(key)
                 if not fname:
@@ -436,19 +407,33 @@ class ResourceManager:
             for c in conformers:
                 if not (entry / c['pdb']).is_file():
                     raise PestiferError(f'{info_path} references conformer {c["pdb"]!r}, but {entry / c["pdb"]} is missing')
+        return entry, resname, info
 
-        if not collection:
-            seg = self.labels.segtype_of_resname.get(resname) or self.labels.segtype_of_resname.get(resname.upper())
-            collection = {'ion': 'solvent', 'water': 'solvent'}.get(seg, seg)
-            if not collection:
-                raise PestiferError(f'cannot infer a collection for {resname} (its segtype is unknown); pass collection= explicitly')
+    def _resolve_pdb_collection(self, resname, collection):
+        """Return the target collection for ``resname`` (explicit ``collection`` wins)."""
+        if collection:
+            return collection
+        seg = self.labels.segtype_of_resname.get(resname) or self.labels.segtype_of_resname.get(resname.upper())
+        coll = {'ion': 'solvent', 'water': 'solvent'}.get(seg, seg)
+        if not coll:
+            raise PestiferError(f'cannot infer a collection for {resname} (its segtype is unknown); pass collection= explicitly')
+        return coll
+
+    def _install_pdb_entries(self, collection, entries, force):
+        """
+        Add ``entries`` (a list of ``(entry_path, resname, info)``) into the single
+        ``<collection>.tgz`` tarball in one extract/repack pass, creating the tarball if
+        absent.  Returns ``(tarball_path, created)``.
+        """
+        import tarfile
+        import tempfile
 
         pdbrepo_dir = Path(self.charmmff_content.charmmff_path) / 'pdbrepository'
         pdbrepo_dir.mkdir(parents=True, exist_ok=True)
         tarball = pdbrepo_dir / f'{collection}.tgz'
         created = not tarball.exists()
 
-        # extract the existing collection (if any) into a staging tree, add/replace the
+        # extract the existing collection (if any) into a staging tree, add/replace each
         # <resname>/ entry, and re-tar with the single top-level directory <collection>
         with tempfile.TemporaryDirectory() as td:
             if tarball.exists():
@@ -456,28 +441,128 @@ class ResourceManager:
                     tf.extractall(td, filter='data')
             staging = Path(td) / collection
             staging.mkdir(parents=True, exist_ok=True)
-            dest = staging / resname
-            if dest.exists():
-                if not force:
-                    raise PestiferError(f'{resname} already present in collection {collection!r}; use force=True to overwrite')
-                shutil.rmtree(dest)
-            shutil.copytree(entry, dest)
+            for entry_path, resname, _info in entries:
+                dest = staging / resname
+                if dest.exists():
+                    if not force:
+                        raise PestiferError(f'{resname} already present in collection {collection!r}; use force=True to overwrite')
+                    shutil.rmtree(dest)
+                shutil.copytree(entry_path, dest)
             with tarfile.open(tarball, 'w:gz') as tf:
                 tf.add(staging, arcname=collection)
+        return tarball, created
 
-        # the cached PDB repository / resname index no longer reflect the new entry
+    def _clear_pdb_caches(self):
+        """Invalidate the cached PDB repository / resname index after a repo mutation."""
         from ..util.cacheable_object import CacheableObject
         CacheableObject.clear_cache()
         self._resname_index_cache = None
 
+    def add_pdb_entry(self, entry_dir, collection: str = None, force: bool = False) -> dict:
+        """
+        Install a single PDB-repository entry -- a residue's sampled coordinate set produced
+        by ``make-pdb-collection`` -- into the built-in PDB repository, so that
+        ``make_membrane_system`` can place the residue (or ``solvate`` can tile a box).
+
+        A PDB repository is a set of *collections*, each a ``<stream>.tgz`` tarball whose
+        single top-level directory is the stream name and which holds one ``<RESI>/``
+        subdirectory per residue (its ``info.yaml`` plus conformer PDBs, or a ``kind: box``
+        entry's psf/pdb).  This method adds (or, with ``force``, replaces) the ``<RESI>/``
+        entry inside the target collection tarball, creating the tarball if it does not exist
+        yet.  To install a whole directory of entries at once, use :meth:`add_pdb_collection`.
+
+        Parameters
+        ----------
+        entry_dir : str or Path
+            A directory named after the residue (its basename is the resname), containing
+            ``info.yaml`` and the coordinate files it references.
+        collection : str, optional
+            Collection/stream to install into; the entry lands in
+            ``pdbrepository/<collection>.tgz`` under ``<collection>/<RESI>/``.  Defaults to
+            the residue's segtype (``ion``/``water`` map to ``solvent``).
+        force : bool, optional
+            Overwrite an entry already present for this resname in the collection.
+
+        Returns
+        -------
+        dict
+            Summary with keys ``resname``, ``collection``, ``tarball``, ``kind``,
+            ``nconformers``, ``created_collection``, and ``touched_paths``.
+        """
+        entry, resname, info = self._validate_pdb_entry(entry_dir)
+        collection = self._resolve_pdb_collection(resname, collection)
+        tarball, created = self._install_pdb_entries(collection, [(entry, resname, info)], force)
+        self._clear_pdb_caches()
         return {
             'resname': resname,
             'collection': collection,
             'tarball': str(tarball),
             'kind': info.get('kind', 'molecule'),
-            'nconformers': len(conformers),
+            'nconformers': len(info.get('conformers', [])),
             'created_collection': created,
             'touched_paths': [str(tarball)],
+        }
+
+    def add_pdb_collection(self, entries_dir, collection: str = None, force: bool = False) -> dict:
+        """
+        Install one or more PDB-repository entries from ``entries_dir`` into the built-in
+        repository.  ``entries_dir`` may be either a single entry directory (one that
+        contains ``info.yaml``) or a *container* directory holding one ``<RESI>/``
+        subdirectory per entry -- e.g. the ``<streamID>/`` tree that
+        ``make-pdb-collection --streamID <stream>`` writes.  This is the batch counterpart
+        of :meth:`add_pdb_entry`: it validates every entry first, groups them by target
+        collection, and repacks each affected tarball once.
+
+        Parameters
+        ----------
+        entries_dir : str or Path
+            A single entry directory, or a directory of entry subdirectories.
+        collection : str, optional
+            Force every entry into this collection; otherwise each entry goes to its
+            residue's default collection (its segtype, with ``ion``/``water`` -> ``solvent``).
+        force : bool, optional
+            Overwrite entries already present for a resname in the target collection.
+
+        Returns
+        -------
+        dict
+            Summary with keys ``entries`` (list of ``(resname, collection, kind)``),
+            ``collections`` (sorted list), ``created_collections``, ``tarballs``, and
+            ``touched_paths``.
+        """
+        root = Path(entries_dir).expanduser().resolve()
+        if not root.is_dir():
+            raise PestiferError(f'{root}: not a directory')
+        if (root / 'info.yaml').is_file():
+            entry_dirs = [root]
+        else:
+            entry_dirs = [d for d in sorted(root.iterdir()) if d.is_dir() and (d / 'info.yaml').is_file()]
+            if not entry_dirs:
+                raise PestiferError(f'{root}: contains no make-pdb-collection entries (no <RESI>/info.yaml subdirectories) and is not itself an entry directory')
+
+        # validate all entries up front, then group by resolved collection
+        groups: dict = {}
+        entries_meta = []
+        for d in entry_dirs:
+            entry, resname, info = self._validate_pdb_entry(d)
+            coll = self._resolve_pdb_collection(resname, collection)
+            groups.setdefault(coll, []).append((entry, resname, info))
+            entries_meta.append((resname, coll, info.get('kind', 'molecule')))
+
+        tarballs = []
+        created_collections = []
+        for coll in sorted(groups):
+            tarball, created = self._install_pdb_entries(coll, groups[coll], force)
+            tarballs.append(str(tarball))
+            if created:
+                created_collections.append(coll)
+        self._clear_pdb_caches()
+        return {
+            'entries': entries_meta,
+            'collections': sorted(groups),
+            'created_collections': created_collections,
+            'tarballs': tarballs,
+            'touched_paths': tarballs,
         }
 
     def get_tcldir(self):

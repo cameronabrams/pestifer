@@ -45,15 +45,22 @@ def _add_residue(RM, args, out=print):
 
 
 def _add_pdb_entry(RM, args, out=print):
-    """Install a make-pdb-collection entry into the PDB repository; return (touched, summary)."""
-    result = RM.add_pdb_entry(args.entry_dir, collection=args.collection, force=args.force)
-    verb = 'created collection' if result['created_collection'] else 'added to collection'
-    if result['kind'] == 'box':
-        content = 'pre-equilibrated box'
-    else:
-        content = f"{result['nconformers']} conformer{'s' if result['nconformers'] != 1 else ''}"
-    out(f"Installed PDB-repo entry for {result['resname']} ({content}): {verb} '{result['collection']}'")
-    out(f"  tarball: {result['tarball']}")
+    """Install make-pdb-collection entries into the PDB repository; return (touched, summary).
+
+    ``args.entry_dir`` may be a single entry directory or a directory of entry
+    subdirectories (a whole stream/substream), so a batch install is one command.
+    """
+    result = RM.add_pdb_collection(args.entry_dir, collection=args.collection, force=args.force)
+    entries = result['entries']
+    for resname, coll, kind in entries:
+        content = 'box' if kind == 'box' else 'conformers'
+        out(f"  {resname} -> {coll} ({content})")
+    ncoll = len(result['collections'])
+    out(f"Installed {len(entries)} entr{'y' if len(entries) == 1 else 'ies'} into "
+        f"{ncoll} collection{'s' if ncoll != 1 else ''}: {', '.join(result['collections'])}")
+    if result['created_collections']:
+        out(f"  created collection{'s' if len(result['created_collections']) != 1 else ''}: "
+            f"{', '.join(result['created_collections'])}")
     out('  resource cache cleared; it will rebuild on the next run.')
     return result['touched_paths'], result
 
@@ -139,9 +146,16 @@ class ModifyPackageSubcommand(Subcommand):
                 names = ', '.join(commit_summary['resnames'])
                 message = (f"contrib(residue): add {names} to built-in custom "
                            f"[segtype: {commit_summary['segtype']}]")
-            elif commit_summary is not None and 'collection' in commit_summary:
-                message = (f"contrib(pdb-repo): add {commit_summary['resname']} coordinates "
-                           f"to the {commit_summary['collection']} collection")
+            elif commit_summary is not None and 'entries' in commit_summary:
+                entries = commit_summary['entries']
+                colls = commit_summary['collections']
+                if len(entries) == 1:
+                    resname, coll, _kind = entries[0]
+                    message = f"contrib(pdb-repo): add {resname} coordinates to the {coll} collection"
+                else:
+                    message = (f"contrib(pdb-repo): add {len(entries)} entries to "
+                               f"{'the ' if len(colls) == 1 else ''}{', '.join(colls)} "
+                               f"collection{'s' if len(colls) != 1 else ''}")
             elif verb == 'regenerate-segtypes':
                 message = 'contrib(charmmff): regenerate derived segtype classification'
             elif verb == 'update-atomselect-macros':
@@ -204,9 +218,9 @@ class ModifyPackageSubcommand(Subcommand):
         # ---- pdb-repo ---------------------------------------------------------------
         pr = cats.add_parser('pdb-repo', help='contribute residue coordinates to the PDB repository')
         prv = pr.add_subparsers(dest='verb', required=True, metavar='VERB', help='add-entry')
-        p = prv.add_parser('add-entry', parents=[contrib], help='install a make-pdb-collection entry into the PDB repository')
-        p.add_argument('entry_dir', type=str, metavar='DIR', help='a make-pdb-collection entry directory (named after the residue; contains info.yaml + conformer PDBs)')
-        p.add_argument('--collection', type=str, default=None, metavar='NAME', help='collection/stream tarball to install into (default: the residue segtype; created if absent)')
+        p = prv.add_parser('add-entry', parents=[contrib], help='install one or more make-pdb-collection entries into the PDB repository')
+        p.add_argument('entry_dir', type=str, metavar='DIR', help='a make-pdb-collection entry directory (named after the residue; contains info.yaml), OR a directory of such entries (e.g. a whole <streamID>/ tree) to install them all at once')
+        p.add_argument('--collection', type=str, default=None, metavar='NAME', help='collection/stream tarball to install into (default: each residue segtype; created if absent). With a batch directory, forces all entries into this one collection')
         p.add_argument('--force', action='store_true', help='overwrite an entry already present for this resname in the collection')
 
         # ---- charmmff ---------------------------------------------------------------

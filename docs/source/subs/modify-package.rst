@@ -179,6 +179,19 @@ Then install that entry into the repository with ``pdb-repo add-entry``, which v
 
 By default the collection is the residue's segtype (``lipid`` -> the ``lipid`` collection; ``ion``/``water`` -> ``solvent``); use ``--collection NAME`` to choose another, and ``--force`` to replace an entry already present for that resname.  As with the other contribution flows, ``--branch`` requires a clean working tree and commits **exactly** the changed collection tarball on a new branch for you to push and open as a pull request.
 
+Installing many entries at once
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``make-pdb-collection --streamID <stream>`` (or ``--substreamID``) writes a whole *directory* of entries -- one ``<RESI>/`` subdirectory per residue in the stream -- rather than a single entry.  ``pdb-repo add-entry`` accepts that container directory directly and installs every entry it finds in one command, instead of you having to invoke it once per residue:
+
+.. code-block:: bash
+
+    $ pestifer make-pdb-collection --streamID lipid --substreamID yeast --output-dir lipid-yeast
+    # -> lipid-yeast/{DYPC/, DYPE/, PYPE/, YOPA/, ...}
+    $ pestifer modify-package pdb-repo add-entry lipid-yeast --branch add-yeast-lipids
+
+Each entry goes to its own default collection (its residue's segtype), so a mixed directory can populate several collections at once; ``--collection NAME`` forces them all into one.  Every affected tarball is validated up front and repacked once.  The argument is the same either way -- point ``add-entry`` at a single ``<RESI>/`` directory for one entry, or at a directory of them for a batch.
+
 .. _modify regenerate segtypes:
 
 Regenerating the derived segtype classification

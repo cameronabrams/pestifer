@@ -142,6 +142,50 @@ class TestResourceManager(unittest.TestCase):
             res2 = self.RM.add_pdb_entry(entry, collection='testcoll', force=True)
             self.assertFalse(res2['created_collection'])
 
+    def test_add_pdb_collection_batch(self):
+        import tempfile
+        import yaml
+        # a container dir holding several entry subdirectories (a whole "stream")
+        d = tempfile.mkdtemp()
+        container = os.path.join(d, 'mystream')
+        names = ['ZZA', 'ZZB', 'ZZC']
+        for n in names:
+            entry = os.path.join(container, n)
+            os.makedirs(entry)
+            with open(os.path.join(entry, f'{n}-00.pdb'), 'w') as f:
+                f.write(f'ATOM      1  C1  {n} X   1       0.000   0.000   0.000  1.00  0.00      X    C\nEND\n')
+            with open(os.path.join(entry, 'info.yaml'), 'w') as f:
+                yaml.safe_dump({'charge': 0.0, 'defined-in': 'custom',
+                                'conformers': [{'pdb': f'{n}-00.pdb',
+                                                'head-tail-length': 1.0, 'max-internal-length': 1.0}]}, f)
+        fake_charmmff = os.path.join(d, 'charmmff')
+        os.makedirs(fake_charmmff)
+        with mock.patch.object(self.RM.charmmff_content, 'charmmff_path', fake_charmmff), \
+             mock.patch('pestifer.util.cacheable_object.CacheableObject.clear_cache', return_value=[]):
+            # forcing a single collection installs all three entries into it in one pass
+            res = self.RM.add_pdb_collection(container, collection='mystream')
+            self.assertEqual(sorted(r[0] for r in res['entries']), names)
+            self.assertEqual(res['collections'], ['mystream'])
+            self.assertEqual(res['created_collections'], ['mystream'])
+            self.assertEqual(len(res['tarballs']), 1)
+            from pestifer.charmmff.pdbrepository import PDBCollection
+            c = PDBCollection.build_from_resources(res['tarballs'][0])
+            for n in names:
+                self.assertIn(n, c.contents)
+            # pointing at a single entry subdir still works (one entry)
+            res1 = self.RM.add_pdb_collection(os.path.join(container, 'ZZA'),
+                                              collection='other')
+            self.assertEqual([r[0] for r in res1['entries']], ['ZZA'])
+            self.assertEqual(res1['collections'], ['other'])
+
+    def test_add_pdb_collection_empty_dir_rejected(self):
+        import tempfile
+        d = tempfile.mkdtemp()
+        empty = os.path.join(d, 'nothing')
+        os.makedirs(empty)  # no info.yaml, no entry subdirs
+        with self.assertRaises(PestiferError):
+            self.RM.add_pdb_collection(empty, collection='x')
+
     def test_add_pdb_entry_box_kind(self):
         import tempfile
         import yaml
