@@ -10,9 +10,9 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
       tile a non-water `kind: box` entry (v3.1.0); extend the same `-spsf/-spdb/-ws/-ks`
       path to the water slabs `bilayer_embed.tcl` lays down, so membrane builds can use a
       non-water solvent too. (Follow-up from `docs/design/solvent-collection.md`, step 6.)
-- [ ] **Ship curated built-in solvent boxes.** Build + install a small set of common
-      non-water solvent boxes (e.g. MEOH, ETOH, DMSO) into the `solvent` collection so
-      users don't each have to run `make-pdb-collection solvent` first.
+- [x] **Ship curated built-in solvent boxes.** MEOH, ETOH, and DMSO boxes (nmol=216,
+      production NPT) are installed in the built-in `solvent` collection (`feb26`), so
+      `solvate: {solvent: MEOH}` works without building a box first. (v3.1.0+, `[Unreleased]`.)
 
 ## Ligands / force field
 

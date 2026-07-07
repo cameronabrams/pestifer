@@ -176,10 +176,20 @@ def _resi_to_molblock(topo) -> str:
     atoms = topo.atoms
     bonds = topo.bonds
     name_to_idx = {a.name: i + 1 for i, a in enumerate(atoms)}
+    # per-atom valence = sum of its bond orders.  Pinning it in the molblock's ``vvv`` field
+    # stops obabel from adding implicit hydrogens to atoms it perceives as under-valent --
+    # e.g. a sulfoxide S=O that CHARMM lists as a single bond (DMSO would otherwise gain 2 H).
+    valence = {a.name: 0 for a in atoms}
+    for b in bonds:
+        valence[b.name1] += int(b.degree)
+        valence[b.name2] += int(b.degree)
     lines = [topo.resname, '  pestifer', '']
     lines.append(f'{len(atoms):3d}{len(bonds):3d}  0  0  0  0  0  0  0  0999 V2000')
     for a in atoms:
-        lines.append(f'{0.0:10.4f}{0.0:10.4f}{0.0:10.4f} {a.element:<3s} 0  0  0  0  0  0  0  0  0  0  0  0')
+        v = valence[a.name]
+        # V2000 atom line: coords, symbol, then dd ccc sss hhh bbb vvv HHH rrr iii mmm nnn eee
+        lines.append(f'{0.0:10.4f}{0.0:10.4f}{0.0:10.4f} {a.element:<3s}'
+                     f'{0:2d}{0:3d}{0:3d}{0:3d}{0:3d}{v:3d}{0:3d}{0:3d}{0:3d}{0:3d}{0:3d}{0:3d}')
     for b in bonds:
         lines.append(f'{name_to_idx[b.name1]:3d}{name_to_idx[b.name2]:3d}{int(b.degree):3d}  0  0  0  0')
     lines.append('M  END')

@@ -37,7 +37,7 @@ By default the ``solvate`` task fills with TIP3P water (VMD's built-in pre-equil
 
 Any ``solvent`` other than ``TIP3``/``water`` is looked up as a ``kind: box`` entry in the ``solvent`` PDB collection: pestifer checks out the entry's pre-equilibrated box psf/pdb and hands them to VMD's ``solvate`` plugin as ``-spsf``/``-spdb`` together with the box's exact equilibrated edge (``-ws``) and key atom (``-ks``), so the box tiles the simulation cell instead of the built-in water box.  ``autoionize`` still runs afterward, so ``salt_con``/``cation``/``anion`` behave as usual.
 
-You must first **build and install** the solvent box (see :ref:`sub_make_pdb_collection`):
+Pestifer ships pre-equilibrated boxes for **methanol (**\ ``MEOH``\ **), ethanol (**\ ``ETOH``\ **), and DMSO (**\ ``DMSO``\ **)**, so those work with no extra setup.  For any other solvent you must first **build and install** its box (see :ref:`sub_make_pdb_collection`):
 
 .. code-block:: bash
 

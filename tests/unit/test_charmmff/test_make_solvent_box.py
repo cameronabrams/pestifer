@@ -100,6 +100,10 @@ class TestGraphToMolecule(unittest.TestCase):
         # coordinates are all zero (obabel --gen3d fills them in)
         for al in atom_lines:
             self.assertIn('0.0000', al)
+        # the V2000 valence field (vvv, cols 49-51) is pinned to each atom's bond-order sum,
+        # so obabel adds no implicit H (CB has 4 bonds, OG has 2)
+        self.assertEqual(int(atom_lines[0][48:51]), 4)
+        self.assertEqual(int(atom_lines[1][48:51]), 2)
         # bond block references 1-based atom indices in RESI order (CB=1, OG=2, HG1=3, ...)
         bond_lines = lines[10:15]
         self.assertEqual(bond_lines[0].split()[:3], ['1', '2', '1'])   # CB-OG single

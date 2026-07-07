@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- new feature: the built-in ``solvent`` PDB collection now ships **pre-equilibrated boxes for three non-water solvents** -- methanol (``MEOH``), ethanol (``ETOH``), and DMSO (``DMSO``) -- so ``solvate: {solvent: MEOH}`` (and ETOH/DMSO) works out of the box with no ``make-pdb-collection solvent`` step. Each was built at nmol=216 with a full production NPT equilibration: MEOH ~24.6 Å / 0.77 g/cc, ETOH ~27.5 Å / 0.80 g/cc, DMSO ~29.5 Å / 1.09 g/cc. (Added to the newest bundled force field, ``feb26``.)
+- bugfix: ``make-pdb-collection solvent``'s Open Babel coordinate fallback no longer adds spurious hydrogens to atoms CHARMM formally single-bonds (notably a sulfoxide S=O, e.g. DMSO, which obabel would otherwise "complete" with 2 extra H). Each atom's valence is now pinned in the generated MDL molblock (the V2000 ``vvv`` field = its bond-order sum), so ``obabel --gen3d`` returns exactly the RESI's atoms
 - performance: the ``ring_check`` task's ``cutoff`` default is lowered from 10.0 Å to 4.0 Å (and likewise the ``RingChecker``/``ring_check`` library defaults). ``cutoff`` is only the candidate search radius -- each candidate is then gated by ``PSFRing.pierced_by``'s fixed 3.5 Å test -- so any value at or above 3.5 Å yields **identical** piercings while a smaller radius prunes far more candidate bond/ring pairs. On a ~200k-atom membrane the whole-system scan drops from ~38 s to ~13 s (and ~62 s to ~8 s on a periodic lipid patch). Verified result-identical at 3.5/4.0/10.0 on the known-piercing fixtures (1 and 2 piercings) and on the ex17 embedded membrane; a cutoff-invariance regression test is added
 
 ## [3.1.0] - 2026-07-07
