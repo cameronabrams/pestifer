@@ -383,8 +383,11 @@ class VMDScripter(TcLScripter):
         if rottrans.movetype=='TRANS':
             self.addline(f'$mover moveby [list {rottrans.x} {rottrans.y} {rottrans.z}]')
         elif rottrans.movetype=='ROT':
+            # rotate about the selection's center of mass.  VMD's `trans center {c}` rotates
+            # about c; `trans origin {c}` instead *moves* c to the global origin (and rotates
+            # there), which is not what we want.
             self.addline(f'set COM [measure center $mover weight mass]')
-            self.addline(f'$mover move [trans origin $COM axis {rottrans.axis} {rottrans.angle}]')
+            self.addline(f'$mover move [trans center $COM axis {rottrans.axis} {rottrans.angle}]')
 
     def write_align(self, align: Align):
         """Write VMD commands to align the pipeline system to a reference coordinate file.

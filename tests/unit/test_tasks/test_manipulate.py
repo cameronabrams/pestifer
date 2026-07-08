@@ -183,10 +183,13 @@ class TestWriteRotTrans(unittest.TestCase):
         vm.write_rottrans(rt, molid=molid) if molid else vm.write_rottrans(rt)
         return vm.lines
 
-    def test_rotation_emitted(self):
+    def test_rotation_emitted_about_com(self):
         lines = self._lines(RotTrans(movetype='ROT', axis='z', angle=-9.654))
-        self.assertTrue(any('trans origin $COM axis z -9.654' in l for l in lines),
-                        f'no rotation command emitted: {lines}')
+        self.assertTrue(any('measure center $mover weight mass' in l for l in lines))
+        # rotate about the COM (`trans center`), not about the global origin (`trans origin`)
+        self.assertTrue(any('trans center $COM axis z -9.654' in l for l in lines),
+                        f'rotation not about COM: {lines}')
+        self.assertFalse(any('trans origin' in l for l in lines))
 
     def test_translation_emitted(self):
         lines = self._lines(RotTrans(movetype='TRANS', x=1.0, y=2.0, z=3.0))
@@ -293,12 +296,23 @@ class TestManipulateRotTransIntegration(unittest.TestCase):
         orig = _pdb_coords(_FIXTURES / _PDB)
         # the rotation moved the structure substantially (not the ~0 RMSD of a no-op)
         self.assertGreater(_rmsd(out, orig), 1.0)
-        # ...but rigidly: the radius of gyration is preserved by a rotation about the COM
-        def rgyr(c):
+
+        def centroid(c):
             n = len(c)
-            cx = sum(p[0] for p in c) / n; cy = sum(p[1] for p in c) / n; cz = sum(p[2] for p in c) / n
-            return math.sqrt(sum((p[0]-cx)**2 + (p[1]-cy)**2 + (p[2]-cz)**2 for p in c) / n)
+            return (sum(p[0] for p in c) / n, sum(p[1] for p in c) / n, sum(p[2] for p in c) / n)
+
+        def rgyr(c):
+            cx, cy, cz = centroid(c)
+            return math.sqrt(sum((p[0]-cx)**2 + (p[1]-cy)**2 + (p[2]-cz)**2 for p in c) / len(c))
+
+        # rigid: radius of gyration preserved (true for rotation about any point)
         self.assertAlmostEqual(rgyr(out), rgyr(orig), places=2)
+        # and about the center of mass: the centroid barely moves.  The old bug rotated about
+        # (and collapsed the COM onto) the global origin, which would fling the centroid ~10 Å
+        # away from its original position.
+        co, cr = centroid(out), centroid(orig)
+        self.assertLess(math.dist(co, cr), 3.0,
+                        f'centroid moved {math.dist(co, cr):.1f} Å -- not a COM-centered rotation')
 
 
 # ---------------------------------------------------------------------------

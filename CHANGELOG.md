@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- bugfix: a ``manipulate`` ``transrot`` ``ROT`` now rotates about the **center of mass** of the moving selection, as intended. The generated command used VMD's ``trans origin {COM}``, which *moves* the COM to the global origin and rotates there (so the structure was rotated about, and translated onto, the origin); it now uses ``trans center {COM}``, which rotates in place about the COM
+
 ## [3.2.1] - 2026-07-08
 
 - bugfix: the ``manipulate`` task's ``transrot`` mod (rotations/translations of the whole structure) did nothing -- ``coormods`` dispatched on the object key ``rottrans``, but objects are keyed by their YAML header ``transrot``, so ``write_rottrans`` was never called and the generated script contained no rotation/translation operations. Fixed the key; also made ``write_rottrans`` and ``write_crot`` accept the ``molid`` argument that ``coormods`` passes (they previously would have raised ``TypeError`` once reached). Adds unit and integration regression tests
