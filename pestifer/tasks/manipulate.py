@@ -65,7 +65,7 @@ class ManipulateTask(BaseTask):
                     vm.write_crot(obj, molid='mCM')
                 elif objtype == 'orient':
                     vm.write_orient(obj, molid='mCM')
-                elif objtype == 'rottrans':
+                elif objtype == 'transrot':
                     vm.write_rottrans(obj, molid='mCM')
                 elif objtype == 'align':
                     if isinstance(obj, Align) and obj.ref_sourceID is not None:

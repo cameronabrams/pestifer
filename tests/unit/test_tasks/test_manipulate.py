@@ -20,6 +20,7 @@ from pathlib import Path
 import pytest
 
 from pestifer.objs.align import Align
+from pestifer.objs.rottrans import RotTrans
 from pestifer.objs.transfer_coords import TransferCoords
 from pestifer.scripters.vmd import VMDScripter
 
@@ -172,6 +173,34 @@ class TestWriteAlign(unittest.TestCase):
 
 
 # ---------------------------------------------------------------------------
+# Unit tests: write_rottrans() TCL generation (transrot mods)
+# ---------------------------------------------------------------------------
+
+class TestWriteRotTrans(unittest.TestCase):
+
+    def _lines(self, rt: RotTrans, molid=None) -> list[str]:
+        vm = _MockScripter()
+        vm.write_rottrans(rt, molid=molid) if molid else vm.write_rottrans(rt)
+        return vm.lines
+
+    def test_rotation_emitted(self):
+        lines = self._lines(RotTrans(movetype='ROT', axis='z', angle=-9.654))
+        self.assertTrue(any('trans origin $COM axis z -9.654' in l for l in lines),
+                        f'no rotation command emitted: {lines}')
+
+    def test_translation_emitted(self):
+        lines = self._lines(RotTrans(movetype='TRANS', x=1.0, y=2.0, z=3.0))
+        self.assertTrue(any('moveby [list 1.0 2.0 3.0]' in l for l in lines))
+
+    def test_molid_kwarg_accepted(self):
+        # regression: ManipulateTask.coormods calls write_rottrans(obj, molid='mCM');
+        # the method must accept the kwarg (it previously did not -> TypeError)
+        vm = _MockScripter(molid_varname='mCM')
+        vm.write_rottrans(RotTrans(movetype='ROT', axis='y', angle=-168.646), molid='mCM')
+        self.assertTrue(any('$mCM' in l for l in vm.lines))
+
+
+# ---------------------------------------------------------------------------
 # Integration test: full VMD run  (--runslow)
 # ---------------------------------------------------------------------------
 
@@ -231,6 +260,45 @@ class TestManipulateAlignIntegration(unittest.TestCase):
         rmsd = _rmsd(aligned_coords, ref_coords)
         self.assertLess(rmsd, _RMSD_THRESHOLD,
                         f'RMSD {rmsd:.4f} Å after alignment exceeds threshold {_RMSD_THRESHOLD} Å')
+
+
+class TestManipulateRotTransIntegration(unittest.TestCase):
+
+    def setUp(self):
+        from pestifer.core.config import Config
+        from pestifer.core.controller import Controller
+        self.controller = Controller().configure(Config().configure_new(), terminate=False)
+
+    def test_transrot_actually_rotates(self):
+        """A transrot ROT mod must move the structure (regression: coormods checked the wrong
+        objtype key and emitted no rotation, leaving coordinates unchanged)."""
+        name = '__test_transrot'
+        if os.path.exists(name):
+            shutil.rmtree(name)
+        os.makedirs(name)
+        os.symlink(_FIXTURES / _PSF, Path(name) / _PSF)
+        os.symlink(_FIXTURES / _COOR, Path(name) / _COOR)
+        os.symlink(_FIXTURES / _PDB, Path(name) / _PDB)
+        os.chdir(name)
+        task_list = [
+            {'continuation': {'psf': _PSF, 'pdb': _PDB, 'coor': _COOR}},
+            {'manipulate': {'mods': {'transrot': ['ROT,z,90.0', 'ROT,y,45.0']}}},
+        ]
+        self.controller.reconfigure_tasks(task_list)
+        self.controller.do_tasks()
+        from pestifer.core.artifacts import StateArtifacts
+        state: StateArtifacts = self.controller.tasks[1].get_current_artifact('state')
+        self.assertTrue(state.pdb.exists())
+        out = _pdb_coords(Path(state.pdb.name))
+        orig = _pdb_coords(_FIXTURES / _PDB)
+        # the rotation moved the structure substantially (not the ~0 RMSD of a no-op)
+        self.assertGreater(_rmsd(out, orig), 1.0)
+        # ...but rigidly: the radius of gyration is preserved by a rotation about the COM
+        def rgyr(c):
+            n = len(c)
+            cx = sum(p[0] for p in c) / n; cy = sum(p[1] for p in c) / n; cz = sum(p[2] for p in c) / n
+            return math.sqrt(sum((p[0]-cx)**2 + (p[1]-cy)**2 + (p[2]-cz)**2 for p in c) / n)
+        self.assertAlmostEqual(rgyr(out), rgyr(orig), places=2)
 
 
 # ---------------------------------------------------------------------------

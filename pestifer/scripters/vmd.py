@@ -301,7 +301,7 @@ class VMDScripter(TcLScripter):
         for rt in rottranslist.data:
             self.write_rottrans(rt)
 
-    def write_crot(self, crot: Crot, chainIDmap: dict = {}):
+    def write_crot(self, crot: Crot, chainIDmap: dict = {}, molid: str = None):
         """
         Write a CROT object to the VMD script.
         This method generates VMD commands to create a CROT object based on the provided CROT data.
@@ -312,11 +312,12 @@ class VMDScripter(TcLScripter):
             The CROT object containing the data to be written to the script.
         chainIDmap : dict, optional
             A mapping of original chain IDs to new chain IDs. Default is an empty dictionary.
+        molid : str, optional
+            The molid variable name to operate on; defaults to the scripter's current molecule.
         """
-        
+
         the_chainID = chainIDmap.get(crot.chainID, crot.chainID)
-        molid_varname = self.molid_varname
-        molid = f'${molid_varname}'
+        molid = f'${self.molid_varname}' if not molid else f'${molid}'
         # endIsCterm=kwargs.get('endIsCterm',True)
         if crot.angle in ['PHI', 'PSI', 'OMEGA']:
             self.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid, the_chainID, crot.resid1.resid))
@@ -376,9 +377,8 @@ class VMDScripter(TcLScripter):
             self.addline(r'   $a move [transaxis x 180 degrees]')
             self.addline(r'}')
 
-    def write_rottrans(self, rottrans: RotTrans):
-        molid_varname=self.molid_varname
-        molid=f'${molid_varname}'
+    def write_rottrans(self, rottrans: RotTrans, molid: str = None):
+        molid = f'${self.molid_varname}' if not molid else f'${molid}'
         self.addline(f'set mover [atomselect {molid} all]')
         if rottrans.movetype=='TRANS':
             self.addline(f'$mover moveby [list {rottrans.x} {rottrans.y} {rottrans.z}]')
