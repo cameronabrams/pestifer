@@ -41,14 +41,24 @@ def changed_paths(repo_root) -> list:
     running an operation, this attributes exactly that operation's changes -- useful when
     an operation touches files it cannot easily enumerate itself (e.g. example management).
     """
-    out = _git(repo_root, 'status', '--porcelain')
+    # NB: parse the raw stdout, not _git()'s stripped output -- a leading-space status like
+    # " M path" on the first line would otherwise lose its space and shift the path by one char
+    result = subprocess.run(
+        ["git", "-C", str(repo_root), 'status', '--porcelain'],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        raise GitError(f'git status --porcelain failed: {result.stderr.strip() or result.stdout.strip()}')
     paths = []
-    for line in out.splitlines():
-        entry = line[3:]                       # strip the two-char status + space
+    for line in result.stdout.splitlines():
+        if not line.strip():
+            continue
+        entry = line[3:]                       # XY status (2 chars) + a space, then the path
         if ' -> ' in entry:                    # rename: "old -> new"
             entry = entry.split(' -> ', 1)[1]
         entry = entry.strip().strip('"')       # git quotes paths with odd characters
-        paths.append(str(Path(repo_root) / entry))
+        if entry:
+            paths.append(str(Path(repo_root) / entry))
     return paths
 
 

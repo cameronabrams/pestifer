@@ -40,7 +40,7 @@ class TestModifyPackageBranchFlow(unittest.TestCase):
         rm = mock.Mock()
         rm.resources_path = str(d)      # the ledger lands inside the repo
         # route whichever example method the verb calls to the file-writing side effect
-        for m in ('add_example', 'update_example', 'delete_example',
+        for m in ('append_example', 'update_example', 'delete_example',
                   'rename_example', 'set_example_author'):
             getattr(rm, m).side_effect = op_side_effect
         with mock.patch('pestifer.subcommands.modify_package.ResourceManager', return_value=rm), \
@@ -66,6 +66,18 @@ class TestModifyPackageBranchFlow(unittest.TestCase):
         show = subprocess.run(['git', '-C', str(d), 'show', '--name-only', '--format=', 'HEAD'],
                               capture_output=True, text=True).stdout
         self.assertIn('examples/19/x.rst', show)
+
+    def test_modified_tracked_file_not_mangled(self):
+        # a modified tracked file shows as " M path" (leading space) in git status; the
+        # touched-path parser must not drop the first character of the path
+        d = _init_repo()
+        self._run(d, ['modify-package', 'example', 'rename', '19', 'n'],
+                  lambda *a, **k: (d / 'seed.txt').write_text('changed\n'))
+        self.assertTrue(gitutil.worktree_is_clean(d))          # committed, no mangled pathspec
+        self.assertTrue(_current_branch(d).startswith('modpkg/example-rename'))
+        show = subprocess.run(['git', '-C', str(d), 'show', '--name-only', '--format=', 'HEAD'],
+                              capture_output=True, text=True).stdout
+        self.assertIn('seed.txt', show)
 
     def test_explicit_branch_name(self):
         d = _init_repo()
@@ -96,7 +108,7 @@ class TestModifyPackageLedger(unittest.TestCase):
     def _rm(self, d):
         rm = mock.Mock()
         rm.resources_path = str(d)      # ledger lands inside the repo so it is committed
-        for m in ('add_example', 'update_example', 'delete_example',
+        for m in ('append_example', 'update_example', 'delete_example',
                   'rename_example', 'set_example_author'):
             getattr(rm, m).side_effect = lambda *a, **k: (d / 'foo.txt').write_text('hi\n')
         return rm
