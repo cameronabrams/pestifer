@@ -78,9 +78,9 @@ def _do_example(RM, args):
     """Dispatch an ``example`` verb onto the ResourceManager example-management methods."""
     verb = args.verb
     if verb == 'add':
-        RM.add_example(args.scriptname, example_id=args.id, author_name=args.author_name,
-                       author_email=args.author_email, title=args.title, db_id=args.db_id,
-                       auxiliary_inputs=args.auxiliary_inputs, outputs=args.outputs)
+        RM.append_example(args.scriptname, example_id=args.id, author_name=args.author_name,
+                          author_email=args.author_email, title=args.title, db_id=args.db_id,
+                          auxiliary_inputs=args.auxiliary_inputs, outputs=args.outputs)
     elif verb == 'update':
         RM.update_example(args.example_id, shortname=args.name, author_name=args.author_name,
                           author_email=args.author_email, title=args.title, db_id=args.db_id,
