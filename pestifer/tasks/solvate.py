@@ -102,7 +102,10 @@ class SolvateTask(VMDTask):
             f.write(f'* self-contained topology for {solvent} (pestifer-generated)\n*\n   36  1\n\n')
             for t, (m, el) in masses.items():
                 f.write(f'MASS  -1  {t:<8s}{m:>10.5f} {el}\n')
-            f.write('\n')
+            # CGenFF RESIs list only atoms and bonds; angles/dihedrals are auto-generated.  Without
+            # this directive, solvate's replica `segment {residue <solvent>}` (which sets no `auto`
+            # option) builds the molecules with no angle/dihedral terms and they distort under MD.
+            f.write('\nAUTOGENERATE ANGLES DIHEDRALS\n\n')
             f.write(resi.getvalue())
             f.write('\nEND\n')
         return outpath

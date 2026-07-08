@@ -114,6 +114,9 @@ class TestSolventTopology(unittest.TestCase):
             self.assertIn(typ, s)
         self.assertEqual(s.count('HA3'), 1)      # deduplicated (HB1/HB2 share HA3)
         self.assertIn('RESI MEOH', s)
+        # without this directive, solvate's replica residues get bonds but no angles/dihedrals
+        # and the molecules distort under MD
+        self.assertIn('AUTOGENERATE ANGLES DIHEDRALS', s)
         self.assertTrue(s.rstrip().endswith('END'))
 
 
