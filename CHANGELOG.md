@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- bugfix: the ``task-table`` docs directive labeled the ``solvate`` task "water box" regardless of solvent; it now reports the actual solvent (e.g. "DMSO box") for a non-water build
+
 ## [3.2.0] - 2026-07-08
 
 - bugfix: tiled non-water solvent molecules are **no longer malformed**. The self-contained topology pestifer generates for VMD ``solvate``'s ``-stop`` omitted the ``AUTOGENERATE ANGLES DIHEDRALS`` directive; since a CGenFF RESI lists only atoms and bonds and solvate's replica ``segment {residue <solvent>}`` sets no ``auto`` option, every tiled solvent molecule was built with bonds but **no angle or dihedral terms** and distorted freely under MD (a DMSO system equilibrated to ~1.27 g/cc instead of ~1.1). The generated topology now emits the directive, so replicas get their full angle/dihedral set (verified: a tiled DMSO has 15 angles / 12 dihedrals). The pre-equilibrated boxes themselves were unaffected

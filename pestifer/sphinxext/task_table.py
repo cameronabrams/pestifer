@@ -128,14 +128,17 @@ def _single_task_details(name: str, specs: dict) -> str:
         return _psfgen_details(specs)
     if name == 'solvate':
         specs = specs or {}
+        solvent = specs.get('solvent') or 'TIP3'
+        is_water = solvent.upper() in {'TIP3', 'TIP3P', 'WATER', 'WAT'}
+        box = 'water box' if is_water else f'{solvent} box'
         conc = specs.get('salt_con')
         cation = specs.get('cation')
         anion = specs.get('anion')
         if conc and cation and anion:
-            return f'water box + {conc} M {cation}/{anion}'
+            return f'{box} + {conc} M {cation}/{anion}'
         elif conc:
-            return f'water box + {conc} M salt'
-        return 'water box'
+            return f'{box} + {conc} M salt'
+        return box
     if name == 'ligate':
         steer = (specs or {}).get('steer', {}) or {}
         nsteps = steer.get('nsteps')
