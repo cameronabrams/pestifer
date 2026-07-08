@@ -29,6 +29,7 @@ Examples
    examples/20/methylmalonyl-coa-mutase
    examples/21/groel-groes-adp
    examples/22/ferredoxin-fad
+   examples/23/subtilisin-dmso
 
 BPTI Series (Examples 1–4)
 ---------------------------
