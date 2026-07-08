@@ -34,6 +34,23 @@ class TestModifyToctree(unittest.TestCase):
         self.assertIn(f"  {self.rst_folder_path}/ex01/exampleD\n", lines)
         self.assertEqual(get_num_entries_in_toctree(filepath), 1)
 
+    def test_append_matches_indent_and_keeps_blank_line(self):
+        # the real examples.rst shape: a 3-space-indented toctree (options + entries) followed
+        # immediately by a section heading.  The append must keep the 3-space indent (so the
+        # :hidden:/:maxdepth: options aren't misread as entries) and preserve the separating
+        # blank line before the heading.
+        with open('three.rst', 'w') as f:
+            f.write(".. toctree::\n   :hidden:\n   :maxdepth: 1\n\n"
+                    "   examples/01/a\n   examples/02/b\n\nSection\n-------\n\ntext\n")
+        self.addCleanup(lambda: os.path.isfile('three.rst') and os.remove('three.rst'))
+        modify_toctree('three.rst', 'append', new_entry='03/c')   # common 'examples/' prefix is added
+        lines = open('three.rst').readlines()
+        self.assertIn("   examples/03/c\n", lines)          # 3-space indent, matching options
+        self.assertNotIn("  examples/03/c\n", lines)        # not the old 2-space
+        idx = lines.index("   examples/03/c\n")
+        self.assertEqual(lines[idx + 1], "\n")              # blank line before the section
+        self.assertIn("Section\n", lines)
+
     def test_modify_toctree_add_entry(self):
         filepath = 'sample_rst_file.rst'
         action = "append"

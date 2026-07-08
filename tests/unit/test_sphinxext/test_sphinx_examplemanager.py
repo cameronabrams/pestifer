@@ -55,8 +55,8 @@ class TestSphinxExampleManager(unittest.TestCase):
         toctree_path = self.manager.examples_rst
         with open(toctree_path, 'r') as f:
             toctree_lines = f.readlines()
-        exCidx=toctree_lines.index('  examples/03/exC\n')
-        exINSidx=toctree_lines.index('  examples/04/exD\n')
+        exCidx=toctree_lines.index('   examples/03/exC\n')
+        exINSidx=toctree_lines.index('   examples/04/exD\n')
         self.assertTrue(exCidx < exINSidx)
         example_folders = os.listdir(self.manager.examples_folder_path)
         self.assertIn('04', example_folders)
@@ -72,7 +72,7 @@ class TestSphinxExampleManager(unittest.TestCase):
         toctree_path = self.manager.examples_rst
         with open(toctree_path, 'r') as f:
             toctree_lines = f.readlines()
-        self.assertNotIn(f'  examples/{example_to_delete.rootfolderpath}/exB\n', toctree_lines)
+        self.assertNotIn(f'   examples/{example_to_delete.rootfolderpath}/exB\n', toctree_lines)
         example_folders = os.listdir(self.manager.examples_folder_path)
         self.assertNotIn(example_to_delete.rootfolderpath, example_folders)
         self.assertEqual(len(example_folders), 2)

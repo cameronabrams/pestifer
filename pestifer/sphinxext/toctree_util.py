@@ -147,10 +147,23 @@ def reconstruct_toctree_block(lines, start, entry_start, entry_end, new_entries)
     if not header or not header[-1].strip() == "":
         header.append("\n")
 
-    # Format entries with two-space indent
-    formatted_entries = [f"  {entry}\n" for entry in new_entries]
+    # Match the toctree's existing indentation (its options and entries share it); default to
+    # three spaces.  Hardcoding two spaces here mismatched options indented three spaces, which
+    # made docutils read ':hidden:'/':maxdepth: 1' as toctree entries.
+    indent = "   "
+    for ln in lines[start + 1:entry_end]:
+        if ln.strip():
+            indent = ln[:len(ln) - len(ln.lstrip())]
+            break
+    formatted_entries = [f"{indent}{entry}\n" for entry in new_entries]
 
-    return lines[:start] + header + formatted_entries + lines[entry_end:]
+    # entry_end swallowed the blank line(s) after the last entry; restore one so the toctree is
+    # separated from whatever follows (e.g. a section heading)
+    tail = lines[entry_end:]
+    if tail and tail[0].strip() != "":
+        formatted_entries.append("\n")
+
+    return lines[:start] + header + formatted_entries + tail
 
 def modify_entries(entries, action, target: str = None, new_entry=None, common_prefix=None):
     """
