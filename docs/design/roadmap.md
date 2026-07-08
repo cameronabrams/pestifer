@@ -14,6 +14,12 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
       production NPT) are installed in the built-in `solvent` collection (`feb26`), so
       `solvate: {solvent: MEOH}` works without building a box first. (v3.1.0+, `[Unreleased]`.)
 
+## Membranes
+
+- [ ] **Vector-based orientation for membrane embedding.** Let the user orient the protein
+      relative to the bilayer by specifying a vector (e.g. align a chosen axis in the protein coordinate frame to the membrane normal) rather than relying only on the current
+      orientation step.
+
 ## Resources / on-demand generation
 
 - [ ] **Generate-on-miss into a user cache (`~/.pestifer/`).** When a build references a
