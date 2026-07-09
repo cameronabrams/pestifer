@@ -14,6 +14,8 @@ Prerequisites
 
 A common placement is immediately after the first minimization following a ``psfgen`` or ``make_membrane_system`` task.  (Note that a grid-packed ``make_membrane_system`` build now inserts its own lipid ``ring_check`` + minimize automatically before its first dynamics stage, so an explicit lipid ``ring_check`` there is mainly for belt-and-suspenders or for glycan/protein rings.)
 
+Similarly, the ``psfgen`` task now resolves **glycan** ring piercings at graft time (rotating the offending glycan sub-branch out of the ring; see :ref:`source.sequence.glycans.declash.check_piercings <subs_buildtasks_psfgen>`), so an explicit glycan ``ring_check`` afterward is usually unnecessary — it remains useful as a safety check, or to resolve an aromatic protein ring by rotating its side chain (a motion the graft-time glycan-only rotation does not attempt) when the glycan rotation could not clear it.
+
 .. code-block:: yaml
 
    tasks:

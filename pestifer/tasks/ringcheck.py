@@ -24,7 +24,7 @@ from ..scripters import PsfgenScripter
 from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
 from ..psfutil.psfring import ring_check, RingChecker
-from ..util.coord import rotate_points_about_axis, pdb_replace_coords
+from ..psfutil.ring_resolve import try_glycan_pendant
 from ..util.util import cell_from_xsc
 
 logger=logging.getLogger(__name__)
@@ -35,8 +35,6 @@ _AROMATIC = {'HIS', 'HSD', 'HSE', 'HSP', 'PHE', 'TYR', 'TRP'}
 # side-chain dihedral rotations tried, in order, to swing an aromatic ring off the bond
 _CHI2_DEGREES = [180, 120, 240, 90, 270, 60, 300]
 _CHI1_DEGREES = [120, 240, 180, 90, 270]
-# pendant rotations tried to pull a glycan piercing bond out of a rigid ring
-_PENDANT_DEGREES = [60, 120, 180, 240, 300, 90, 270]
 
 
 class RingCheckTask(BaseTask):
@@ -261,43 +259,11 @@ class RingCheckTask(BaseTask):
 
     def _try_glycan_pendant(self, checker, working_pdb, base, box, piercer, target, piercee_label, out_prefix):
         """Rotate the glycan sub-branch carrying the piercing bond about an upstream rotatable
-        bond.  The rotation is done in memory (no per-candidate PDB); hinge axes come from
-        :meth:`RingChecker.pendant_axes` (smallest branch first) and each is swept over a
-        series of angles.  Among the rotations that clear the ring, the one with the fewest
-        new heavy-atom clashes wins, and only that single pose is written.  Returns the
-        winning PDB or ``None``."""
-        axes = checker.pendant_axes(piercer['bond_serials'], piercer['segname'])
-        if not axes:
-            logger.debug(f'  no rotatable glycan hinge found for {self._fmt(piercer)}')
-            return None
-        best = None  # (clash, coords, i_ser, j_ser, deg)
-        scratch = base.copy()
-        for ax in axes:
-            prows = ax['prows']
-            pivot = base[ax['j_row']]
-            axis = base[ax['j_row']] - base[ax['i_row']]
-            branch = base[prows]
-            for deg in _PENDANT_DEGREES:
-                scratch[prows] = rotate_points_about_axis(branch, pivot, axis, deg)
-                if checker.check_coords(scratch, box, [target]):
-                    continue  # still pierced
-                clash = checker.clash_count(scratch, prows)
-                if best is None or clash < best[0]:
-                    best = (clash, scratch.copy(), ax['i_ser'], ax['j_ser'], deg)
-                if clash == 0:
-                    break
-            scratch[prows] = branch  # restore before trying the next axis
-            if best is not None and best[0] == 0:
-                break
-        if best is None:
-            return None
-        clash, coords, i_ser, j_ser, deg = best
-        out_pdb = f'{out_prefix}-glycan.pdb'
-        pdb_replace_coords(working_pdb, out_pdb, coords, checker._row_of_serial)
-        logger.info(f'  {piercee_label}: rotating the {self._fmt(piercer)} glycan branch '
-                    f'{deg} deg about bond {i_ser}-{j_ser} clears the piercing '
-                    f'({clash} new heavy-atom clash(es))')
-        return out_pdb
+        bond so the piercing bond is pulled out of the ring.  Delegates to the shared
+        :func:`~pestifer.psfutil.ring_resolve.try_glycan_pendant` (also used at glycan graft time).
+        Returns the winning PDB or ``None``."""
+        return try_glycan_pendant(checker, working_pdb, base, box, piercer, target,
+                                  f'{out_prefix}-glycan.pdb', piercee_label)
 
     def _write_sidechain_candidates(self, psf, pdb, segname, resid, chi, degrees, out_prefix):
         """Emit one PDB per candidate chi rotation of the residue's side chain

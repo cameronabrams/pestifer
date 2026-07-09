@@ -582,6 +582,10 @@ attributes:
                             text: interatomic distance threshold for clashes in Angstroms
                             type: float
                             default: 1.5
+                          - name: check_piercings
+                            text: If true (default), after grafting/building glycans, check for ring piercings caused by glycan bonds (a bond threaded through a protein or glycan ring, which has no atomic clash so the clash-count declash cannot see it) and clear each by rotating the offending glycan sub-branch out of the ring, before the structure is written. Independent of maxcycles. Best-effort and non-fatal.
+                            type: bool
+                            default: True
           - name: mods
             text: Specifies modifications to the sequence or structure in the PDB file
             type: dict

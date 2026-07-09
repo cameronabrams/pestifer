@@ -87,6 +87,8 @@ Under the ``glycans`` directive under ``source.sequence``, one can specify the f
 3. ``wide_shift``: The offset added to the parent protein residue number under ``wide`` numbering.  Default is **3000**.
 4. ``declash``: A dictionary of parameters governing a post-build declashing procedure, with ``maxcycles`` (default **0**) and ``clashdist`` (default **1.5**).
 
+   - ``check_piercings`` *(default* ``true`` *)*: After glycans are grafted/built, check for **ring piercings** caused by glycan bonds — a glycan bond threaded through a protein or glycan ring.  Such a threading has no atomic clash (the atoms do not overlap), so the ``maxcycles`` clash-count declash above cannot see it, yet it survives minimization and typically RATTLE-fails at the first dynamics step.  When one is found, pestifer rotates the offending glycan sub-branch about an upstream rotatable bond to pull the piercing bond out of the ring, before the structure is written.  This runs whenever the system has glycans, independent of ``maxcycles``, and is best-effort and non-fatal (a piercing no rotation clears is reported as a warning, leaving a downstream :ref:`ring_check <subs_buildtasks_ring_check>` task to attempt further resolution).  In most cases it makes a separate glycan ``ring_check`` unnecessary.  Set ``false`` to skip it.
+
 
 mods 
 ++++

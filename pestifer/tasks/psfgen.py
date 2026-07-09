@@ -8,6 +8,7 @@ Usage is described in the :ref:`subs_buildtasks_psfgen` documentation.
 import logging
 import networkx as nx
 import os
+import shutil
 
 from copy import deepcopy
 from pathlib import Path
@@ -131,6 +132,50 @@ class PsfgenTask(VMDTask):
             if self.declash_counts[segtype]>0 and self.specs['source']['sequence'][speckey]['declash']['maxcycles']>0:
                 logger.debug(f'Declashing {self.declash_counts[segtype]} {segtype} segments')
                 self.declash_segtype(self.specs['source']['sequence'][speckey]['declash'], segtype=segtype)
+        # A grafted glycan bond can thread through a protein/glycan ring with no atomic clash, so
+        # the clash-count declash above cannot see it.  Detect such topological piercings and
+        # rotate the glycan pendant out of the ring here, before the structure is written --
+        # ideally making a downstream ring_check task unnecessary.
+        self.resolve_glycan_piercings()
+
+    def resolve_glycan_piercings(self):
+        """Detect ring piercings caused by grafted/model-built glycan bonds and clear each by
+        rotating the offending glycan sub-branch out of the ring (see
+        :func:`~pestifer.psfutil.ring_resolve.resolve_glycan_piercings`).
+
+        Runs whenever the base molecule carries glycans, independent of the clash-count declash
+        cycles (a piercing has no atomic clash).  Disabled with
+        ``glycans.declash.check_piercings: false``.  Best-effort and non-fatal: a piercing no
+        rotation clears is reported as a warning, leaving a downstream ``ring_check`` (if any) to
+        attempt further resolution.
+        """
+        declash_specs = self.specs.get('source', {}).get('sequence', {}).get('glycans', {}).get('declash', {})
+        if not declash_specs.get('check_piercings', True):
+            return
+        if self.declash_counts.get('glycan', 0) <= 0:
+            return
+        from ..psfutil.ring_resolve import resolve_glycan_piercings as _resolve
+        state: StateArtifacts = self.get_current_artifact('state')
+        xsc = state.xsc.name if getattr(state, 'xsc', None) else None
+        self.next_basename('glycan-piercing-check')
+        logger.debug('Checking grafted glycans for ring piercings')
+        fixed_pdb, unresolved = _resolve(state.psf.name, state.pdb.name, xsc, self.basename,
+                                         segtypes=['protein', 'glycan'])
+        if fixed_pdb is not None:
+            shutil.copy(fixed_pdb, f'{self.basename}.pdb')
+            self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf,
+                               xsc=getattr(state, 'xsc', None)),
+                          key='state', artifact_type=StateArtifacts)
+            logger.info(f'Resolved glycan ring-piercing(s) at graft time -> {self.basename}.pdb')
+        if unresolved:
+            logger.warning(f'{len(unresolved)} ring-piercing(s) could not be cleared by glycan '
+                           f'rotation at graft time; add a ring_check task to attempt further '
+                           f'resolution (e.g. aromatic side-chain rotation) or rebuild:')
+            for p in unresolved:
+                ee, er = p['piercee'], p['piercer']
+                logger.warning(f'  ring of {ee.get("resname","?")} {ee["segname"]}-{ee["resid"]} '
+                               f'pierced by a bond in {er.get("resname","?")} '
+                               f'{er["segname"]}-{er["resid"]} ({er["segtype"]})')
 
     def resi_topologies(self):
         """

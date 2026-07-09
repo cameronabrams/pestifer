@@ -102,11 +102,13 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
       `PSFRing.pierced_by` gate (3.5 Å). Verified result-identical at 3.5/4.0/10.0 on the
       known-piercing fixtures and the ex17 embedded membrane; ~3–7× faster whole-system scan.
       Cutoff-invariance regression test added. (v3.2.0.)
-- [ ] **Detect ring-piercings at glycan graft time.** Fold a winding-number piercing test
-      (reuse `RingChecker` in `psfutil/psfring.py`) into the graft-time declashing
-      (`PsfgenTask.declash` / `declash.tcl`), so a threaded glycan is rotated out before the
-      structure is written — making the up-front `ring_check` task unnecessary. (See the
-      `project-glycan-graft-piercing-check` note.)
+- [x] **Detect ring-piercings at glycan graft time.** `PsfgenTask.declash` now runs a
+      winding-number piercing scan (reusing `RingChecker`) after building glycans and clears each
+      glycan-bond piercing by rotating the offending glycan sub-branch out of the ring, before the
+      structure is written — making the up-front `ring_check` unnecessary in the common case.
+      Rotation engine extracted to `psfutil/ring_resolve.py`, shared with `ring_check`. Toggle
+      `glycans.declash.check_piercings` (default on); best-effort/non-fatal. Validated on the real
+      4zmj model (2 glycan piercings → 0). (`[Unreleased]`.)
 
 ## Ideas / unsorted
 
