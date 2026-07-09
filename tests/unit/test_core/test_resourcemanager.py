@@ -39,6 +39,9 @@ class TestResourceManager(unittest.TestCase):
         self.assertEqual(popc['segtype'], 'lipid')
         self.assertTrue(popc['in_pdbrepository'])
         self.assertGreaterEqual(popc['nconformers'], 1)
+        # the RESI-title long name (comment after '!') is surfaced from the topology
+        self.assertTrue(popc['charmm_synonym'])
+        self.assertIn('phosphatidylcholine', popc['charmm_synonym'].lower())
         # a patch: defined in the topologies (PRES) but has no coordinates
         aspp = self.RM.lookup_resname('ASPP')
         self.assertTrue(aspp['in_topology'])
@@ -55,6 +58,7 @@ class TestResourceManager(unittest.TestCase):
         self.assertFalse(bogus['in_topology'])
         self.assertIsNone(bogus['topfile'])
         self.assertFalse(bogus['in_pdbrepository'])
+        self.assertIsNone(bogus['charmm_synonym'])
         # richer detail for a PDB-repo lipid: charge present, head-to-tail length > 0
         self.assertIsNotNone(popc['charge'])
         self.assertGreater(popc['head_tail_length'], 0.0)

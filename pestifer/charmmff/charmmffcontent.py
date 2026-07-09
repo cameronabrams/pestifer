@@ -215,7 +215,10 @@ class ResnameIndex(CacheableObject):
         def _entry(obj, kind):
             topfile = (getattr(obj, 'metadata', None) or {}).get('charmmfftopfile')
             source = 'custom' if topfile in custom_files else 'standard'
-            return {'kind': kind, 'topfile': topfile, 'source': source}
+            # the free-text comment after '!' on the RESI/PRES title line -- usually a formula
+            # and/or descriptive long name (e.g. "B1O2C1H5, methyl boronic acid, neutral")
+            synonym = (getattr(obj, 'synonym', '') or '').strip()
+            return {'kind': kind, 'topfile': topfile, 'source': source, 'synonym': synonym}
 
         self.index = {}
         for name, resi in cc.residues.items():

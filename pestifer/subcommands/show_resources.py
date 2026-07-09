@@ -27,6 +27,8 @@ def _report_resname(info: dict, out_stream=print):
         if info['segtype']:
             line += f" (segtype: {info['segtype']})"
         out_stream(line)
+        if info.get('charmm_synonym'):
+            out_stream(f'            "{info["charmm_synonym"]}"')
         if info.get('source'):
             out_stream(f"  source:   {_SOURCE_LABEL.get(info['source'], info['source'])}")
         if info['charmm_alias']:
@@ -68,7 +70,8 @@ def _report_resname_compact(info: dict, out_stream=print):
         pdb = str(info['nconformers'])
     else:
         pdb = '-'
-    out_stream(f"  {info['resname']:<8s} {where:<14s} {src:<7s} pdb: {pdb}")
+    syn = f"  {info['charmm_synonym']}" if info.get('charmm_synonym') else ''
+    out_stream(f"  {info['resname']:<8s} {where:<14s} {src:<7s} pdb: {pdb:<3s}{syn}")
 
 
 def _overview(out_stream=print):

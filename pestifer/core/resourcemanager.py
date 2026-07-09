@@ -198,6 +198,8 @@ class ResourceManager:
           directory such as ``~/.pestifer/toppar``), or ``None``
         - ``segtype``: pestifer's segtype classification (or ``None``)
         - ``charmm_alias``: the CHARMM resname a PDB resname maps to, if different
+        - ``charmm_synonym``: the free-text comment after ``!`` on the ``RESI``/``PRES`` title
+          line -- typically a molecular formula and/or descriptive long name (or ``None``)
         - ``in_pdbrepository``: whether the built-in PDB repository has coordinates
         - ``longname``: the descriptive name from the PDB repository (or ``None``)
         - ``nconformers``: number of stored conformers (0 if none)
@@ -239,6 +241,7 @@ class ResourceManager:
             'source': source,
             'segtype': self.labels.segtype_of_resname.get(query),
             'charmm_alias': alias if (alias and alias != query) else None,
+            'charmm_synonym': (entry.get('synonym') if entry else None) or None,
             'in_pdbrepository': pdbi is not None,
             'longname': pdbi.longname() if pdbi else None,
             'nconformers': len(pdbi.pdbcontents) if pdbi else 0,
