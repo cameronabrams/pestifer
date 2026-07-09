@@ -13,6 +13,13 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
 - [x] **Ship curated built-in solvent boxes.** MEOH, ETOH, and DMSO boxes (nmol=216,
       production NPT) are installed in the built-in `solvent` collection (`feb26`), so
       `solvate: {solvent: MEOH}` works without building a box first. (v3.2.0.)
+- [ ] **On-demand solvent boxes: pull in the solvent's own parameter file.** On-demand
+      generation (v3.5.0/v3.6.0) equilibrates a box with the *default* parameter set, so a CGenFF
+      solvent whose parameters live outside that set fails at the NPT step — e.g. acetonitrile
+      (`ACN`) dies with `UNABLE TO FIND DIHEDRAL PARAMETERS FOR HGA3 CG331 CG1N1 NG1T1`. Discover
+      and add the RESI's required parameter file(s) before equilibrating (the same way
+      `make_solvent_box` already appends the defining topology file), so params-incomplete
+      solvents build too. (Discovered building Example 24; acetone works, acetonitrile does not.)
 
 ## Membranes
 
@@ -108,7 +115,7 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
       structure is written — making the up-front `ring_check` unnecessary in the common case.
       Rotation engine extracted to `psfutil/ring_resolve.py`, shared with `ring_check`. Toggle
       `glycans.declash.check_piercings` (default on); best-effort/non-fatal. Validated on the real
-      4zmj model (2 glycan piercings → 0). (`[Unreleased]`.)
+      4zmj model (2 glycan piercings → 0). (v3.6.0.)
 
 ## Ideas / unsorted
 
