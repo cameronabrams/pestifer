@@ -34,6 +34,14 @@ def _write_fake_box_entry(collection_dir: Path, resname: str):
     }))
 
 
+def _fake_cc(release_key='feb26', release_str='February2026'):
+    """A stand-in CHARMMFFContent carrying just what autocache derives from it."""
+    cc = mock.Mock()
+    cc.charmmff_path = f'/x/{release_key}'
+    cc.release_str = release_str
+    return cc
+
+
 class TestCachePaths(unittest.TestCase):
 
     def setUp(self):
@@ -86,7 +94,16 @@ class TestEnsureSolventBoxCacheHit(unittest.TestCase):
         (coll / 'GLYE').mkdir(parents=True)
         (coll / 'GLYE' / 'info.yaml').write_text(yaml.dump({'kind': 'box', 'resname': 'GLYE'}))
         with mock.patch('pestifer.charmmff.make_solvent_box.make_solvent_box') as m:
-            got = autocache.ensure_solvent_box('GLYE', 'feb26', 'February2026')
+            got = autocache.ensure_solvent_box('GLYE', _fake_cc())
+            m.assert_not_called()
+        self.assertEqual(got, coll)
+
+    def test_lipid_cache_hit_does_not_build(self):
+        coll = autocache.cache_release_root('feb26') / 'lipid'
+        (coll / 'POPX').mkdir(parents=True)
+        (coll / 'POPX' / 'info.yaml').write_text(yaml.dump({'kind': 'molecule', 'conformers': []}))
+        with mock.patch('pestifer.charmmff.make_pdb_collection.do_resi') as m:
+            got = autocache.ensure_lipid_conformer('POPX', _fake_cc())
             m.assert_not_called()
         self.assertEqual(got, coll)
 
@@ -127,16 +144,54 @@ class TestSolvateGenerateOnMissPolicy(unittest.TestCase):
     def test_miss_builds_and_registers(self):
         task = self._task()
         cc = self._cc(toggle=True, in_ff=True)
-        task.resource_manager = mock.Mock()
-        task.resource_manager._charmmff_config = {'release': 'February2026'}
         repo = mock.Mock()
         # after add_resource, the solvent is now present
         repo.__contains__ = mock.Mock(return_value=True)
         with mock.patch('pestifer.charmmff.autocache.ensure_solvent_box',
                         return_value=Path('/cache/feb26/solvent')) as m:
             task._generate_solvent_box('DMSO', cc, repo)
-        m.assert_called_once_with('DMSO', 'feb26', 'February2026')
+        m.assert_called_once_with('DMSO', cc)
         repo.add_resource.assert_called_once_with('/cache/feb26/solvent')
+
+
+class TestBilayerGenerateOnMissPolicy(unittest.TestCase):
+    """Bilayer._generate_missing_species: toggle + not-in-force-field guards (no build)."""
+
+    def _bilayer(self, *, toggle=True, in_ff=True):
+        from pestifer.molecule.bilayer import Bilayer
+        b = Bilayer.__new__(Bilayer)
+        cc = mock.Mock()
+        cc.generate_missing_coordinates = toggle
+        cc.__contains__ = mock.Mock(return_value=in_ff)
+        b.charmmffcontent = cc
+        return b
+
+    def test_toggle_off_raises_without_building(self):
+        from pestifer.core.errors import PestiferBuildError
+        b = self._bilayer(toggle=False)
+        with mock.patch('pestifer.charmmff.autocache.ensure_lipid_conformer') as m:
+            with self.assertRaises(PestiferBuildError) as ctx:
+                b._generate_missing_species('POPX', mock.Mock())
+            m.assert_not_called()
+        self.assertIn('generate_missing_coordinates', str(ctx.exception))
+
+    def test_not_in_force_field_raises(self):
+        from pestifer.core.errors import PestiferBuildError
+        b = self._bilayer(toggle=True, in_ff=False)
+        with mock.patch('pestifer.charmmff.autocache.ensure_lipid_conformer') as m:
+            with self.assertRaises(PestiferBuildError):
+                b._generate_missing_species('NOPE', mock.Mock())
+            m.assert_not_called()
+
+    def test_miss_builds_and_registers(self):
+        b = self._bilayer(toggle=True, in_ff=True)
+        repo = mock.Mock()
+        repo.__contains__ = mock.Mock(return_value=True)  # present after registration
+        with mock.patch('pestifer.charmmff.autocache.ensure_lipid_conformer',
+                        return_value=Path('/cache/feb26/lipid')) as m:
+            b._generate_missing_species('POPX', repo)
+        m.assert_called_once_with('POPX', b.charmmffcontent)
+        repo.add_resource.assert_called_once_with('/cache/feb26/lipid')
 
 
 class TestProvisionAutoRegistersCache(unittest.TestCase):
@@ -167,24 +222,48 @@ class TestProvisionAutoRegistersCache(unittest.TestCase):
         self.assertIn('DMSO', repo)
 
 
-class TestEnsureSolventBoxIntegration(unittest.TestCase):
-    """Slow: actually build a small box for a real force-field solvent absent from the shipped
-    repository (BENZ), and confirm the cache-hit short-circuit on the second call."""
+class TestEnsureBuildIntegration(unittest.TestCase):
+    """Slow: actually build cache entries for real force-field residues absent from the shipped
+    repository, and confirm the cache-hit short-circuit on the second call."""
+
+    def _live_cc(self):
+        from pestifer.core.resourcemanager import ResourceManager
+        CC = ResourceManager(charmmff_config={}).charmmff_content
+        CC.provision()
+        return CC
 
     @pytest.mark.slow
     def test_build_benz_box(self):
         with TemporaryDirectory() as tmp:
             with mock.patch.object(autocache, 'PDBCACHE_ROOT', Path(tmp)):
-                coll = autocache.ensure_solvent_box(
-                    'BENZ', 'feb26', 'February2026',
-                    nmol=216, npt_steps=500, minimize_steps=200)
+                cc = self._live_cc()
+                coll = autocache.ensure_solvent_box('BENZ', cc, nmol=216, npt_steps=500,
+                                                    minimize_steps=200)
                 info = yaml.safe_load((coll / 'BENZ' / 'info.yaml').read_text())
                 self.assertEqual(info['kind'], 'box')
                 self.assertEqual(info['quality'], 'auto')
                 self.assertGreater(info['box_edge'], 0)
-                # second call: cache hit, builder not invoked
                 with mock.patch('pestifer.charmmff.make_solvent_box.make_solvent_box') as m:
-                    coll2 = autocache.ensure_solvent_box('BENZ', 'feb26', 'February2026')
+                    coll2 = autocache.ensure_solvent_box('BENZ', cc)
+                    m.assert_not_called()
+                self.assertEqual(coll2, coll)
+
+    @pytest.mark.slow
+    def test_build_lipid_conformer(self):
+        # POPC is shipped; generate conformers for it into an isolated cache to exercise the
+        # kind:molecule path end-to-end without depending on an unshipped lipid name
+        with TemporaryDirectory() as tmp:
+            with mock.patch.object(autocache, 'PDBCACHE_ROOT', Path(tmp)):
+                cc = self._live_cc()
+                coll = autocache.ensure_lipid_conformer('POPC', cc, nsamples=2, sample_steps=200,
+                                                        minimize_steps=100)
+                info = yaml.safe_load((coll / 'POPC' / 'info.yaml').read_text())
+                self.assertEqual(info.get('kind', 'molecule'), 'molecule')
+                self.assertEqual(info['quality'], 'auto')
+                self.assertGreaterEqual(len(info['conformers']), 1)
+                self.assertIn('reference-atoms', info)
+                with mock.patch('pestifer.charmmff.make_pdb_collection.do_resi') as m:
+                    coll2 = autocache.ensure_lipid_conformer('POPC', cc)
                     m.assert_not_called()
                 self.assertEqual(coll2, coll)
 

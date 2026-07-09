@@ -117,6 +117,7 @@ class ResourceManager:
                 user_custom_segtypes=user_custom.get('segtypes', {}),
                 user_pdbrepository_paths=self._charmmff_config.get('pdbrepository', []),
                 generate_missing_coordinates=self._charmmff_config.get('generate_missing_coordinates', True),
+                release_str=self._charmmff_config.get('release', ''),
             )
         return self._charmmff_content
 

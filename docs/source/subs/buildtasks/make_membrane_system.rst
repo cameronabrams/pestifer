@@ -15,6 +15,8 @@ Pestifer generates the initial lipid and solvent coordinates with a grid packer:
 
 ``Pestifer`` provides 10 distinct conformers for each lipid molecule which are sampled from short vacuum MD simulations.  These are labelled "0" to "9".  By default, conformer "0" is used for each lipid.
 
+If you request a lipid (or other membrane component) that is **defined in the CHARMM force field but not in the shipped PDB repository**, pestifer **generates its conformers on demand** and caches them per-user, so the composition just works.  The first build is a one-time cost (vacuum sampling + minimization, loudly logged) and the conformers are cached under ``~/.pestifer/pdbrepository/<release>/lipid/<RESI>/``; subsequent builds reuse them instantly.  This is the same release-keyed generation cache used for on-demand solvent boxes (see :ref:`the solvate task <subs_buildtasks_solvate>`); disable it with ``charmmff.generate_missing_coordinates: false``, in which case a missing lipid hard-errors and you must build its conformers yourself with ``make-pdb-collection``.
+
 All ``make_membrane_system`` options are documented in the Config Reference pages for :ref:`config_ref tasks make_membrane_system`.
 
 Subtasks

@@ -259,6 +259,7 @@ class CHARMMFFContent(CacheableObject):
         user_pdbrepository_paths = kwargs.pop('user_pdbrepository_paths', [])
         user_custom_segtypes = kwargs.pop('user_custom_segtypes', {})
         generate_missing_coordinates = kwargs.pop('generate_missing_coordinates', True)
+        release_str = kwargs.pop('release_str', '')
         if args and 'resource_label' not in kwargs:
             kwargs['resource_label'] = Path(args[0]).name
         super().__init__(*args, **kwargs)
@@ -267,6 +268,9 @@ class CHARMMFFContent(CacheableObject):
         self.generate_missing_coordinates = generate_missing_coordinates
         """Whether missing PDB-repository coordinates may be generated on the fly and cached
         under ``~/.pestifer/`` (opt out with ``charmmff.generate_missing_coordinates: false``)."""
+        self.release_str = release_str
+        """The CHARMMFF release string as configured (e.g. ``February2026``, or ``''`` for the
+        newest); used to construct an isolated ResourceManager when generating missing coordinates."""
         self.user_custom_resnames = set()
         for d in user_custom_directories:
             self.add_custom_directory(d)

@@ -30,7 +30,7 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
 
 ## Resources / on-demand generation
 
-- Generate-on-miss into a user cache (`~/.pestifer/`). When a build references a residue that
+- [x] Generate-on-miss into a user cache (`~/.pestifer/`). When a build references a residue that
   is defined in a CHARMM topology/stream file but has **no PDB-repository entry**, generate the
   needed coordinates on the fly and cache them per-user instead of hard-erroring. Cache at
   `~/.pestifer/pdbrepository/<release>/` (release-keyed), auto-registered as a user collection;
@@ -43,11 +43,12 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
         `~/.pestifer/pdbrepository/<release>/solvent/<RESI>/` (`kind: box`, marked `quality: auto`).
         (`[Unreleased]`.) Since the decided quality tier is the **full** shipped equilibration (50k NPT),
         auto-boxes are same-quality-but-not-hand-curated rather than a lower tier.
-  - [ ] **Lipid-conformer miss** — the grid membrane packer's
-        `PestiferBuildError('Cannot find {l} in PDB repository')` in `bilayer.py`: generate a
-        single-molecule conformer (`kind: molecule`, via `do_resi`) on miss and cache it the same
-        way. (The artifact *kind* is driven by the consumer, not the species: packer → conformer,
-        solvate → box.)
+  - [x] **Lipid-conformer miss** — the grid membrane packer's
+        `PestiferBuildError('Cannot find {l} in PDB repository')` in `bilayer.py` now generates the
+        residue's single-molecule conformers (`kind: molecule`, via `do_resi`) on miss and caches
+        them under `~/.pestifer/pdbrepository/<release>/lipid/<RESI>/`, sharing the solvent path's
+        lock/atomic-publish/isolated-builder machinery. (The artifact *kind* is driven by the
+        consumer, not the species: packer → conformer, solvate → box.) (`[Unreleased]`.)
 
 ## Ligands / force field
 

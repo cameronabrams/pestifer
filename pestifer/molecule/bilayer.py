@@ -316,7 +316,7 @@ class Bilayer:
             for l in self.species_names:
                 logger.debug(f'Getting pdb for {l}')
                 if not l in pdbrepository:
-                    raise PestiferBuildError(f'Cannot find {l} in PDB repository')
+                    self._generate_missing_species(l, pdbrepository)
                 pdbstruct = pdbrepository.checkout(l)
                 self.species_data[l] = pdbstruct
                 for p in self.species_data[l].get_parameters():
@@ -390,6 +390,33 @@ class Bilayer:
                 if species['local_name'] not in self.register_species_pdbs:
                     self.register_species_pdbs.append(species['local_name'])
                 # logger.debug(f'Checked out {species_name} as {species["local_name"]}')
+
+    def _generate_missing_species(self, resname: str, pdbrepository):
+        """Handle a membrane-species miss: unless generation is disabled, build single-molecule
+        conformers on the fly, cache them under ``~/.pestifer/``, and register the cache collection
+        so ``pdbrepository`` can find them.
+
+        Raises :class:`PestiferBuildError` (preserving the former behavior) when generation is
+        disabled (``charmmff.generate_missing_coordinates: false``) or the species is not defined
+        in the force field.
+        """
+        CC = self.charmmffcontent
+        if not getattr(CC, 'generate_missing_coordinates', True):
+            raise PestiferBuildError(
+                f'Cannot find {resname} in PDB repository; build conformers for it with '
+                f"'pestifer make-pdb-collection', or set 'charmmff.generate_missing_coordinates: "
+                f"true' to have pestifer build and cache them automatically")
+        if resname not in CC:
+            raise PestiferBuildError(
+                f'{resname} is neither in the PDB repository nor defined in the CHARMM force '
+                f'field; cannot auto-generate conformers')
+        from ..charmmff.autocache import ensure_lipid_conformer
+        collection_dir = ensure_lipid_conformer(resname, CC)
+        pdbrepository.add_resource(str(collection_dir))
+        if resname not in pdbrepository:
+            raise PestiferBuildError(
+                f'internal error: auto-generated conformers for {resname} but they did not '
+                f'register in the PDB repository (cache at {collection_dir})')
 
     def spec_out(self, SAPL=75.0, xy_aspect_ratio=1.0, half_mid_zgap=1.0, solution_gcc=1.0, rotation_pm=10.0):
         """

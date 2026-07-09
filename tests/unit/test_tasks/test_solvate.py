@@ -87,10 +87,11 @@ class TestSolventBoxLookup(unittest.TestCase):
         repo.__contains__.side_effect = [False, True]  # miss, then present after generation
         repo.checkout.return_value = _box_entry()
         t = _make_task(repo, generate=True)
+        cc = t.resource_manager.charmmff_content
         with mock.patch('pestifer.charmmff.autocache.ensure_solvent_box',
                         return_value='/cache/feb26/solvent') as m:
             entry = t._solvent_box_entry('NOPE')
-        m.assert_called_once_with('NOPE', 'feb26', 'February2026')
+        m.assert_called_once_with('NOPE', cc)
         repo.add_resource.assert_called_once_with('/cache/feb26/solvent')
         self.assertTrue(entry.is_box())
 

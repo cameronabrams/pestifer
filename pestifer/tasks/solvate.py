@@ -97,9 +97,7 @@ class SolvateTask(VMDTask):
                 f"solvent '{solvent}' is neither in the PDB repository nor defined in the CHARMM "
                 f"force field; cannot auto-generate a box")
         from ..charmmff.autocache import ensure_solvent_box
-        release_key = os.path.basename(str(CC.charmmff_path))
-        release_str = self.resource_manager._charmmff_config.get('release', '')
-        collection_dir = ensure_solvent_box(solvent, release_key, release_str)
+        collection_dir = ensure_solvent_box(solvent, CC)
         repo.add_resource(str(collection_dir))
         if solvent not in repo:
             raise PestiferError(
