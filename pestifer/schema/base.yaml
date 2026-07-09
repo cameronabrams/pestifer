@@ -1386,6 +1386,16 @@ attributes:
               - name: z_tail_group
                 text: VMD atomselect string defining tail-group of z-axis
                 type: str
+              - name: orient
+                text: general vector-based orientation; rotates the protein so that a source vector is carried onto a target vector (the same ALIGN operation as the manipulate task's transrot mod).  Takes precedence over z_head_group/z_tail_group when given.  Each of source/target is either a literal 3-vector [x,y,z] or a pair of atomselections [selA, selB] whose mass-weighted centers define the vector (from selA to selB).
+                type: dict
+                attributes:
+                  - name: source
+                    text: source vector to be reoriented; a literal [x,y,z] or a pair of atomselections [selA, selB]
+                    type: list
+                  - name: target
+                    text: target vector onto which the source is carried (e.g. the membrane normal [0,0,1]); a literal [x,y,z] or a pair of atomselections [selA, selB]
+                    type: list
               - name: z_ref_group
                 text: VMD atomselect string defining a center of mass at a specific z
                 type: dict

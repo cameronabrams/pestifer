@@ -261,43 +261,63 @@ class MakeMembraneSystemTask(BaseTask):
             self.pipeline.rekey('quilt_state', 'state')
         return 0
 
+    def _orientation_align(self):
+        """Build the :class:`~pestifer.objs.rottrans.RotTrans` ``ALIGN`` operation that orients the
+        protein for embedding, or ``None`` if no orientation was requested.
+
+        A general ``orient`` spec (``source``/``target`` vectors) takes precedence; otherwise the
+        ``z_head_group``/``z_tail_group`` shorthand is mapped to an ALIGN that carries the
+        tail->head axis onto the membrane normal ``[0, 0, 1]`` -- the same rotation the former
+        ``Orient::orient``-based ``bilayer_orient`` script computed.
+        """
+        from ..objs.rottrans import RotTrans
+        orient = self.embed_specs.get('orient', None)
+        if orient and orient.get('source') is not None and orient.get('target') is not None:
+            return RotTrans(movetype='ALIGN', source=orient['source'], target=orient['target'])
+        z_head_group = self.embed_specs.get('z_head_group', None)
+        z_tail_group = self.embed_specs.get('z_tail_group', None)
+        if z_head_group is not None and z_tail_group is not None:
+            return RotTrans(movetype='ALIGN',
+                            source=[z_tail_group, z_head_group],
+                            target=[0.0, 0.0, 1.0])
+        return None
+
     def orient_protein(self):
         """
-        Orient the protein so that its principal axis is aligned with the z-axis (membrane normal).
-        This method uses the Orient package in VMD to perform the orientation based on specified atom selections.
+        Orient the protein so that a chosen axis is aligned with the z-axis (membrane normal).
+        The orientation is expressed as the ``ALIGN`` operation of the ``transrot`` mod (rotate a
+        source vector onto a target vector, minimal roll-free rotation about the protein's center
+        of mass) and emitted through the shared VMD scripter.
         The oriented protein structure is then saved as a new PDB file and registered as an artifact.
         """
         if self.embed_specs.get('no_orient', True):
             logger.debug('Skipping orientation of protein as per embed specs')
             return
-        
-        z_head_group = self.embed_specs.get('z_head_group', None)
-        z_tail_group = self.embed_specs.get('z_tail_group', None)
-        if z_head_group is None or z_tail_group is None:
-            logger.debug('No z_head_group or z_tail_group specified; skipping orientation of protein')
+
+        align = self._orientation_align()
+        if align is None:
+            logger.debug('No orient spec (or z_head_group/z_tail_group) specified; skipping orientation of protein')
             return
-        
+
         self.next_basename('orient')
         logger.debug(f'Orienting protein')
-        vm: VMDScripter = self.scripters['vmd']
-        vm.newscript(self.basename)
-        vm.usescript('bilayer_orient')
-        vm.writescript(self.basename)
-        self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
         protein_state: StateArtifacts = self.get_current_artifact('state')
         protein_psf: str = protein_state.psf.name
         protein_pdb: str = protein_state.pdb.name
-        result = vm.runscript(psf=protein_psf,
-                              pdb=protein_pdb,
-                              z_head_group=protect_str_arg(z_head_group),
-                              z_tail_group=protect_str_arg(z_tail_group),
-                              o=self.basename)
+        vm: VMDScripter = self.scripters['vmd']
+        vm.newscript(self.basename)
+        vm.load_psf_pdb(protein_psf, protein_pdb, new_molid_varname='mOR')
+        vm.write_rottrans(align, molid='mOR')
+        vm.write_pdb(self.basename, 'mOR')
+        vm.writescript(self.basename)
+        self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
+        result = vm.runscript()
         if result != 0:
             raise PestiferBuildError(f'vmd failed with result {result} for {self.basename}')
         self.register(self.basename, key='log', artifact_type=VMDLogFileArtifact)
         self.register(dict(
-            psf=protein_psf, 
-            pdb=PDBFileArtifact(self.basename, pytestable=True)), 
+            psf=protein_psf,
+            pdb=PDBFileArtifact(self.basename, pytestable=True)),
             key='state', artifact_type=StateArtifacts)
 
     def build_patch(self):

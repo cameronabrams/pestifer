@@ -21,9 +21,12 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
       a target vector (each a literal 3-vector or an atomselection pair), via the minimal
       roll-free rotation about the fragment COM. So a protein can be oriented before embedding by
       aligning a chosen spanning axis onto the membrane normal `[0,0,1]`. (v3.3.0.)
-  - [ ] **Follow-up: wire it into the embed step.** Today the ALIGN orientation is a manual
-        pre-step in a `manipulate` task; expose it directly as an orientation option in
-        `make_membrane_system`'s embed step so a single task can both orient and embed.
+  - [x] **Follow-up: wire it into the embed step.** `make_membrane_system`'s embed step now
+        orients via the `transrot` `ALIGN` path: a new `embed.orient` spec (`source`/`target`
+        vectors) drives it directly, and the existing `z_head_group`/`z_tail_group` shorthand maps
+        onto it (`source: [z_tail, z_head], target: [0,0,1]`). Verified coordinate-identical to the
+        former `Orient::orient`-based `bilayer_orient` script (RMSD < 0.01 Å on the van3 fixture).
+        (`[Unreleased]`.)
 
 ## Resources / on-demand generation
 

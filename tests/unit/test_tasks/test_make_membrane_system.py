@@ -197,8 +197,45 @@ class TestNpatch(unittest.TestCase):
         self.assertEqual(self._npatch({'npatch': [2, 3]}), [2, 3])
 
 
+class TestOrientationAlign(unittest.TestCase):
+    """Unit tests for MakeMembraneSystemTask._orientation_align (no VMD)."""
+
+    def _align(self, embed_specs):
+        task = MakeMembraneSystemTask.__new__(MakeMembraneSystemTask)
+        task.embed_specs = embed_specs
+        return task._orientation_align()
+
+    def test_none_when_no_orientation(self):
+        self.assertIsNone(self._align({}))
+
+    def test_z_head_tail_shorthand_maps_to_align_onto_z(self):
+        a = self._align({'z_head_group': 'protein and resid 1',
+                         'z_tail_group': 'protein and resid 100'})
+        self.assertIsNotNone(a)
+        self.assertEqual(a.movetype, 'ALIGN')
+        # tail -> head axis carried onto +z
+        self.assertEqual(a.source, ['protein and resid 100', 'protein and resid 1'])
+        self.assertEqual(a.target, [0.0, 0.0, 1.0])
+
+    def test_explicit_orient_spec_used(self):
+        a = self._align({'orient': {'source': [1, 0, 0], 'target': [0, 0, 1]}})
+        self.assertEqual(a.movetype, 'ALIGN')
+        self.assertEqual(a.source, [1, 0, 0])
+        self.assertEqual(a.target, [0, 0, 1])
+
+    def test_orient_spec_takes_precedence_over_shorthand(self):
+        a = self._align({'orient': {'source': ['a', 'b'], 'target': [0, 0, 1]},
+                         'z_head_group': 'protein and resid 1',
+                         'z_tail_group': 'protein and resid 100'})
+        self.assertEqual(a.source, ['a', 'b'])
+
+    def test_partial_shorthand_is_ignored(self):
+        # only one of the pair given -> no orientation
+        self.assertIsNone(self._align({'z_head_group': 'protein and resid 1'}))
+
+
 class TestMakeMembraneSystem(unittest.TestCase):
-    
+
     @classmethod
     def setUpClass(cls):
         cls.controller = Controller().configure(Config().configure_new(), terminate=False)
@@ -472,6 +509,57 @@ class TestMakeMembraneSystem(unittest.TestCase):
                               o='embedded')
         os.chdir('..')
         assert result == 0
+
+    def test_orient_align_matches_bilayer_orient(self):
+        """Regression: the new transrot-ALIGN orientation path must reproduce the coordinates of
+        the former Orient::orient-based bilayer_orient script (both compute the minimal roll-free
+        rotation of the tail->head axis onto z about the protein COM)."""
+        from pestifer.objs.rottrans import RotTrans
+        test_dir = '__test_orient_align_matches'
+        if os.path.exists(test_dir):
+            shutil.rmtree(test_dir)
+        os.mkdir(test_dir)
+        os.chdir(test_dir)
+        try:
+            psf, pdb = 'van3.psf', 'van3.pdb'
+            for f in (psf, pdb):
+                shutil.copy(os.path.join('../../fixtures/embed_inputs', f), '.')
+            head, tail = 'protein and resid 126', 'protein and resid 158'
+
+            vm: VMDScripter = self.scripters['vmd']
+            # old path: bilayer_orient (Orient::orient)
+            vm.newscript('orient_old')
+            vm.usescript('bilayer_orient')
+            vm.writescript('orient_old')
+            assert vm.runscript(psf=psf, pdb=pdb,
+                                z_head_group=protect_str_arg(head),
+                                z_tail_group=protect_str_arg(tail),
+                                o='oriented_old') == 0
+
+            # new path: transrot ALIGN emitted through the shared scripter (mirrors orient_protein)
+            align = RotTrans(movetype='ALIGN', source=[tail, head], target=[0.0, 0.0, 1.0])
+            vm.newscript('orient_new')
+            vm.load_psf_pdb(psf, pdb, new_molid_varname='mOR')
+            vm.write_rottrans(align, molid='mOR')
+            vm.write_pdb('oriented_new', 'mOR')
+            vm.writescript('orient_new')
+            assert vm.runscript() == 0
+
+            def coords(path):
+                out = []
+                with open(path) as fh:
+                    for line in fh:
+                        if line[:6] in ('ATOM  ', 'HETATM'):
+                            out.append((float(line[30:38]), float(line[38:46]), float(line[46:54])))
+                return np.array(out)
+
+            a, b = coords('oriented_old.pdb'), coords('oriented_new.pdb')
+            self.assertEqual(a.shape, b.shape)
+            rmsd = np.sqrt(np.mean(np.sum((a - b) ** 2, axis=1)))
+            self.assertLess(rmsd, 1.0e-2,
+                            f'ALIGN orientation differs from bilayer_orient by RMSD {rmsd:.4f} A')
+        finally:
+            os.chdir('..')
 
     @pytest.mark.slow
     def test_makemembranesystem_5e8w_psm_chl1_pope_chl1(self):
