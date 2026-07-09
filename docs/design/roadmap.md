@@ -26,7 +26,7 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
         vectors) drives it directly, and the existing `z_head_group`/`z_tail_group` shorthand maps
         onto it (`source: [z_tail, z_head], target: [0,0,1]`). Verified coordinate-identical to the
         former `Orient::orient`-based `bilayer_orient` script (RMSD < 0.01 Å on the van3 fixture).
-        (`[Unreleased]`.)
+        (v3.4.0.)
 
 ## Resources / on-demand generation
 
