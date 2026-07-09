@@ -8,13 +8,17 @@ from pestifer.tasks.solvate import SolvateTask
 from pestifer.core.errors import PestiferError
 
 
-def _make_task(repo):
-    """A bare SolvateTask with just enough wiring to exercise _solvent_box_args."""
+def _make_task(repo, generate=True, in_ff=True):
+    """A bare SolvateTask with just enough wiring to exercise _solvent_box_args / _solvent_box_entry."""
     t = SolvateTask.__new__(SolvateTask)
     cc = mock.Mock()
     cc.pdbrepository = repo
+    cc.generate_missing_coordinates = generate
+    cc.__contains__ = mock.Mock(return_value=in_ff)
+    cc.charmmff_path = '/x/feb26'
     rm = mock.Mock()
     rm.charmmff_content = cc
+    rm._charmmff_config = {'release': 'February2026'}
     t.resource_manager = rm
     return t
 
@@ -76,11 +80,36 @@ class TestSolventBoxLookup(unittest.TestCase):
         self.assertIn('-ws 20.34', args)
         self.assertIn('-ks "name O1"', args)
 
-    def test_missing_solvent_raises(self):
+    def test_missing_solvent_generates_when_enabled(self):
+        # default (generate_missing_coordinates True): a miss triggers on-demand generation,
+        # then the freshly registered box entry is returned
+        repo = mock.MagicMock()
+        repo.__contains__.side_effect = [False, True]  # miss, then present after generation
+        repo.checkout.return_value = _box_entry()
+        t = _make_task(repo, generate=True)
+        with mock.patch('pestifer.charmmff.autocache.ensure_solvent_box',
+                        return_value='/cache/feb26/solvent') as m:
+            entry = t._solvent_box_entry('NOPE')
+        m.assert_called_once_with('NOPE', 'feb26', 'February2026')
+        repo.add_resource.assert_called_once_with('/cache/feb26/solvent')
+        self.assertTrue(entry.is_box())
+
+    def test_missing_solvent_raises_when_generation_disabled(self):
         repo = mock.MagicMock()
         repo.__contains__.return_value = False
-        with self.assertRaises(PestiferError):
-            _make_task(repo)._solvent_box_entry('NOPE')
+        with mock.patch('pestifer.charmmff.autocache.ensure_solvent_box') as m:
+            with self.assertRaises(PestiferError) as ctx:
+                _make_task(repo, generate=False)._solvent_box_entry('NOPE')
+            m.assert_not_called()
+        self.assertIn('generate_missing_coordinates', str(ctx.exception))
+
+    def test_missing_solvent_not_in_forcefield_raises(self):
+        repo = mock.MagicMock()
+        repo.__contains__.return_value = False
+        with mock.patch('pestifer.charmmff.autocache.ensure_solvent_box') as m:
+            with self.assertRaises(PestiferError):
+                _make_task(repo, generate=True, in_ff=False)._solvent_box_entry('NOPE')
+            m.assert_not_called()
 
     def test_molecule_entry_rejected(self):
         entry = mock.Mock(); entry.is_box.return_value = False

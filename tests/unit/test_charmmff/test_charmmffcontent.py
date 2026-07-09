@@ -35,8 +35,8 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertEqual(len(self.C.pdbrepository.collections), 2)
         # logger.debug(f"Collections: {self.C.pdbrepository.collections.keys()}")
         # logger.debug(f"Info in lipid collection: {self.C.pdbrepository.collections['lipid'].info.keys()}")
-        self.assertEqual(len(self.C.pdbrepository.collections['lipid'].info), 152)
-        self.assertEqual(len(self.C.pdbrepository.collections['solvent'].info), 12)
+        self.assertEqual(len(self.C.pdbrepository.collections['lipid'].info), 219)
+        self.assertEqual(len(self.C.pdbrepository.collections['solvent'].info), 15)
 
     def test_charmmffcontent_restricted_provisioning(self):
         self.C.deprovision()

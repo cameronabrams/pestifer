@@ -37,7 +37,18 @@ By default the ``solvate`` task fills with TIP3P water (VMD's built-in pre-equil
 
 Any ``solvent`` other than ``TIP3``/``water`` is looked up as a ``kind: box`` entry in the ``solvent`` PDB collection: pestifer checks out the entry's pre-equilibrated box psf/pdb and hands them to VMD's ``solvate`` plugin as ``-spsf``/``-spdb`` together with the box's exact equilibrated edge (``-ws``) and key atom (``-ks``), so the box tiles the simulation cell instead of the built-in water box.  ``autoionize`` still runs afterward, so ``salt_con``/``cation``/``anion`` behave as usual.
 
-Pestifer ships pre-equilibrated boxes for **methanol (**\ ``MEOH``\ **), ethanol (**\ ``ETOH``\ **), and DMSO (**\ ``DMSO``\ **)**, so those work with no extra setup.  For any other solvent you must first **build and install** its box (see :ref:`sub_make_pdb_collection`):
+Pestifer ships pre-equilibrated boxes for **methanol (**\ ``MEOH``\ **), ethanol (**\ ``ETOH``\ **), and DMSO (**\ ``DMSO``\ **)**, so those work with no extra setup.
+
+For **any other** solvent that is defined in the CHARMM force field, pestifer **builds a box for it on demand** and caches the result per-user, so ``solvent: <RESI>`` just works:
+
+.. code-block:: yaml
+
+   solvate:
+     solvent: BENZ        # not shipped -> pestifer builds + caches a benzene box, then proceeds
+
+The first build is a one-time cost (pack + minimize + NPT equilibration, loudly logged) and the box is cached under ``~/.pestifer/pdbrepository/<release>/solvent/<RESI>/``; every subsequent build reuses it instantly.  The cache is keyed by CHARMMFF release (parameters are release-specific) and auto-registered as a user PDB collection.  This *complements* the contribute flow below — the cache is a per-user convenience; ``make-pdb-collection`` + ``modify-package`` is still how you get a curated box into the *shipped* package.
+
+To disable on-demand generation (for reproducibility-strict or offline runs), set ``charmmff.generate_missing_coordinates: false``; a missing box then hard-errors, and you must **build and install** it yourself (see :ref:`sub_make_pdb_collection`):
 
 .. code-block:: bash
 

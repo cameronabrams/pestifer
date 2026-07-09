@@ -70,16 +70,41 @@ class SolvateTask(VMDTask):
             CC.provision_pdbrepository()
         repo = CC.pdbrepository
         if solvent not in repo:
-            raise PestiferError(
-                f"solvent '{solvent}' is not in the PDB repository; build a box for it with "
-                f"'pestifer make-pdb-collection solvent --resname {solvent}' and install it into "
-                f"the solvent collection")
+            self._generate_solvent_box(solvent, CC, repo)
         entry = repo.checkout(solvent)
         if not entry.is_box():
             raise PestiferError(
                 f"solvent '{solvent}' is a single-molecule PDB entry, not a pre-equilibrated box; "
                 f"solvate needs a kind:box entry (build one with 'make-pdb-collection solvent')")
         return entry
+
+    def _generate_solvent_box(self, solvent: str, CC, repo):
+        """Handle a solvent-box miss: unless generation is disabled, build the box on the fly,
+        cache it under ``~/.pestifer/``, and register the cache collection so ``repo`` can find it.
+
+        Raises :class:`PestiferError` (preserving the former behavior) when generation is disabled
+        (``charmmff.generate_missing_coordinates: false``) or the solvent is not defined in the
+        force field at all.
+        """
+        if not getattr(CC, 'generate_missing_coordinates', True):
+            raise PestiferError(
+                f"solvent '{solvent}' is not in the PDB repository; build a box for it with "
+                f"'pestifer make-pdb-collection solvent --resname {solvent}' and install it into "
+                f"the solvent collection, or set 'charmmff.generate_missing_coordinates: true' to "
+                f"have pestifer build and cache one automatically")
+        if solvent not in CC:
+            raise PestiferError(
+                f"solvent '{solvent}' is neither in the PDB repository nor defined in the CHARMM "
+                f"force field; cannot auto-generate a box")
+        from ..charmmff.autocache import ensure_solvent_box
+        release_key = os.path.basename(str(CC.charmmff_path))
+        release_str = self.resource_manager._charmmff_config.get('release', '')
+        collection_dir = ensure_solvent_box(solvent, release_key, release_str)
+        repo.add_resource(str(collection_dir))
+        if solvent not in repo:
+            raise PestiferError(
+                f"internal error: auto-generated solvent box for '{solvent}' but it did not "
+                f"register in the PDB repository (cache at {collection_dir})")
 
     def _write_solvent_topology(self, solvent: str, outpath: str) -> str:
         """

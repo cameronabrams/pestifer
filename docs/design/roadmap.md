@@ -30,28 +30,24 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
 
 ## Resources / on-demand generation
 
-- [ ] **Generate-on-miss into a user cache (`~/.pestifer/`).** When a build references a
-      residue that is defined in a CHARMM topology/stream file but has **no PDB-repository
-      entry**, generate the needed coordinates on the fly and cache them per-user instead of
-      hard-erroring (today: `PestiferBuildError('Cannot find {l} in PDB repository')` in
-      `bilayer.py`, and the `_solvent_box_args` error in the solvate task). Infrastructure
-      mostly exists: `~/.pestifer/` is already the user-resource home (`~/.pestifer/toppar`),
-      `charmmffcontent` already accepts `user_pdbrepository_paths` (from
-      `charmmff.pdbcollections`), and the generators exist (`do_resi`, `make_solvent_box` +
-      the obabel `--gen3d` fallback).
-  - The artifact *kind* is driven by the **consumer**, not the species:
-    grid membrane packer → single-molecule conformers (`kind: molecule`, via `do_resi`);
-    `solvate` task → pre-equilibrated box (`kind: box`, via `make_solvent_box`). Wire the
-    solvent-box miss first (that path is freshly built + hardened), then the lipid-conformer miss.
-  - Decisions to settle: cache at `~/.pestifer/pdbrepository/<release>/` (release-keyed —
-    params are release-specific), auto-registered as a user collection; treat it like a
-    **compile-cache** (first use slow with *loud* logging of the one-time cost, cached after);
-    an **auto-gen quality tier** (shorter equilibration than the curated shipped boxes); a
-    **config toggle** to opt out (reproducibility-strict / offline users prefer the explicit
-    error); and an **atomic write / lock** so concurrent builds don't race the tarball.
-  - Complements — does not replace — the contribute flow (`make-pdb-collection` +
-    `modify-package pdb-repo add-entry`), which is for getting entries into the *shipped*
-    package; this is the per-user convenience path.
+- Generate-on-miss into a user cache (`~/.pestifer/`). When a build references a residue that
+  is defined in a CHARMM topology/stream file but has **no PDB-repository entry**, generate the
+  needed coordinates on the fly and cache them per-user instead of hard-erroring. Cache at
+  `~/.pestifer/pdbrepository/<release>/` (release-keyed), auto-registered as a user collection;
+  compile-cache semantics (first use slow with loud logging, cached after); `config toggle`
+  `charmmff.generate_missing_coordinates` (default on) to opt out; atomic publish + `fcntl` lock
+  so concurrent builds don't race. Complements — does not replace — the contribute flow
+  (`make-pdb-collection` + `modify-package pdb-repo add-entry`).
+  - [x] **Solvent-box miss** — `solvate` with a non-water solvent that has no shipped box now
+        builds one with `make_solvent_box` and caches it under
+        `~/.pestifer/pdbrepository/<release>/solvent/<RESI>/` (`kind: box`, marked `quality: auto`).
+        (`[Unreleased]`.) Since the decided quality tier is the **full** shipped equilibration (50k NPT),
+        auto-boxes are same-quality-but-not-hand-curated rather than a lower tier.
+  - [ ] **Lipid-conformer miss** — the grid membrane packer's
+        `PestiferBuildError('Cannot find {l} in PDB repository')` in `bilayer.py`: generate a
+        single-molecule conformer (`kind: molecule`, via `do_resi`) on miss and cache it the same
+        way. (The artifact *kind* is driven by the consumer, not the species: packer → conformer,
+        solvate → box.)
 
 ## Ligands / force field
 

@@ -258,11 +258,15 @@ class CHARMMFFContent(CacheableObject):
         user_custom_directories = kwargs.pop('user_custom_directories', [])
         user_pdbrepository_paths = kwargs.pop('user_pdbrepository_paths', [])
         user_custom_segtypes = kwargs.pop('user_custom_segtypes', {})
+        generate_missing_coordinates = kwargs.pop('generate_missing_coordinates', True)
         if args and 'resource_label' not in kwargs:
             kwargs['resource_label'] = Path(args[0]).name
         super().__init__(*args, **kwargs)
         self.deprovision()
         self.user_pdbrepository_paths = user_pdbrepository_paths
+        self.generate_missing_coordinates = generate_missing_coordinates
+        """Whether missing PDB-repository coordinates may be generated on the fly and cached
+        under ``~/.pestifer/`` (opt out with ``charmmff.generate_missing_coordinates: false``)."""
         self.user_custom_resnames = set()
         for d in user_custom_directories:
             self.add_custom_directory(d)
@@ -465,6 +469,13 @@ class CHARMMFFContent(CacheableObject):
         for path in getattr(self, 'user_pdbrepository_paths', []):
             logger.info(f'Adding user PDB collection {path} to PDB repository')
             self.pdbrepository.add_resource(path)
+        # auto-register any previously generated on-demand-cache collections for this release,
+        # so cached entries (e.g. solvent boxes built on a prior run) are available without regen
+        from .autocache import cached_collection_dirs
+        release_key = os.path.basename(str(self.charmmff_path))
+        for d in cached_collection_dirs(release_key):
+            logger.debug(f'Adding user PDB cache collection {d} to PDB repository')
+            self.pdbrepository.add_resource(str(d))
 
     def provision_residueobjects(self, force_rebuild: bool = False, resnames: list[str] = []):
         is_custom = len(resnames) > 0
