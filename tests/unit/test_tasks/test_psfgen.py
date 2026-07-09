@@ -101,3 +101,49 @@ class TestPsfgenContinuation(unittest.TestCase):
                         p.unlink()
                     elif p.is_dir():
                         shutil.rmtree(p)
+
+
+class TestAssertCoordinatesSet(unittest.TestCase):
+    """PsfgenTask._assert_coordinates_set hard-errors when psfgen leaves atoms at the origin
+    (e.g. a monatomic ion whose PDB resname collides with a multi-atom CHARMM/CGenFF residue)."""
+
+    def _task_for_pdb(self, pdb_path):
+        from pestifer.tasks.psfgen import PsfgenTask
+        from types import SimpleNamespace
+        t = PsfgenTask.__new__(PsfgenTask)
+        state = SimpleNamespace(pdb=SimpleNamespace(name=pdb_path))
+        t.get_current_artifact = lambda key: state
+        return t
+
+    def _write_pdb(self, atoms):
+        # standard PDB columns: x starts at index 30 (col 31), matching what the check reads
+        import tempfile, os
+        fd, path = tempfile.mkstemp(suffix='.pdb')
+        with os.fdopen(fd, 'w') as f:
+            for i, (resname, chain, resid, name, xyz) in enumerate(atoms, start=1):
+                x, y, z = xyz
+                f.write(f'ATOM  {i:>5} {name:<4} {resname:>3} {chain}{resid:>4}    '
+                        f'{x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00      A    C\n')
+        self.addCleanup(os.remove, path)
+        return path
+
+    def test_no_origin_atoms_passes(self):
+        pdb = self._write_pdb([
+            ('ALA', 'A', 1, 'CA', (10.0, 11.0, 12.0)),
+            ('CAL', 'B', 401, 'CAL', (5.0, 6.0, 7.0)),
+        ])
+        self._task_for_pdb(pdb)._assert_coordinates_set()  # must not raise
+
+    def test_origin_atoms_hard_error_names_residue_and_fix(self):
+        from pestifer.core.errors import PestiferBuildError
+        pdb = self._write_pdb([
+            ('ALA', 'A', 1, 'CA', (10.0, 11.0, 12.0)),
+            ('CA', 'A', 401, 'C3', (0.0, 0.0, 0.0)),
+            ('CA', 'A', 401, 'O3', (0.0, 0.0, 0.0)),
+        ])
+        with self.assertRaises(PestiferBuildError) as ctx:
+            self._task_for_pdb(pdb)._assert_coordinates_set()
+        msg = str(ctx.exception)
+        self.assertIn('origin', msg)
+        self.assertIn('CA A401', msg)        # names the offending residue
+        self.assertIn('CA CAL', msg)         # shows the alias fix
