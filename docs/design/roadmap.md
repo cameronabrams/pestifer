@@ -41,14 +41,14 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
   - [x] **Solvent-box miss** — `solvate` with a non-water solvent that has no shipped box now
         builds one with `make_solvent_box` and caches it under
         `~/.pestifer/pdbrepository/<release>/solvent/<RESI>/` (`kind: box`, marked `quality: auto`).
-        (`[Unreleased]`.) Since the decided quality tier is the **full** shipped equilibration (50k NPT),
+        (v3.5.0.) Since the decided quality tier is the **full** shipped equilibration (50k NPT),
         auto-boxes are same-quality-but-not-hand-curated rather than a lower tier.
   - [x] **Lipid-conformer miss** — the grid membrane packer's
         `PestiferBuildError('Cannot find {l} in PDB repository')` in `bilayer.py` now generates the
         residue's single-molecule conformers (`kind: molecule`, via `do_resi`) on miss and caches
         them under `~/.pestifer/pdbrepository/<release>/lipid/<RESI>/`, sharing the solvent path's
         lock/atomic-publish/isolated-builder machinery. (The artifact *kind* is driven by the
-        consumer, not the species: packer → conformer, solvate → box.) (`[Unreleased]`.)
+        consumer, not the species: packer → conformer, solvate → box.) (v3.5.0.)
 
 ## Ligands / force field
 
