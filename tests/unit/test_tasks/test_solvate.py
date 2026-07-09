@@ -105,12 +105,15 @@ class TestSolventBoxLookup(unittest.TestCase):
         self.assertIn('generate_missing_coordinates', str(ctx.exception))
 
     def test_missing_solvent_not_in_forcefield_raises(self):
+        # the live CC may not be residue-provisioned, so the FF-membership check happens inside
+        # ensure_solvent_box (fresh RM); a not-in-FF solvent surfaces as a ValueError there,
+        # which _generate_solvent_box wraps as a PestiferError
         repo = mock.MagicMock()
         repo.__contains__.return_value = False
-        with mock.patch('pestifer.charmmff.autocache.ensure_solvent_box') as m:
+        with mock.patch('pestifer.charmmff.autocache.ensure_solvent_box',
+                        side_effect=ValueError('RESI NOPE is not defined in the CHARMM force field')):
             with self.assertRaises(PestiferError):
-                _make_task(repo, generate=True, in_ff=False)._solvent_box_entry('NOPE')
-            m.assert_not_called()
+                _make_task(repo, generate=True)._solvent_box_entry('NOPE')
 
     def test_molecule_entry_rejected(self):
         entry = mock.Mock(); entry.is_box.return_value = False

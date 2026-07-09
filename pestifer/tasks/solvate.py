@@ -92,12 +92,15 @@ class SolvateTask(VMDTask):
                 f"'pestifer make-pdb-collection solvent --resname {solvent}' and install it into "
                 f"the solvent collection, or set 'charmmff.generate_missing_coordinates: true' to "
                 f"have pestifer build and cache one automatically")
-        if solvent not in CC:
-            raise PestiferError(
-                f"solvent '{solvent}' is neither in the PDB repository nor defined in the CHARMM "
-                f"force field; cannot auto-generate a box")
+        # ensure_solvent_box builds in a fresh, fully-provisioned ResourceManager and raises
+        # ValueError if the solvent is not defined in the force field (the live CC here may not
+        # have its residue objects provisioned yet, so we do not check membership against it)
         from ..charmmff.autocache import ensure_solvent_box
-        collection_dir = ensure_solvent_box(solvent, CC)
+        try:
+            collection_dir = ensure_solvent_box(solvent, CC)
+        except ValueError as e:
+            raise PestiferError(
+                f"solvent '{solvent}' is neither in the PDB repository nor buildable: {e}")
         repo.add_resource(str(collection_dir))
         if solvent not in repo:
             raise PestiferError(

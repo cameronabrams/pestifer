@@ -133,13 +133,15 @@ class TestSolvateGenerateOnMissPolicy(unittest.TestCase):
         self.assertIn('generate_missing_coordinates', str(ctx.exception))
 
     def test_not_in_force_field_raises(self):
+        # a solvent absent from the force field surfaces as ValueError from ensure_solvent_box
+        # (built against a fresh, fully-provisioned CC), wrapped as PestiferError
         from pestifer.core.errors import PestiferError
         task = self._task()
-        cc = self._cc(toggle=True, in_ff=False)
-        with mock.patch('pestifer.charmmff.autocache.ensure_solvent_box') as m:
+        cc = self._cc(toggle=True)
+        with mock.patch('pestifer.charmmff.autocache.ensure_solvent_box',
+                        side_effect=ValueError('RESI NOPE is not defined in the CHARMM force field')):
             with self.assertRaises(PestiferError):
                 task._generate_solvent_box('NOPE', cc, mock.Mock())
-            m.assert_not_called()
 
     def test_miss_builds_and_registers(self):
         task = self._task()
