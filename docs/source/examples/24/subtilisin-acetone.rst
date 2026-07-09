@@ -15,6 +15,11 @@ The rest of the build is identical to the DMSO example: the equilibrated acetone
 .. task-table:: ../../../../pestifer/resources/examples/24/inputs/subtilisin-acetone.yaml
 
 
+.. figure:: acetone-box.png
+    :width: 60%
+
+    The acetone box pestifer built **on the fly** (216 molecules; edge ~30 Å, ρ 0.77 g/cc) and cached for reuse, then tiled to fill the cell.  Space-filling view: oxygen is red, carbon grey -- and, unlike DMSO (:ref:`Example 23 <example subtilisin-dmso>`), there is no sulfur.  Rendered with `mdview <https://github.com/cameronabrams/mdview>`_.
+
 .. figure:: solvated-density.png
 
     Density over the progressive-NPT equilibration of the system, which settles near the bulk value for acetone (~0.79 g/cc).  The auto-generated box was itself equilibrated to a density of 0.77 g/cc before tiling.

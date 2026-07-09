@@ -13,6 +13,11 @@ Rather than water, the ``solvate`` task is given ``solvent: DMSO``.  Pestifer ti
 .. task-table:: ../../../../pestifer/resources/examples/23/inputs/subtilisin-dmso.yaml
 
 
+.. figure:: dmso-box.png
+    :width: 60%
+
+    The pre-equilibrated DMSO box (216 molecules) that pestifer ships in the built-in ``solvent`` collection and tiles to fill the cell.  Space-filling view: sulfur is yellow, oxygen red, carbon grey.  Rendered with `mdview <https://github.com/cameronabrams/mdview>`_.
+
 .. figure:: subtilisin-dmso.png
 
     Subtilisin Carlsberg (green cartoon) solvated in DMSO, as built by Pestifer -- 22,488 atoms (1,834 DMSO molecules) in a box of roughly 62 x 61 x 68 Å.  Rendered with `mdview <https://github.com/cameronabrams/mdview>`_.
