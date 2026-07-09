@@ -30,6 +30,7 @@ Examples
    examples/21/groel-groes-adp
    examples/22/ferredoxin-fad
    examples/23/subtilisin-dmso
+   examples/24/subtilisin-acetone
 
 BPTI Series (Examples 1–4)
 ---------------------------
@@ -109,3 +110,5 @@ and very large multi-chain assemblies.
 - :doc:`Example 20 <examples/20/methylmalonyl-coa-mutase>` — mitochondrial methylmalonyl-CoA mutase; AlphaFold model (UniProt P22033) as the input source
 - :doc:`Example 21 <examples/21/groel-groes-adp>` — asymmetric GroEL/GroES chaperonin complex (1aon); 21-chain assembly with ADP ligands
 - :doc:`Example 22 <examples/22/ferredoxin-fad>` — ferredoxin-NADP(H) reductase (2bgj); FAD cofactor; chain exclusion
+- :doc:`Example 23 <examples/23/subtilisin-dmso>` — subtilisin Carlsberg (1scd) in DMSO; non-aqueous solvation using a shipped pre-equilibrated solvent box
+- :doc:`Example 24 <examples/24/subtilisin-acetone>` — subtilisin Carlsberg (1scd) in acetone; on-demand generation of a non-shipped CGenFF solvent box

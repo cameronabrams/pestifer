@@ -1,0 +1,52 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+title: Subtilisin Carlsberg in acetone
+psfgen:
+  aliases:
+    residue: ["CA CAL"]
+    atom: ["CAL CA CAL"]
+tasks:
+- fetch:
+    sourceID: 1scd
+    source_format: pdb
+- psfgen:
+    source:
+      biological_assembly: 1
+- md:
+    ensemble: minimize
+- solvate:
+    solvent: ACO
+- md:
+    ensemble: minimize
+- md:
+    ensemble: nvt
+- md:
+    ensemble: npt
+    nsteps: 200
+- md:
+    ensemble: npt
+    nsteps: 400
+- md:
+    ensemble: npt
+    nsteps: 800
+- md:
+    ensemble: npt
+    nsteps: 1600
+- md:
+    ensemble: npt
+    nsteps: 3200
+- md:
+    ensemble: npt
+    nsteps: 6400
+- md:
+    ensemble: npt
+    nsteps: 12800
+- mdplot:
+    basename: solvated
+    grid: true
+    timeseries:
+    - density
+    - - a_x
+      - b_y
+      - c_z
+- terminate:
+    cleanup: true
