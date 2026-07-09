@@ -6,7 +6,7 @@ This class represents a move operation that can either be a translation or a rot
 import logging
 logger = logging.getLogger(__name__)
 from typing import ClassVar
-from pydantic import Field
+from pydantic import Field, model_validator
 from ..core.baseobj import BaseObj, BaseObjList
 
 class RotTrans(BaseObj):
@@ -22,33 +22,46 @@ class RotTrans(BaseObj):
     - ``movetype``: The type of move operation, either ``trans`` for translation or ``rot`` for rotation.
     """
 
-    _optional_fields = {'x', 'y', 'z', 'axis', 'angle'}
+    _optional_fields = {'x', 'y', 'z', 'axis', 'angle', 'sel', 'source', 'target'}
     """
     Optional attributes for a RotTrans object.
     These attributes may be required for certain move types but are not mandatory for all.
     - ``x``, ``y``, ``z``: The translation vector components for a translation operation.
     - ``axis``: The axis of rotation for a rotation operation, specified as a string (e.g., 'x', 'y', 'z').
     - ``angle``: The angle of rotation in degrees for a rotation operation.
+    - ``sel``: A VMD atomselection string naming the fragment to transform (default ``all``).  The
+      fragment must be fully disconnected from the rest of the system; a disconnection guard in the
+      generated script hard-errors if any bond crosses the selection boundary.
+    - ``source``, ``target``: For an ``ALIGN`` operation, the source and target vectors.  Each is
+      either a literal 3-vector ``[x, y, z]`` or a pair of VMD atomselections ``[selA, selB]`` whose
+      mass-weighted centers define the vector (from ``selA`` to ``selB``).  The fragment is rotated
+      about its own center of mass by the minimal (roll-free) rotation carrying ``source`` onto
+      ``target``.
     """
 
-    _attr_choices = {'movetype': {'TRANS', 'ROT'},
+    _attr_choices = {'movetype': {'TRANS', 'ROT', 'ALIGN'},
                      'axis': {'x', 'y', 'z'}}
 
     _attr_dependencies = {'movetype': {
                             'TRANS': {'x', 'y', 'z'},
-                            'ROT'  : {'axis', 'angle'}}}
+                            'ROT'  : {'axis', 'angle'},
+                            'ALIGN': {'source', 'target'}}}
     """
     This dictionary defines the dependencies between attributes in RotTrans objects.
     - For a translation operation (``movetype`` is ``trans`` or ``TRANS``), the attributes ``x``, ``y``, and ``z`` are required.
     - For a rotation operation (``movetype`` is ``rot`` or ``ROT``), the attributes ``axis`` and ``angle`` are required.
+    - For a vector-alignment operation (``movetype`` is ``ALIGN``), the attributes ``source`` and ``target`` are required.
     """
 
-    movetype: str = Field(..., description="Type of move operation, either 'trans' for translation or 'rot' for rotation.")
+    movetype: str = Field(..., description="Type of move operation: 'TRANS' (translate), 'ROT' (rotate about a principal axis), or 'ALIGN' (rotate to carry a source vector onto a target vector).")
     x: float | None = Field(None, description="Translation vector component in the x direction.")
     y: float | None = Field(None, description="Translation vector component in the y direction.")
     z: float | None = Field(None, description="Translation vector component in the z direction.")
     axis: str | None = Field(None, description="Axis of rotation for a rotation operation (e.g., 'x', 'y', 'z').")
     angle: float | None = Field(None, description="Angle of rotation in degrees for a rotation operation.")
+    sel: str | None = Field(None, description="VMD atomselection naming the fragment to transform (default 'all').")
+    source: list | None = Field(None, description="ALIGN source vector: a literal [x,y,z] or a pair of atomselections [selA, selB].")
+    target: list | None = Field(None, description="ALIGN target vector: a literal [x,y,z] or a pair of atomselections [selA, selB].")
 
     _yaml_header: ClassVar[str] = 'transrot'
     """
@@ -56,11 +69,37 @@ class RotTrans(BaseObj):
     This header is used to identify RotTrans objects in YAML files.
     """
 
+    _yaml_aliases: ClassVar[list] = ['rottrans']
+    """
+    Alternate YAML headers accepted for RotTrans objects.  ``rottrans`` is accepted as a synonym for
+    ``transrot`` so either spelling may be used in configuration files.
+    """
+
     _objcat: ClassVar[str] = 'coord'
     """
     Category of the RotTrans object.
     This categorization is used to group RotTrans objects in the object manager.
     """
+
+    @staticmethod
+    def _validate_vecspec(name: str, spec: list) -> None:
+        """Validate an ALIGN vector spec: a literal 3-vector of numbers, or a 2-element pair of
+        atomselection strings.  Raises ValueError with a clear message otherwise."""
+        if not isinstance(spec, (list, tuple)):
+            raise ValueError(f"ALIGN '{name}' must be a list, not {type(spec).__name__}")
+        if len(spec) == 3 and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in spec):
+            return
+        if len(spec) == 2 and all(isinstance(v, str) for v in spec):
+            return
+        raise ValueError(f"ALIGN '{name}' must be a literal 3-vector [x,y,z] of numbers or a pair "
+                         f"of atomselections [selA, selB]; got {spec!r}")
+
+    @model_validator(mode='after')
+    def _check_align_vectors(self):
+        if self.movetype == 'ALIGN':
+            self._validate_vecspec('source', self.source)
+            self._validate_vecspec('target', self.target)
+        return self
 
     @classmethod
     def _adapt(cls, *args, **kwargs) -> dict:
@@ -90,6 +129,8 @@ class RotTrans(BaseObj):
             return f"{self.movetype},{self.x},{self.y},{self.z}"
         elif self.movetype == 'ROT':
             return f"{self.movetype},{self.axis},{self.angle}"
+        elif self.movetype == 'ALIGN':
+            return f"{self.movetype},source={self.source},target={self.target}"
 
     def __str__(self):
         """

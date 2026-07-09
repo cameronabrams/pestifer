@@ -378,8 +378,20 @@ class VMDScripter(TcLScripter):
             self.addline(r'}')
 
     def write_rottrans(self, rottrans: RotTrans, molid: str = None):
+        """Emit VMD commands for a rigid-body transformation of a (possibly partial) fragment.
+
+        The fragment is named by ``rottrans.sel`` (a VMD atomselection, default ``all``).  A
+        rigid-body transform is only meaningful when the fragment is fully disconnected from the
+        rest of the system, so for any selection other than ``all`` a disconnection guard is
+        emitted: if any selected atom is bonded to an atom outside the selection, the script prints
+        a ``PESTIFER-ERROR`` and exits non-zero rather than silently stretching the crossing bond.
+        Rotations are performed about the fragment's own center of mass.
+        """
         molid = f'${self.molid_varname}' if not molid else f'${molid}'
-        self.addline(f'set mover [atomselect {molid} all]')
+        sel = rottrans.sel or 'all'
+        self.addline(f'set mover [atomselect {molid} "{sel}"]')
+        if sel != 'all':
+            self._write_disconnection_guard(sel)
         if rottrans.movetype=='TRANS':
             self.addline(f'$mover moveby [list {rottrans.x} {rottrans.y} {rottrans.z}]')
         elif rottrans.movetype=='ROT':
@@ -388,6 +400,72 @@ class VMDScripter(TcLScripter):
             # there), which is not what we want.
             self.addline(f'set COM [measure center $mover weight mass]')
             self.addline(f'$mover move [trans center $COM axis {rottrans.axis} {rottrans.angle}]')
+        elif rottrans.movetype=='ALIGN':
+            self._write_align(rottrans, molid)
+
+    def _write_align(self, rottrans: RotTrans, molid: str):
+        """Emit the minimal (roll-free) rotation carrying ``source`` onto ``target``, about the
+        fragment's center of mass.
+
+        The rotation axis is ``source x target`` and the angle is ``atan2(|source x target|,
+        source . target)`` -- the unique smallest rotation between the two directions.  Degenerate
+        cases are handled: already-aligned vectors produce no rotation, and antiparallel vectors are
+        flipped 180 degrees about an arbitrary perpendicular axis.
+        """
+        self._write_align_vector(rottrans.source, molid, '_src')
+        self._write_align_vector(rottrans.target, molid, '_tgt')
+        self.addline(f'set _src [vecnorm $_src]')
+        self.addline(f'set _tgt [vecnorm $_tgt]')
+        self.addline(f'set _cross [veccross $_src $_tgt]')
+        self.addline(f'set _sin [veclength $_cross]')
+        self.addline(f'set _cos [vecdot $_src $_tgt]')
+        self.addline(f'set COM [measure center $mover weight mass]')
+        self.addline(f'if {{ $_sin < 1.0e-6 }} {{')
+        self.addline(f'  if {{ $_cos < 0.0 }} {{')
+        self.addline(f'    set _perp [veccross $_src {{1.0 0.0 0.0}}]')
+        self.addline(f'    if {{ [veclength $_perp] < 1.0e-6 }} {{ set _perp [veccross $_src {{0.0 1.0 0.0}}] }}')
+        self.addline(f'    $mover move [trans center $COM axis [vecnorm $_perp] 180.0]')
+        self.addline(f'  }}')
+        self.addline(f'}} else {{')
+        self.addline(f'  set _angle [expr {{atan2($_sin, $_cos) * 180.0 / 3.14159265358979}}]')
+        self.addline(f'  $mover move [trans center $COM axis [vecnorm $_cross] $_angle]')
+        self.addline(f'}}')
+
+    def _write_align_vector(self, spec: list, molid: str, varname: str):
+        """Set Tcl variable ``varname`` to an ALIGN vector.
+
+        ``spec`` is either a literal ``[x, y, z]`` (three numbers) or a pair of atomselections
+        ``[selA, selB]`` whose mass-weighted centers define the vector (from ``selA`` to ``selB``).
+        """
+        if len(spec) == 3 and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in spec):
+            x, y, z = spec
+            self.addline(f'set {varname} [list {x} {y} {z}]')
+        else:
+            selA, selB = spec
+            self.addline(f'set _va [atomselect {molid} "{selA}"]')
+            self.addline(f'set _vb [atomselect {molid} "{selB}"]')
+            self.addline(f'set {varname} [vecsub [measure center $_vb weight mass] [measure center $_va weight mass]]')
+            self.addline(f'$_va delete')
+            self.addline(f'$_vb delete')
+
+    def _write_disconnection_guard(self, sel: str):
+        """Emit a Tcl guard that hard-errors unless ``$mover`` is fully disconnected.
+
+        Relies on ``$mover`` already being an atomselection.  ``getbonds`` returns one bonded-index
+        list per selected atom (in selection order); if any bonded index is absent from the set of
+        selected indices, a bond crosses the selection boundary and the transform would deform the
+        molecule.
+        """
+        self.addline(f'set _in_sel [dict create]')
+        self.addline(f'foreach _i [$mover get index] {{ dict set _in_sel $_i 1 }}')
+        self.addline(f'foreach _bl [$mover getbonds] {{')
+        self.addline(f'  foreach _b $_bl {{')
+        self.addline(f'    if {{ ![dict exists $_in_sel $_b] }} {{')
+        self.addline(f'      puts "PESTIFER-ERROR: transrot selection \\"{sel}\\" is not fully disconnected (a bond crosses the selection boundary); refusing to apply a rigid-body transform."')
+        self.addline(f'      exit 1')
+        self.addline(f'    }}')
+        self.addline(f'  }}')
+        self.addline(f'}}')
 
     def write_align(self, align: Align):
         """Write VMD commands to align the pipeline system to a reference coordinate file.

@@ -91,8 +91,10 @@ class ObjManager(UserDict[str, UserDict[str, BaseObjList]]):
         (Substitution, SubstitutionList),
         (Ter, TerList)
     )
-    _obj_classes_byYAML = {cls[0]._yaml_header: cls[0] for cls in _obj_classes}
-    _objlist_classes_byYAML = {cls[0]._yaml_header: cls[1] for cls in _obj_classes}    
+    _obj_classes_byYAML = {name: cls[0] for cls in _obj_classes
+                           for name in (cls[0]._yaml_header, *getattr(cls[0], '_yaml_aliases', []))}
+    _objlist_classes_byYAML = {name: cls[1] for cls in _obj_classes
+                               for name in (cls[0]._yaml_header, *getattr(cls[0], '_yaml_aliases', []))}
 
     def __init__(self, input_specs={}):
         """ 

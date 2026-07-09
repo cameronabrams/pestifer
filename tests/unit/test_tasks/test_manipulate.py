@@ -202,6 +202,123 @@ class TestWriteRotTrans(unittest.TestCase):
         vm.write_rottrans(RotTrans(movetype='ROT', axis='y', angle=-168.646), molid='mCM')
         self.assertTrue(any('$mCM' in l for l in vm.lines))
 
+    def test_default_sel_is_all_no_guard(self):
+        # the default (whole-system) transform selects "all" and needs no disconnection guard
+        lines = self._lines(RotTrans(movetype='ROT', axis='z', angle=90.0))
+        mover_line = next(l for l in lines if 'set mover' in l)
+        self.assertIn('"all"', mover_line)
+        self.assertFalse(any('getbonds' in l for l in lines))
+        self.assertFalse(any('not fully disconnected' in l for l in lines))
+
+    def test_custom_sel_drives_atomselect(self):
+        lines = self._lines(RotTrans(movetype='TRANS', x=1.0, y=2.0, z=3.0,
+                                     sel='segid GLYC'))
+        mover_line = next(l for l in lines if 'set mover' in l)
+        self.assertIn('"segid GLYC"', mover_line)
+
+    def test_custom_sel_emits_disconnection_guard(self):
+        lines = self._lines(RotTrans(movetype='ROT', axis='z', angle=90.0,
+                                     sel='fragment 3'))
+        self.assertTrue(any('getbonds' in l for l in lines))
+        self.assertTrue(any('dict exists $_in_sel' in l for l in lines))
+        guard_err = next((l for l in lines if 'not fully disconnected' in l), None)
+        self.assertIsNotNone(guard_err)
+        self.assertIn('fragment 3', guard_err)
+        # guard must hard-error
+        self.assertTrue(any('exit 1' in l for l in lines))
+
+    def test_guard_precedes_transform(self):
+        lines = self._lines(RotTrans(movetype='ROT', axis='z', angle=90.0, sel='fragment 3'))
+        guard_idx = next(i for i, l in enumerate(lines) if 'getbonds' in l)
+        move_idx = next(i for i, l in enumerate(lines) if '$mover move' in l)
+        self.assertLess(guard_idx, move_idx)
+
+    def test_align_literal_vectors_minimal_rotation(self):
+        lines = self._lines(RotTrans(movetype='ALIGN', source=[1.0, 0.0, 0.0],
+                                     target=[0.0, 0.0, 1.0]))
+        text = '\n'.join(lines)
+        # source/target set as literal vectors
+        self.assertIn('set _src [list 1.0 0.0 0.0]', text)
+        self.assertIn('set _tgt [list 0.0 0.0 1.0]', text)
+        # minimal rotation: axis = source x target, angle = atan2(|cross|, dot), about the COM
+        self.assertIn('veccross $_src $_tgt', text)
+        self.assertIn('atan2($_sin, $_cos)', text)
+        self.assertTrue(any('trans center $COM axis [vecnorm $_cross]' in l for l in lines))
+        # degenerate antiparallel branch present
+        self.assertTrue(any('180.0' in l for l in lines))
+
+    def test_align_selection_pair_source(self):
+        lines = self._lines(RotTrans(movetype='ALIGN',
+                                     source=['resid 1 and name CA', 'resid 30 and name CA'],
+                                     target=[0.0, 0.0, 1.0]))
+        text = '\n'.join(lines)
+        # source vector built from the difference of two selection centers
+        self.assertTrue(any('resid 1 and name CA' in l and 'atomselect' in l for l in lines))
+        self.assertTrue(any('resid 30 and name CA' in l and 'atomselect' in l for l in lines))
+        self.assertIn('vecsub [measure center $_vb weight mass] [measure center $_va weight mass]', text)
+        # temporary selections are cleaned up
+        self.assertTrue(any('$_va delete' in l for l in lines))
+        self.assertTrue(any('$_vb delete' in l for l in lines))
+
+    def test_align_respects_sel_and_guard(self):
+        lines = self._lines(RotTrans(movetype='ALIGN', source=[1.0, 0.0, 0.0],
+                                     target=[0.0, 0.0, 1.0], sel='fragment 2'))
+        mover_line = next(l for l in lines if 'set mover' in l)
+        self.assertIn('"fragment 2"', mover_line)
+        self.assertTrue(any('getbonds' in l for l in lines))
+
+
+class TestRotTransObj(unittest.TestCase):
+
+    def test_sel_optional_defaults_none(self):
+        rt = RotTrans(movetype='ROT', axis='z', angle=90.0)
+        self.assertIsNone(rt.sel)
+
+    def test_sel_settable_via_dict(self):
+        rt = RotTrans(movetype='TRANS', x=1.0, y=0.0, z=0.0, sel='segid QQQ')
+        self.assertEqual(rt.sel, 'segid QQQ')
+
+    def test_yaml_header_and_alias(self):
+        self.assertEqual(RotTrans._yaml_header, 'transrot')
+        self.assertIn('rottrans', RotTrans._yaml_aliases)
+
+    def test_rottrans_alias_maps_to_rottrans_class(self):
+        from pestifer.core.objmanager import ObjManager
+        self.assertIs(ObjManager._obj_classes_byYAML['rottrans'], RotTrans)
+        self.assertIs(ObjManager._obj_classes_byYAML['transrot'], RotTrans)
+
+    def test_alias_ingests_under_canonical_header(self):
+        # ingesting a 'rottrans' mod must store it under the canonical 'transrot' key so the
+        # manipulate task (which dispatches on 'transrot') still finds it
+        from pestifer.core.objmanager import ObjManager
+        om = ObjManager()
+        om.ingest({'rottrans': ['ROT,z,45.0']})
+        coord = om.get('coord', {})
+        self.assertIn('transrot', coord)
+        self.assertEqual(len(coord['transrot']), 1)
+        self.assertIsInstance(coord['transrot'][0], RotTrans)
+
+    def test_align_literal_vectors_ok(self):
+        rt = RotTrans(movetype='ALIGN', source=[1, 0, 0], target=[0, 0, 1])
+        self.assertEqual(rt.source, [1, 0, 0])
+        self.assertEqual(rt.target, [0, 0, 1])
+
+    def test_align_selection_pair_ok(self):
+        rt = RotTrans(movetype='ALIGN', source=['resid 1', 'resid 30'], target=[0, 0, 1])
+        self.assertEqual(rt.source, ['resid 1', 'resid 30'])
+
+    def test_align_requires_source_and_target(self):
+        with self.assertRaises(Exception):
+            RotTrans(movetype='ALIGN', source=[0, 0, 1])
+
+    def test_align_rejects_malformed_vector(self):
+        # 3 strings is neither a literal 3-vector nor a selection pair
+        with self.assertRaises(Exception):
+            RotTrans(movetype='ALIGN', source=['a', 'b', 'c'], target=[0, 0, 1])
+        # a 2-number source is not a valid literal vector or selection pair
+        with self.assertRaises(Exception):
+            RotTrans(movetype='ALIGN', source=[0, 1], target=[0, 0, 1])
+
 
 # ---------------------------------------------------------------------------
 # Integration test: full VMD run  (--runslow)
@@ -313,6 +430,72 @@ class TestManipulateRotTransIntegration(unittest.TestCase):
         co, cr = centroid(out), centroid(orig)
         self.assertLess(math.dist(co, cr), 3.0,
                         f'centroid moved {math.dist(co, cr):.1f} Å -- not a COM-centered rotation')
+
+    def test_transrot_connected_sel_hard_errors(self):
+        """A transrot whose selection is bonded to the rest of the system must hard-error at
+        VMD runtime (the disconnection guard), leaving the manipulate task non-zero."""
+        name = '__test_transrot_guard'
+        if os.path.exists(name):
+            shutil.rmtree(name)
+        os.makedirs(name)
+        os.symlink(_FIXTURES / _PSF, Path(name) / _PSF)
+        os.symlink(_FIXTURES / _COOR, Path(name) / _COOR)
+        os.symlink(_FIXTURES / _PDB, Path(name) / _PDB)
+        os.chdir(name)
+        # 'resid 1 to 5' is covalently bonded to resid 6 -> a bond crosses the selection boundary
+        task_list = [
+            {'continuation': {'psf': _PSF, 'pdb': _PDB, 'coor': _COOR}},
+            {'manipulate': {'mods': {'transrot': [
+                {'movetype': 'TRANS', 'x': 10.0, 'y': 0.0, 'z': 0.0, 'sel': 'resid 1 to 5'}]}}},
+        ]
+        self.controller.reconfigure_tasks(task_list)
+        self.controller.do_tasks()
+        self.assertNotEqual(self.controller.tasks[1].result, 0,
+                            'manipulate should fail when transrot selection is not disconnected')
+
+    def test_transrot_align_vector_onto_z(self):
+        """A transrot ALIGN carries a source vector (CA of resid 1 -> CA of resid 30) onto the
+        target z-axis; after the move that vector must be parallel to [0,0,1]."""
+        name = '__test_transrot_align'
+        if os.path.exists(name):
+            shutil.rmtree(name)
+        os.makedirs(name)
+        os.symlink(_FIXTURES / _PSF, Path(name) / _PSF)
+        os.symlink(_FIXTURES / _COOR, Path(name) / _COOR)
+        os.symlink(_FIXTURES / _PDB, Path(name) / _PDB)
+        os.chdir(name)
+        task_list = [
+            {'continuation': {'psf': _PSF, 'pdb': _PDB, 'coor': _COOR}},
+            {'manipulate': {'mods': {'transrot': [
+                {'movetype': 'ALIGN',
+                 'source': ['resid 1 and name CA', 'resid 30 and name CA'],
+                 'target': [0.0, 0.0, 1.0]}]}}},
+        ]
+        self.controller.reconfigure_tasks(task_list)
+        self.controller.do_tasks()
+        self.assertEqual(self.controller.tasks[1].result, 0)
+        from pestifer.core.artifacts import StateArtifacts
+        state: StateArtifacts = self.controller.tasks[1].get_current_artifact('state')
+        self.assertTrue(state.pdb.exists())
+
+        def ca(path, resid):
+            with open(path) as fh:
+                for line in fh:
+                    if line[:6] in ('ATOM  ', 'HETATM') and line[12:16].strip() == 'CA':
+                        try:
+                            if int(line[22:26]) == resid:
+                                return (float(line[30:38]), float(line[38:46]), float(line[46:54]))
+                        except ValueError:
+                            pass
+            raise AssertionError(f'CA of resid {resid} not found in {path}')
+
+        a = ca(Path(state.pdb.name), 1)
+        b = ca(Path(state.pdb.name), 30)
+        v = (b[0]-a[0], b[1]-a[1], b[2]-a[2])
+        n = math.sqrt(sum(c*c for c in v))
+        # the source vector is now (anti)parallel to z: |z-component|/|v| ~ 1, x/y ~ 0
+        self.assertAlmostEqual(abs(v[2])/n, 1.0, places=3,
+                               msg=f'source vector not aligned to z after ALIGN: {v}')
 
 
 # ---------------------------------------------------------------------------

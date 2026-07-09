@@ -80,6 +80,15 @@ class ManipulateTask(BaseTask):
             vm.write_pdb(self.basename, 'mCM')
             vm.writescript()
             result = vm.runscript()
+            # VMD's Tcl `exit N` always returns process code 0, so a guard that calls `exit 1`
+            # (e.g. the transrot disconnection guard) cannot fail the task through the return
+            # code.  Detect such hard-errors by scanning the log for the PESTIFER-ERROR marker.
+            if result == 0:
+                log_path = Path(f'{self.basename}.log')
+                if log_path.exists() and 'PESTIFER-ERROR' in log_path.read_text():
+                    logger.error(f'VMD script {self.basename}.tcl reported a PESTIFER-ERROR '
+                                 f'(see {log_path}); aborting manipulate task')
+                    result = 1
             if result != 0:
                 logger.error(f'Error running VMD script {self.basename}.tcl: result {result}')
                 return result

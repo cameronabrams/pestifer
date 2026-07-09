@@ -667,6 +667,9 @@ attributes:
               - name: transrot
                 text: global translations and rotations
                 type: list
+              - name: rottrans
+                text: alias for transrot (global translations and rotations)
+                type: list
               - name: Cfusions
                 text: fuse residues from named residue range of named protein chain of named input PDB coordinate file to C-terminus of named segment of base molecule
                 type: list
@@ -1537,6 +1540,9 @@ attributes:
                 type: list
               - name: transrot
                 text: global translations and rotations
+                type: list
+              - name: rottrans
+                text: alias for transrot (global translations and rotations)
                 type: list
               - name: orient
                 text: orient structure along principal axes
