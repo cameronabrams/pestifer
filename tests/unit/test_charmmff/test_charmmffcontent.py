@@ -32,9 +32,12 @@ class TestCharmmffContent(unittest.TestCase):
         self.C.provision()
         self.assertEqual(len(self.C.residues), 3875)
         self.assertEqual(len(self.C.patches), 792)
-        self.assertEqual(len(self.C.pdbrepository.collections), 2)
-        # logger.debug(f"Collections: {self.C.pdbrepository.collections.keys()}")
-        # logger.debug(f"Info in lipid collection: {self.C.pdbrepository.collections['lipid'].info.keys()}")
+        # the base repo ships 'lipid' and 'solvent'; a user may also have on-demand-cache
+        # collections registered from ~/.pestifer/pdbrepository/<release>/ (e.g. a solvent box
+        # built on the fly), so require at least the two base collections rather than exactly two
+        self.assertGreaterEqual(len(self.C.pdbrepository.collections), 2)
+        self.assertIn('lipid', self.C.pdbrepository.collections)
+        self.assertIn('solvent', self.C.pdbrepository.collections)
         self.assertEqual(len(self.C.pdbrepository.collections['lipid'].info), 219)
         self.assertEqual(len(self.C.pdbrepository.collections['solvent'].info), 15)
 
@@ -62,7 +65,9 @@ class TestCharmmffContent(unittest.TestCase):
         basenames = [k for k in self.C.filenamemap['top'].keys()]
         basenames.extend([k for k in self.C.filenamemap['toppar'].keys()])
         basenames.extend([k for k in self.C.filenamemap['par'].keys()])
-        self.assertEqual(len(basenames), 58)
+        # feb26 ships both CGenFF v5 and v4.6 topology/parameter files; pestifer loads only v5
+        # (v4.6 is a strict subset), so the two v4.6 files are excluded from the loaded set
+        self.assertEqual(len(basenames), 56)
         self.assertEqual(len(set(basenames)), len(basenames))  # check for duplicates
         self.assertTrue(len(self.C.streams) > 0)
         self.assertEqual(self.C.streams.sort(), ['prot', 'carb', 'na', 'lipid'].sort())

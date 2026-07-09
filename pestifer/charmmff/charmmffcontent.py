@@ -345,7 +345,12 @@ class CHARMMFFContent(CacheableObject):
         def okfilename(name):
             """ Check if a filename is ok to use in the tarfile """
             extension_whitelist = ['.rtf', '.prm', '.str']
-            name_blacklist = ['history', 'all22', 'ljpme']
+            # 'cgenff_v4.6': feb26 ships both CGenFF v5 (top/par_all36_cgenff.*) and the older
+            # v4.6 (top/par_all36_cgenff_v4.6.*).  v5 is a strict superset of v4.6 -- every v4.6
+            # RESI and atom type is present in v5 (the ~4 shared RESIs that differ do so only in
+            # comments/whitespace) -- so loading v4.6 only duplicates the v5 residue definitions.
+            # Skip it and consider only the current v5 CGenFF.
+            name_blacklist = ['history', 'all22', 'ljpme', 'cgenff_v4.6']
             return not any(blacklist in name for blacklist in name_blacklist) and any(name.endswith(ext) for ext in extension_whitelist)
         tar_path = self.charmmff_path / tarfilename
         if not tar_path.exists():
