@@ -227,7 +227,7 @@ class ExampleManager:
         logger.info(f'Deleted example {example_id}: {example.shortname}')
         return example
 
-    def checkin_example(self, example: Example, overwrite: bool = False):
+    def checkin_example(self, example: Example, overwrite: bool = False, source_yaml_path=None):
         """
         Check in an Example instance by copying its YAML file and companion files to the appropriate example folder, which is created if it doesn't already exist.  This will overwrite the existing files.  If any file referenced by the example does not exist in the current working directory, a warning is logged but no action taken.
 
@@ -241,7 +241,9 @@ class ExampleManager:
         example_folder = self.examplefolderpath(example)
         example_inputs_subfolder = self.inputspath(example)
         example_outputs_subfolder = self.outputspath(example)
-        user_yaml_file_path = Path(example.shortname + '.yaml')  # correct; the name attribute should never have an extension
+        # the yaml source is either an explicit path (add_example may be given a path outside the
+        # CWD) or, by the documented convention, <shortname>.yaml in the CWD
+        user_yaml_file_path = Path(source_yaml_path) if source_yaml_path else Path(example.shortname + '.yaml')
         if not example_folder.is_dir(): # we are checking in a new example
             logger.debug(f'Creating example folder "{example_folder}"')
             example_folder.mkdir()
@@ -318,7 +320,10 @@ class ExampleManager:
 
         new_example = Example(
             example_id=example_id,
-            shortname=os.path.splitext(scriptname)[0],
+            # shortname is a bare identifier (no directory, no extension); the toctree entry and
+            # resource folder are keyed on it, so a path here would corrupt both (a real bug when
+            # add is given a full path rather than a CWD-relative <name>.yaml)
+            shortname=os.path.splitext(os.path.basename(scriptname))[0],
             title=title,
             db_id=db_id,
             author_name=author_name,
@@ -326,7 +331,9 @@ class ExampleManager:
             auxiliary_inputs=auxiliary_inputs,
             outputs=outputs
         )
-        self.checkin_example(new_example)  # check in the new example by copying its YAML file and companion files to the appropriate example folder
+        # copy the YAML (and companion files) into the example folder; pass the original scriptname
+        # so a path outside the CWD still resolves
+        self.checkin_example(new_example, source_yaml_path=scriptname)
         self.examples.append(new_example)
         if self.sphinx_example_manager:
             self.sphinx_example_manager.append_example(new_example)

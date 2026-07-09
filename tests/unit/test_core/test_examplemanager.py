@@ -51,6 +51,19 @@ class TestExampleManager(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(self.manager.sphinx_example_manager.examples_folder_path, '01', 'exA.rst')))
         self.assertTrue(os.path.isfile(os.path.join(self.manager.sphinx_example_manager.examples_folder_path, '02', 'exB.rst')))
     
+    def test_append_example_from_path_yields_bare_shortname(self):
+        # append_example may be given a path outside the CWD (e.g. `example add /some/dir/x.yaml`);
+        # the shortname must be the bare basename (no dir, no ext) or the toctree entry and the
+        # resource folder key are corrupted (regression: a full path leaked into the toctree).
+        script = os.path.abspath('userspace/exB.yaml')  # a path with a directory component
+        ex = self.manager.append_example(3, script)
+        self.assertEqual(ex.shortname, 'exB')
+        # the yaml was copied into the resource folder, and the toctree entry is 'NN/exB'
+        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, ex.inputspath, 'exB.yaml')))
+        toctree = open(self.manager.sphinx_example_manager.examples_rst).read()
+        self.assertIn('03/exB', toctree)
+        self.assertNotIn(os.path.abspath('userspace'), toctree)
+
     def test_example_manager_delete_example(self):
         self._build_example_set()
         self.manager.delete_example(2)
