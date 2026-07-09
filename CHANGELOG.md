@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.4.0] - 2026-07-09
+
 - new feature: `make_membrane_system`'s embed step gains a general **`embed.orient`** spec that orients the protein via the same **`ALIGN`** operation as the `manipulate` `transrot` mod -- rotate a `source` vector onto a `target` vector (each a literal 3-vector or an atomselection pair) by the minimal roll-free rotation about the protein's center of mass. This lets a membrane build target something other than `+z` (e.g. a tilted normal) or use a literal source vector, all in the one task. The existing `z_head_group`/`z_tail_group` shorthand is preserved and now maps onto this path (`source: [z_tail, z_head], target: [0,0,1]`), so existing membrane configs are unchanged. Internally this replaces the bespoke `Orient::orient`-based `bilayer_orient` orientation with the shared, tested `transrot` `ALIGN` code path -- verified coordinate-identical (RMSD < 0.01 Å) on the van3 fixture, and additionally robust to the degenerate antiparallel case the old path did not handle
 
 ## [3.3.0] - 2026-07-09
