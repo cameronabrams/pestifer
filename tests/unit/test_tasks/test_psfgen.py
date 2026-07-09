@@ -147,3 +147,55 @@ class TestAssertCoordinatesSet(unittest.TestCase):
         self.assertIn('origin', msg)
         self.assertIn('CA A401', msg)        # names the offending residue
         self.assertIn('CA CAL', msg)         # shows the alias fix
+
+
+class TestCheckIonAliases(unittest.TestCase):
+    """PsfgenTask._check_ion_aliases hard-errors early (before psfgen) when a monatomic ion's PDB
+    resname needs a CHARMM alias that isn't configured, but never fires when it is aliased, when
+    the residue is multi-atom (a genuine organic residue of the same name), or for non-ions."""
+
+    def _task(self, residues, residue_aliases=()):
+        from pestifer.tasks.psfgen import PsfgenTask
+        from types import SimpleNamespace
+        t = PsfgenTask.__new__(PsfgenTask)
+        au = SimpleNamespace(residues=SimpleNamespace(data=residues))
+        t.base_molecule = SimpleNamespace(asymmetric_unit=au)
+        t.scripters = {'psfgen': SimpleNamespace(
+            psfgen_config={'aliases': {'residue': list(residue_aliases)}})}
+        return t
+
+    def _res(self, resname, natoms=1, chainID='B', resid=401):
+        from types import SimpleNamespace
+        return SimpleNamespace(resname=resname, atoms=[0] * natoms,
+                               chainID=chainID, resid=SimpleNamespace(resid=resid))
+
+    def test_monatomic_ion_unaliased_hard_errors(self):
+        from pestifer.core.errors import PestiferBuildError
+        t = self._task([self._res('ALA', natoms=5), self._res('CA', natoms=1, resid=401)])
+        with self.assertRaises(PestiferBuildError) as ctx:
+            t._check_ion_aliases()
+        msg = str(ctx.exception)
+        self.assertIn('CA (calcium) at B401', msg)
+        self.assertIn('"CA CAL"', msg)
+        self.assertIn('"CAL CA CAL"', msg)
+
+    def test_aliased_ion_passes(self):
+        t = self._task([self._res('CA', natoms=1)], residue_aliases=['CA CAL'])
+        t._check_ion_aliases()  # must not raise
+
+    def test_multiatom_same_name_residue_passes(self):
+        # a genuine 68-atom CGenFF residue named CA is not a bare ion -> no error
+        self._task([self._res('CA', natoms=68)])._check_ion_aliases()
+
+    def test_non_ion_passes(self):
+        self._task([self._res('HOH', natoms=1), self._res('LIG', natoms=20)])._check_ion_aliases()
+
+    def test_multiple_ions_all_reported(self):
+        from pestifer.core.errors import PestiferBuildError
+        t = self._task([self._res('CA', natoms=1, resid=401), self._res('ZN', natoms=1, resid=500)])
+        with self.assertRaises(PestiferBuildError) as ctx:
+            t._check_ion_aliases()
+        msg = str(ctx.exception)
+        self.assertIn('CA (calcium)', msg)
+        self.assertIn('ZN (zinc)', msg)
+        self.assertIn('"ZN ZN2"', msg)

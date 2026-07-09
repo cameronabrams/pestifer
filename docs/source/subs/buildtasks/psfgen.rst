@@ -19,6 +19,17 @@ An example Pestifer input that specifies fetching and processing the 6PTI struct
 
 With this input, pestifer will fetch ``6pti.pdb`` from the RCSB, generate the required ``psfgen`` script, and execute VMD with that script as input.  The PSF and PDB files that result are passed forward to the next task in the ``tasks`` directive.
 
+.. note::
+
+   **Metal-ion residue names.**  Many PDB files name a bound metal or halide ion with a residue name that differs from (or collides with) the CHARMM name -- most notably calcium, whose PDB residue name ``CA`` matches a multi-atom CGenFF organic residue.  Left unaliased, psfgen builds that wrong residue and cannot place its extra atoms.  Pestifer guards against this two ways: it **stops before building** if it sees a bare (one-atom) ion residue (``CA``, ``NA``, ``K``, ``CL``, ``ZN``, ...) that is not aliased, telling you the exact ``psfgen.aliases`` entries to add; and, as a general backstop, it **hard-errors** if a completed psfgen PDB still contains atoms left at the origin ``(0, 0, 0)``.  For calcium the fix is
+
+   .. code-block:: yaml
+
+     psfgen:
+       aliases:
+         residue: ["CA CAL"]
+         atom: ["CAL CA CAL"]
+
 A common way of iterating with pestifer when a build is not successful is to carefully read the log file, and then edit the ``00-00-00_psfgen-build.tcl`` file to attempt fix the problem. For example, you might need to add a missing patch or modify a residue name. This requires a good working understanding of how to use ``psfgen``, of course.  You can then re-run the ``psfgen`` task by running the following command in a text-only VMD session:
 
 .. code-block:: bash

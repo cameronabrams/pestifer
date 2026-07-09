@@ -71,6 +71,7 @@ class PsfgenTask(VMDTask):
         logger.debug('ingesting molecule(s)')
         self.ingest_molecules()
         logger.debug(f'base mol num images {self.base_molecule.num_images()}')
+        self._check_ion_aliases()
         logger.debug('Running first psfgen')
         self.result = self.psfgen()
         if self.result != 0:
@@ -246,6 +247,60 @@ class PsfgenTask(VMDTask):
         self.strip_remarks()
         self._assert_coordinates_set()
         return 0
+
+    # common monatomic ions whose PDB residue name differs from (and, as with calcium, can collide
+    # with) the CHARMM residue name.  A bare (monatomic) residue with one of these PDB names is
+    # unambiguously the ion, but psfgen would build the same-named CHARMM/CGenFF residue instead --
+    # so pestifer stops early and tells the user the alias to add.  Mapping: PDB resname ->
+    # (CHARMM resname, element).  For a monatomic ion the atom name equals the residue name on both
+    # sides, so the atom alias is "<CHARMM> <PDB> <CHARMM>".
+    _ION_PDB_TO_CHARMM = {
+        'CA':  ('CAL', 'calcium'),
+        'NA':  ('SOD', 'sodium'),
+        'K':   ('POT', 'potassium'),
+        'CL':  ('CLA', 'chloride'),
+        'ZN':  ('ZN2', 'zinc'),
+        'CS':  ('CES', 'cesium'),
+        'RB':  ('RUB', 'rubidium'),
+        'LI':  ('LIT', 'lithium'),
+        'CD':  ('CD2', 'cadmium'),
+    }
+
+    def _check_ion_aliases(self):
+        """Hard-error *before* running psfgen if the input contains a monatomic ion whose PDB
+        residue name must be aliased to a differently-named CHARMM residue (e.g. calcium ``CA`` ->
+        ``CAL``) and no such residue alias is configured.
+
+        Left un-aliased, psfgen builds the same-named CHARMM/CGenFF residue (a multi-atom organic
+        molecule, for ``CA``) and cannot place its extra atoms -- which the origin-coordinate guard
+        would later catch, but only after a wasted build.  This stops early with the exact aliases
+        to add, and never silently reinterprets the user's input.
+        """
+        pg: PsfgenScripter = self.scripters['psfgen']
+        residue_aliases = (getattr(pg, 'psfgen_config', {}) or {}).get('aliases', {}).get('residue', []) or []
+        already_aliased = {entry.split()[0] for entry in residue_aliases if entry.split()}
+        problems = {}  # pdb_resname -> [residue labels]
+        for res in self.base_molecule.asymmetric_unit.residues.data:
+            rn = res.resname
+            if rn in self._ION_PDB_TO_CHARMM and rn not in already_aliased and len(res.atoms) == 1:
+                problems.setdefault(rn, []).append(f'{res.chainID}{res.resid.resid}')
+        if not problems:
+            return
+        described = '; '.join(
+            f'{rn} ({self._ION_PDB_TO_CHARMM[rn][1]}) at {", ".join(labels)}'
+            for rn, labels in sorted(problems.items()))
+        res_aliases = ', '.join(f'"{rn} {self._ION_PDB_TO_CHARMM[rn][0]}"' for rn in sorted(problems))
+        atom_aliases = ', '.join(f'"{self._ION_PDB_TO_CHARMM[rn][0]} {rn} {self._ION_PDB_TO_CHARMM[rn][0]}"'
+                                 for rn in sorted(problems))
+        raise PestiferBuildError(
+            f'The input contains monatomic ion residue(s) whose PDB name must be aliased to the '
+            f'CHARMM ion residue before psfgen (otherwise psfgen builds the wrong, same-named '
+            f'residue and cannot place its atoms): {described}.\n'
+            f'Add to your config:\n'
+            f'    psfgen:\n'
+            f'      aliases:\n'
+            f'        residue: [{res_aliases}]\n'
+            f'        atom: [{atom_aliases}]')
 
     def _assert_coordinates_set(self):
         """Hard-error if the psfgen output PDB contains atoms left at the origin (0,0,0).
