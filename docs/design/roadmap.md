@@ -63,6 +63,31 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
       collections — instead of the current manual `modify-package charmmff regenerate-*`
       steps.
 
+## Glycans
+
+- [ ] **Build-or-extend glycans (`glycosylate` mod).** Today glycans are added by *grafting* a
+      pre-existing glycan (residue range from a source PDB) onto a target residue — a `grafts`
+      mod in the psfgen task. Add a complementary **`glycosylate` psfgen mod** that *builds* a
+      glycan from a specified sequence/linkage tree (and/or *extends* an existing one) rather than
+      requiring a donor structure, so a user can request, e.g., "an N-linked complex biantennary
+      glycan on ASN 234" declaratively.
+  - Decisions to settle:
+    - **Specification.** How the user names the glycan — a linear/branched sequence of CHARMM
+      sugar RESIs plus the linkage patches between them (N-linked via `NGLB`/sequon chemistry;
+      O-linked on Ser/Thr), possibly a shorthand for common cores (Man3/Man5, complex
+      biantennary, etc.).
+    - **Geometry.** Build coordinates from CHARMM internal coordinates (grow residue-by-residue
+      off the attachment point, like a psfgen `patch` + `guesscoord` chain) vs. graft a
+      pre-built core then extend — the former needs no donor PDB but leans on IC completeness.
+    - **Attachment point.** Reuse the graft machinery's target-residue handling (align onto the
+      Asn/Ser/Thr, replace, insert the rest into the topology).
+    - **Reuse the graft-time hygiene.** Fold in the existing declash and the planned graft-time
+      ring-piercing check (see `project-glycan-graft-piercing-check`) so a built glycan is
+      declashed and un-pierced before the structure is written.
+  - Relationship to grafting: `grafts` stays for "I have this exact glycan structure";
+    `glycosylate` is for "build me this glycan" — they can share the target-attachment and
+    hygiene code paths.
+
 ## Tooling / packaging
 
 - [x] **Ledger for `modify-package`.** Append-only record at
