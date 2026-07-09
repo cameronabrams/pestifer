@@ -12,13 +12,18 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
       non-water solvent too. (Follow-up from `docs/design/solvent-collection.md`, step 6.)
 - [x] **Ship curated built-in solvent boxes.** MEOH, ETOH, and DMSO boxes (nmol=216,
       production NPT) are installed in the built-in `solvent` collection (`feb26`), so
-      `solvate: {solvent: MEOH}` works without building a box first. (v3.1.0+, `[Unreleased]`.)
+      `solvate: {solvent: MEOH}` works without building a box first. (v3.2.0.)
 
 ## Membranes
 
-- [ ] **Vector-based orientation for membrane embedding.** Let the user orient the protein
-      relative to the bilayer by specifying a vector (e.g. align a chosen axis in the protein coordinate frame to the membrane normal) rather than relying only on the current
-      orientation step.
+- [x] **Vector-based orientation for membrane embedding.** The `manipulate` task's `transrot`
+      mod gained an `ALIGN` movetype that rotates a fragment so a source vector is carried onto
+      a target vector (each a literal 3-vector or an atomselection pair), via the minimal
+      roll-free rotation about the fragment COM. So a protein can be oriented before embedding by
+      aligning a chosen spanning axis onto the membrane normal `[0,0,1]`. (v3.3.0.)
+  - [ ] **Follow-up: wire it into the embed step.** Today the ALIGN orientation is a manual
+        pre-step in a `manipulate` task; expose it directly as an orientation option in
+        `make_membrane_system`'s embed step so a single task can both orient and embed.
 
 ## Resources / on-demand generation
 
@@ -64,14 +69,14 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
       `pestifer/resources/modifications.jsonl`; every mutating command records an entry
       (committed alongside the change). `ledger show` lists them; `ledger revert <id>`
       git-reverts a recorded modification on a fresh branch and curates the ledger.
-      (v3.1.0+, `[Unreleased]`.)
+      (v3.2.0.)
 
 ## Ring-piercing
 
 - [x] **Lower the `ring_check.cutoff` schema default** (10.0 → 4.0 Å) toward the
       `PSFRing.pierced_by` gate (3.5 Å). Verified result-identical at 3.5/4.0/10.0 on the
       known-piercing fixtures and the ex17 embedded membrane; ~3–7× faster whole-system scan.
-      Cutoff-invariance regression test added. (v3.1.0+, `[Unreleased]`.)
+      Cutoff-invariance regression test added. (v3.2.0.)
 - [ ] **Detect ring-piercings at glycan graft time.** Fold a winding-number piercing test
       (reuse `RingChecker` in `psfutil/psfring.py`) into the graft-time declashing
       (`PsfgenTask.declash` / `declash.tcl`), so a threaded glycan is rotated out before the
