@@ -1,0 +1,41 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# Helper 3 of 4: complete and position 17b Fab #1 (protomer with heavy chain H, light
+# chain L in 5vn3).
+#
+# Recipe (identical for all three Fabs except the 5vn3 donor chain letters):
+#   1. Build a COMPLETE 17b Fab from 1gc1 (chains H 1-229, L 1-213 -- both variable and
+#      constant domains).  1gc1's 17b is the same antibody as 5vn3's, fully resolved.
+#   2. align: rigid-body fit the 1gc1 Fab's heavy variable domain onto this protomer's 5vn3 Fv
+#      (heavy chain only -> a single, order-deterministic CA correspondence), moving the whole
+#      Fab into the 5vn3 frame.  Numbering differs between the two structures, so the fit matches
+#      by residue *order*: 1gc1 heavy 1-127 <-> 5vn3 heavy Fv (127 residues).
+#   3. transfer_coords: overwrite the Fv (heavy 1-126, light 1-109) with 5vn3's EXACT
+#      coordinates, preserving the gp120-17b interface atom-for-atom.  The C-terminal Fv
+#      residue of each chain is left to the 1gc1 scaffold (it joins the constant domain and is
+#      away from the interface).  The constant domains (heavy 128-229, light 111-213) keep the
+#      1gc1 coordinates, correctly paired.
+# Produces: fab_p1.psf / fab_p1.pdb  (needs fabdonor.psf/pdb from helper 2)
+title: Complete and position 17b Fab 1 (5vn3 chains H/L)
+tasks:
+- fetch: {sourceID: 1gc1, source_format: pdb}
+- psfgen:
+    source:
+      biological_assembly: 1
+      exclude:
+        - chainID not in ['H', 'L']   # 1gc1's complete 17b Fab
+- md: {cpu-override: True, ensemble: minimize}
+- manipulate:
+    mods:
+      align:
+        - ref_pdb: fabdonor.pdb
+          ref_psf: fabdonor.psf
+          mobile_sel: "chain H and resid 1 to 127 and name CA"
+          ref_sel: "chain H and name CA"
+          apply_to: all
+- manipulate:
+    mods:
+      transfer_coords:
+        - {donor_pdb: fabdonor.pdb, donor_psf: fabdonor.psf, donor_sel: "chain H and resid 1 to 111", mobile_sel: "chain H and resid 1 to 126"}
+        - {donor_pdb: fabdonor.pdb, donor_psf: fabdonor.psf, donor_sel: "chain L and resid 1 to 107", mobile_sel: "chain L and resid 1 to 109"}
+- terminate: {basename: fab_p1}

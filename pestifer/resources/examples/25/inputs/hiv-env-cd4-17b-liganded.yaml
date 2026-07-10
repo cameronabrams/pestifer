@@ -1,0 +1,35 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# Open, sCD4/17b-liganded HIV-1 B41 SOSIP Env ectodomain trimer (PDB 5vn3), built as the FULL
+# complex: the Env trimer, three soluble CD4 (sCD4), and three *completed* 17b Fabs.
+#
+# In 5vn3 each 17b Fab is only half-resolved -- just its two variable domains (the Fv), which
+# form the CD4-induced epitope contact with gp120.  This build completes each Fab by grafting
+# the missing constant domains from a fully-resolved 17b Fab (PDB 1gc1), while preserving the
+# 5vn3 Env-Fab interface atom-for-atom.
+#
+# This is a multi-step build.  Run the four helper scripts first (see the tutorial), which
+# produce base.psf/pdb (Env+sCD4) and fab_p1/p2/p3.psf/pdb (the three completed Fabs), then run
+# this script to merge, solvate, and equilibrate.
+title: Open HIV-1 B41 SOSIP Env trimer with sCD4 and completed 17b Fabs (5vn3)
+tasks:
+- continuation: {psf: base.psf, pdb: base.pdb}
+- merge:            # segment names are auto-enumerated on collision (H, H0, H1 ...)
+    systems:
+      - {psf: fab_p1.psf, pdb: fab_p1.pdb}
+      - {psf: fab_p2.psf, pdb: fab_p2.pdb}
+      - {psf: fab_p3.psf, pdb: fab_p3.pdb}
+- md: {cpu-override: True, ensemble: minimize}   # relax the Fv/constant-domain junctions
+- solvate:                                        # neutralizes the net charge with counter-ions
+- md: {ensemble: minimize}
+- md: {ensemble: NVT}
+- md: {ensemble: NPT, nsteps: 200}
+- md: {ensemble: NPT, nsteps: 400}
+- md: {ensemble: NPT, nsteps: 800}
+- md: {ensemble: NPT, nsteps: 1600}
+- md: {ensemble: NPT, nsteps: 13200}
+- mdplot: {timeseries: [density], basename: solvated, grid: True}
+- terminate:
+    basename: my_5vn3_liganded
+    artifacts: artifacts
+    package: {basename: prod_5vn3_liganded, namd: {ensemble: NPT}}

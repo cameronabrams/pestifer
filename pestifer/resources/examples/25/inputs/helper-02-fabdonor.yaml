@@ -1,0 +1,16 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# Helper 2 of 4.  Builds the 5vn3 17b "Fv donor": the six partial Fab chains (heavy H/K/M,
+# light L/N/O), rebuilt through psfgen so every resolved residue has all its atoms.  Its
+# coordinates are the exact crystallographic gp120-17b interface we want to preserve when we
+# graft the constant domains on.  Produces: fabdonor.psf / fabdonor.pdb
+title: 5vn3 17b Fv donor (six partial Fab chains)
+tasks:
+- fetch: {sourceID: 5vn3, source_format: pdb}
+- psfgen:
+    source:
+      biological_assembly: 1
+      exclude:
+        - chainID not in ['H', 'K', 'M', 'L', 'N', 'O']
+- md: {cpu-override: True, ensemble: minimize}
+- terminate: {basename: fabdonor}

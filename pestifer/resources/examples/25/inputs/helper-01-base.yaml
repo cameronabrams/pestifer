@@ -1,0 +1,39 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# Helper 1 of 4 for the liganded 5vn3 build.  Builds the Env trimer + sCD4 "base", excluding the
+# partial 17b Fab chains (completed separately).  The Env preparation matches the standalone
+# Example 12: undo the SOSIP stabilizing mutations, stub the disordered V1/V2 loops with GGG,
+# and ligate the resulting chain breaks.  Produces: base.psf / base.pdb
+title: 5vn3 Env + sCD4 base (partial 17b Fabs excluded)
+tasks:
+- fetch: {sourceID: 5vn3, source_format: pdb}
+- psfgen:
+    source:
+      biological_assembly: 1
+      exclude:
+        - chainID in ['H', 'K', 'M', 'L', 'N', 'O']   # the six partial 17b Fab chains
+      sequence:
+        loops: {min_loop_length: 4, declash: {maxcycles: 0}}
+    mods:
+      mutations:   # undo the SOSIP mutations
+        - G:CYS,501,ALA
+        - I:CYS,501,ALA
+        - J:CYS,501,ALA
+        - A:PRO,559,ILE
+        - B:PRO,559,ILE
+        - D:PRO,559,ILE
+        - A:CYS,605,THR
+        - B:CYS,605,THR
+        - D:CYS,605,THR
+      substitutions:   # stub the missing V1/V2 loops
+        - G:131A-133T,GGG
+        - I:131A-133T,GGG
+        - J:131A-133T,GGG
+      crotations:
+        - phi,G,309,324,-60
+        - phi,I,309,324,-60
+        - phi,J,309,324,-60
+- md: {cpu-override: True, ensemble: minimize}
+- ligate: {steer: {nsteps: 3000}}
+- md: {cpu-override: True, ensemble: minimize}
+- terminate: {basename: base}

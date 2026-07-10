@@ -31,6 +31,7 @@ Examples
    examples/22/ferredoxin-fad
    examples/23/subtilisin-dmso
    examples/24/subtilisin-acetone
+   examples/25/hiv-env-cd4-17b-liganded
 
 BPTI Series (Examples 1–4)
 ---------------------------
@@ -112,3 +113,4 @@ and very large multi-chain assemblies.
 - :doc:`Example 22 <examples/22/ferredoxin-fad>` — ferredoxin-NADP(H) reductase (2bgj); FAD cofactor; chain exclusion
 - :doc:`Example 23 <examples/23/subtilisin-dmso>` — subtilisin Carlsberg (1scd) in DMSO; non-aqueous solvation using a shipped pre-equilibrated solvent box
 - :doc:`Example 24 <examples/24/subtilisin-acetone>` — subtilisin Carlsberg (1scd) in acetone; on-demand generation of a non-shipped CGenFF solvent box
+- :doc:`Example 25 <examples/25/hiv-env-cd4-17b-liganded>` — sCD4/17b-liganded HIV-1 Env trimer (5vn3); completing partially-resolved 17b Fabs from a second structure (1gc1) with ``align`` + ``transfer_coords``, preserving the interface, then ``merge``
