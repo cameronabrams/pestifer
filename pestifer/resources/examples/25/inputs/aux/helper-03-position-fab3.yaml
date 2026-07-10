@@ -18,24 +18,37 @@
 # Produces: fab_p3.psf / fab_p3.pdb  (needs fabdonor.psf/pdb from helper 2)
 title: Complete and position 17b Fab 3 (5vn3 chains M/O)
 tasks:
-- fetch: {sourceID: 1gc1, source_format: pdb}
-- psfgen:
-    source:
-      biological_assembly: 1
-      exclude:
-        - chainID not in ['H', 'L']   # 1gc1's complete 17b Fab
-- md: {cpu-override: True, ensemble: minimize}
-- manipulate:
-    mods:
-      align:
-        - ref_pdb: fabdonor.pdb
-          ref_psf: fabdonor.psf
-          mobile_sel: "chain H and resid 1 to 127 and name CA"
-          ref_sel: "chain M and name CA"
-          apply_to: all
-- manipulate:
-    mods:
-      transfer_coords:
-        - {donor_pdb: fabdonor.pdb, donor_psf: fabdonor.psf, donor_sel: "chain M and resid 1 to 111", mobile_sel: "chain H and resid 1 to 126"}
-        - {donor_pdb: fabdonor.pdb, donor_psf: fabdonor.psf, donor_sel: "chain O and resid 1 to 107", mobile_sel: "chain L and resid 1 to 109"}
-- terminate: {basename: fab_p3}
+  - fetch:
+      sourceID: 1gc1
+      source_format: pdb
+  - psfgen:
+      source:
+        biological_assembly: 1
+        exclude:
+          - chainID not in ['H', 'L']   # 1gc1's complete 17b Fab
+  - md:
+      cpu-override: True
+      ensemble: minimize
+  # move the whole Fab into the 5vn3 frame by fitting its heavy Fv onto this protomer's donor
+  - manipulate:
+      mods:
+        align:
+          - ref_pdb: fabdonor.pdb
+            ref_psf: fabdonor.psf
+            mobile_sel: "chain H and resid 1 to 127 and name CA"
+            ref_sel: "chain M and name CA"
+            apply_to: all
+  # overwrite the Fv with 5vn3's exact coordinates (one chain at a time -> deterministic order)
+  - manipulate:
+      mods:
+        transfer_coords:
+          - donor_pdb: fabdonor.pdb
+            donor_psf: fabdonor.psf
+            donor_sel: "chain M and resid 1 to 111"
+            mobile_sel: "chain H and resid 1 to 126"
+          - donor_pdb: fabdonor.pdb
+            donor_psf: fabdonor.psf
+            donor_sel: "chain O and resid 1 to 107"
+            mobile_sel: "chain L and resid 1 to 109"
+  - terminate:
+      basename: fab_p3

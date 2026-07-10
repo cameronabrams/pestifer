@@ -6,11 +6,16 @@
 # graft the constant domains on.  Produces: fabdonor.psf / fabdonor.pdb
 title: 5vn3 17b Fv donor (six partial Fab chains)
 tasks:
-- fetch: {sourceID: 5vn3, source_format: pdb}
-- psfgen:
-    source:
-      biological_assembly: 1
-      exclude:
-        - chainID not in ['H', 'K', 'M', 'L', 'N', 'O']
-- md: {cpu-override: True, ensemble: minimize}
-- terminate: {basename: fabdonor}
+  - fetch:
+      sourceID: 5vn3
+      source_format: pdb
+  - psfgen:
+      source:
+        biological_assembly: 1
+        exclude:
+          - chainID not in ['H', 'K', 'M', 'L', 'N', 'O']
+  - md:
+      cpu-override: True
+      ensemble: minimize
+  - terminate:
+      basename: fabdonor

@@ -13,23 +13,52 @@
 # this script to merge, solvate, and equilibrate.
 title: Open HIV-1 B41 SOSIP Env trimer with sCD4 and completed 17b Fabs (5vn3)
 tasks:
-- continuation: {psf: base.psf, pdb: base.pdb}
-- merge:            # segment names are auto-enumerated on collision (H, H0, H1 ...)
-    systems:
-      - {psf: fab_p1.psf, pdb: fab_p1.pdb}
-      - {psf: fab_p2.psf, pdb: fab_p2.pdb}
-      - {psf: fab_p3.psf, pdb: fab_p3.pdb}
-- md: {cpu-override: True, ensemble: minimize}   # relax the Fv/constant-domain junctions
-- solvate:                                        # neutralizes the net charge with counter-ions
-- md: {ensemble: minimize}
-- md: {ensemble: NVT}
-- md: {ensemble: NPT, nsteps: 200}
-- md: {ensemble: NPT, nsteps: 400}
-- md: {ensemble: NPT, nsteps: 800}
-- md: {ensemble: NPT, nsteps: 1600}
-- md: {ensemble: NPT, nsteps: 13200}
-- mdplot: {timeseries: [density], basename: solvated, grid: True}
-- terminate:
-    basename: my_5vn3_liganded
-    artifacts: artifacts
-    package: {basename: prod_5vn3_liganded, namd: {ensemble: NPT}}
+  - continuation:
+      psf: base.psf
+      pdb: base.pdb
+  # segment names are auto-enumerated on collision (H, H0, H1 ...)
+  - merge:
+      systems:
+        - psf: fab_p1.psf
+          pdb: fab_p1.pdb
+        - psf: fab_p2.psf
+          pdb: fab_p2.pdb
+        - psf: fab_p3.psf
+          pdb: fab_p3.pdb
+  # relax the Fv/constant-domain junctions
+  - md:
+      cpu-override: True
+      ensemble: minimize
+  # solvate neutralizes the net charge with counter-ions
+  - solvate:
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - md:
+      ensemble: NPT
+      nsteps: 13200
+  - mdplot:
+      timeseries:
+        - density
+      basename: solvated
+      grid: True
+  - terminate:
+      basename: my_5vn3_liganded
+      artifacts: artifacts
+      package:
+        basename: prod_5vn3_liganded
+        namd:
+          ensemble: NPT
