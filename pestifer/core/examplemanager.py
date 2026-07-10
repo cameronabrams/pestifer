@@ -85,7 +85,10 @@ class ExampleManager:
     
     def inputspath(self, example: Example) -> Path:
         return self.path / example.inputspath
-    
+
+    def auxpath(self, example: Example) -> Path:
+        return self.path / example.auxpath
+
     def outputspath(self, example: Example) -> Path:
         return self.path / example.outputspath
 
@@ -115,9 +118,15 @@ class ExampleManager:
             raise IndexError(f'Example with ID {example_id} not found')
         with open(example.scriptname, 'w') as f:
             f.write(self.scriptpath(example).read_text())
-        for aux_path in self.inputspath(example).glob('*'):
-            if aux_path.name != example.scriptname and aux_path.is_file():
-                shutil.copy(aux_path, os.getcwd())
+        # copy companion files: any other files directly in inputs/, plus every file in inputs/aux/
+        # (the auxiliary helper scripts).  All are flattened into the CWD so they run together.
+        companions = [p for p in self.inputspath(example).glob('*')
+                      if p.is_file() and p.name != example.scriptname]
+        aux_folder = self.auxpath(example)
+        if aux_folder.is_dir():
+            companions += [p for p in aux_folder.glob('*') if p.is_file()]
+        for p in companions:
+            shutil.copy(p, os.getcwd())
         logger.info(f'Checked out example {example_id} from {self.path.name} to current working directory {os.getcwd()}')
         return example
 
@@ -240,6 +249,7 @@ class ExampleManager:
         """
         example_folder = self.examplefolderpath(example)
         example_inputs_subfolder = self.inputspath(example)
+        example_aux_subfolder = self.auxpath(example)
         example_outputs_subfolder = self.outputspath(example)
         # the yaml source is either an explicit path (add_example may be given a path outside the
         # CWD) or, by the documented convention, <shortname>.yaml in the CWD
@@ -252,9 +262,12 @@ class ExampleManager:
             if not user_yaml_file_path.is_file():
                 raise FileNotFoundError(f'Example YAML file {user_yaml_file_path.name} does not exist in your current working directory {os.getcwd()}')
             shutil.copy(user_yaml_file_path, example_inputs_subfolder)
+            # auxiliary inputs go in <inputs>/aux/ so the inputs dir holds only the main script
+            if example.auxiliary_inputs:
+                example_aux_subfolder.mkdir(exist_ok=True)
             for f in example.auxiliary_inputs:
                 if os.path.isfile(f):
-                    shutil.copy(f, example_inputs_subfolder)
+                    shutil.copy(f, example_aux_subfolder)
                 else:
                     logger.warning(f'Declared auxiliary input file {f} does not exist in {os.getcwd()}')
             for f in example.outputs:
@@ -266,13 +279,15 @@ class ExampleManager:
             existing_yaml_file_path = self.scriptpath(example)
             if overwrite and user_yaml_file_path.is_file():
                 shutil.copy(user_yaml_file_path, example_inputs_subfolder)
+            if example.auxiliary_inputs:
+                example_aux_subfolder.mkdir(exist_ok=True)
             for f in example.auxiliary_inputs:
-                existing_aux_path = example_inputs_subfolder / f
+                existing_aux_path = example_aux_subfolder / f
                 if overwrite and existing_aux_path.is_file():
                     os.remove(existing_aux_path)
-                    shutil.copy(f, example_inputs_subfolder)
+                    shutil.copy(f, example_aux_subfolder)
                 elif not existing_yaml_file_path.exists():
-                    shutil.copy(f, example_inputs_subfolder)
+                    shutil.copy(f, example_aux_subfolder)
             for f in example.outputs:
                 existing_output_path = example_outputs_subfolder / f
                 if overwrite and existing_output_path.is_file():

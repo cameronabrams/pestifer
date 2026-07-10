@@ -29,7 +29,7 @@ Positioning a Fab: ``align`` + ``transfer_coords``
 
 This is the heart of the technique.  For each Fab:
 
-.. literalinclude:: ../../../../pestifer/resources/examples/25/inputs/helper-03-position-fab1.yaml
+.. literalinclude:: ../../../../pestifer/resources/examples/25/inputs/aux/helper-03-position-fab1.yaml
     :language: yaml
 
 Three subtleties are worth understanding, because they generalize to any structure-completion task:

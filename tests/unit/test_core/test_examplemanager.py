@@ -43,14 +43,41 @@ class TestExampleManager(unittest.TestCase):
         self._build_example_set()
         self.assertEqual(len(self.manager.examples), 2)
         self.assertTrue(os.path.isfile(os.path.join(self.manager.path, self.manager.examples[0].scriptpath)))
-        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, self.manager.examples[0].inputspath, 'exA_companion1.pdb')))
-        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, self.manager.examples[0].inputspath, 'exA_companion1.psf')))
+        # auxiliary companions live in <inputs>/aux/ (so the inputs dir holds only the main yaml)
+        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, self.manager.examples[0].auxpath, 'exA_companion1.pdb')))
+        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, self.manager.examples[0].auxpath, 'exA_companion1.psf')))
         self.assertTrue(os.path.isfile(os.path.join(self.manager.path, self.manager.examples[1].inputspath, 'exB.yaml')))
         self.assertTrue(os.path.isfile(self.manager.sphinx_example_manager.examples_rst))
         self.assertTrue(os.path.isdir(self.manager.sphinx_example_manager.examples_folder_path))
         self.assertTrue(os.path.isfile(os.path.join(self.manager.sphinx_example_manager.examples_folder_path, '01', 'exA.rst')))
         self.assertTrue(os.path.isfile(os.path.join(self.manager.sphinx_example_manager.examples_folder_path, '02', 'exB.rst')))
     
+    def test_yaml_aux_example_is_registered_and_checked_out(self):
+        # regression: an example with additional YAML helper scripts as auxiliary_inputs must
+        # still be discovered (the scanner keys off the single main yaml in inputs/, with aux
+        # scripts tucked in inputs/aux/) and fully retrieved by checkout.
+        import tempfile
+        os.chdir('userspace')
+        self.manager.append_example(1, 'exA.yaml', auxiliary_inputs=['exB.yaml'])
+        os.chdir('..')
+        # the aux yaml lives under inputs/aux, not inputs, so inputs holds exactly one yaml
+        ex = self.manager.examples[0]
+        self.assertTrue(os.path.isfile(os.path.join(self.manager.path, ex.auxpath, 'exB.yaml')))
+        # a fresh manager re-scanning the resources must still find the example
+        from pestifer.core.examplemanager import ExampleManager
+        m2 = ExampleManager(examples_path='project/package/resources/examples',
+                            docs_source_path='project/docs/source')
+        self.assertEqual(len(m2.examples), 1)
+        self.assertEqual(m2.examples[0].shortname, 'exA')
+        # checkout retrieves both the main script and the aux helper into the CWD
+        out = tempfile.mkdtemp(); cwd = os.getcwd(); os.chdir(out)
+        try:
+            m2.checkout_example(1)
+            self.assertTrue(os.path.isfile('exA.yaml'))
+            self.assertTrue(os.path.isfile('exB.yaml'))
+        finally:
+            os.chdir(cwd); shutil.rmtree(out)
+
     def test_append_example_from_path_yields_bare_shortname(self):
         # append_example may be given a path outside the CWD (e.g. `example add /some/dir/x.yaml`);
         # the shortname must be the bare basename (no dir, no ext) or the toctree entry and the

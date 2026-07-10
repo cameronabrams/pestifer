@@ -32,6 +32,9 @@ class Example(BaseObj):
 
     inputs_subdir: ClassVar[str] = "inputs"
     outputs_subdir: ClassVar[str] = "outputs"
+    aux_subdir: ClassVar[str] = "aux"
+    """ auxiliary inputs live in ``<inputs>/aux/`` so the ``inputs`` directory holds exactly one
+    (main) YAML script -- the example scanner identifies the main script as the sole YAML there. """
 
     folder_name_format: ClassVar[str] = '{example_id:02d}'
     """ format for the name of the root folder of each example """
@@ -72,6 +75,10 @@ class Example(BaseObj):
     @property
     def outputspath(self) -> Path:
         return Path(f'{self.rootfolderpath}/{self.outputs_subdir}')
+
+    @property
+    def auxpath(self) -> Path:
+        return Path(f'{self.inputspath}/{self.aux_subdir}')
 
     @property
     def scriptpath(self) -> Path:
