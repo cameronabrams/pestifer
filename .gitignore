@@ -107,6 +107,13 @@ ipython_config.py
 #   install all needed dependencies.
 #Pipfile.lock
 
+# uv
+#   uv is used locally (see [tool.uv] in pyproject.toml), but the lockfile is not
+#   committed: CI and the release workflow build with pip/hatchling, not `uv sync`,
+#   so uv.lock is a local-dev artifact regenerated on demand. (Commit it instead if
+#   CI is ever switched to `uv sync` for reproducible installs.)
+uv.lock
+
 # PEP 582; used by e.g. github.com/David-OConnor/pyflow
 __pypackages__/
 
