@@ -117,6 +117,34 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
       `glycans.declash.check_piercings` (default on); best-effort/non-fatal. Validated on the real
       4zmj model (2 glycan piercings → 0). (v3.6.0.)
 
+## Loop modeling
+
+- [ ] **Physics-based loop modeling for missing internal segments.** Replace the
+      `guesscoord` + steered-MD (`ligate`) closure — which yields topologically-correct
+      but stretched, unrealistic loops — with an offline, in-house **sample → CCD-close →
+      score → minimize** pipeline. Fully self-contained: no structure predictor, no
+      network. New builder absorbs `ligate`'s `connect` patch; `steer` demoted to an
+      opt-in fallback for one release, then removed. Validated by delete-and-rebuild
+      loop-RMSD-to-native benchmarks. Full plan in `docs/design/loop-modeling.md`.
+  - [ ] **P1 — CCD closer replaces steering.** Analytic Ramachandran basins for the
+        initial φ/ψ, cyclic-coordinate-descent closure onto the downstream anchor,
+        minimize, `connect`. Deterministic (seeded). `steer` → opt-in fallback.
+  - [ ] **P2 — derived coil torsion library + ensemble ranking.** Ship a
+        pestifer-generated `general/Gly/Pro/pre-Pro` coil φ/ψ library (derived offline
+        from high-res PDB, versioned in the wheel); sample seeded candidates, close,
+        clash-filter, score, keep best-K, minimize.
+  - [ ] **P3 — KIC + neighbor-dependent library + optional restrained-MD refine.**
+        Analytic kinematic closure with pivot resampling; remove the `steer` fallback.
+  - [ ] **Follow-up: missing terminal tails.** No downstream anchor, so no closure —
+        sample + minimize free tails; separate from the internal-loop path.
+
 ## Ideas / unsorted
 
+- [ ] **Persist chain IDs across PSF→PDB regeneration.** A PSF has no chain column, so
+      every `coor`→`pdb`/`solvate` regeneration re-derives each atom's chain from its
+      segid's leading character. This is why merged copies collapsed onto one chain
+      (v3.7.0 worked around it by forcing single-character segids in `merge`). A general
+      fix would carry chain IDs as a first-class persistent attribute — e.g. restore them
+      from a reference PDB by (segid, resid, name) after each regeneration — so arbitrary
+      chain IDs survive a full build, not just segid-derived ones.
 - [ ] _(add items here)_
