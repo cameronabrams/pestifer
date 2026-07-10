@@ -264,12 +264,25 @@ class TerminateTask(MDTask):
         logger.debug(f'Wrote minimal parameter file: {outname}')
         return outname
 
+    def _archive_name(self):
+        """
+        The stem for the build-intermediate artifacts tarball.  If the user set ``artifacts``
+        explicitly, use it; otherwise default to ``'{basename}-artifacts'`` (or plain
+        ``'artifacts'`` when no basename is set) so successive builds in one directory produce
+        uniquely-named tarballs instead of all clobbering a shared ``artifacts.tar.gz``.
+        """
+        archive_name = self.specs.get('artifacts')
+        if not archive_name:
+            system_basename = self.specs.get('basename')
+            archive_name = f'{system_basename}-artifacts' if system_basename else 'artifacts'
+        return archive_name
+
     def cleanup(self):
 
         if not self.specs.get('cleanup', True):
             logger.debug('Cleanup disabled; skipping cleanup step.')
             return 0
-        archive_name = self.specs.get('artifacts', 'artifacts')
+        archive_name = self._archive_name()
 
         all_file_artifacts: FileArtifactList = self.pipeline.get_all_file_artifacts()
         file_artifacts = FileArtifactList([fa for fa in all_file_artifacts if not fa.keep])

@@ -1576,9 +1576,9 @@ attributes:
         type: dict
         attributes:
           - name: artifacts
-            text: Stem of the artifacts tarball name and the subdirectory within it; build-intermediate files are swept into {artifacts}.tar.gz under {artifacts}/ when cleanup is True
+            text: Stem of the artifacts tarball name and the subdirectory within it; build-intermediate files are swept into {artifacts}.tar.gz under {artifacts}/ when cleanup is True.  Defaults to '{basename}-artifacts' (or 'artifacts' if no basename is set) so multiple builds in one directory do not clobber each other.
             type: str
-            default: artifacts
+            default: null
           - name: cleanup
             text: Specifies whether or not to clean up temporary files
             type: bool

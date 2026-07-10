@@ -28,6 +28,14 @@ class Subcommand(ABC):
         """ the function that executes the subcommand.  Subclasses must implement this method. """
         return False
 
+    def default_log_file(self, args: Namespace) -> str:
+        """
+        The default log-file name for this subcommand when the user gives no ``--log-file``.
+        The base implementation returns the static :attr:`log_file`; subclasses may override
+        to derive a name from the parsed arguments (e.g. from the input config filename).
+        """
+        return self.log_file
+
     def __post_init__(self):
         if not self.name:
             raise ValueError("Subcommand name cannot be empty")
@@ -43,4 +51,4 @@ class Subcommand(ABC):
         arguments here, after a super().add_subparser() call.
         """
         self.parser = subparsers.add_parser(self.name, aliases=self.aliases, help=self.short_help, description=self.long_help)
-        self.parser.set_defaults(func=self.func, func_returns_type=self.func_returns_type, subcommand_log_file=self.log_file)
+        self.parser.set_defaults(func=self.func, func_returns_type=self.func_returns_type, default_log_file_func=self.default_log_file)

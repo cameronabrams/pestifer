@@ -57,7 +57,6 @@ tasks:
       grid: True
   - terminate:
       basename: my_5vn3_liganded
-      artifacts: artifacts
       package:
         basename: prod_5vn3_liganded
         namd:

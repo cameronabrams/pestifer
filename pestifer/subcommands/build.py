@@ -35,7 +35,20 @@ class RunSubcommand(Subcommand):
         self.parser.add_argument('--ncpus', type=int, default=0, help='number of NAMD processing elements (0 = auto-detect)')
         self.parser.add_argument('--complete-config', default=False, action='store_true', help='write complete config file')
         return self.parser
-    
+
+    def default_log_file(self, args):
+        """
+        Derive the diagnostics-log name from the input config, so that successive builds
+        in one directory get unique logs (e.g. ``foo.yaml`` -> ``foo-diagnostics.log``)
+        instead of clobbering a shared ``pestifer_diagnostics.log``.
+        """
+        config = getattr(args, 'config', None)
+        if config:
+            stem = os.path.splitext(os.path.basename(config))[0]
+            if stem:
+                return f'{stem}-diagnostics.log'
+        return self.log_file
+
     @staticmethod
     def func(args, **kwargs):
         """

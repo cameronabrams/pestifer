@@ -56,7 +56,7 @@ def cli():
         '--log-file',
         type=str,
         default=None,
-        help='log file (default: subcommand-specific)')
+        help="log file (default: 'pestifer_diagnostics.log'; build/run derive it from the config name)")
     parser.add_argument(
         '--version',
         action='version',
@@ -74,7 +74,8 @@ def cli():
 
     args = parser.parse_args()
     loglevel_numeric = getattr(logging, args.log_level.upper())
-    log_file = args.log_file or getattr(args, 'subcommand_log_file', None)
+    default_log_file_func = getattr(args, 'default_log_file_func', None)
+    log_file = args.log_file or (default_log_file_func(args) if default_log_file_func else None)
     if log_file:
         if os.path.exists(log_file):
             shutil.copyfile(log_file, log_file + '.bak')
