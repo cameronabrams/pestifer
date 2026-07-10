@@ -457,7 +457,7 @@ attributes:
             text: List of systems to merge; each entry must have 'psf' and either 'pdb' or 'coor'; an optional 'segname_map' dict provides explicit segment renames for that system
             type: list
           - name: collision_strategy
-            text: How to resolve segment name collisions across systems
+            text: How to resolve segment name collisions across systems; 'enumerate' renames each colliding segment to a fresh single-character segid (which doubles as a unique, regeneration-stable chainID), 'error' aborts on the first collision
             type: str
             default: enumerate
             options: ['enumerate', 'error']

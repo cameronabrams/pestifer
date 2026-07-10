@@ -3,7 +3,7 @@
 Unit tests for MergeTask.
 
 Only the pure-Python logic is tested here (no VMD/psfgen required):
-  - _unique_name():          static name-enumeration helper
+  - _fresh_segid():          fresh single-character segid allocator (distinct leading char)
   - _resolve_collisions():   full collision-detection pipeline (PSFContents is mocked)
 
 Integration tests (require VMD/psfgen, marked slow):
@@ -62,39 +62,34 @@ def _make_resolve(segname_lists, user_maps=None, strategy='enumerate'):
 
 
 # ---------------------------------------------------------------------------
-# _unique_name tests
+# _fresh_segid tests
 # ---------------------------------------------------------------------------
 
-class TestUniqueName(unittest.TestCase):
+class TestFreshSegid(unittest.TestCase):
+    """A renamed segment gets a single-character segid (which doubles as its chainID) whose
+    character is neither an existing segid nor a forbidden leading character."""
 
-    def test_no_collision_returns_base_plus_zero(self):
-        result = MergeTask._unique_name('PROA', set())
-        self.assertEqual(result, 'PRO0')
+    def test_returns_single_char(self):
+        result = MergeTask._fresh_segid(set(), set())
+        self.assertEqual(len(result), 1)
 
-    def test_skips_existing_single_digit(self):
-        used = {'PRO0', 'PRO1', 'PRO2'}
-        result = MergeTask._unique_name('PROA', used)
-        self.assertEqual(result, 'PRO3')
+    def test_avoids_used_segids_and_forbidden_leads(self):
+        # 'A' is a forbidden lead (an existing chain), 'B' is already a segid
+        result = MergeTask._fresh_segid({'B'}, {'A'})
+        self.assertNotIn(result, {'A', 'B'})
+        self.assertEqual(len(result), 1)
 
-    def test_falls_through_to_double_digit(self):
-        used = {f'PRO{i}' for i in range(10)}
-        result = MergeTask._unique_name('PROA', used)
-        self.assertEqual(result, 'PR00')
+    def test_skips_all_reserved(self):
+        import string
+        # forbid every uppercase letter -> allocator must return a lowercase/digit char
+        result = MergeTask._fresh_segid(set(), set(string.ascii_uppercase))
+        self.assertNotIn(result, set(string.ascii_uppercase))
 
-    def test_all_single_and_double_digits_exhausted_raises(self):
-        used = {f'PRO{i}' for i in range(10)}
-        used |= {f'PR{i:02d}' for i in range(100)}
+    def test_exhausted_pool_raises(self):
+        import string
+        allchars = set(string.ascii_uppercase + string.ascii_lowercase + string.digits)
         with self.assertRaises(PestiferBuildError):
-            MergeTask._unique_name('PROA', used)
-
-    def test_short_name_uses_prefix_correctly(self):
-        # 2-char name: base3 = 'AB ', padded, but base3 = name[:3] = 'AB'
-        result = MergeTask._unique_name('AB', set())
-        self.assertEqual(result, 'AB0')
-
-    def test_four_char_name(self):
-        result = MergeTask._unique_name('MEMB', set())
-        self.assertEqual(result, 'MEM0')
+            MergeTask._fresh_segid(set(), allchars)
 
 
 # ---------------------------------------------------------------------------
@@ -249,10 +244,15 @@ class TestResolveAutoCollision(unittest.TestCase):
         resolved = _make_resolve([['PROA'], ['PROA'], ['PROA']])
         # System 0: no rename
         self.assertEqual(resolved[0]['effective_segname_map'], {})
-        # System 1: PROA → PRO0
-        self.assertEqual(resolved[1]['effective_segname_map'].get('PROA'), 'PRO0')
-        # System 2: PROA → PRO1 (PRO0 is taken by system 1)
-        self.assertEqual(resolved[2]['effective_segname_map'].get('PROA'), 'PRO1')
+        # Systems 1 and 2: each PROA renamed to a distinct single-character segid whose leading
+        # character is not 'P' (the reserved lead of PROA) -> distinct, regeneration-stable chains
+        new1 = resolved[1]['effective_segname_map'].get('PROA')
+        new2 = resolved[2]['effective_segname_map'].get('PROA')
+        self.assertEqual(len(new1), 1)
+        self.assertEqual(len(new2), 1)
+        self.assertNotEqual(new1, 'P')
+        self.assertNotEqual(new2, 'P')
+        self.assertNotEqual(new1, new2)
 
     def test_all_final_names_unique_across_systems(self):
         resolved = _make_resolve(
@@ -492,3 +492,18 @@ class TestMergeTaskIntegration(unittest.TestCase):
         merged_remarks = _psf_patch_remarks(state.psf.name)
         for r in _DISU_REMARKS:
             self.assertIn(r, merged_remarks, f'patch remark {r!r} missing from merged PSF')
+        # the merged PDB must not collapse the three copies onto one chain: the first copy keeps
+        # its original chainID scheme (BPTI's segids A/B/C all share chain A in the input, which
+        # merge must NOT second-guess), but each auto-renamed copy gets its own fresh chain(s) so
+        # the three copies are distinguishable by chain (otherwise a chain view shows one copy).
+        seg_by_chain = {}
+        for line in open(state.pdb.name):
+            if line.startswith(('ATOM', 'HETATM')):
+                seg_by_chain.setdefault(line[21], set()).add(line[72:76].strip())
+        # copy 1 (un-renamed) keeps chain 'A' carrying its original segids
+        self.assertEqual(seg_by_chain['A'], {'A', 'B', 'C'})
+        # the six renamed segments (A0/B0/C0/A1/B1/C1) each occupy a chain of their own
+        renamed_chains = {c: s for c, s in seg_by_chain.items() if c != 'A'}
+        self.assertEqual(len(renamed_chains), 6, f'expected 6 renamed-segment chains: {renamed_chains}')
+        for c, s in renamed_chains.items():
+            self.assertEqual(len(s), 1, f'renamed-segment chain {c!r} shares segids: {s}')

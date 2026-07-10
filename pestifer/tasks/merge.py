@@ -16,9 +16,14 @@ The task uses a two-step VMD/psfgen approach executed in a single script:
 
 Segment-name collisions are resolved according to ``collision_strategy``:
 
-* ``'enumerate'`` *(default)*: strip the last character of the conflicting
-  name and append a digit (``0``–``9``, then fall back to two digits) until
-  a unique name is found.  E.g. ``PROA`` → ``PRO0``, ``PRO1``, …
+* ``'enumerate'`` *(default)*: rename the conflicting segment to a fresh
+  single-character segid whose leading character is not used by any other
+  segment.  Because a PSF has no chain column, VMD re-derives each atom's
+  chain ID from its segid's leading character every time a PDB is regenerated
+  (solvate, ``coor``→``pdb``); a single-character segid therefore keeps the
+  segment's chain ID unique *and* stable through the whole pipeline, so merged
+  copies of the same structure do not collapse onto one chain in chain-based
+  views.
 * ``'error'``: raise :class:`ValueError` immediately on the first unresolved
   collision.  Use when every rename must be explicit.
 
@@ -58,7 +63,10 @@ class MergeTask(PsfgenTask):
         An optional ``chainID_map`` dict renames PDB chain IDs for that
         system (``{old_chainID: new_chainID}``).
     collision_strategy : str, optional
-        ``'enumerate'`` *(default)* or ``'error'``.
+        ``'enumerate'`` *(default)* or ``'error'``.  Under ``'enumerate'`` a colliding segment
+        is renamed to a fresh single-character segid whose leading character is unused, so its
+        VMD-derived chain ID stays unique through the PSF->PDB regenerations that follow (a PSF
+        carries no chain column, so the chain is re-derived from the segid each time).
     """
 
     _yaml_header = 'merge'
@@ -165,6 +173,11 @@ class MergeTask(PsfgenTask):
                 for old_name, new_name in rename_map.items():
                     pg.addline(f'set _ms [atomselect top "segname {old_name}"]')
                     pg.addline(f'$_ms set segname {new_name}')
+                    # new_name is a single character, so it is also a valid chainID; set it here
+                    # so the merged PDB carries the distinct chain immediately (readpsf/coordpdb
+                    # preserves input chains, so without this the renamed segment would keep its
+                    # old chain until a later PSF round-trip re-derives it from the segid).
+                    pg.addline(f'$_ms set chain {new_name}')
                     pg.addline(f'$_ms delete')
                 for old_chain, new_chain in chain_map.items():
                     pg.addline(f'set _mc [atomselect top "chain {old_chain}"]')
@@ -278,20 +291,37 @@ class MergeTask(PsfgenTask):
             Dict ``{old: new}`` containing only the renames that are actually
             needed (empty if no renames are required for this system).
         """
-        used: set[str] = set()
-        result = []
-
+        used_segids: set[str] = set()
+        # Leading character of every original segid across all systems.  A renamed segment must
+        # get a leading character OUTSIDE this set (and outside those already assigned), because
+        # a PSF carries no chainID -- every time the pipeline regenerates a PDB from the PSF
+        # (solvate, coor->pdb) VMD re-derives the chainID from the segid's leading character
+        # (segid 'H0' -> chain 'H').  If two merged copies keep segids that share a leading
+        # character (H, H0), they collapse onto one chainID downstream and chain-based views
+        # show one copy instead of several.  Giving each renamed segment a fresh single-character
+        # segid makes its derived chainID unique and survives every regeneration.
+        reserved_leads: set[str] = set()
+        seg_name_lists: list[list[str]] = []
         for sys in systems:
             psf_contents = PSFContents(sys['psf'])
             seg_names = [s.segname for s in psf_contents.segments]
+            seg_name_lists.append(seg_names)
             user_map: dict[str, str] = sys.get('segname_map', {})
+            for name in seg_names:
+                reserved_leads.add((user_map.get(name, name) or ' ')[0])
+
+        assigned_leads: set[str] = set()
+        result = []
+
+        for sys, seg_names in zip(systems, seg_name_lists):
+            user_map = sys.get('segname_map', {})
             effective_map: dict[str, str] = {}
 
             for name in seg_names:
                 # Apply user-supplied rename first; default is identity.
                 final = user_map.get(name, name)
 
-                if final in used:
+                if final in used_segids:
                     if strategy == 'error':
                         raise PestiferBuildError(
                             f"Segment name collision: '{final}' (from system "
@@ -299,15 +329,17 @@ class MergeTask(PsfgenTask):
                             f"Provide an explicit segname_map or use "
                             f"collision_strategy: enumerate."
                         )
-                    # Auto-enumerate: shorten to 3 chars + digit suffix.
-                    final = self._unique_name(final, used)
+                    # Auto-resolve: fresh single-character segid whose leading character (and
+                    # thus its VMD-derived chainID) is not used by any other segment.
+                    final = self._fresh_segid(used_segids, reserved_leads | assigned_leads)
+                    assigned_leads.add(final[0])
                     effective_map[name] = final
                 elif final != name:
                     # User-supplied rename — record it even if not a collision
                     # so the VMD script knows to apply it.
                     effective_map[name] = final
 
-                used.add(final)
+                used_segids.add(final)
 
             result.append({
                 **sys,
@@ -318,30 +350,23 @@ class MergeTask(PsfgenTask):
         return result
 
     @staticmethod
-    def _unique_name(name: str, used: set[str]) -> str:
-        """Return a 4-char segment name that is not in *used*.
+    def _fresh_segid(used_segids: set[str], forbidden_leads: set[str]) -> str:
+        """Return a fresh single-character segid that is not already a segid and whose character
+        is not among *forbidden_leads*.
 
-        Strips the last character and appends incrementing digits.
-        Tries single digits (0–9), then two-digit suffixes (00–99).
-
-        Raises
-        ------
-        ValueError
-            If no unique name can be found within the search range.
+        A single character guarantees the VMD-derived chainID (the segid's leading character)
+        equals the segid itself, so the two stay consistent through every PSF->PDB regeneration.
+        Since a PDB chainID is a single column, at most 62 (``A-Za-z0-9``) distinct chains are
+        possible; exhausting the pool is a hard error.
         """
-        base3 = name[:3]
-        for i in range(10):
-            candidate = f'{base3}{i}'
-            if candidate not in used:
-                return candidate
-        base2 = name[:2]
-        for i in range(100):
-            candidate = f'{base2}{i:02d}'
-            if candidate not in used:
-                return candidate
+        import string
+        for c in string.ascii_uppercase + string.ascii_lowercase + string.digits:
+            if c not in forbidden_leads and c not in used_segids:
+                return c
         raise PestiferBuildError(
-            f"Cannot find a unique segment name derived from '{name}'; "
-            f"provide explicit segname_map entries."
+            "merge: ran out of unique single-character chain IDs while resolving segment "
+            "collisions (the merged system has more than ~62 distinct chains). Provide explicit "
+            "segname_map entries to disambiguate."
         )
 
     # ------------------------------------------------------------------

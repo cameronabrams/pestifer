@@ -45,7 +45,7 @@ The result is a complete Fab whose Fv carries 5vn3's exact interface coordinates
 Assembling and solvating
 ++++++++++++++++++++++++
 
-The final script merges the three completed Fabs into the base and solvates.  Note that no chain-ID or segment-name bookkeeping is needed: the three Fabs all arrive as chains H/L, and pestifer's ``merge`` automatically enumerates the colliding **segment** names (``H``, ``H0``, ``H1`` …), which is the identity it uses internally.
+The final script merges the three completed Fabs into the base and solvates.  Note that no chain-ID or segment-name bookkeeping is needed: the three Fabs all arrive as segments/chains H/L, and pestifer's ``merge`` automatically resolves the collisions.  It renames each colliding segment to a fresh **single-character segid** (e.g. the second Fab's heavy chain becomes segid ``E``, the third ``J``).  A single-character segid matters because a PSF has no chain column: every time the pipeline regenerates a PDB from the PSF — the ``solvate`` step, and every coordinate-to-PDB conversion — VMD re-derives each atom's chain ID from its segid's leading character.  Enumerated segids like ``H0``/``H1`` would both derive back to chain ``H`` and collapse the three Fabs onto one chain in any chain-based view (VMD cartoon tracing, ``chain H`` selections), making three Fabs look like one; a single-character segid keeps each Fab's chain ID unique **and** stable through the whole build, so the three Fabs stay distinct in the final structure.
 
 .. literalinclude:: ../../../../pestifer/resources/examples/25/inputs/hiv-env-cd4-17b-liganded.yaml
     :language: yaml
