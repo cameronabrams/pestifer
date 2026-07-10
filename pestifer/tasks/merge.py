@@ -384,8 +384,29 @@ class MergeTask(PsfgenTask):
             new_lines.append(f' REMARKS {r}\n')
         new_lines.append('\n')          # exactly one blank separator before !NATOM
         new_lines.extend(lines[natom_idx:])  # !NATOM and everything after
+        MergeTask._fix_ntitle_count(new_lines)
         with open(psf_path, 'w') as f:
             f.writelines(new_lines)
+
+    @staticmethod
+    def _fix_ntitle_count(lines: list[str]) -> None:
+        """Rewrite the ``!NTITLE`` count line in-place so it equals the actual number of title
+        (REMARKS) lines between it and the blank separator before ``!NATOM``.
+
+        Adding or removing header REMARKS (as :meth:`_inject_patch_remarks` and
+        :meth:`_strip_topology_remarks` do) without correcting this count yields a PSF that NAMD
+        rejects with ``DIDN'T FIND "NATOM"`` -- it reads the declared number of title lines and,
+        if that is wrong, never lands on the ``!NATOM`` record.
+        """
+        ntitle_idx = next((i for i, l in enumerate(lines) if l.strip().endswith('!NTITLE')), None)
+        natom_idx = next((i for i, l in enumerate(lines) if '!NATOM' in l), None)
+        if ntitle_idx is None or natom_idx is None:
+            return
+        end = natom_idx
+        while end > ntitle_idx + 1 and not lines[end - 1].strip():
+            end -= 1
+        n_title = end - (ntitle_idx + 1)
+        lines[ntitle_idx] = f'{n_title:>8} !NTITLE\n'
 
     @staticmethod
     def _strip_topology_remarks(psf_path: str, dropped_basenames: list[str]) -> None:
@@ -405,6 +426,7 @@ class MergeTask(PsfgenTask):
                 continue
             out.append(line)
         if removed:
+            MergeTask._fix_ntitle_count(out)
             with open(psf_path, 'w') as f:
                 f.writelines(out)
 

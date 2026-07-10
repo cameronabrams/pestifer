@@ -144,6 +144,56 @@ class TestStripTopologyRemarks(unittest.TestCase):
             MergeTask._strip_topology_remarks(p, ['something_absent.str'])
             self.assertEqual(open(p).read(), before)
 
+    def test_strip_updates_ntitle_count(self):
+        # dropping a REMARKS line must decrement !NTITLE, else NAMD fails to find !NATOM
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._write(tmp)
+            MergeTask._strip_topology_remarks(p, ['toppar_water_ions_namd.str'])
+            lines = open(p).readlines()
+            ntitle = int(next(l for l in lines if '!NTITLE' in l).split()[0])
+            n_remarks = sum(1 for l in lines[:next(i for i, l in enumerate(lines) if '!NATOM' in l)]
+                            if l.strip().startswith('REMARKS'))
+            self.assertEqual(ntitle, n_remarks)   # 3 remarks after dropping one
+
+
+class TestFixNtitleCount(unittest.TestCase):
+    """The !NTITLE count must equal the actual number of title lines before the blank separator
+    preceding !NATOM; a mismatch makes NAMD abort with DIDN'T FIND NATOM."""
+
+    def _lines(self, declared, n_remarks):
+        out = ["PSF EXT CMAP\n", "\n", f"    {declared} !NTITLE\n"]
+        out += [f" REMARKS patch DISU A:{i} A:{i+50}\n" for i in range(n_remarks)]
+        out += ["\n", "       2 !NATOM\n", "  1 A 1 ALA N NH3 -0.3 14 0\n", "  2 A 1 ALA CA CT1 0.2 12 0\n"]
+        return out
+
+    def test_recomputes_when_too_low(self):
+        lines = self._lines(declared=1, n_remarks=5)   # declared 1 but 5 title lines
+        MergeTask._fix_ntitle_count(lines)
+        self.assertEqual(int(next(l for l in lines if '!NTITLE' in l).split()[0]), 5)
+
+    def test_recomputes_when_too_high(self):
+        lines = self._lines(declared=99, n_remarks=3)
+        MergeTask._fix_ntitle_count(lines)
+        self.assertEqual(int(next(l for l in lines if '!NTITLE' in l).split()[0]), 3)
+
+    def test_inject_patch_remarks_updates_ntitle(self):
+        # injecting renamed-segment patch remarks must bump !NTITLE (the bug that broke NAMD
+        # loading of any merge of disulfide-bearing systems with renamed segments)
+        import tempfile
+        header = ("PSF EXT CMAP\n\n       1 !NTITLE\n REMARKS patch DISU A:5 A:55\n\n"
+                  "       2 !NATOM\n  1 A 1 ALA N NH3 -0.3 14 0\n  2 A 1 ALA CA CT1 0.2 12 0\n")
+        with tempfile.TemporaryDirectory() as tmp:
+            p = os.path.join(tmp, 'm.psf')
+            open(p, 'w').write(header)
+            MergeTask._inject_patch_remarks(p, ['patch DISU B:5 B:55', 'patch DISU C:5 C:55'])
+            lines = open(p).readlines()
+            ntitle = int(next(l for l in lines if '!NTITLE' in l).split()[0])
+            n_remarks = sum(1 for l in lines[:next(i for i, l in enumerate(lines) if '!NATOM' in l)]
+                            if l.strip().startswith('REMARKS'))
+            self.assertEqual(ntitle, n_remarks)
+            self.assertEqual(n_remarks, 3)   # original 1 + 2 injected
+
 
 # ---------------------------------------------------------------------------
 # _resolve_collisions – no collisions

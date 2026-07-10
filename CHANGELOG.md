@@ -4,6 +4,7 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- bugfix: the `merge` task produced a PSF that **NAMD rejected with `DIDN'T FIND "NATOM"`** whenever it injected or stripped header REMARKS — i.e. any merge of disulfide-bearing systems whose segments were renamed to resolve a collision (the renamed patch remarks are re-injected, and dropped topology remarks are removed). Both edits changed the number of title lines without updating the `!NTITLE` count, so NAMD read the wrong number of title records and never reached `!NATOM`. `_inject_patch_remarks` and `_strip_topology_remarks` now recompute `!NTITLE` after editing. (Surfaced merging three completed antibody Fabs, each carrying disulfide patches, into an Env trimer.)
 - bugfix: a `manipulate` **`align` or `transfer_coords` selection-count mismatch is now a hard error** instead of a silent failure. The Tcl congruency check `exit 1`s on a mismatch, but VMD returns process code 0, so the task previously reported success while writing no output pdb — the failure only surfaced at the next task as a cryptic "cannot open file". The congruency errors now carry the `PESTIFER-ERROR` marker that the manipulate task already scans for, so a mismatch aborts the build immediately with the offending selections and their atom counts named.
 
 ## [3.6.0] - 2026-07-09
