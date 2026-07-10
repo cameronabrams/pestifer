@@ -149,7 +149,9 @@ class TestWriteAlign(unittest.TestCase):
 
     def test_congruency_error_message_includes_selections(self):
         lines = self._lines(ref_pdb='ref.pdb', mobile_sel='backbone', ref_sel='name CA')
-        error_line = next((l for l in lines if 'ERROR align' in l), None)
+        # emitted with the PESTIFER-ERROR marker so the manipulate task's log scan turns a
+        # congruency mismatch into a hard error (VMD's exit 1 alone returns process code 0)
+        error_line = next((l for l in lines if 'PESTIFER-ERROR' in l and 'align' in l), None)
         self.assertIsNotNone(error_line)
         self.assertIn('backbone', error_line)
         self.assertIn('name CA', error_line)
@@ -580,7 +582,7 @@ class TestWriteTransferCoords(unittest.TestCase):
 
     def test_transfer_error_message_includes_selections(self):
         lines = self._lines(donor_pdb='d.pdb', donor_sel='chain A', mobile_sel='chain B')
-        error_line = next((l for l in lines if 'ERROR transfer_coords' in l
+        error_line = next((l for l in lines if 'PESTIFER-ERROR' in l and 'transfer_coords' in l
                            and 'align' not in l), None)
         self.assertIsNotNone(error_line)
         self.assertIn('chain A', error_line)
@@ -728,3 +730,13 @@ class TestManipulateTransferCoordsIntegration(unittest.TestCase):
         rmsd = _rmsd(out_coords, orig_coords)
         self.assertLess(rmsd, _RMSD_THRESHOLD,
             f'RMSD {rmsd:.4f} Å after pre-aligned transfer exceeds threshold')
+
+    def test_transfer_count_mismatch_hard_errors(self):
+        """A donor_sel/mobile_sel atom-count mismatch must hard-error the manipulate task.
+        (Regression: the Tcl congruency check `exit 1`s, but VMD returns process code 0, so the
+        failure used to be silent -- no output pdb -- and only surfaced at the next task.)"""
+        self._setup_subdir('__test_transfer_mismatch')
+        task = self._run_transfer(str(_FIXTURES / _PDB), extra_specs={
+            'donor_sel': 'resid 1 to 3', 'mobile_sel': 'resid 1 to 8'})
+        self.assertNotEqual(task.result, 0,
+                            'transfer_coords count mismatch should hard-error the task')

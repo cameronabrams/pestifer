@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- bugfix: a `manipulate` **`align` or `transfer_coords` selection-count mismatch is now a hard error** instead of a silent failure. The Tcl congruency check `exit 1`s on a mismatch, but VMD returns process code 0, so the task previously reported success while writing no output pdb — the failure only surfaced at the next task as a cryptic "cannot open file". The congruency errors now carry the `PESTIFER-ERROR` marker that the manipulate task already scans for, so a mismatch aborts the build immediately with the offending selections and their atom counts named.
+
 ## [3.6.0] - 2026-07-09
 
 - enhancement: `show-resources resname` now displays the residue's **long name** — the free-text comment after `!` on the CHARMM `RESI`/`PRES` title line, typically a molecular formula and/or descriptive name (e.g. `BORO` → "B1O2C1H5, methyl boronic acid, neutral"). It appears as a quoted line under the topology entry in the detailed view and at the end of each `--contains` search-result line, making the search far more informative. (Sourced from the parsed force field, so it takes effect on the next release's cache rebuild or via `pestifer cache rebuild`.)
