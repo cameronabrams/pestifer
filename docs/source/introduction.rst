@@ -34,7 +34,6 @@ A partial list of things Pestifer can do
    * arbitrary backbone and side-chain rotations
    * grafting of pendant groups from one PDB onto another (for glycans, mostly)
    * chain cleavage
-   * domain-swapping
    * chain relabeling
 3. Generate membrane-embedded proteins using any lipids for which a PDB is available (fast grid-based lipid placement), including automatic detection and resolution of pierced rings
 4. Generate restart files (NAMD configs and SLURM scripts) based on current runs 

@@ -8,6 +8,19 @@
 
 Pestifer is a fully automated simulation-ready MD system preparation tool, requiring as inputs only biomolecular structures (e.g., PDB IDs, PDB files, mmCIF files, alphafold IDs) and a handful of customization parameters, to generate NAMD-compatible input files (PSF, PDB, and xsc).  It is basically a highly functionalized front end for VMD's `psfgen` utility.  It also has a few handy subcommands for working with NAMD output.
 
+## Key capabilities
+
+- **Fully local & reproducible** — a single YAML config plus a pinned pestifer version is a complete record of how a system was built; no data ever leaves your machine.
+- **Broad structure input** — build from RCSB PDB IDs, local PDB/mmCIF files, or AlphaFold models, with automatic construction of biological assemblies.
+- **Simulation-ready CHARMM36 output** — generate PSF/PDB/xsc for NAMD from the bundled CHARMM36 force field, including glycoproteins and nucleic acids.
+- **Sequence & structure edits** — mutations, insertions, deletions, substitutions, residue patches, chain cleavage and relabeling, fusions, and arbitrary backbone/side-chain rotations.
+- **Loop & gap modeling** — build unresolved internal loops and ligate chain breaks.
+- **Glycan grafting** — transplant glycans from a donor structure with automatic clash and ring-piercing resolution.
+- **Membrane building** — fast grid-based bilayers and protein embedding with any lipid that has a PDB, oriented to the membrane normal, with pierced-ring resolution.
+- **Solvation & ionization** — TIP3P water or non-water solvents, with on-demand generation and caching of missing solvent boxes and lipid conformers.
+- **Custom ligands** — use CGenFF-parameterized small molecules, plus a workflow to contribute your own residue definitions.
+- **Merge & package** — combine pre-built systems (auto-resolving segment/chain collisions) and emit ready-to-run NAMD configs, SLURM restart scripts, solvent-stripped PSF/DCD, and plots of NAMD-log time series.
+
 ## Installation
 
 ```bash
