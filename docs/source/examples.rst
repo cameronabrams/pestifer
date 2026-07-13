@@ -99,7 +99,7 @@ viral-mimetic bilayer.
 - :doc:`Example 16 <examples/16/hiv-mpertm3-membrane1>` — gp41 MPER-TM trimer embedded in a pure DMPC bilayer
 - :doc:`Example 17 <examples/17/hiv-mpertm3-membrane2>` — same trimer embedded in a multi-lipid viral-mimetic bilayer
 
-Diverse Applications (Examples 18–22)
+Diverse Applications (Examples 18–25)
 --------------------------------------
 
 A collection of builds that highlight additional pestifer capabilities:
