@@ -35,7 +35,7 @@ See the [CHANGELOG](./CHANGELOG.md) for full details.
 
 [https://github.com/cameronabrams](https://github.com/cameronabrams/)
 
-Pestifer is maintained by [Cameron F. Abrams]().
+Pestifer is maintained by [Cameron F. Abrams](mailto:cfa22@drexel.edu).
 
 Pestifer is distributed under the MIT license. See ``LICENSE`` for more information.
 
@@ -43,9 +43,15 @@ Pestifer was developed with support from the National Institutes of Health via g
 
 ## Contributing
 
-1. Fork it (<https://github.com/cameronabrams/pestifer/fork>)
-2. Create your feature branch (`git checkout -b feature/fooBar`)
-3. Commit your changes (`git commit -am 'Add some fooBar'`)
-4. Push to the branch (`git push origin feature/fooBar`)
-5. Create a new Pull Request
+Pestifer is developed on GitHub at <https://github.com/cameronabrams/pestifer>.
+
+**Code changes:**
+
+1. Fork, clone, and install editable: `pip install -e .`
+2. Branch, make your change, and add tests.
+3. Run the suite: `pytest` (or `uv run pytest`).
+4. Add a bullet under `## [Unreleased]` in [`CHANGELOG.md`](./CHANGELOG.md).
+5. Push and open a Pull Request.
+
+**Content contributions** — a new example, a PDB-repository entry, or a custom CHARMM residue — use the `modify-package` subcommand, which makes the branch, commits exactly the files it touches, and prints the push / PR steps for you (no manual branching needed). See the [modify-package documentation](https://pestifer.readthedocs.io/en/latest/subs/modify-package.html).
 
