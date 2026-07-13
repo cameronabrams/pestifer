@@ -21,9 +21,7 @@ Pestifer also requires access to the following executables:
 1. `namd3` and `charmrun`
 2. `vmd` and `catdcd`
 
-Building membrane systems needs no additional external programs: the grid packer places lipids on a lattice directly.
-
-Pestifer **includes a copy of** the [Feb 2026 Charmm36 force field](https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_feb26.tgz).
+Pestifer **includes a mirrored copy of** the [Feb 2026 Charmm36 force field](https://mackerell.umaryland.edu/download.php?filename=CHARMM_ff_params_files/toppar_c36_feb26.tgz), plus a few local corrections to upstream files and some added residue/ligand/ion definitions — see [CHARMM force-field customizations](https://pestifer.readthedocs.io/en/latest/charmmff-customizations.html) for the full list and rationale.
 
 ## Documentation
 
@@ -37,7 +35,7 @@ See the [CHANGELOG](./CHANGELOG.md) for full details.
 
 [https://github.com/cameronabrams](https://github.com/cameronabrams/)
 
-Pestifer is maintained by Cameron F. Abrams.
+Pestifer is maintained by [Cameron F. Abrams]().
 
 Pestifer is distributed under the MIT license. See ``LICENSE`` for more information.
 

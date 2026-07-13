@@ -26,6 +26,7 @@ Contents
    usage
    examples
    config_ref
+   CHARMM FF customizations <charmmff-customizations>
    API <api/API>
    Tcl sources <tcl/source>
    Changelog <changelog>
