@@ -29,7 +29,7 @@ Please visit [readthedocs](https://pestifer.readthedocs.io/en/latest) for full d
 
 ## Version History
 
-See the [CHANGELOG](./CHANGELOG.md) for full details.
+See the [CHANGELOG](https://github.com/cameronabrams/pestifer/blob/main/CHANGELOG.md) for full details.
 
 ## Meta
 
@@ -50,7 +50,7 @@ Pestifer is developed on GitHub at <https://github.com/cameronabrams/pestifer>.
 1. Fork, clone, and install editable: `pip install -e .`
 2. Branch, make your change, and add tests.
 3. Run the suite: `pytest` (or `uv run pytest`).
-4. Add a bullet under `## [Unreleased]` in [`CHANGELOG.md`](./CHANGELOG.md).
+4. Add a bullet under `## [Unreleased]` in [`CHANGELOG.md`](https://github.com/cameronabrams/pestifer/blob/main/CHANGELOG.md).
 5. Push and open a Pull Request.
 
 **Content contributions** — a new example, a PDB-repository entry, or a custom CHARMM residue — use the `modify-package` subcommand, which makes the branch, commits exactly the files it touches, and prints the push / PR steps for you (no manual branching needed). See the [modify-package documentation](https://pestifer.readthedocs.io/en/latest/subs/modify-package.html).

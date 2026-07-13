@@ -56,6 +56,7 @@ pestifer = "pestifer.cli.pestifer:cli"
 [project.urls]
 "Source" = "https://github.com/cameronabrams/pestifer"
 "Documentation" = "https://pestifer.readthedocs.io/en/latest/"
+"Changelog" = "https://github.com/cameronabrams/pestifer/blob/main/CHANGELOG.md"
 "Bug Tracker" = "https://github.com/cameronabrams/pestifer/issues"
 
 [tool.uv]
