@@ -22,7 +22,7 @@ class RotTrans(BaseObj):
     - ``movetype``: The type of move operation, either ``trans`` for translation or ``rot`` for rotation.
     """
 
-    _optional_fields = {'x', 'y', 'z', 'axis', 'angle', 'sel', 'source', 'target'}
+    _optional_fields = {'x', 'y', 'z', 'axis', 'angle', 'sel', 'source', 'target', 'axis_atoms'}
     """
     Optional attributes for a RotTrans object.
     These attributes may be required for certain move types but are not mandatory for all.
@@ -37,23 +37,29 @@ class RotTrans(BaseObj):
       mass-weighted centers define the vector (from ``selA`` to ``selB``).  The fragment is rotated
       about its own center of mass by the minimal (roll-free) rotation carrying ``source`` onto
       ``target``.
+    - ``axis_atoms``: For an ``AXISANGLE`` operation, a list of three VMD atomselections
+      ``[selI, selJ, selK]``.  The fragment is rotated by ``angle`` degrees about the axis normal to
+      the I-J-K angle (``(rI - rJ) x (rJ - rK)``), pivoting at the center of ``selJ``.  (This is the
+      rigid-body rotation formerly offered as the ``ANGLEIJK`` irotation.)
     """
 
-    _attr_choices = {'movetype': {'TRANS', 'ROT', 'ALIGN'},
+    _attr_choices = {'movetype': {'TRANS', 'ROT', 'ALIGN', 'AXISANGLE'},
                      'axis': {'x', 'y', 'z'}}
 
     _attr_dependencies = {'movetype': {
                             'TRANS': {'x', 'y', 'z'},
                             'ROT'  : {'axis', 'angle'},
-                            'ALIGN': {'source', 'target'}}}
+                            'ALIGN': {'source', 'target'},
+                            'AXISANGLE': {'axis_atoms', 'angle'}}}
     """
     This dictionary defines the dependencies between attributes in RotTrans objects.
     - For a translation operation (``movetype`` is ``trans`` or ``TRANS``), the attributes ``x``, ``y``, and ``z`` are required.
     - For a rotation operation (``movetype`` is ``rot`` or ``ROT``), the attributes ``axis`` and ``angle`` are required.
     - For a vector-alignment operation (``movetype`` is ``ALIGN``), the attributes ``source`` and ``target`` are required.
+    - For an axis-angle rotation (``movetype`` is ``AXISANGLE``), the attributes ``axis_atoms`` and ``angle`` are required.
     """
 
-    movetype: str = Field(..., description="Type of move operation: 'TRANS' (translate), 'ROT' (rotate about a principal axis), or 'ALIGN' (rotate to carry a source vector onto a target vector).")
+    movetype: str = Field(..., description="Type of move operation: 'TRANS' (translate), 'ROT' (rotate about a principal axis), 'ALIGN' (rotate to carry a source vector onto a target vector), or 'AXISANGLE' (rotate about the axis normal to a three-atom angle).")
     x: float | None = Field(None, description="Translation vector component in the x direction.")
     y: float | None = Field(None, description="Translation vector component in the y direction.")
     z: float | None = Field(None, description="Translation vector component in the z direction.")
@@ -62,6 +68,7 @@ class RotTrans(BaseObj):
     sel: str | None = Field(None, description="VMD atomselection naming the fragment to transform (default 'all').")
     source: list | None = Field(None, description="ALIGN source vector: a literal [x,y,z] or a pair of atomselections [selA, selB].")
     target: list | None = Field(None, description="ALIGN target vector: a literal [x,y,z] or a pair of atomselections [selA, selB].")
+    axis_atoms: list | None = Field(None, description="AXISANGLE: three VMD atomselections [selI, selJ, selK]; the fragment rotates about the axis normal to the I-J-K angle, pivoting at selJ.")
 
     _yaml_header: ClassVar[str] = 'transrot'
     """
@@ -99,6 +106,11 @@ class RotTrans(BaseObj):
         if self.movetype == 'ALIGN':
             self._validate_vecspec('source', self.source)
             self._validate_vecspec('target', self.target)
+        if self.movetype == 'AXISANGLE':
+            if (not isinstance(self.axis_atoms, (list, tuple)) or len(self.axis_atoms) != 3
+                    or not all(isinstance(v, str) for v in self.axis_atoms)):
+                raise ValueError(f"AXISANGLE 'axis_atoms' must be a list of three atomselection "
+                                 f"strings [selI, selJ, selK]; got {self.axis_atoms!r}")
         return self
 
     @classmethod
@@ -131,6 +143,8 @@ class RotTrans(BaseObj):
             return f"{self.movetype},{self.axis},{self.angle}"
         elif self.movetype == 'ALIGN':
             return f"{self.movetype},source={self.source},target={self.target}"
+        elif self.movetype == 'AXISANGLE':
+            return f"{self.movetype},axis_atoms={self.axis_atoms},angle={self.angle}"
 
     def __str__(self):
         """

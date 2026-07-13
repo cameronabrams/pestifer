@@ -335,14 +335,14 @@ class VMDScripter(TcLScripter):
             self.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,crot.resid1.resid))
             self.addline(f'brot {molid} $r1 -1 {crot.angle[:-1].lower()} {crot.angle[-1]} {crot.degrees}')
         elif crot.angle=='ANGLEIJK':
+            logger.warning('ANGLEIJK is deprecated as an irotation (it is a rigid-body segment '
+                           'rotation, not an internal-coordinate one); use the transrot '
+                           'AXISANGLE movetype instead.')
             self.addline('set rotsel [atomselect {} "segname {}"]'.format(molid,crot.segnamejk))
-            self.addline('set ri [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,crot.segnamei,crot.residi.resid,crot.atomi))
-            self.addline('set rj [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,crot.segnamejk,crot.residj.resid,crot.atomj))
-            self.addline('set rk [lindex [[atomselect {} "segname {} and resid {} and name {}"] get {{x y z}}] 0]'.format(molid,crot.segnamejk,crot.residk.resid,crot.atomk))
-            self.addline('set rij [vecsub $ri $rj]')
-            self.addline('set rjk [vecsub $rj $rk]')
-            self.addline('set cijk [veccross $rij $rjk]')
-            self.addline('$rotsel move [trans center $rj origin $rj axis $cijk {} degrees]'.format(crot.degrees))
+            selI = f'segname {crot.segnamei} and resid {crot.residi.resid} and name {crot.atomi}'
+            selJ = f'segname {crot.segnamejk} and resid {crot.residj.resid} and name {crot.atomj}'
+            selK = f'segname {crot.segnamejk} and resid {crot.residk.resid} and name {crot.atomk}'
+            self._write_axisangle_rotation('rotsel', selI, selJ, selK, crot.degrees, molid)
         elif crot.angle=='ALPHA':
             self.addline('set r1 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,crot.resid1.resid))
             self.addline('set r2 [[atomselect {} "chain {} and resid {} and name CA"] get residue]'.format(molid,the_chainID,crot.resid2.resid))
@@ -402,6 +402,26 @@ class VMDScripter(TcLScripter):
             self.addline(f'$mover move [trans center $COM axis {rottrans.axis} {rottrans.angle}]')
         elif rottrans.movetype=='ALIGN':
             self._write_align(rottrans, molid)
+        elif rottrans.movetype=='AXISANGLE':
+            selI, selJ, selK = rottrans.axis_atoms
+            self._write_axisangle_rotation('mover', selI, selJ, selK, rottrans.angle, molid)
+
+    def _write_axisangle_rotation(self, mover_var: str, selI: str, selJ: str, selK: str,
+                                  degrees, molid: str):
+        """Rotate the fragment held by the atomselect variable *mover_var* about the axis normal to
+        the angle defined by three atom selections.
+
+        The pivot is the (mass-unweighted) center of ``selJ`` and the axis is
+        ``(rI - rJ) x (rJ - rK)`` -- i.e. the normal to the plane of the three points.  Each of
+        ``selI``/``selJ``/``selK`` is a VMD atomselection (normally selecting a single atom).  This
+        is the shared engine for the ``transrot`` ``AXISANGLE`` movetype and the deprecated
+        ``ANGLEIJK`` irotation.
+        """
+        self.addline(f'set _ri [measure center [atomselect {molid} "{selI}"]]')
+        self.addline(f'set _rj [measure center [atomselect {molid} "{selJ}"]]')
+        self.addline(f'set _rk [measure center [atomselect {molid} "{selK}"]]')
+        self.addline(f'set _axis [veccross [vecsub $_ri $_rj] [vecsub $_rj $_rk]]')
+        self.addline(f'${mover_var} move [trans center $_rj origin $_rj axis $_axis {degrees} degrees]')
 
     def _write_align(self, rottrans: RotTrans, molid: str):
         """Emit the minimal (roll-free) rotation carrying ``source`` onto ``target``, about the
