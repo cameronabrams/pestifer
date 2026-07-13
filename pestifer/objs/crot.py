@@ -97,10 +97,18 @@ class Crot(BaseObj):
     atomk: str | None = Field(None, description="Name of the third atom in the ANGLEIJK rotation")
     degrees: float | None = Field(None, description="Angle in degrees by which the atoms will be rotated")
 
-    _yaml_header: ClassVar[str] = 'crotations'
+    _yaml_header: ClassVar[str] = 'irotations'
     """
     YAML header for Crot objects.
-    This header is used to identify Crot objects in YAML files.
+    This header is used to identify Crot objects in YAML files.  ``irotations`` (for
+    *internal*-coordinate rotations) is the current name; ``crotations`` is retained as a
+    backward-compatible alias (see :attr:`_yaml_aliases`).
+    """
+
+    _yaml_aliases: ClassVar[list] = ['crotations']
+    """
+    Alternate YAML headers accepted for Crot objects.  ``crotations`` was the original name and
+    is accepted as a synonym for ``irotations`` so existing configuration files keep working.
     """
 
     _objcat: ClassVar[str] = 'coord'

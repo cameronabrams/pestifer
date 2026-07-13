@@ -96,13 +96,13 @@ class PsfgenTask(VMDTask):
                     self.next_basename(objtype)
                     vm: VMDScripter = self.scripters['vmd']
                     packages = []
-                    if objtype == 'crotations':
+                    if objtype in ('irotations', 'crotations'):
                         packages.append('PestiferCRot')
                     vm.newscript(self.basename, packages=packages)
                     state: StateArtifacts = self.get_current_artifact('state')
                     vm.load_psf_pdb(state.psf.name, state.pdb.name, new_molid_varname='mCM')
                     match objtype:
-                        case 'crotations':
+                        case 'irotations' | 'crotations':
                             for transform in self.base_molecule.active_biological_assembly.transforms.data:
                                 vm.write_crots(objlist, chainIDmap=transform.chainIDmap)
                         case 'orient':

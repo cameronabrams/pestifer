@@ -128,7 +128,7 @@ Below are all the ``mods`` that can be invoked in a ``mods`` directive.  Each of
    mods/mutations
    mods/deletions
    mods/insertions
-   mods/crotations
+   mods/irotations
    mods/transrot
    mods/ssbonds
    mods/links

@@ -1,9 +1,15 @@
+.. _subs_buildtasks_psfgen_mods_irotations:
 .. _subs_buildtasks_psfgen_mods_crotations:
 
-crotations
+irotations
 ----------
 
-A ``crotations`` directive is used to specify rotations about rotatable dihedral bonds to reposition parts of the protein. There are 8 types of ``crotations``
+.. note::
+   ``irotations`` (for *internal*-coordinate rotations) was formerly named
+   ``crotations``. The old name is still accepted as a backward-compatible alias, so
+   existing configuration files continue to work unchanged.
+
+An ``irotations`` directive is used to specify rotations about rotatable dihedral bonds to reposition parts of the protein. There are 8 types of ``irotations``
 
 1. ``PHI``: Rotation of a protein subchain about the φ angle of a particular residue.  The syntax for specifying a ``PHI`` crotation is ``PHI,<chain>,<resi1>,<resi2>,<angle>``.  ``<chain>`` is the chain ID, ``<resi1>`` is the sequence number of the residue that owns the φ angle, ``<resi2>`` is the sequence number of the furthest residue along the chain (in either the N or C direction) containing ``<resi1>`` that defines the block of atoms that will undergo rotation, and ``<angle>`` is the angle of rotation in degrees.  For example, ``PHI,A,12,15,180`` would rotate residues 12 through 15 in chain A by 180 degrees about the φ angle of residue 12. If ``<resi1>`` is in the C direction relative to ``<resi2>``, this is interpreted as a rotation of all atoms N terminal to ``<resi1>`` up to ``<resi2>``. 
 2. ``PSI``: Rotation of a protein subchain about the ψ angle of a particular residue.  The syntax for specifying a ``PSI`` crotation is ``PSI,<chain>,<resi1>,<resi2>,<angle>``.

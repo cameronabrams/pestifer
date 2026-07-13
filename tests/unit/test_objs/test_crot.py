@@ -15,7 +15,7 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(crot.chainID, "A")
         self.assertEqual(crot.resid1.resid, 5)
         self.assertEqual(crot.resid2.resid, 15)
-        self.assertEqual(crot._yaml_header, 'crotations')
+        self.assertEqual(crot._yaml_header, 'irotations')
         self.assertEqual(crot._objcat, 'coord')
         self.assertEqual(repr(crot), "Crot(angle='PHI', chainID='A', resid1=ResID(resseqnum=5), resid2=ResID(resseqnum=15), degrees=180.0)")
 
@@ -31,7 +31,7 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(crot.chainID, "B")
         self.assertEqual(crot.resid1.resid, 10)
         self.assertEqual(crot.resid2.resid, 20)
-        self.assertEqual(crot._yaml_header, 'crotations')
+        self.assertEqual(crot._yaml_header, 'irotations')
         self.assertEqual(crot._objcat, 'coord')
         self.assertEqual(repr(crot), "Crot(angle='PSI', chainID='B', resid1=ResID(resseqnum=10), resid2=ResID(resseqnum=20), degrees=120.0)")
 
@@ -47,7 +47,7 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(crot.chainID, "C")
         self.assertEqual(crot.resid1.resid, 15)
         self.assertEqual(crot.resid2.resid, 25)
-        self.assertEqual(crot._yaml_header, 'crotations')
+        self.assertEqual(crot._yaml_header, 'irotations')
         self.assertEqual(crot._objcat, 'coord')
         self.assertEqual(repr(crot), "Crot(angle='OMEGA', chainID='C', resid1=ResID(resseqnum=15), resid2=ResID(resseqnum=25), degrees=240.0)")
 
@@ -61,7 +61,7 @@ class TestCrot(unittest.TestCase):
         self.assertIsInstance(crot, Crot)
         self.assertEqual(crot.chainID, "D")
         self.assertEqual(crot.resid1.resid, '1X')
-        self.assertEqual(crot._yaml_header, 'crotations')
+        self.assertEqual(crot._yaml_header, 'irotations')
         self.assertEqual(crot._objcat, 'coord')
         self.assertEqual(repr(crot), "Crot(angle='CHI1', chainID='D', resid1=ResID(resseqnum=1, insertion='X'), degrees=60.0)")
 
@@ -85,7 +85,7 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(crot.residj.resid, 3)
         self.assertEqual(crot.residk.resid, '4W')
         self.assertEqual(crot.atomk, "CA")
-        self.assertEqual(crot._yaml_header, 'crotations')
+        self.assertEqual(crot._yaml_header, 'irotations')
         self.assertEqual(crot._objcat, 'coord')
         self.maxDiff = None
         self.assertEqual(repr(crot), "Crot(angle='ANGLEIJK', segnamei='E', residi=ResID(resseqnum=2, insertion='Y'), atomi='NC', segnamejk='F', residj=ResID(resseqnum=3), atomj='CN', residk=ResID(resseqnum=4, insertion='W'), atomk='CA', degrees=90.0)")
@@ -102,7 +102,7 @@ class TestCrot(unittest.TestCase):
         self.assertEqual(crot.chainID, "G")
         self.assertEqual(crot.resid1.resid, 8)
         self.assertEqual(crot.resid2.resid, 12)
-        self.assertEqual(crot._yaml_header, 'crotations')
+        self.assertEqual(crot._yaml_header, 'irotations')
         self.assertEqual(crot._objcat, 'coord')
         self.assertEqual(repr(crot), "Crot(angle='ALPHA', chainID='G', resid1=ResID(resseqnum=8), resid2=ResID(resseqnum=12), resid3=ResID(resseqnum=16))")
 
@@ -182,3 +182,19 @@ class TestCrot(unittest.TestCase):
         crot_list = CrotList()
         self.assertIsInstance(crot_list, CrotList)
         self.assertEqual(len(crot_list), 0)
+
+    def test_yaml_header_and_backward_compat_alias(self):
+        # 'irotations' is the current header; 'crotations' is retained as an alias so old
+        # configs keep working.  The ObjManager must dispatch both spellings to Crot and store
+        # them under the primary header 'irotations'.
+        from pestifer.core.objmanager import ObjManager
+        self.assertEqual(Crot._yaml_header, 'irotations')
+        self.assertIn('crotations', Crot._yaml_aliases)
+        self.assertIs(ObjManager._obj_classes_byYAML.get('irotations'), Crot)
+        self.assertIs(ObjManager._obj_classes_byYAML.get('crotations'), Crot)
+        for key in ('irotations', 'crotations'):
+            om = ObjManager({key: ['phi,A,3,5,60']})
+            coord = om.get('coord', {})
+            self.assertEqual(list(coord.keys()), ['irotations'],
+                             f'spec key {key!r} should normalize to the irotations header')
+            self.assertEqual(len(coord['irotations']), 1)

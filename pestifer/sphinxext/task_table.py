@@ -58,8 +58,8 @@ def _psfgen_details(specs: dict) -> str:
         tags.append(f'{len(grafts)} glycan graft(s)')
     if mods.get('loops') or src.get('loops'):
         tags.append('loop modeling')
-    if mods.get('crotations'):
-        tags.append('crotations')
+    if mods.get('irotations') or mods.get('crotations'):
+        tags.append('irotations')
     return ', '.join(tags) if tags else 'standard build'
 
 

@@ -20,7 +20,7 @@ Supported coormod types
 .. toctree::
    :maxdepth: 1
 
-   mods/crotations
+   mods/irotations
    mods/transrot
    mods/align
    mods/transfer_coords

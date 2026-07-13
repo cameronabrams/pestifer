@@ -7,7 +7,7 @@ Specifies modifications to the sequence or structure in the current structure
 
 Single-valued attributes:
 
-  * ``crotations``: dihedral angle rotations to reposition residues
+  * ``irotations``: internal-coordinate dihedral rotations to reposition residues (formerly ``crotations``, still accepted as an alias)
 
   * ``transrot``: global translations and rotations
 

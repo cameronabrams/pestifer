@@ -658,20 +658,23 @@ attributes:
                   example:
                       patches:
                         - ASPP:C:199
-              - name: crotations
-                text: dihedral angle rotations
+              - name: irotations
+                text: internal-coordinate dihedral rotations
                 type: list
                 docs:
                   text: |
-                    crotations are a set of dihedral angle rotations.  Allowable crotations are PHI, PSI, OMEGA for backbones, CHI1 and CHI2 for sidechains, ANGLEIJK for generic angles, ALPHA for folding backbones into alpha helices, and GLYCAN_PENDANT for glycan pendant rotations.
+                    irotations are a set of internal-coordinate dihedral rotations (formerly named ``crotations``, still accepted as an alias).  Allowable irotations are PHI, PSI, OMEGA for backbones, CHI1 and CHI2 for sidechains, ANGLEIJK for generic angles, ALPHA for folding backbones into alpha helices, and GLYCAN_PENDANT for glycan pendant rotations.
                   example:
-                    crotations:
+                    irotations:
                       - psi,E,661,693,60
                       - phi,E,662,693,60
                       - alpha,B,33,52
                       - alpha,B,144,153
                       - alpha,D,32,52
                       - alpha,D,144,153
+              - name: crotations
+                text: alias for irotations (internal-coordinate dihedral rotations)
+                type: list
               - name: transrot
                 text: global translations and rotations
                 type: list
@@ -1506,8 +1509,11 @@ attributes:
             text: Specifies modifications to the sequence or structure in the current structure
             type: dict
             attributes:
+              - name: irotations
+                text: internal-coordinate dihedral rotations to reposition residues
+                type: list
               - name: crotations
-                text: dihedral angle rotations to reposition residues
+                text: alias for irotations (internal-coordinate dihedral rotations)
                 type: list
               - name: transrot
                 text: global translations and rotations

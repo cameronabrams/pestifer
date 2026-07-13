@@ -61,7 +61,7 @@ class ManipulateTask(BaseTask):
             state: StateArtifacts = self.get_current_artifact('state')
             vm.load_psf_pdb(state.psf.name, state.pdb.name, new_molid_varname='mCM')
             for obj in objlist:
-                if objtype == 'crot':
+                if objtype in ('irotations', 'crotations'):
                     vm.write_crot(obj, molid='mCM')
                 elif objtype == 'orient':
                     vm.write_orient(obj, molid='mCM')

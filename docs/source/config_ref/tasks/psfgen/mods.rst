@@ -87,13 +87,13 @@ Single-valued attributes:
        patches:
        - ASPP:C:199
 
-  * ``crotations``: dihedral angle rotations
+  * ``irotations``: internal-coordinate dihedral rotations (formerly ``crotations``, still accepted as an alias)
 
     Example:
 
     .. code-block:: yaml
-    
-       crotations:
+
+       irotations:
        - psi,E,661,693,60
        - phi,E,662,693,60
        - alpha,B,33,52
