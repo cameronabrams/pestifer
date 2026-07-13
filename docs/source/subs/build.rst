@@ -67,7 +67,6 @@ Detailed explanation of some *selected* common tasks you can use is below.
    buildtasks/manipulate
    buildtasks/ligate
    buildtasks/cleave
-   buildtasks/domainswap
    buildtasks/solvate
    buildtasks/make_membrane_system
    buildtasks/ring_check

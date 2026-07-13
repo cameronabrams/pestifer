@@ -67,7 +67,6 @@ Let's use this second feature to explore the ``fetch`` task.  (You can visit the
         pdb2pqr ->
         mdplot ->
         cleave ->
-        domainswap ->
         solvate ->
         desolvate ->
         ring_check ->

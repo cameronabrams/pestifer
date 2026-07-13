@@ -18,7 +18,6 @@ Subattributes:
    tasks/pdb2pqr
    tasks/mdplot
    tasks/cleave
-   tasks/domainswap
    tasks/solvate
    tasks/desolvate
    tasks/ring_check

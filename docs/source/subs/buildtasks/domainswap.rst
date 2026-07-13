@@ -1,3 +1,10 @@
+:orphan:
+
+.. note::
+   The ``domainswap`` task is **retired** and no longer available in a build config.
+   This page is kept for reference; the code remains in the source tree but is not
+   registered as a usable task.
+
 .. _subs_buildtasks_domainswap:
 
 domainswap

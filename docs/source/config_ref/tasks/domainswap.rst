@@ -1,3 +1,9 @@
+:orphan:
+
+.. note::
+   The ``domainswap`` task is **retired** and no longer accepted in a build config.
+   This reference is retained for the preserved code; it is not a usable task.
+
 .. _config_ref tasks domainswap:
 
 ``domainswap``

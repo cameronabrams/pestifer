@@ -34,7 +34,6 @@ This command ends at a prompt (``pestifer-help:``) that allows you to drill down
        ligate ->
        mdplot ->
        cleave ->
-       domainswap ->
        solvate ->
        desolvate ->
        ring_check ->

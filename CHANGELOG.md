@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: the **`domainswap` task is retired** and no longer available in a build config. A config using `domainswap:` now fails validation (it is removed from the task schema and the task registry). The code is preserved in the source tree (`pestifer/tasks/domainswap.py`, kept importable but unregistered) and can be reinstated by re-adding its schema block and registry entry; its documentation pages are retained as orphaned reference.
+
 ## [3.7.0] - 2026-07-10
 
 - bugfix: `merge` produced a system in which **merged copies of the same structure collapsed onto one chain ID** in any chain-based view, so three completed 17b Fabs (each entering as chain H/L) displayed as a single Fab even though all their atoms and segments were present and correctly placed. The cause is that a PSF carries no chain column: every time the pipeline regenerates a PDB from the PSF (the `solvate` step, and every `coor`→`pdb` conversion), VMD re-derives each atom's chain ID from its segid's leading characters — so segids `H`, `H0`, `H1` all become chain `H`. `merge`'s segid-enumeration (`H` → `H0` → `H1`) therefore did not actually separate the copies downstream. `merge` now renames each colliding segment to a **fresh single-character segid** whose leading character is unused, so its derived chain ID is unique *and* stable through every regeneration (verified end-to-end: three Fabs survive solvation as three distinct chains). (Surfaced completing the three partially-resolved Fabs in Example 25.)
