@@ -14,6 +14,7 @@ read rtf card append
 ! and 50 mean some basic validation is recommended; penalties higher than
 ! 50 indicate poor analogy and mandate extensive validation/optimization.
 
+! 2-hydroxyethyl 2-deoxy-3,5-bis-O-(2-hydroxyethyl)-6-O-(2-{[(9E)-octadec-9-enoyl]oxy}ethyl)-alpha-L-xylo-hexofuranoside
 ! VCG: Polysorbate 80
 ! from the 7JJI pdb entry.  Be sure to pdbalias atom VCG C01 C1 etc. in your
 ! psfgen script

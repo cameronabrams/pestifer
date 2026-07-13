@@ -28,7 +28,7 @@ Looking up a residue name
 
 The ``resname`` mode reports, for one or more residue names (case-insensitive), whether pestifer knows the residue: whether it is defined in the CHARMM topology/stream files (and in which file, as a ``RESI`` residue or a ``PRES`` patch), where that definition comes from, and whether coordinates for it exist in the built-in PDB repository (used by ``make_membrane_system``).
 
-The **source** distinguishes the three tiers of CHARMM topology pestifer can draw on: ``standard`` (native to the CHARMM release as-provided), ``custom`` (a custom file that ships built-in with pestifer, in the force field's ``custom/`` directory), and ``user`` (a custom file you supplied, e.g. in ``~/.pestifer/toppar`` or a ``charmmff.user_custom.searchpath`` directory).
+The **source** distinguishes the three tiers of CHARMM topology pestifer can draw on: ``standard`` (native to the CHARMM release as-provided), ``custom`` (a custom file that ships built-in with pestifer, in the shared ``charmmff/custom/`` directory), and ``user`` (a custom file you supplied, e.g. in ``~/.pestifer/toppar`` or a ``charmmff.user_custom.searchpath`` directory).
 
 .. code-block:: console
 

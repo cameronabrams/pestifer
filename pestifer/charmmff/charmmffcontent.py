@@ -241,7 +241,9 @@ class CHARMMFFContent(CacheableObject):
     ----------
     charmmff_path : str or Path
         Path to the version-specific directory (e.g. ``resources/charmmff/jul24/``) containing
-        the release tarball, ``custom/``, ``patches/``, and ``pdbrepository/`` subdirectories.
+        the release tarball, ``patches/``, and ``pdbrepository/`` subdirectories.  The
+        release-independent ``custom/`` directory is a sibling of this path
+        (``resources/charmmff/custom/``), shared across releases.
     tarfilename : str, optional
         Override for the tarball name.  If omitted, derived from the directory name as
         ``toppar_c36_{version_key}.tgz``.
@@ -387,8 +389,14 @@ class CHARMMFFContent(CacheableObject):
         self.all_parameter_files = {x: v for x, v in self.filenamemap['par'].items()}
         self.all_parameter_files.update({x: v for x, v in self.filenamemap['toppar'].items()})
         self.custom_files = []
-        self.custom_folder = self.charmmff_path / 'custom'
-        if 'custom' in self.charmm_elements and self.custom_folder.exists():
+        # The pestifer 'custom/' additions are release-independent, so they live in a single
+        # shared directory that is a sibling of the per-release version directories
+        # (charmmff/custom/), not under each release.  'patches/' below stays per-release,
+        # since each patch targets a specific release's toppar files.
+        self.custom_folder = self.charmmff_path.parent / 'custom'
+        # 'custom' is a shared sibling of the release dirs, so gate on the folder itself rather
+        # than on charmm_elements (which lists only the *release* directory's contents).
+        if self.custom_folder.exists():
             self._load_custom_files()
         self.patch_folder = self.charmmff_path / 'patches'
         if 'patches' in self.charmm_elements and self.patch_folder.exists():

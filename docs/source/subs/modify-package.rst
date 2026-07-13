@@ -124,11 +124,11 @@ If you want to add an example, you can do so in your own fork of the repository,
 Contributing a New Custom Residue
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Pestifer ships a small set of **built-in custom** residue definitions (for example, the CGenFF ligands ``83G`` and ``LF0``) that live in the active force field's ``custom/`` directory and supplement the standard CHARMM release.  You can contribute a new one from any file containing a CHARMM ``RESI`` block (a ``.str``, ``.rtf``, or ``.top`` file), and ``modify-package`` will:
+Pestifer ships a small set of **built-in custom** residue definitions (for example, the CGenFF ligands ``83G`` and ``LF0``) that live in pestifer's shared ``charmmff/custom/`` directory (release-independent, a sibling of the per-release version directories) and supplement the standard CHARMM release.  You can contribute a new one from any file containing a CHARMM ``RESI`` block (a ``.str``, ``.rtf``, or ``.top`` file), and ``modify-package`` will:
 
 1. validate the file and extract the ``RESI`` names it defines,
 2. refuse names that already exist in the force field (unless you pass ``--force``),
-3. copy the file into the force field's ``custom/`` directory,
+3. copy the file into the shared ``charmmff/custom/`` directory,
 4. register each ``RESI`` name under a segtype in :mod:`pestifer.core.labels` (default ``ligand``; use ``--segtype`` to choose another), and
 5. clear the resource cache so the new residue is picked up on the next run.
 
@@ -147,13 +147,13 @@ Because a contribution is meant to become a pull request, the branch-and-commit 
 
     $ pestifer modify-package charmmff add-residue mylig.str --branch add-mylig-residue
 
-    Installed custom residue file: .../charmmff/feb26/custom/mylig.str
+    Installed custom residue file: .../charmmff/custom/mylig.str
       RESI defined: MYLIG
       classified MYLIG as segtype 'ligand'
       resource cache cleared; it will rebuild on the next run.
 
     Committed to new branch 'add-mylig-residue':
-        pestifer/resources/charmmff/feb26/custom/mylig.str
+        pestifer/resources/charmmff/custom/mylig.str
         pestifer/core/labels.py
 
     Review it with `git show`, then push and open a pull request:

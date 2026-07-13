@@ -5,16 +5,15 @@ CHARMM force-field customizations
 
 Pestifer bundles a full CHARMM force field for each supported release under
 ``pestifer/resources/charmmff/<release>/`` (currently ``feb26`` and ``jul24``).
-Beyond the stock CHARMM toppar files, each release carries two kinds of local
-additions:
+Beyond the stock CHARMM toppar files, there are two kinds of local additions:
 
-* ``patches/`` — **records of corrections** applied by hand to specific upstream
-  toppar files.
+* ``<release>/patches/`` — **records of corrections** applied by hand to specific
+  upstream toppar files. These live **per release**, since each patch targets a
+  particular release's toppar file.
 * ``custom/`` — **extra** topology / parameter / stream files that are not part of
-  the base CHARMM release.
-
-Both sets are maintained per release, so a given fix or addition is present in every
-release directory it applies to.
+  the base CHARMM release. These are release-independent, so they live in a **single
+  shared** ``charmmff/custom/`` directory that is a sibling of the release directories
+  (not duplicated under each one).
 
 .. note::
 
@@ -49,7 +48,8 @@ Added definitions (``custom/``)
 -------------------------------
 
 These files supply residues, patches, parameters, and ions not present in the base
-CHARMM release. They are loaded alongside the stock toppar for the active release.
+CHARMM release. They live in the shared ``charmmff/custom/`` directory and are loaded
+alongside the stock toppar for whichever release is active.
 
 ``pestifer.top``
    A small topology file of pestifer-specific patches:
@@ -67,11 +67,12 @@ CHARMM release. They are loaded alongside the stock toppar for the active releas
    internal coordinates needed to build it.
 
 ``83G-cgenff.str``
-   CGenFF/ParamChem parameters for ligand ``83G`` — the small-molecule drug present in
-   the HIV-1 Env ectodomain examples (see Examples 9 and 10).
+   CGenFF/ParamChem parameters for ligand ``83G`` — the HIV-1 entry inhibitor
+   **BMS-378806**, present in the HIV-1 Env ectodomain examples (see Examples 9 and 10).
 
 ``LF0-cgenff.str``
-   CGenFF/ParamChem parameters for ligand ``LF0``.
+   CGenFF/ParamChem parameters for ligand ``LF0`` — an **HIV-1 integrase inhibitor**
+   (see PDB entries ``4ID1``, ``4LH5``, ``4TSX``, ``8A1P``, ``8USY``, ``8V0Z``).
 
 Contributing new custom definitions
 -----------------------------------
@@ -79,5 +80,5 @@ Contributing new custom definitions
 The ``83G`` and ``LF0`` streams are examples of **built-in custom** residue
 definitions. To add your own from any file containing a CHARMM ``RESI`` block (a
 ``.str``, ``.rtf``, or ``.top`` file), use ``modify-package`` — see
-:ref:`subs modify-package` — which installs it into the active release's ``custom/``
+:ref:`subs modify-package` — which installs it into the shared ``charmmff/custom/``
 directory and records the change in the modifications ledger.

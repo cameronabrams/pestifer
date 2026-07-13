@@ -4,6 +4,7 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: pestifer's **built-in `custom/` CHARMM force-field files now live in a single shared `charmmff/custom/` directory** (a sibling of the per-release version directories) instead of being duplicated under each release. The files are release-independent, so this de-duplicates them; `patches/` remain per-release. `modify-package charmmff add-residue` now installs into the shared directory. (The `feb26` and `jul24` copies were identical apart from a few descriptive comments, which were retained.)
 - change: the **`domainswap` task is retired** and no longer available in a build config. A config using `domainswap:` now fails validation (it is removed from the task schema and the task registry). The code is preserved in the source tree (`pestifer/tasks/domainswap.py`, kept importable but unregistered) and can be reinstated by re-adding its schema block and registry entry; its documentation pages are retained as orphaned reference.
 
 ## [3.7.0] - 2026-07-10

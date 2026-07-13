@@ -14,6 +14,10 @@ read rtf card append
 ! and 50 mean some basic validation is recommended; penalties higher than
 ! 50 indicate poor analogy and mandate extensive validation/optimization.
 
+! (2S)-tert-butoxy[4-(3,4-dihydro-2H-chromen-6-yl)-2-methylquinolin-3-yl]ethanoic acid
+! An HIV-1 Integrase inhibitor
+! See PDB entries 4ID1, 4LH5, 4TSX, 8A1P, 8USY, 8V0Z
+
 RESI LF0            0.000 ! param penalty=  56.600 ; charge penalty=  20.134
 GROUP            ! CHARGE   CH_PENALTY
 ATOM C1     CG2R67  0.038 !    3.489

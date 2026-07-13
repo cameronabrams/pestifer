@@ -293,13 +293,14 @@ class ResourceManager:
         """
         Get the path to the custom CHARMM force field directory.
         This directory is used for storing custom CHARMM force field files that are not part of the standard distribution.
+        It is shared across releases (a sibling of the per-release version directories), not per-release.
 
         Returns
         -------
         str
             The path to the custom CHARMM force field directory.
         """
-        return str(self.charmmff_content.charmmff_path / 'custom')
+        return str(self.charmmff_content.charmmff_path.parent / 'custom')
 
     def add_custom_residue(self, source_file, segtype: str = 'ligand', force: bool = False) -> dict:
         """

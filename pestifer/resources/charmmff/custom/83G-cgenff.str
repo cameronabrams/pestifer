@@ -14,6 +14,9 @@ read rtf card append
 ! and 50 mean some basic validation is recommended; penalties higher than
 ! 50 indicate poor analogy and mandate extensive validation/optimization.
 
+! 1-[(2R)-4-(benzenecarbonyl)-2-methylpiperazin-1-yl]-2-(4-methoxy-1H-pyrrolo[2,3-b]pyridin-3-yl)ethane-1,2-dione
+! aka BMS-378806
+
 RESI   83G          0.000 ! param penalty= 159.500 ; charge penalty=  43.041
 !RING * 6 C25 C26 C27 C28 C29 C30
 !RING * 6 C17 C18 C20 C21 N16 N19
