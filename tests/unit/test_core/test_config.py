@@ -131,46 +131,55 @@ class TestConfig(unittest.TestCase):
             shutil.rmtree(tmpdir)
         os.mkdir(tmpdir)
         os.chdir(tmpdir)
-        for example_id, example in enumerate(EM.examples):
-            EM.checkout_example(example_id + 1)
-            configfile_path = os.path.join(EM.path, example.scriptpath)
-            self.assertTrue(os.path.exists(configfile_path), f'Config file {configfile_path} does not exist after checkout')
-            c = Config(userfile=configfile_path).configure_new()
-            self.assertTrue('base' in c)
-            self.assertTrue('user' in c)
-            D = c['base']['attributes']
-            self.assertEqual(len(D), 6)
-            tld = [x['name'] for x in D]
-            self.assertEqual(tld, ['charmmff', 'psfgen', 'namd', 'title', 'paths', 'tasks'])
-            T_idx = tld.index('title')
-            T = D[T_idx]
-            self.assertEqual(T['name'], 'title')
-            self.assertEqual(T['type'], 'str')
-            self.assertTrue('text' in T)
-            self.assertEqual(T['default'], 'Pestifer')
-            U = c['user']
-            self.assertTrue('title' in U)
-            self.assertTrue('paths' in U)
-            self.assertTrue('tasks' in U)
-            paths = U['paths']
-            # An example may legitimately override any of these defaults with an
-            # absolute path. Just check the resolved entry ends in the expected
-            # binary name.
-            self.assertTrue(paths['namd3'].endswith('namd3'))
-            self.assertTrue(paths['charmrun'].endswith('charmrun'))
-            self.assertTrue(paths['vmd'].endswith('vmd'))
-            self.assertTrue(paths['catdcd'].endswith('catdcd'))
-            self.assertFalse('charmff' in paths)
-            # with open(f'{configfile}-complete.yaml', 'w') as f:
-            #     yaml.dump(U, f)
-            tasks = U['tasks']
+        try:
+            # Every example must check out and expose the base+user schema correctly.
+            # EM.examples is in filesystem order, not id order, so drive each checkout by
+            # the example's own id (never by enumerate position).
+            for example in EM.examples:
+                EM.checkout_example(example.example_id)
+                configfile_path = os.path.join(EM.path, example.scriptpath)
+                self.assertTrue(os.path.exists(configfile_path), f'Config file {configfile_path} does not exist after checkout')
+                c = Config(userfile=configfile_path).configure_new()
+                self.assertTrue('base' in c)
+                self.assertTrue('user' in c)
+                D = c['base']['attributes']
+                self.assertEqual(len(D), 6)
+                tld = [x['name'] for x in D]
+                self.assertEqual(tld, ['charmmff', 'psfgen', 'namd', 'title', 'paths', 'tasks'])
+                T = D[tld.index('title')]
+                self.assertEqual(T['name'], 'title')
+                self.assertEqual(T['type'], 'str')
+                self.assertTrue('text' in T)
+                self.assertEqual(T['default'], 'Pestifer')
+                U = c['user']
+                self.assertTrue('title' in U)
+                self.assertTrue('paths' in U)
+                self.assertTrue('tasks' in U)
+                self.assertIsInstance(U['tasks'], list)
+                self.assertTrue(len(U['tasks']) > 0, f'{example.shortname}: no tasks')
+                paths = U['paths']
+                # An example may legitimately override any of these defaults with an
+                # absolute path. Just check the resolved entry ends in the expected
+                # binary name.
+                self.assertTrue(paths['namd3'].endswith('namd3'))
+                self.assertTrue(paths['charmrun'].endswith('charmrun'))
+                self.assertTrue(paths['vmd'].endswith('vmd'))
+                self.assertTrue(paths['catdcd'].endswith('catdcd'))
+                self.assertFalse('charmff' in paths)
+
+            # Not every example fetches or runs psfgen (e.g. the multi-script merge
+            # example builds from local inputs), so exercise the fetch + psfgen with
+            # mods.ssbondsdelete structure against a canonical example that has it: bpti3.
+            bpti3 = next((e for e in EM.examples if e.shortname == 'bpti3'), None)
+            self.assertIsNotNone(bpti3, 'expected example bpti3 to be present')
+            c = Config(userfile=os.path.join(EM.path, bpti3.scriptpath)).configure_new()
+            tasks = c['user']['tasks']
             self.assertTrue(any('fetch' in t for t in tasks))
             psfgen_task = next((t for t in tasks if 'psfgen' in t), None)
-            self.assertIsNotNone(psfgen_task, 'No psfgen task found in example')
+            self.assertIsNotNone(psfgen_task, 'No psfgen task found in bpti3')
             specs = psfgen_task['psfgen']
             self.assertTrue('source' in specs)
             self.assertTrue('mods' in specs)
             self.assertTrue('ssbondsdelete' in specs['mods'])
-            # source_specs=specs['source']
-            # self.assertTrue('id' in source_specs or 'alphafold' in source_specs)
-        os.chdir('..')
+        finally:
+            os.chdir('..')
