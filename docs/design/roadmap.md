@@ -20,6 +20,18 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
       and add the RESI's required parameter file(s) before equilibrating (the same way
       `make_solvent_box` already appends the defining topology file), so params-incomplete
       solvents build too. (Discovered building Example 24; acetone works, acetonitrile does not.)
+- [ ] **Solvent blends / mixtures.** `solvate` takes a single `solvent:` species today; add support
+      for a **multi-component solvent** at a specified composition — e.g. a water/DMSO cosolvent mix
+      or a ternary blend — for mixed-solvent / cosolvent-MD builds. Decisions to settle:
+    - **Specification.** How the user names a blend and its ratio — a list of `{solvent, fraction}`
+      entries (mole vs. volume vs. number fraction — pick one and be explicit), with a rule for the
+      remainder/primary species.
+    - **Box generation.** Pack a mixed box directly (extend `make_solvent_box` to place multiple
+      species at the target composition), vs. tile/overlay single-species boxes — the former gives a
+      properly mixed liquid; reuse the on-demand generation cache, keyed by the (species, ratio) blend.
+    - **Parameters + neutralization.** Union the defining topology/parameter files of all components
+      (composes with the on-demand-parameter item above), and keep ion neutralization working against
+      the mixed box.
 
 ## Membranes
 
