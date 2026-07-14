@@ -397,7 +397,15 @@ class Molecule:
                 asymm_segname=S.segname
                 for i,b in enumerate(S.subsegments):
                     if b.state=='MISSING':
-                        if b.num_items()>=min_length and i<(len(S.subsegments)-1):
+                        # Only interior loops get healed. psfgen builds an interior missing
+                        # loop with a terminus break (sacrificial residue + CTER/GLYP) that
+                        # ligate must re-close. A terminal loop is different: if built (via
+                        # build_zero_occupancy_[NC]_termini) it is bonded contiguously to its
+                        # resolved neighbor with no break, and if not built it has no residues
+                        # -- either way healing it would duplicate/dangle a peptide bond. The
+                        # upper bound already excludes the C-terminal loop; require 0<i to also
+                        # exclude the N-terminal loop.
+                        if b.num_items()>=min_length and 0<i<(len(S.subsegments)-1):
                             reslist=[f'{r.resid.resid}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
                             bpp=S.subsegments[i+1]
                             nreslist=[f'{r.resid.resid}' for r in S.residues[bpp.bounds[0]:bpp.bounds[1]+1]]
@@ -429,7 +437,11 @@ class Molecule:
                 asymm_segname=S.segname
                 for i,b in enumerate(S.subsegments):
                     if b.state=='MISSING':
-                        if b.num_items()>=min_length and i<(len(S.subsegments)-1):
+                        # See write_gaps: heal only interior loops. A built N-terminal loop is
+                        # bonded contiguously to its neighbor (no CTER/GLYP break), so re-linking
+                        # it here would duplicate the peptide bond (NAMD then reports a degenerate
+                        # C-N-C angle). Require 0<i; the upper bound already excludes the C-terminus.
+                        if b.num_items()>=min_length and 0<i<(len(S.subsegments)-1):
                             llres=S.residues[b.bounds[1]-1]
                             lres=S.residues[b.bounds[1]]
                             nextb=S.subsegments[i+1]
