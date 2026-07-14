@@ -1,7 +1,10 @@
 # Design: parameter provisioning for on-demand solvent boxes
 
-Status: **proposed** — promoted from the roadmap; investigation done, Sub-problem-B policy
-decided (B2 — detect and refuse; B1 rejected).
+Status: **implemented.** Sub-problem A (companion-parameter discovery) and B2 (detect and refuse)
+are in `make_solvent_box`; degenerate torsions are covered by a curated `custom/` fills file. The
+"dry-run parameter check" of the plan is realized by parsing NAMD's own startup validation
+(`UNABLE TO FIND ... PARAMETERS`) rather than a reimplemented CHARMM parameter matcher — NAMD is
+authoritative, including wildcard matching. See the CHANGELOG for the shipped version.
 
 ## Problem
 

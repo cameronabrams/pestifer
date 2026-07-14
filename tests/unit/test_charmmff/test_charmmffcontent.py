@@ -66,8 +66,10 @@ class TestCharmmffContent(unittest.TestCase):
         basenames.extend([k for k in self.C.filenamemap['toppar'].keys()])
         basenames.extend([k for k in self.C.filenamemap['par'].keys()])
         # feb26 ships both CGenFF v5 and v4.6 topology/parameter files; pestifer loads only v5
-        # (v4.6 is a strict subset), so the two v4.6 files are excluded from the loaded set
-        self.assertEqual(len(basenames), 56)
+        # (v4.6 is a strict subset), so the two v4.6 files are excluded from the loaded set.
+        # The count includes pestifer's custom/ additions (moreions.str, the degenerate-torsion
+        # fills par, etc.).
+        self.assertEqual(len(basenames), 57)
         self.assertEqual(len(set(basenames)), len(basenames))  # check for duplicates
         self.assertTrue(len(self.C.streams) > 0)
         self.assertEqual(self.C.streams.sort(), ['prot', 'carb', 'na', 'lipid'].sort())

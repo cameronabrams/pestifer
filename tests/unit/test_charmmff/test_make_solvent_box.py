@@ -6,11 +6,15 @@ import unittest
 
 import numpy as np
 
+from pathlib import Path
+
 from pestifer.charmmff.make_solvent_box import (
     box_edge_for_density, cubic_lattice_sites, pack_cubic,
     write_box_pdb, atom_lines_of, coords_of,
     _resi_to_molblock, single_molecule_from_graph,
+    _companion_parameter_file, _scan_logs_for_missing_parameter,
 )
+import pestifer.resources as _resources
 
 
 def _fake_meoh_topo():
@@ -131,6 +135,46 @@ class TestGraphToMolecule(unittest.TestCase):
             self.assertLess(np.linalg.norm(xyz[0] - xyz[1]), 1.8)
         finally:
             os.chdir(cwd)
+
+
+class TestSolventBoxParameters(unittest.TestCase):
+    """Parameter-provisioning helpers used when equilibrating an on-demand solvent box."""
+
+    def test_scan_logs_for_missing_parameter(self):
+        d = tempfile.mkdtemp()
+        # a dihedral fatal (no atom-index suffix)
+        Path(d, 'a.log').write_text(
+            "Info: setting up\nFATAL ERROR: UNABLE TO FIND DIHEDRAL PARAMETERS FOR HGA3 CG331 CG1N1 NG1T1\n")
+        self.assertEqual(_scan_logs_for_missing_parameter(d), ('Dihedral', 'HGA3 CG331 CG1N1 NG1T1'))
+        # an angle fatal with the trailing "(ATOMS ...)" that must be stripped
+        d2 = tempfile.mkdtemp()
+        Path(d2, 'b.log').write_text("FATAL ERROR: UNABLE TO FIND ANGLE PARAMETERS FOR C NH1 C (ATOMS 53 55 53)\n")
+        self.assertEqual(_scan_logs_for_missing_parameter(d2), ('Angle', 'C NH1 C'))
+        # nothing to find
+        self.assertIsNone(_scan_logs_for_missing_parameter(tempfile.mkdtemp()))
+
+    def test_companion_parameter_file(self):
+        # top_<tag>.rtf -> par_<tag>.prm, but only when the force field ships the companion
+        DB = types.SimpleNamespace(all_parameter_files={'par_all36_cgenff.prm': '/x/par_all36_cgenff.prm'})
+        self.assertEqual(_companion_parameter_file('top_all36_cgenff.rtf', DB), 'par_all36_cgenff.prm')
+        self.assertIsNone(_companion_parameter_file('top_all36_prot.rtf', DB))     # companion not present
+        self.assertIsNone(_companion_parameter_file('toppar_water_ions.str', DB))  # not a top_*.rtf
+        self.assertIsNone(_companion_parameter_file('top_bogus.rtf', DB))
+
+    def test_dihedral_fills_shipped_and_wired(self):
+        # the curated degenerate-torsion fills file is shipped in custom/ ...
+        fills = Path(_resources.__file__).parent / 'charmmff' / 'custom' / 'toppar_pestifer_dihedral_fills.prm'
+        self.assertTrue(fills.is_file(), f'{fills} not shipped')
+        text = fills.read_text()
+        self.assertIn('DIHEDRALS', text)
+        # ... carries the acetonitrile degenerate torsion at k=0 ...
+        acn = [l for l in text.splitlines()
+               if l.split()[:4] == ['HGA3', 'CG331', 'CG1N1', 'NG1T1']]
+        self.assertEqual(len(acn), 1, 'expected exactly one active ACN dihedral line')
+        self.assertAlmostEqual(float(acn[0].split()[4]), 0.0)   # Kchi == 0
+        # ... and is registered in the schema's default custom parameter set
+        base = (Path(_resources.__file__).parent.parent / 'schema' / 'base.yaml').read_text()
+        self.assertIn('toppar_pestifer_dihedral_fills.prm', base)
 
 
 if __name__ == '__main__':

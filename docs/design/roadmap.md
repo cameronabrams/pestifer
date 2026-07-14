@@ -13,16 +13,14 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
 - [x] **Ship curated built-in solvent boxes.** MEOH, ETOH, and DMSO boxes (nmol=216,
       production NPT) are installed in the built-in `solvent` collection (`feb26`), so
       `solvate: {solvent: MEOH}` works without building a box first. (v3.2.0.)
-- [ ] **On-demand solvent boxes: robust parameter provisioning.** On-demand generation
-      (v3.5.0/v3.6.0) equilibrates a freshly-packed box under NPT, and some solvents die at the NPT step
-      with `UNABLE TO FIND ... PARAMETERS` — e.g. acetonitrile (`ACN`) fails on the
-      `HGA3 CG331 CG1N1 NG1T1` dihedral while acetone (`ACO`) builds. Investigation showed two distinct
-      causes: (A) a solvent whose parameters live in a non-default file (`rtf`+`prm` split or a stream
-      not in the default set) — `make_solvent_box` appends only the *defining topology* file, not the
-      parameter file(s); and (B) a genuine force-field gap — `ACN`'s methyl–nitrile torsion is absent
-      from the entire bundle (a physically-free linear-nitrile dihedral CGenFF omits but psfgen
-      autogenerates), which no file discovery fixes and which needs a policy decision. Full write-up and
-      plan in `docs/design/on-demand-solvent-parameters.md`. (Discovered building Example 24.)
+- [x] **On-demand solvent boxes: robust parameter provisioning.** `make_solvent_box` now (A) loads a
+      residue's companion parameter file when it is defined in a bare `.rtf`, and (B) turns a
+      missing-parameter NAMD abort into an actionable error naming the exact residue and atom-type term
+      instead of a cryptic mid-equilibration fatal. Genuinely-degenerate torsions (e.g. acetonitrile's
+      `HGA3 CG331 CG1N1 NG1T1`, degenerate because the C–C≡N skeleton is linear) are covered by a
+      curated, reviewed `k=0` entry in `custom/toppar_pestifer_dihedral_fills.prm` — so `ACN` now boxes
+      — while unknown gaps are still surfaced, never silently zero-filled. Design doc:
+      `docs/design/on-demand-solvent-parameters.md`. (Discovered building Example 24.)
 - [ ] **Solvent blends / mixtures.** `solvate` takes a single `solvent:` species today; add support
       for a **multi-component solvent** at a specified composition — e.g. a water/DMSO cosolvent mix
       or a ternary blend — for mixed-solvent / cosolvent-MD builds. Decisions to settle:

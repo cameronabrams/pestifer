@@ -1,0 +1,26 @@
+* Pestifer-supplied CHARMM parameters: degenerate-torsion fills
+*
+* Dihedral parameters that CHARMM/CGenFF intentionally OMITS because the torsion is
+* geometrically DEGENERATE: it spans a linear (collinear) arrangement of atoms, so the
+* dihedral angle is undefined and the term carries no torsional energy. psfgen's
+* `autogenerate dihedrals` nonetheless emits the term from the bond graph, and NAMD then
+* aborts ("UNABLE TO FIND DIHEDRAL PARAMETERS FOR ...") on a term with no parameter.
+*
+* A zero force constant (Kchi = 0) is the physically-correct value here -- there is no
+* torsional energy about a degenerate/undefined dihedral -- so this lets such a residue
+* build without altering any real energetics.
+*
+* IMPORTANT: every entry below is a DELIBERATE, reviewed addition for a torsion that has
+* been established to be degenerate. This is NOT a blanket zero-fill of missing
+* parameters: pestifer still surfaces any *other* unrecognized missing term as an error
+* (see PsfgenTask / make_solvent_box), so a genuine force-field gap is never silently
+* masked. Add a new line here only after confirming the torsion is truly degenerate.
+*
+* Provenance: pestifer (Cameron F. Abrams). Not part of any upstream CHARMM release.
+*
+
+DIHEDRALS
+! atom-i  atom-j  atom-k  atom-l    Kchi   n   delta
+HGA3  CG331  CG1N1  NG1T1      0.0000   1    0.00 ! acetonitrile (ACN) methyl-nitrile torsion H-C-C#N; the C-C#N skeleton is linear, so this dihedral is degenerate
+
+END

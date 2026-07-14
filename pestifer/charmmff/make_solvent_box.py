@@ -10,11 +10,15 @@ This module holds the deterministic, dependency-light core -- box geometry and c
 packing -- separately from the psfgen/NAMD build orchestration, so the geometry can be
 unit-tested without a force field or MD engine.
 """
+import glob
 import logging
 import os
+import re
 import shutil
 
 import numpy as np
+
+from ..core.errors import PestiferBuildError
 
 logger = logging.getLogger(__name__)
 
@@ -242,6 +246,39 @@ def single_molecule_from_graph(topo, output_pdb: str) -> str:
     return output_pdb
 
 
+def _companion_parameter_file(topfile: str, DB) -> str | None:
+    """Return the parameter file that partners a CHARMM topology file, if the force field
+    ships it. CHARMM pairs ``top_<tag>.rtf`` with ``par_<tag>.prm`` by naming convention
+    (e.g. ``top_all36_cgenff.rtf`` -> ``par_all36_cgenff.prm``). A residue defined in a bare
+    ``.rtf`` needs this companion loaded for the NAMD equilibration; a ``.str`` is
+    self-contained and needs none. Returns None if the input is not a ``top_*.rtf`` or the
+    companion is not present in the force field.
+    """
+    if not (topfile.startswith('top') and topfile.endswith('.rtf')):
+        return None
+    candidate = 'par' + topfile[3:-4] + '.prm'
+    return candidate if candidate in getattr(DB, 'all_parameter_files', {}) else None
+
+
+def _scan_logs_for_missing_parameter(directory: str) -> tuple[str, str] | None:
+    """Scan the NAMD ``*.log`` files in *directory* for a missing-parameter fatal
+    (``UNABLE TO FIND <kind> PARAMETERS FOR <atom types> ...``) and return
+    ``(kind, "type type ...")`` of the first match, or None. This lets the caller turn a
+    cryptic mid-equilibration NAMD abort into an actionable message naming the exact term.
+    """
+    pat = re.compile(r'UNABLE TO FIND (\w+) PARAMETERS FOR\s+([A-Za-z0-9 ]+?)(?:\s*\(.*)?$')
+    for logf in sorted(glob.glob(os.path.join(directory, '*.log'))):
+        try:
+            with open(logf) as fh:
+                for line in fh:
+                    m = pat.search(line)
+                    if m:
+                        return m.group(1).capitalize(), m.group(2).strip()
+        except OSError:
+            continue
+    return None
+
+
 def make_solvent_box(resname, DB, RM=None, nmol: int = 216, density: float = 1.0,
                      temperature: float = 300.0, pressure: float = 1.0,
                      minimize_steps: int = 1000, npt_steps: int = 50000,
@@ -348,10 +385,39 @@ def make_solvent_box(resname, DB, RM=None, nmol: int = 216, density: float = 1.0
     na: NAMDScripter = C.tasks[0].scripters['namd']
     if extension in ('rtf', 'str') and charmm_topfile not in na.charmmff_config['standard'][extension]:
         na.charmmff_config['standard'][extension].append(charmm_topfile)
-    result = C.do_tasks()
-    for k, v in result.items():
-        if v['result'] != 0:
-            raise RuntimeError(f'solvent-box equilibration task {v["taskname"]} failed (result {v["result"]})')
+    # Sub-problem A: a residue defined in a bare .rtf is topology only, so its bonded
+    # parameters must be loaded separately for the NAMD equilibration (a .str carries its
+    # own parameters). The standard rtf/prm pairs (prot, cgenff, ...) are already loaded;
+    # this covers a residue whose defining .rtf is not one of them (e.g. a custom-added one).
+    if extension == 'rtf':
+        companion = _companion_parameter_file(charmm_topfile, DB)
+        if companion and companion not in na.charmmff_config['standard']['prm']:
+            logger.info(f'{resname}: loading companion parameter file {companion} for {charmm_topfile}')
+            na.charmmff_config['standard']['prm'].append(companion)
+    # Sub-problem B (B2): if the equilibration dies because the force field lacks a parameter
+    # for a term psfgen generated, surface it as an actionable error naming the exact atom-type
+    # term -- instead of a cryptic NAMD fatal -- and do NOT fabricate a parameter. (A genuinely
+    # degenerate torsion, e.g. across a linear moiety, is instead covered by a reviewed k=0 entry
+    # in custom/toppar_pestifer_dihedral_fills.prm.)
+    try:
+        result = C.do_tasks()
+        for k, v in result.items():
+            if v['result'] != 0:
+                raise RuntimeError(f'solvent-box equilibration task {v["taskname"]} failed (result {v["result"]})')
+    except (PestiferBuildError, RuntimeError) as e:
+        missing = _scan_logs_for_missing_parameter(os.getcwd())
+        if missing:
+            kind, types = missing
+            raise PestiferBuildError(
+                f"Cannot build a solvent box for '{resname}': the CHARMM force field has no "
+                f"{kind.lower()} parameter for atom types [{types}] -- a term psfgen generated "
+                f"from {resname}'s connectivity that no shipped parameter defines. If that "
+                f"{kind.lower()} is genuinely degenerate (e.g. it spans a linear moiety, as in a "
+                f"nitrile or terminal alkyne), add a reviewed k=0 line to "
+                f"pestifer/resources/charmmff/custom/toppar_pestifer_dihedral_fills.prm; "
+                f"otherwise provide a stream/parameter file that defines it."
+            ) from e
+        raise
 
     # 6. promote the equilibrated NPT output as the box coordinates.  NAMD's wrapAll leaves
     # every molecule whole and periodic-consistent with the equilibrated cell, which is

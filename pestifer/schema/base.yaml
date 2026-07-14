@@ -98,7 +98,8 @@ attributes:
           - name: prm
             type: list
             text: Custom charmmff parameter files (.prm extension)
-            default: []
+            default:
+              - toppar_pestifer_dihedral_fills.prm
       - name: user_custom
         type: dict
         text: User-defined custom charmmff files
