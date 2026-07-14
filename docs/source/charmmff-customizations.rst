@@ -3,8 +3,12 @@
 CHARMM force-field customizations
 =================================
 
-Pestifer bundles a full CHARMM force field for each supported release under
-``pestifer/resources/charmmff/<release>/`` (currently ``feb26`` and ``jul24``).
+Pestifer bundles a CHARMM force field for each supported release under
+``pestifer/resources/charmmff/<release>/`` (currently ``feb26``). The bundled
+toppar tarball is **trimmed** to the files pestifer actually loads — the top-level
+topology/parameter/stream files plus the ``stream/`` subtree — via
+``scripts/trim_toppar.sh``; the upstream subdirectories pestifer never reads
+(``metals/``, ``drude/``, ``non_charmm/``, implicit-solvent sets, etc.) are dropped.
 Beyond the stock CHARMM toppar files, there are two kinds of local additions:
 
 * ``<release>/patches/`` — **records of corrections** applied by hand to specific

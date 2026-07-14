@@ -35,7 +35,7 @@ attributes:
       - name: release
         type: str
         text: CHARMMFF release in MonthYEAR format (e.g., "July2024", "February2026", etc.)
-        default: July2024
+        default: February2026
       - name: generate_missing_coordinates
         type: bool
         text: If true (default), when a build references a residue that is defined in the CHARMM force field but has no PDB-repository entry (e.g. a non-water solvent with no shipped box), pestifer generates the needed coordinates on the fly and caches them per-user under ~/.pestifer/pdbrepository/<release>/, reusing them on subsequent builds. Set false for reproducibility-strict or offline runs, in which case the missing entry hard-errors instead (the current behavior).

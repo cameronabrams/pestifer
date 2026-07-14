@@ -4,6 +4,9 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: **the bundled CHARMM force field is now a single release, `February2026` (again the default), and `July2024` is removed.** 3.7.2 had temporarily shipped only `July2024`; this consolidates on the newer `February2026` (CGenFF v5 superset) as the sole bundled release. **Action required if you pinned it:** a config with `charmmff.release: July2024` now hard-errors — remove the pin to use `February2026`. Unpinned builds move from the July-2024 back to the February-2026 force field. (If you have a stale local parsed-FF cache, run `pestifer cache rebuild`.)
+- build: **the bundled toppar tarball is trimmed to what pestifer actually loads.** New `scripts/trim_toppar.sh` strips an upstream `toppar_c36_<release>.tgz` down to the top-level topology/parameter/stream files plus the `stream/` subtree, dropping the subdirectories pestifer never reads (`metals/`, `drude/`, `non_charmm/`, `silicates/`, implicit-solvent sets, etc.). Verified to produce byte-identical build topology *and* identical residue/patch/collection counts — the dropped files were never indexed. Trims feb26's toppar from 14 MB to 5.3 MB (jul24 was 11→3.1 MB); with `July2024` also removed, the wheel/sdist drop from ~15 MB to ~12 MB.
+
 ## [3.7.2] - 2026-07-14
 
 - change: **the default CHARMM force-field release is now `July2024`, and `February2026` is no longer

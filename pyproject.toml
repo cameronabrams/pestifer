@@ -75,9 +75,6 @@ pestifer = "pestifer.util.pytest_plugin"
 [tool.hatch.build]
 exclude = [
   "pestifer/resources/_archive/**",
-  # feb26 CHARMM force field is kept in the repo but not shipped for now (default release is
-  # July2024, see schema/base.yaml); excluding it halves the bundled force-field payload.
-  "pestifer/resources/charmmff/feb26/**",
   "scratch/**",
   # The whole test tree carries large PSF/PDB fixtures (~175 MB uncompressed) that are
   # never needed to install pestifer; the wheel already omits them, and shipping them in
