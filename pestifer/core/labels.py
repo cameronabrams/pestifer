@@ -133,7 +133,12 @@ _atom_aliases = [
     "VCG C07 C7",
     "VCG C08 C8",
     "VCG C09 C9",
-    "TIP3 O OH2"
+    "TIP3 O OH2",
+    # Chloride: the "CL CLA" residue alias below builds the CHARMM CLA residue, whose
+    # single atom is named CLA, but RCSB PDBs name the atom CL.  Without this atom alias
+    # psfgen cannot match the coordinate and leaves the ion at the origin.  (Zinc needs no
+    # such alias: the ZN2 residue's atom is already named ZN, matching the PDB.)
+    "CLA CL CLA"
 ]
 _residue_aliases = [
     "HIS HSD",

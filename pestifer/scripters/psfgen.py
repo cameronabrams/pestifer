@@ -441,6 +441,17 @@ class PsfgenScripter(VMDScripter):
             self.write_graft_presegment(g)
         serial_list = segment.residues.atom_serials(as_type=int)
         resid_list = segment.residues.atom_resids(as_type=ResID)
+        # VMD's `atomselect "serial ..."` returns atoms in ascending serial (index) order
+        # regardless of the order the serials are listed, and `$sel set resid [list ...]`
+        # applies the list positionally in that same ascending-serial order.  For glycan
+        # segments the residues are stored in BFS (root-outward) order, not serial order,
+        # so an unsorted resid_list would be applied to the wrong atoms -- scrambling the
+        # coordinate resids relative to the BFS resids that the LINK patches reference, and
+        # thereby wiring intra-glycan bonds to the wrong residues.  Pair each atom's serial
+        # with its resid and sort by serial so the two stay aligned with VMD's atom order.
+        paired = sorted(zip(serial_list, resid_list), key=lambda sr: sr[0])
+        serial_list = [s for s, _ in paired]
+        resid_list = [r for _, r in paired]
         vmd_red_list = reduce_intlist(serial_list)
         pdb = f'segtype_generic_{image_seglabel}.pdb'
         selname = image_seglabel

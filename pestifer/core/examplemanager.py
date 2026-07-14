@@ -148,12 +148,17 @@ class ExampleManager:
             idtype = 'Alphafold'
         else:
             raise ValueError(f'Invalid id {db_id} for new example YAML; must be a 4-letter PDB ID or an Alphafold/UNIPROT ID starting with "P"')
-        example_yaml_path = self.scriptpath(self.examples[0])
-        with open(example_yaml_path, 'r') as f:
+        # Scaffold from a dedicated, structure-neutral template -- NOT an arbitrary
+        # example.  self.examples is populated in filesystem-iteration order, so
+        # self.examples[0] is nondeterministic and previously leaked whatever
+        # directives that example carried (e.g. subtilisin's "CA CAL" calcium
+        # aliases) into every generated config.
+        template_yaml_path = self.path.parent / 'templates' / 'new_system.yaml'
+        with open(template_yaml_path, 'r') as f:
             try:
                 example_config = yaml.safe_load(f)
             except yaml.YAMLError as e:
-                raise ValueError(f'Invalid YAML file {example_yaml_path}: {e}')
+                raise ValueError(f'Invalid YAML file {template_yaml_path}: {e}')
         example_config['title'] = title if title else f'New template pestifer config for id {db_id} ({idtype})'
         if build_type == 'minimal':
             fetch_task = example_config['tasks'][0]

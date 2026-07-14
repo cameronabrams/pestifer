@@ -30,7 +30,7 @@ dependencies = [
   "mmcif-pdbx>=1.1.2",
   "pdb2pqr>=3.6",       # pKa/protonation; its stale `docutils<0.18` pin is never
                         # used and is overridden in [tool.uv] below
-  "pidibble>=1.5.2",
+  "pidibble>=1.6.0",  # gets rid of malformed PDB warnings
   "platformdirs",
   "propka>=3.5",
   "requests",

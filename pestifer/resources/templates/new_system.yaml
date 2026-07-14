@@ -1,0 +1,50 @@
+# Generic system-build template used by the `pestifer new-system` subcommand.
+#
+# The subcommand fills in the title and the fetch sourceID, keeps only the fetch
+# and psfgen tasks for a "minimal" build, and (for a "full" build) sets the
+# terminate/package basenames.  Keep this template free of any structure-specific
+# directives (residue/atom aliases, validate tests, solvent choices, etc.) so that
+# generated configs do not inherit settings from an unrelated system.
+title: New pestifer system
+tasks:
+- fetch:
+    sourceID: XXXX
+    source_format: pdb
+- psfgen:
+    source:
+      biological_assembly: 1
+- md:
+    ensemble: minimize
+- solvate:
+- md:
+    ensemble: minimize
+- md:
+    ensemble: NVT
+    nsteps: 400
+- md:
+    ensemble: NPT
+    nsteps: 200
+- md:
+    ensemble: NPT
+    nsteps: 400
+- md:
+    ensemble: NPT
+    nsteps: 800
+- md:
+    ensemble: NPT
+    nsteps: 1600
+- md:
+    ensemble: NPT
+    nsteps: 13200
+- mdplot:
+    timeseries:
+    - density
+    basename: solvated
+    grid: True
+- terminate:
+    basename: my_system
+    artifacts: artifacts
+    package:
+      basename: prod_system
+      namd:
+        ensemble: NPT
