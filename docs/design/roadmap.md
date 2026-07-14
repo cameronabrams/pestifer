@@ -13,13 +13,16 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
 - [x] **Ship curated built-in solvent boxes.** MEOH, ETOH, and DMSO boxes (nmol=216,
       production NPT) are installed in the built-in `solvent` collection (`feb26`), so
       `solvate: {solvent: MEOH}` works without building a box first. (v3.2.0.)
-- [ ] **On-demand solvent boxes: pull in the solvent's own parameter file.** On-demand
-      generation (v3.5.0/v3.6.0) equilibrates a box with the *default* parameter set, so a CGenFF
-      solvent whose parameters live outside that set fails at the NPT step — e.g. acetonitrile
-      (`ACN`) dies with `UNABLE TO FIND DIHEDRAL PARAMETERS FOR HGA3 CG331 CG1N1 NG1T1`. Discover
-      and add the RESI's required parameter file(s) before equilibrating (the same way
-      `make_solvent_box` already appends the defining topology file), so params-incomplete
-      solvents build too. (Discovered building Example 24; acetone works, acetonitrile does not.)
+- [ ] **On-demand solvent boxes: robust parameter provisioning.** On-demand generation
+      (v3.5.0/v3.6.0) equilibrates a freshly-packed box under NPT, and some solvents die at the NPT step
+      with `UNABLE TO FIND ... PARAMETERS` — e.g. acetonitrile (`ACN`) fails on the
+      `HGA3 CG331 CG1N1 NG1T1` dihedral while acetone (`ACO`) builds. Investigation showed two distinct
+      causes: (A) a solvent whose parameters live in a non-default file (`rtf`+`prm` split or a stream
+      not in the default set) — `make_solvent_box` appends only the *defining topology* file, not the
+      parameter file(s); and (B) a genuine force-field gap — `ACN`'s methyl–nitrile torsion is absent
+      from the entire bundle (a physically-free linear-nitrile dihedral CGenFF omits but psfgen
+      autogenerates), which no file discovery fixes and which needs a policy decision. Full write-up and
+      plan in `docs/design/on-demand-solvent-parameters.md`. (Discovered building Example 24.)
 - [ ] **Solvent blends / mixtures.** `solvate` takes a single `solvent:` species today; add support
       for a **multi-component solvent** at a specified composition — e.g. a water/DMSO cosolvent mix
       or a ternary blend — for mixed-solvent / cosolvent-MD builds. Decisions to settle:
