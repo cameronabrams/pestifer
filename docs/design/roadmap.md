@@ -97,6 +97,15 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
 
 ## Tooling / packaging
 
+- [ ] **Offload all mmCIF parsing to pidibble.** mmCIF input is currently parsed with the
+      `mmcif`/`mmcif-pdbx` libraries (`DataContainer`/`getObj`, wrapped by `util/cifutil.CIFdict`),
+      while PDB input already goes through pidibble — so pestifer carries two structure parsers and
+      each object's `from_cif`/`from_pdb` paths diverge (`molecule/{bioassemb,asymmetricunit,atom,
+      residue}.py`, `objs/{ssbond,link,seqadv}.py`). Move CIF parsing onto pidibble too, unifying on
+      one parser and dropping the `mmcif` and `mmcif-pdbx` dependencies. (Enabled by the pidibble
+      `>=1.6.0` bump; verify pidibble covers the categories pestifer reads — `atom_site`,
+      `struct_conn`, `struct_conf`/`_ssbond`, `pdbx_struct_assembly*`/`_oper_list`, `entity_poly`,
+      `struct_ref_seq_dif` — before removing the old path.)
 - [x] **Ledger for `modify-package`.** Append-only record at
       `pestifer/resources/modifications.jsonl`; every mutating command records an entry
       (committed alongside the change). `ledger show` lists them; `ledger revert <id>`
