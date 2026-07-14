@@ -4,6 +4,19 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: **the default CHARMM force-field release is now `July2024`, and `February2026` is no longer
+  shipped** in the package (kept in the source tree, excluded from the build). This roughly halves the
+  bundled force-field payload. **Action required if you pinned it:** a config with
+  `charmmff.release: February2026` will now hard-error ("version directory not found") — remove the pin
+  to use `July2024`, or re-add the `feb26` files. Builds that never set `charmmff.release` silently
+  switch from the Feb-2026 force field to July-2024; pin `charmmff.release: July2024` to lock it.
+  (If you have a stale local parsed-FF cache, run `pestifer cache rebuild`.)
+- build: **`tests/` and `docs/` are excluded from the built package.** The source distribution had been
+  bundling the entire test tree — ~175 MB of large PSF/PDB fixtures — because the excludes only covered
+  a subset; none of it is needed to install pestifer (the wheel already omitted it). Together with
+  dropping `feb26`, the sdist shrinks from ~65 MB to ~15 MB (and the wheel likewise), keeping releases
+  well under PyPI limits and slowing growth of the project's total-size quota.
+
 ## [3.7.1] - 2026-07-14
 
 - new feature / change: the **`ANGLEIJK` rotation is re-homed as the `AXISANGLE` movetype of the `transrot` mod**. `ANGLEIJK` rotates a whole segment as a rigid body (about the axis normal to a three-atom angle), so it belongs with the rigid-body `transrot` operations rather than the internal-coordinate `irotations`. The new `transrot` `AXISANGLE` movetype takes `axis_atoms` (three atomselections `[selI, selJ, selK]`) + `angle` (+ optional `sel`), pivoting at `selJ` about `(rI-rJ)×(rJ-rK)`. `ANGLEIJK` remains accepted as an `irotations` entry for backward compatibility but is **deprecated** (it logs a warning pointing to `AXISANGLE`). The rotation geometry is now a single shared engine used by both paths.
