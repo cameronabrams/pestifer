@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.7.2] - 2026-07-14
+
 - change: **the default CHARMM force-field release is now `July2024`, and `February2026` is no longer
   shipped** in the package (kept in the source tree, excluded from the build). This roughly halves the
   bundled force-field payload. **Action required if you pinned it:** a config with
