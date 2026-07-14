@@ -32,6 +32,7 @@ Examples
    examples/23/subtilisin-dmso
    examples/24/subtilisin-acetone
    examples/25/hiv-env-cd4-17b-liganded
+   examples/26/subtilisin-acetonitrile
 
 BPTI Series (Examples 1–4)
 ---------------------------
