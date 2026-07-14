@@ -76,11 +76,11 @@ pestifer = "pestifer.util.pytest_plugin"
 exclude = [
   "pestifer/resources/_archive/**",
   "scratch/**",
-  "docs/build/**",
-  "tests/unit/test_tasks/fixtures/**",
-  "tests/unit/test_tasks/test_*/",
-  "tests/__*/",        # immediate subdirs like tests/__pycache__/
-  "tests/**/__*/",     # any nested __* directories under tests/
-  "tests/logs/",
+  # The whole test tree carries large PSF/PDB fixtures (~175 MB uncompressed) that are
+  # never needed to install pestifer; the wheel already omits them, and shipping them in
+  # the sdist bloated it to ~65 MB and ate into the PyPI project-size quota every release.
+  "tests/**",
+  # Docs (Sphinx source incl. example images) are built on ReadTheDocs, not needed to install.
+  "docs/**",
   ".github/**",
 ]
