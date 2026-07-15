@@ -8,7 +8,6 @@ import logging
 
 import numpy as np
 
-from mmcif.api.PdbxContainers import DataContainer
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from pydantic import Field
 from typing import ClassVar, TYPE_CHECKING
@@ -26,7 +25,7 @@ if TYPE_CHECKING:
 
 from ..psfutil.psfpatch import PSFLinkPatch
 
-from ..util.cifutil import CIFdict
+from ..util.util import symmetry_str
 
 logger = logging.getLogger(__name__)
 
@@ -184,59 +183,57 @@ class Link(BaseObj):
             return input_dict
         elif args and isinstance(args[0], PDBRecord):
             return Link._from_pdbrecord(args[0])
-        elif args and isinstance(args[0], CIFdict):
-            return Link._from_cifdict(args[0])
         elif args and isinstance(args[0], PSFLinkPatch):
             return Link._from_psflinkpatch(args[0])
         return super()._adapt(*args, **kwargs)
-    
-    @staticmethod
-    def _from_pdbrecord(pdbrecord: PDBRecord) -> dict:
-        return {
-            'name1': pdbrecord.name1,
-            'resname1': pdbrecord.residue1.resName,
-            'chainID1': pdbrecord.residue1.chainID,
-            'resid1': ResID(pdbrecord.residue1.seqNum, pdbrecord.residue1.iCode),
-            'name2': pdbrecord.name2,
-            'resname2': pdbrecord.residue2.resName,
-            'chainID2': pdbrecord.residue2.chainID,
-            'resid2': ResID(pdbrecord.residue2.seqNum, pdbrecord.residue2.iCode),
-            'altloc2': pdbrecord.altLoc2,
-            'altloc1': pdbrecord.altLoc1,
-            'sym1': pdbrecord.sym1,
-            'sym2': pdbrecord.sym2,
-            'link_distance': pdbrecord.length,
-            'segname1': pdbrecord.residue1.chainID,
-            'segname2': pdbrecord.residue2.chainID,
-            'empty': False
-        }
 
     @staticmethod
-    def _from_cifdict(cd: CIFdict) -> dict:
-        resseqnum1 = int(cd['ptnr1_label_seq_id']) if cd['ptnr1_label_seq_id'] != '.' else int(cd['ptnr1_auth_seq_id'])
-        resseqnum2 = int(cd['ptnr2_label_seq_id']) if cd['ptnr2_label_seq_id'] != '.' else int(cd['ptnr2_auth_seq_id'])
-        insertion1 = cd['pdbx_ptnr1_pdb_ins_code'] if cd['pdbx_ptnr1_pdb_ins_code'] != '.' else ''
-        insertion2 = cd['pdbx_ptnr2_pdb_ins_code'] if cd['pdbx_ptnr2_pdb_ins_code'] != '.' else ''
-        resid1 = ResID(resseqnum1, insertion1)
-        resid2 = ResID(resseqnum2, insertion2)
-        return {
-                'name1': cd['ptnr1_label_atom_id'],
-                'altloc1': cd['pdbx_ptnr1_label_alt_id'],
-                'resname1': cd['ptnr1_label_comp_id'],
-                'chainID1': cd['ptnr1_label_asym_id'],
-                'resid1': resid1,
-                'name2': cd['ptnr2_label_atom_id'],
-                'altloc2': cd['pdbx_ptnr2_label_alt_id'],
-                'resname2': cd['ptnr2_label_comp_id'],
-                'chainID2': cd['ptnr2_label_asym_id'],
-                'resid2': resid2,
-                'sym1': cd.get('ptnr1_symmetry', ''),
-                'sym2': cd.get('ptnr2_symmetry', ''),
-                'link_distance': float(cd.get('pdbx_dist_value', 0.0)),
-                'segname1': cd['ptnr1_label_asym_id'],
-                'segname2': cd['ptnr2_label_asym_id'],
+    def _from_pdbrecord(rec: PDBRecord) -> dict:
+        # pidibble mmCIF LINK records carry both a label (`residue*`) and an author
+        # (`residue*_auth`) identity; PDB records carry only `residue*`.
+        if hasattr(rec, 'residue1_auth'):
+            # mmCIF: label numbering primary; non-polymer partners have a blank label
+            # seq id, so fall back to the author number. Insertion code from *_auth.
+            r1, r2 = rec.residue1, rec.residue2
+            a1, a2 = rec.residue1_auth, rec.residue2_auth
+            seq1 = r1.seqNum if r1.seqNum not in ('', '.') else a1.seqNum
+            seq2 = r2.seqNum if r2.seqNum not in ('', '.') else a2.seqNum
+            return {
+                'name1': rec.name1,
+                'altloc1': rec.altLoc1,
+                'resname1': r1.resName,
+                'chainID1': str(r1.chainID),
+                'resid1': ResID(seq1, a1.iCode),
+                'name2': rec.name2,
+                'altloc2': rec.altLoc2,
+                'resname2': r2.resName,
+                'chainID2': str(r2.chainID),
+                'resid2': ResID(seq2, a2.iCode),
+                'sym1': symmetry_str(rec.sym1),
+                'sym2': symmetry_str(rec.sym2),
+                'link_distance': rec.length,
+                'segname1': str(r1.chainID),
+                'segname2': str(r2.chainID),
                 'empty': False
             }
+        return {
+            'name1': rec.name1,
+            'resname1': rec.residue1.resName,
+            'chainID1': rec.residue1.chainID,
+            'resid1': ResID(rec.residue1.seqNum, rec.residue1.iCode),
+            'name2': rec.name2,
+            'resname2': rec.residue2.resName,
+            'chainID2': rec.residue2.chainID,
+            'resid2': ResID(rec.residue2.seqNum, rec.residue2.iCode),
+            'altloc2': rec.altLoc2,
+            'altloc1': rec.altLoc1,
+            'sym1': rec.sym1,
+            'sym2': rec.sym2,
+            'link_distance': rec.length,
+            'segname1': rec.residue1.chainID,
+            'segname2': rec.residue2.chainID,
+            'empty': False
+        }
 
     @staticmethod
     def _from_psflinkpatch(L: PSFLinkPatch) -> dict:
@@ -474,31 +471,25 @@ class LinkList(BaseObjList[Link]):
         return cls([Link(x) for x in pdb[Link._PDB_keyword]])
 
     @classmethod
-    def from_cif(cls, dc: DataContainer) -> 'LinkList':
+    def from_cif(cls, parsed: PDBRecordDict) -> 'LinkList':
         """
-        Create a LinkList from a CIF DataContainer.
-        
+        Create a LinkList from mmCIF data.
+
+        pidibble filters mmCIF `struct_conn` by ``conn_type_id`` and folds covalent and
+        metal-coordination links into the LINK key (disulfides go to SSBOND), so this
+        delegates to :meth:`from_pdb`.
+
         Parameters
         ----------
-        dc : DataContainer
-            A CIF DataContainer containing the necessary fields to create Link objects.
-        
+        parsed : PDBRecordDict
+            The parsed mmCIF data.
+
         Returns
         -------
         LinkList
-            An instance of LinkList created from the CIF DataContainer.
+            An instance of LinkList created from the mmCIF data.
         """
-        L = []
-        cif_category = dc.getObj(Link._CIF_CategoryName)
-        if cif_category is None:
-            return cls(L)  # Return empty LinkList if category not found
-        for i in range(len(cif_category)):
-            for key, valset in Link._CIF_CategoryElementTypes.items():
-                objTypeid = cif_category.getValue(key, i)
-                if objTypeid in valset:
-                    this_link = Link(CIFdict(cif_category, i))
-                    L.append(this_link)
-        return cls(L)
+        return cls.from_pdb(parsed)
 
     def describe(self) -> str:
         """

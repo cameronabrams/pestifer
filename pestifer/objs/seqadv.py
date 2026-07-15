@@ -8,14 +8,12 @@ from __future__ import annotations
 
 import logging
 
-from mmcif.api.PdbxContainers import DataContainer
 from pydantic import Field
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from typing import ClassVar, TYPE_CHECKING
 
 from .resid import ResID
 from ..core.baseobj import BaseObj, BaseObjList
-from ..util.cifutil import CIFdict
 
 if TYPE_CHECKING:
     from ..molecule.residue import Residue, ResidueList
@@ -118,16 +116,36 @@ class Seqadv(BaseObj):
         if args and isinstance(args[0], PDBRecord):
             input_dict = Seqadv._from_pdbrecord(args[0])
             return input_dict
-        elif args and isinstance(args[0], CIFdict):
-            input_dict = Seqadv._from_cifdict(args[0])
-            return input_dict
         return super()._adapt(*args, **kwargs)
 
     @staticmethod
     def _from_pdbrecord(raw: PDBRecord) -> dict:
         """
         Converts a PDBRecord object to a dictionary of parameters for Seqadv.
+
+        pidibble mmCIF SEQADV records carry an author identity (`residue_auth`) plus
+        `database`/`dbAccession`/`dbSeq`/`conflict`; PDB records carry `residue`.
         """
+        if hasattr(raw, 'residue_auth'):
+            # mmCIF struct_ref_seq_dif: the 'strand id' is the author chain but the
+            # sequence number is the mmCIF (label) number; author numbering is primary
+            # here and residue assignment matches on chainID + pdbx_auth_seq_num.
+            auth = raw.residue_auth
+            return {
+                'idCode': raw.idCode,
+                'resname': auth.resName,
+                'chainID': str(auth.chainID),
+                'resid': ResID(auth.seqNum, auth.iCode),
+                'database': getattr(raw, 'database', None),
+                'dbAccession': getattr(raw, 'dbAccession', None),
+                'dbRes': getattr(raw, 'dbRes', None),
+                'dbSeq': None if getattr(raw, 'dbSeq', '') == '' else int(raw.dbSeq),
+                # pidibble uppercases `details`; the raw mmCIF value is lower-case and
+                # downstream typekey checks (e.g. 'engineered' in typekey) expect that.
+                'typekey': raw.conflict.lower(),
+                'pdbx_ordinal': getattr(raw, 'pdbx_ordinal', None),
+                'pdbx_auth_seq_num': int(auth.seqNum),
+            }
         if raw.conflict.lower() == 'deletion':
             return dict(
                 idCode = raw.idCode,
@@ -145,35 +163,6 @@ class Seqadv(BaseObj):
             dbRes = raw.dbRes,
             typekey = raw.conflict.lower() if raw.conflict.lower() in Seqadv._attr_choices['typekey'] else '_other_',
         )
-    
-    @staticmethod
-    def _from_cifdict(cd: CIFdict) -> dict:
-        """
-        Converts a CIFdict object to a dictionary of parameters for Seqadv.
-        
-        Parameters
-        ----------
-        cd : CIFdict
-            The CIFdict instance containing the attributes of the Seqadv object.
-        
-        Returns
-        -------
-        dict
-            A dictionary of parameters for Seqadv instantiation.
-        """
-        return {
-            'idCode': cd['pdbx_pdb_id_code'],
-            'resname': cd['mon_id'],
-            'chainID': cd['pdbx_pdb_strand_id'],
-            'resid': ResID(cd['pdbx_auth_seq_num'], cd.get('pdbx_auth_seq_ins_code', None)),
-            'database': cd.get('pdbx_seq_db_name', None),
-            'dbAccession': cd.get('pdbx_seq_db_accession_code', None),
-            'dbRes': cd.get('db_mon_id', None),
-            'dbSeq': None if cd['pdbx_seq_db_seq_num'] == '' else int(cd['pdbx_seq_db_seq_num']),
-            'typekey': cd.get('details', None),
-            'pdbx_ordinal': cd.get('pdbx_ordinal', None),
-            'pdbx_auth_seq_num': int(cd['pdbx_auth_seq_num'])
-        }
 
     def seqadv_details_keyword(self,text):
         """
@@ -278,24 +267,24 @@ class SeqadvList(BaseObjList[Seqadv]):
         return cls([Seqadv(x) for x in parsed[Seqadv._PDB_keyword]])
 
     @classmethod
-    def from_cif(cls, parsed: DataContainer) -> SeqadvList:
+    def from_cif(cls, parsed: PDBRecordDict) -> SeqadvList:
         """
-        Create a SeqadvList from a DataContainer (mmCIF format).
-        
+        Create a SeqadvList from mmCIF data.
+
+        pidibble maps mmCIF `struct_ref_seq_dif` onto SEQADV records (carrying the
+        author identity plus database fields), so this delegates to :meth:`from_pdb`.
+
         Parameters
         ----------
-        parsed : DataContainer
-            The parsed mmCIF data container.
-        
+        parsed : PDBRecordDict
+            The parsed mmCIF data.
+
         Returns
         -------
         SeqadvList
             A new SeqadvList instance containing Seqadv objects created from the mmCIF data.
         """
-        obj = parsed.getObj(Seqadv._CIF_CategoryName)
-        if obj is not None:
-            return cls([Seqadv(CIFdict(obj, i)) for i in range(len(obj))])
-        return cls([])
+        return cls.from_pdb(parsed)
 
     def assign_residues(self, Residues: 'ResidueList') -> SeqadvList:
         """

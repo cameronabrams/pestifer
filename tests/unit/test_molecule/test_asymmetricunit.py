@@ -6,9 +6,7 @@ from pestifer.molecule.chainidmanager import ChainIDManager
 from pestifer.molecule.asymmetricunit import AsymmetricUnit
 from pidibble.pdbparse import PDBParser
 from pidibble.pdbrecord import PDBRecordDict
-from pestifer.util.cifutil import CIFload
 from pestifer.objs.resid import ResID
-from mmcif.api.PdbxContainers import DataContainer
 from pathlib import Path
 import logging
 logger = logging.getLogger(__name__)
@@ -34,14 +32,11 @@ class TestAsymmetricUnit(unittest.TestCase):
         }
         for fmt, filepath in downloads.items():
             logger.debug(f'Testing asymmetric unit initialization from {fmt} file: {filepath}')
-            if fmt == 'PDB':
-                pstruct = PDBParser(filepath=filepath, input_format=fmt).parse().parsed
-                self.assertIsInstance(pstruct, PDBRecordDict)
-            elif fmt == 'mmCIF':
-                pstruct = CIFload(Path(filepath))
-                self.assertIsInstance(pstruct, DataContainer)
+            # pidibble parses both PDB and mmCIF into a PDBRecordDict
+            pstruct = PDBParser(filepath=filepath, input_format=fmt).parse().parsed
+            self.assertIsInstance(pstruct, PDBRecordDict)
             logger.debug(f'Parsed structure for {fmt} format: {type(pstruct)}')
-            AU = AsymmetricUnit(parsed=pstruct,chainIDmanager=ChainIDManager(format=fmt),objmanager=ObjManager())
+            AU = AsymmetricUnit(parsed=pstruct, chainIDmanager=ChainIDManager(format=fmt), objmanager=ObjManager(), source_format=fmt)
             self.assertIsInstance(AU, AsymmetricUnit)
             self.assertTrue(hasattr(AU, 'segments'))
             self.assertIsInstance(AU.segments, SegmentList)
@@ -88,15 +83,13 @@ class TestAsymmetricUnit(unittest.TestCase):
             'mmCIF': self.inputs_path / '6pti.cif',
         }
         for fmt, filepath in downloads.items():
-            if fmt == 'PDB':
-                pstruct = PDBParser(filepath=filepath, input_format=fmt).parse().parsed
-            else:
-                pstruct = CIFload(Path(filepath))
+            pstruct = PDBParser(filepath=filepath, input_format=fmt).parse().parsed
             AU = AsymmetricUnit(
                 parsed=pstruct,
                 chainIDmanager=ChainIDManager(format=fmt),
                 objmanager=ObjManager(),
                 sourcespecs={"exclude": ["resname == 'HOH'"]},
+                source_format=fmt,
             )
             segtypes = [s.segtype for s in AU.segments]
             self.assertNotIn('water', segtypes, f"{fmt}: water segment present after exclusion")

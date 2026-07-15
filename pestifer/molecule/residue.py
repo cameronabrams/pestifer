@@ -14,7 +14,6 @@ from typing import ClassVar, Callable
 
 from pidibble.baserecord import BaseRecord
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
-from mmcif.api.PdbxContainers import DataContainer
 
 from pestifer.util.stringthings import parse_filter_expression
 
@@ -30,7 +29,6 @@ from ..objs.patch import Patch
 from ..objs.seqadv import Seqadv, SeqadvList
 from ..objs.ssbond import SSBond
 from ..objs.substitution import SubstitutionList
-from ..util.cifutil import CIFdict
 from ..util.coord import positionN
 from .stateinterval import StateInterval, StateIntervalList
 
@@ -196,15 +194,33 @@ class ResiduePlaceholder(BaseObj):
         dict
             A dictionary containing the parameters for ResiduePlaceholder.
         """
-        if pdbrecord.modelNum is None:
-            pdbrecord.modelNum = 1
-        elif type(pdbrecord.modelNum) == str and pdbrecord.modelNum.isdigit():
-            pdbrecord.modelNum = int(pdbrecord.modelNum)
-        elif type(pdbrecord.modelNum) == str and len(pdbrecord.modelNum) == 0:
-            pdbrecord.modelNum = 1
-        input_dict = {
+        mn = pdbrecord.modelNum
+        if isinstance(mn, int):
+            model = mn
+        elif isinstance(mn, str) and mn.isdigit():
+            model = int(mn)
+        else:
+            model = 1
+        if hasattr(pdbrecord, 'auth_chainID'):
+            # pidibble mmCIF missing-residue record: label numbering is primary,
+            # author numbering stashed as metadata (mirrors the label-primary atom path).
+            return {
+                'model': model,
+                'resname': pdbrecord.resName,
+                'chainID': str(pdbrecord.chainID),
+                'asym_chainID': str(pdbrecord.chainID),
+                'resid': ResID(pdbrecord.seqNum),
+                'resolved': False,
+                'segtype': 'UNSET',
+                'segname': 'UNSET',
+                'auth_asym_id': str(pdbrecord.auth_chainID),
+                'auth_comp_id': pdbrecord.auth_resName,
+                'auth_seq_id': int(pdbrecord.auth_seqNum),
+                'pdb_ins_code': pdbrecord.iCode,
+            }
+        return {
             # pidbble/resources/pdb_format.yaml line 846 to 850
-            'model': pdbrecord.modelNum,
+            'model': model,
             'resname': pdbrecord.resName,
             'chainID': pdbrecord.chainID,
             'asym_chainID' : pdbrecord.chainID,
@@ -213,30 +229,6 @@ class ResiduePlaceholder(BaseObj):
             'segtype': 'UNSET',
             'segname': 'UNSET'
         }
-        return input_dict
-
-    @staticmethod
-    def _from_cifdict(cifdict: CIFdict) -> dict:
-        mn = cifdict['pdb_model_num']
-        if type(mn) == str and mn.isdigit():
-            nmn = int(mn)
-        else:
-            nmn = 1
-        input_dict = {
-            'model': nmn,
-            'resname': cifdict['label_comp_id'],
-            'chainID': cifdict['label_asym_id'],
-            'asym_chainID': cifdict['label_asym_id'],
-            'resid': ResID(int(cifdict['label_seq_id'])),
-            'resolved': False,
-            'segtype': 'UNSET',
-            'segname': 'UNSET',
-            'auth_asym_id': cifdict['auth_asym_id'],
-            'auth_comp_id': cifdict['auth_comp_id'],
-            'auth_seq_id': int(cifdict['auth_seq_id']),
-            'pdb_ins_code': cifdict['pdb_ins_code'],
-        }
-        return input_dict
 
     @classmethod
     def _adapt(cls, *args, **kwargs) -> dict:
@@ -244,8 +236,6 @@ class ResiduePlaceholder(BaseObj):
             return cls._from_shortcode(args[0])
         elif args and isinstance(args[0], PDBRecord | BaseRecord):
             return cls._from_pdbrecord(args[0])
-        elif args and isinstance(args[0], CIFdict):
-            return cls._from_cifdict(args[0])
         return super()._adapt(*args, **kwargs)
 
     def __str__(self):
@@ -296,24 +286,25 @@ class ResiduePlaceholderList(BaseObjList[ResiduePlaceholder]):
         return cls([ResiduePlaceholder(p) for p in parsed[ResiduePlaceholder._PDB_keyword].tables[ResiduePlaceholder._PDB_table_of_keyword]])
     
     @classmethod
-    def from_cif(cls, cif_data: DataContainer) -> "ResiduePlaceholderList":
+    def from_cif(cls, parsed: PDBRecordDict) -> "ResiduePlaceholderList":
         """
-        Create an ResiduePlaceholderList from CIF data.
-        
+        Create a ResiduePlaceholderList from mmCIF data.
+
+        pidibble maps mmCIF `pdbx_unobs_or_zero_occ_residues` onto REMARK.465 (carrying
+        both label and author identities), identical in shape to the PDB path, so this
+        delegates to :meth:`from_pdb`.
+
         Parameters
         ----------
-        cif_data : DataContainer
-            A DataContainer instance containing CIF data.
-        
+        parsed : PDBRecordDict
+            The parsed mmCIF data.
+
         Returns
         -------
         ResiduePlaceholderList
             A new instance of ResiduePlaceholderList containing the missing residues.
         """
-        obj = cif_data.getObj(ResiduePlaceholder._CIF_CategoryName)
-        if obj is None:
-            return cls([])
-        return cls([ResiduePlaceholder(CIFdict(obj, i)) for i in range(len(obj))])
+        return cls.from_pdb(parsed)
 
     def apply_inclusion_logics(self, inclusion_logics: list[str] = []):
         ignored_missing_residue_count = 0
@@ -450,13 +441,6 @@ class Residue(ResiduePlaceholder):
                           'recordname': 'UNSET'}
             return input_dict
         elif args and isinstance(args[0], PDBRecord | BaseRecord):
-            input_dict = ResiduePlaceholder._adapt(args[0])
-            input_dict['atoms'] = AtomList()
-            input_dict['resolved'] = False
-            input_dict['recordname'] = 'UNSET'
-            input_dict['segname'] = input_dict.get('chainID','UNSET')
-            return input_dict
-        elif args and isinstance(args[0], CIFdict):
             input_dict = ResiduePlaceholder._adapt(args[0])
             input_dict['atoms'] = AtomList()
             input_dict['resolved'] = False

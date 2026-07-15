@@ -7,9 +7,6 @@ from __future__ import annotations
 import logging
 import re
 
-import numpy as np
-
-from mmcif.api.PdbxContainers import DataContainer
 from pidibble.pdbrecord import PDBRecord, PDBRecordList, PDBRecordDict
 from typing import ClassVar, TYPE_CHECKING
 from collections import UserList
@@ -18,7 +15,7 @@ from .asymmetricunit import AsymmetricUnit
 from .chainidmanager import ChainIDManager
 if TYPE_CHECKING:
     from .molecule import Molecule
-from .transform import Transform, TransformList
+from .transform import Transform, TransformList  # noqa: F401  (Transform re-exported for callers)
 
 from ..util.stringthings import plu
 
@@ -133,11 +130,14 @@ class BioAssembList(UserList[BioAssemb]):
     def __init__(self, initial_data=None):
         """
         Initialize a BioAssembList instance.
-        
+
         Parameters
         ----------
-        initial_data : list[BioAssemb] | None, optional
-            Initial data for the BioAssembList. If None, an empty list is created.
+        initial_data : list[BioAssemb] | PDBRecordDict | None, optional
+            Initial data for the BioAssembList. If None, an empty list is created. A
+            PDBRecordDict (from either PDB or mmCIF input — pidibble normalizes mmCIF
+            biological assemblies onto the same REMARK.350 records) is parsed via
+            :meth:`from_pdb_record_dict`.
         """
         if isinstance(initial_data, BioAssemb):
             initial_data = [initial_data]
@@ -145,8 +145,6 @@ class BioAssembList(UserList[BioAssemb]):
             initial_data = []
         elif isinstance(initial_data, PDBRecordDict):
             initial_data = BioAssembList.from_pdb_record_dict(initial_data)
-        elif isinstance(initial_data, DataContainer):
-            initial_data = BioAssembList.from_data_container(initial_data)
         super().__init__(initial_data or [])
         self.parent_molecule = None
 
@@ -225,56 +223,3 @@ class BioAssembList(UserList[BioAssemb]):
         logger.debug(f'There {plu(len(B), "is", "are")} {len(B)} biological assembl{plu(len(B), "y", "ies")}')
         return B
 
-    @staticmethod
-    def from_data_container(dc: DataContainer):
-        """
-        Initialize a BioAssembList from a DataContainer.
-        
-        Parameters
-        ----------
-        dc : DataContainer
-            A DataContainer containing the data for biological assemblies.
-
-        Returns
-        -------
-        BioAssembList
-            An instance of BioAssembList initialized with the provided DataContainer.
-        """
-        B = []
-        Assemblies = dc.getObj('pdbx_struct_assembly')
-        gen = dc.getObj('pdbx_struct_assembly_gen')
-        oper = dc.getObj('pdbx_struct_oper_list')
-        for ba_idx in range(len(Assemblies)):
-            logger.debug(f'CIF: Establishing BA {ba_idx}')
-            assemb_id = Assemblies.getValue('id', ba_idx)
-            this_gen_idx_list = gen.selectIndices(assemb_id, 'assembly_id')
-            logger.debug(f'BA {ba_idx} points to {len(this_gen_idx_list)} gen indexes')
-            transforms = TransformList()
-            for this_gen_idx in this_gen_idx_list:
-                this_oper_list = gen.getValue('oper_expression', this_gen_idx).split(',')
-                logger.debug(f'BA {ba_idx} gen {this_gen_idx} opers {this_oper_list}')
-                this_asyms = gen.getValue('asym_id_list', this_gen_idx).split(',')
-                logger.debug(f'asym ids: {this_asyms}')
-                idx = 0
-                # logger.debug(f'Expecting {len(this_opers)} transforms')
-                for k, opere in enumerate(this_oper_list):
-                    oper_idx = oper.selectIndices(opere, 'id')[0]
-                    logger.debug(f'making transform from oper {oper_idx}')
-                    m = np.identity(3)
-                    v = np.zeros(3)
-                    for i in range(3):
-                        I = i + 1
-                        vlabel = f'vector[{I}]'
-                        v[i] = float(oper.getValue(vlabel, oper_idx))
-                        for j in range(3):
-                            J = j + 1
-                            mlabel = f'matrix[{I}][{J}]'
-                            m[i][j] = float(oper.getValue(mlabel, oper_idx))
-                    T = Transform(m, v, this_asyms, idx)
-                    transforms.append(T)
-                    idx += 1
-            logger.debug(f'parsed {len(transforms)} transforms for assemb_id {assemb_id}')
-            BA = BioAssemb(transforms, index=assemb_id)
-            B.append(BA)
-        logger.debug(f'There {plu(len(B), "is", "are")} {len(B)} biological assembl{plu(len(B), "y", "ies")}')
-        return B

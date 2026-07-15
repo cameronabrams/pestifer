@@ -3,7 +3,6 @@ import unittest
 from pestifer.molecule.atom import Atom, AtomList, Hetatm
 from pidibble.pdbparse import PDBParser
 from pidibble.pdbrecord import PDBRecordDict
-from pestifer.util.cifutil import CIFdict, CIFload
 from pestifer.psfutil.psfatom import PSFAtom, PSFAtomList
 from pathlib import Path
 from pestifer.objs.resid import ResID
@@ -103,12 +102,15 @@ class TestAtom(unittest.TestCase):
         self.assertEqual(atom.elem, atom_record.element)
         self.assertEqual(atom.charge, atom_record.charge)
 
-    def test_atom_from_cifdict(self):
-        p=CIFload(Path(self.inputs_dir / '4zmj.cif'))
-        obj=p.getObj(Atom._CIF_CategoryName)
-        d=CIFdict(obj, 0)
-        atom = Atom(d)
-        self.assertEqual(atom.serial, int(d['id']))
+    def test_atom_from_cif_record(self):
+        # pidibble normalizes mmCIF atom_site into ATOM/HETATM records carrying both a
+        # label (`residue`) and an author (`residue_auth`) identity.
+        p = PDBParser(filepath=str(self.inputs_dir / '4zmj.cif'), input_format='mmCIF').parse().parsed
+        rec = p['ATOM'][0]
+        atom = Atom(rec)
+        self.assertEqual(atom.serial, rec.serial)
+        self.assertEqual(atom.chainID, rec.residue.chainID)          # label-primary
+        self.assertEqual(atom.auth_asym_id, rec.residue_auth.chainID)  # author stash
 
     def test_atom_pdb_line(self):
         atom = Atom(
@@ -310,7 +312,7 @@ class TestAtomList(unittest.TestCase):
         self.assertEqual(atom_list[0].z, 57.967)
 
     def test_atom_list_from_cif(self):
-        p = CIFload(Path(self.inputs_dir / '4zmj.cif'))
+        p = PDBParser(filepath=str(self.inputs_dir / '4zmj.cif'), input_format='mmCIF').parse().parsed
         atom_list = AtomList.from_cif(p)
         self.assertEqual(len(atom_list), 4856)
         self.assertIsInstance(atom_list[0], Atom)

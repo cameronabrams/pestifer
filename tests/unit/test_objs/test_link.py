@@ -3,7 +3,6 @@
 import logging
 import unittest
 
-from mmcif.api.PdbxContainers import DataContainer
 
 from pathlib import Path
 
@@ -15,7 +14,6 @@ from pestifer.molecule.residue import Residue, ResidueList
 from pestifer.objs.link import Link, LinkList
 from pestifer.objs.resid import ResID
 from pestifer.psfutil.psfpatch import PSFLinkPatch
-from pestifer.util.cifutil import CIFload
 
 logger = logging.getLogger(__name__)
 
@@ -77,9 +75,9 @@ class TestLinkList(unittest.TestCase):
         self.assertGreater(len(L), 0)
 
     def test_link_list_from_cif(self):
-        cif_data = CIFload(self.inputs_path / '4zmj.cif')
-        self.assertIsInstance(cif_data, DataContainer)
-        L = LinkList.from_cif(cif_data)
+        parsed = PDBParser(filepath=str(self.inputs_path / '4zmj.cif'), input_format='mmCIF').parse().parsed
+        self.assertIsInstance(parsed, PDBRecordDict)
+        L = LinkList.from_cif(parsed)
         self.assertIsInstance(L, LinkList)
         self.assertGreater(len(L), 0)
             

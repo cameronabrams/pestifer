@@ -7,7 +7,6 @@ from __future__ import annotations
 import logging
 
 from functools import singledispatchmethod
-from mmcif.api.PdbxContainers import DataContainer
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from pydantic import Field
 from typing import ClassVar
@@ -18,7 +17,6 @@ from ..core.baseobj import BaseObj, BaseObjList
 from ..objs.resid import ResID
 from ..objs.ter import TerList
 from ..psfutil.psfatom import PSFAtomList
-from ..util.cifutil import CIFdict
 from ..util.util import reduce_intlist
 
 logger = logging.getLogger(__name__)
@@ -141,61 +139,57 @@ class Atom(BaseObj):
         Adapts the input to a dictionary format suitable for Atom instantiation.
         """
         if args and isinstance(args[0], PDBRecord):
-            resname = args[0].residue.resName
-            occ = args[0].occupancy
-            beta = args[0].tempFactor
+            rec = args[0]
+            # pidibble mmCIF records carry both a label (`residue`) and an author
+            # (`residue_auth`) identity; PDB records carry only `residue` (author).
+            is_cif = hasattr(rec, 'residue_auth')
+            resname = rec.residue.resName
+            occ = rec.occupancy
+            beta = rec.tempFactor
             if resname == 'DUM':
                 occ = 0.0
                 beta = 0.0
-            return {
-                "serial": args[0].serial,
-                "name": args[0].name,
+            input_dict = {
+                "serial": rec.serial,
+                "name": rec.name,
                 "resname": resname,
-                "chainID": args[0].residue.chainID,
-                "resid": ResID(resseqnum=args[0].residue.seqNum, insertion=args[0].residue.iCode),
-                "x": args[0].x,
-                "y": args[0].y,
-                "z": args[0].z,
+                "chainID": rec.residue.chainID,
+                "x": rec.x,
+                "y": rec.y,
+                "z": rec.z,
                 "occ": occ,
                 "beta": beta,
-                "elem": args[0].element,
-                "charge": args[0].charge,
-                "altloc": args[0].altLoc,
+                "elem": rec.element,
+                # pidibble rectifies mmCIF pdbx_formal_charge to an int for charged
+                # atoms; Atom.charge is a string (identity for the already-string PDB value).
+                "charge": str(rec.charge),
+                "altloc": rec.altLoc,
                 "recordname": 'ATOM',
-                "segname": args[0].residue.chainID,
-                "empty": False
+                "segname": rec.residue.chainID,
+                "empty": False,
             }
-        elif args and isinstance(args[0], CIFdict):
-            cifdict = args[0]
-            input_dict = dict(
-                serial=int(cifdict['id']),
-                name=cifdict['label_atom_id'],
-                resname=cifdict['label_comp_id'],
-                chainID=cifdict['label_asym_id'],
-                x=float(cifdict['cartn_x']),
-                y=float(cifdict['cartn_y']),
-                z=float(cifdict['cartn_z']),
-                occ=float(cifdict['occupancy']),
-                beta=float(cifdict['b_iso_or_equiv']),
-                elem=cifdict['type_symbol'],
-                charge=cifdict.get('pdbx_formal_charge', '0.0'),
-                altloc=cifdict.get('label_alt_id', ' '),
-                recordname='ATOM',
-                segname=cifdict.get('label_asym_id', None),
-                empty=False,
-                auth_seq_id=cifdict['auth_seq_id'],
-                auth_comp_id=cifdict['auth_comp_id'],
-                auth_asym_id=cifdict['auth_asym_id'],
-                auth_atom_id=cifdict.get('auth_atom_id', None),
-                pdbx_pdb_ins_code=cifdict.get('pdbx_pdb_ins_code', None)
-            )
-            apparent_resseqnum = cifdict.get('label_seq_id', None)
-            if apparent_resseqnum == '.':
-                apparent_resseqnum = cifdict['auth_seq_id']
-                # logger.debug(f'Apparent resseqnum: {apparent_resseqnum}')
-                # input_dict['chainID'] = input_dict['auth_asym_id']
-            resid = ResID(resseqnum=apparent_resseqnum, insertion=input_dict['pdbx_pdb_ins_code'])
-            input_dict['resid'] = resid
+            if is_cif:
+                # mmCIF: label numbering is primary (chainID/resid), author numbering
+                # is stashed as metadata (used later to map back to author chains and
+                # to emit the cif_residue_map). pidibble rectifies purely-numeric chain
+                # ids (e.g. '0') to ints, so coerce the chain-id fields back to strings.
+                auth = rec.residue_auth
+                input_dict['chainID'] = str(rec.residue.chainID)
+                input_dict['segname'] = str(rec.residue.chainID)
+                input_dict.update(
+                    auth_seq_id=auth.seqNum,
+                    auth_comp_id=auth.resName,
+                    auth_asym_id=str(auth.chainID),
+                    auth_atom_id=getattr(rec, 'auth_atom_id', None),
+                    pdbx_pdb_ins_code=auth.iCode,
+                )
+                # non-polymer atoms have a blank label_seq_id; fall back to author number
+                apparent_resseqnum = rec.residue.seqNum
+                if apparent_resseqnum in ('', '.'):
+                    apparent_resseqnum = auth.seqNum
+                input_dict['resid'] = ResID(resseqnum=apparent_resseqnum, insertion=auth.iCode)
+            else:
+                input_dict['resid'] = ResID(resseqnum=rec.residue.seqNum, insertion=rec.residue.iCode)
             return input_dict
         return super()._adapt(*args, **kwargs)
 
@@ -341,24 +335,33 @@ class AtomList(BaseObjList[Atom]):
         )
 
     @classmethod
-    def from_cif(cls, parsed: DataContainer) -> "AtomList":
+    def from_cif(cls, parsed: PDBRecordDict) -> "AtomList":
         """
-        Create an AtomList from a DataContainer (mmCIF format).
+        Create an AtomList from a PDBRecordDict parsed from mmCIF.
+
+        pidibble normalizes mmCIF `atom_site` into the same ATOM/HETATM records as PDB
+        input (carrying both label and author residue identities), so this mirrors
+        :meth:`from_pdb`. Rows are sorted by serial to recover atom_site file order,
+        matching the previous mmcif-backed behavior.
 
         Parameters
         ----------
-        parsed : DataContainer
-            The parsed mmCIF data container.
+        parsed : PDBRecordDict
+            The parsed mmCIF data.
 
         Returns
         -------
         AtomList
             A new AtomList instance containing Atom objects created from the mmCIF data.
         """
-        obj = parsed.getObj(Atom._CIF_CategoryName)
-        if obj is None:
-            return cls([])
-        return cls([Atom(CIFdict(obj, i)) for i in range(len(obj))])
+        atoms = cls(
+            [Atom(x) for x in parsed.get(Atom._PDB_keyword, [])] +
+            [Hetatm(x) for x in parsed.get(Hetatm._PDB_keyword, [])]
+        )
+        if len(atoms) == 0:
+            return atoms
+        atoms.sort(by=['serial'])
+        return atoms
 
     def reserialize(self) -> AtomList:
         """

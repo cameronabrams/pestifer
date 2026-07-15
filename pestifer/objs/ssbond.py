@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 
-from mmcif.api.PdbxContainers import DataContainer
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from pydantic import Field
 from typing import ClassVar, TYPE_CHECKING
@@ -17,7 +16,7 @@ from .mutation import MutationList
 from .resid import ResID
 from ..core.baseobj import BaseObj, BaseObjList
 from ..psfutil.psfpatch import PSFDISUPatch
-from ..util.cifutil import CIFdict
+from ..util.util import symmetry_str
 
 if TYPE_CHECKING:
     from ..molecule.residue import Residue, ResidueList
@@ -118,32 +117,34 @@ class SSBond(BaseObj):
             resid2 = ResID(s2.split('_')[1])
             return dict(chainID1=s1.split('_')[0], resid1=resid1, chainID2=s2.split('_')[0], resid2=resid2)
         elif args and isinstance(args[0], PDBRecord):
-            pdbrecord = args[0]
+            rec = args[0]
+            # pidibble mmCIF SSBOND records carry both a label (`residue*`) and an
+            # author (`residue*_auth`) identity; PDB records carry only `residue*`.
+            if hasattr(rec, 'residue1_auth'):
+                # mmCIF: label numbering primary; author insertion code from *_auth.
+                return dict(
+                    chainID1 = str(rec.residue1.chainID),
+                    resid1 = ResID(rec.residue1.seqNum, rec.residue1_auth.iCode),
+                    chainID2 = str(rec.residue2.chainID),
+                    resid2 = ResID(rec.residue2.seqNum, rec.residue2_auth.iCode),
+                    serial_number = int(str(rec.serNum).strip('disulf')),
+                    resname1 = 'CYS',
+                    resname2 = 'CYS',
+                    sym1 = symmetry_str(rec.sym1),
+                    sym2 = symmetry_str(rec.sym2),
+                    length = rec.length
+                )
             return dict(
-                chainID1 = pdbrecord.residue1.chainID,
-                resid1 = ResID(pdbrecord.residue1.seqNum, pdbrecord.residue1.iCode),
-                chainID2 = pdbrecord.residue2.chainID,
-                resid2 = ResID(pdbrecord.residue2.seqNum, pdbrecord.residue2.iCode),
-                serial_number = pdbrecord.serNum,
+                chainID1 = rec.residue1.chainID,
+                resid1 = ResID(rec.residue1.seqNum, rec.residue1.iCode),
+                chainID2 = rec.residue2.chainID,
+                resid2 = ResID(rec.residue2.seqNum, rec.residue2.iCode),
+                serial_number = rec.serNum,
                 resname1 = 'CYS',
                 resname2 = 'CYS',
-                sym1 = pdbrecord.sym1,
-                sym2 = pdbrecord.sym2,
-                length = pdbrecord.length
-            )
-        elif args and isinstance(args[0], CIFdict):
-            cd = args[0]
-            return dict(
-                chainID1 = cd['ptnr1_label_asym_id'],
-                resid1 = ResID(cd['ptnr1_label_seq_id'], cd['pdbx_ptnr1_pdb_ins_code']),
-                chainID2 = cd['ptnr2_label_asym_id'],
-                resid2 = ResID(cd['ptnr2_label_seq_id'], cd['pdbx_ptnr2_pdb_ins_code']),
-                serial_number = int(cd['id'].strip('disulf')),
-                resname1 = 'CYS',
-                resname2 = 'CYS',
-                sym1 = cd['ptnr1_symmetry'],
-                sym2 = cd['ptnr2_symmetry'],
-                length = float(cd['pdbx_dist_value'])
+                sym1 = rec.sym1,
+                sym2 = rec.sym2,
+                length = rec.length
             )
         elif args and isinstance(args[0], PSFDISUPatch):
             dp = args[0]
@@ -223,31 +224,25 @@ class SSBondList(BaseObjList[SSBond]):
         return cls([SSBond(x) for x in pdb[SSBond._PDB_keyword]])
 
     @classmethod
-    def from_cif(cls, dc: DataContainer) -> SSBondList:
+    def from_cif(cls, parsed: PDBRecordDict) -> SSBondList:
         """
-        Create a SSBondList from a CIF DataContainer.
+        Create a SSBondList from mmCIF data.
+
+        pidibble filters mmCIF `struct_conn` by ``conn_type_id`` and emits disulfides
+        under the SSBOND key (covalent/metal links go to LINK), so this delegates to
+        :meth:`from_pdb`.
 
         Parameters
         ----------
-        dc : DataContainer
-            A CIF DataContainer containing the necessary fields to create SSBond objects.
+        parsed : PDBRecordDict
+            The parsed mmCIF data.
 
         Returns
         -------
         SSBondList
-            An instance of SSBondList created from the CIF DataContainer.
+            An instance of SSBondList created from the mmCIF data.
         """
-        L = []
-        cif_category = dc.getObj(SSBond._CIF_CategoryName)
-        if cif_category is None:
-            return cls([])
-        for i in range(len(cif_category)):
-            for key, valset in SSBond._CIF_CategoryElementTypes.items():
-                objTypeid = cif_category.getValue(key, i)
-                if objTypeid in valset:
-                    this_link = SSBond(CIFdict(cif_category, i))
-                    L.append(this_link)
-        return cls(L)
+        return cls.from_pdb(parsed)
 
     def assign_residues(self, Residues: 'ResidueList'):
         """

@@ -23,14 +23,12 @@ dependencies = [
   "fsspec",
   "joblib",
   "matplotlib",
-  "mmcif",
   "networkx",
   "numpy>=1.24",
   "pandas",
-  "mmcif-pdbx>=1.1.2",
   "pdb2pqr>=3.6",       # pKa/protonation; its stale `docutils<0.18` pin is never
                         # used and is overridden in [tool.uv] below
-  "pidibble>=1.6.0",  # gets rid of malformed PDB warnings
+  "pidibble>=1.7.1",  # PDB + mmCIF parsing (mmCIF normalized into the PDB-record namespace; needs header_label on REMARK.350)
   "platformdirs",
   "propka>=3.5",
   "requests",

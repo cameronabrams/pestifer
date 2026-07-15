@@ -7,7 +7,6 @@ from __future__ import annotations
 import logging
 
 from argparse import Namespace
-from mmcif.api.PdbxContainers import DataContainer
 from pathlib import Path
 from pidibble.pdbrecord import PDBRecordDict
 from typing import ClassVar, TYPE_CHECKING
@@ -43,8 +42,10 @@ class AsymmetricUnit:
 
     Parameters
     ----------
-    parsed : PDBRecordDict or DataContainer
-        The parsed PDB or mmCIF data.  A PDBRecordDict is returned by `pidibble.pdbparse.PDBParser(spec).parse().parsed`, and a DataContainer is returned by `~pestifer.util.cifutil.CIFload(filepath)`.
+    parsed : PDBRecordDict
+        The parsed PDB or mmCIF data, as returned by `pidibble.pdbparse.PDBParser(spec, input_format=...).parse().parsed`. mmCIF records additionally carry an author identity (`residue_auth`).
+    source_format : str, optional
+        Input format ('PDB' or 'mmCIF'). Required to select the mmCIF branch, since both formats parse to a PDBRecordDict.
     sourcespecs : dict, optional
         Specifications for the source of the data, including exclusions and sequence specifications.
     objmanager : ObjManager, optional
@@ -74,11 +75,12 @@ class AsymmetricUnit:
         return self.describe()
 
     def __init__(self,
-                 parsed: PDBRecordDict | DataContainer = None,
+                 parsed: PDBRecordDict = None,
                  sourcespecs: dict = {},
                  objmanager: ObjManager = ObjManager(),
                  chainIDmanager: ChainIDManager = ChainIDManager(),
-                 psf: str | Path = None):
+                 psf: str | Path = None,
+                 source_format: str = None):
 
         self.parent_molecule: Molecule = None
 
@@ -109,7 +111,23 @@ class AsymmetricUnit:
             # return an empty unconstructed asymmetric unit
             return
 
-        if isinstance(parsed, PDBRecordDict): # PDB format
+        # Decide the input format. Both PDB and mmCIF are now parsed by pidibble into a
+        # PDBRecordDict (mmCIF records additionally carry an author identity), so the two
+        # cannot be told apart by type. The PDB and mmCIF branches differ in atom
+        # handling (TER records, reserialization, link de-duplication), so an explicit
+        # source_format selects the branch; without one we default to the PDB branch.
+        if source_format is not None:
+            is_pdb = source_format in ('PDB', 'pdb')
+            is_cif = source_format in ('mmCIF', 'cif', 'CIF')
+            if not (is_pdb or is_cif):
+                raise ValueError(f'Unrecognized source_format {source_format!r}; expected PDB or mmCIF')
+        else:
+            is_pdb = isinstance(parsed, PDBRecordDict)
+            is_cif = False
+            if not is_pdb:
+                raise TypeError(f'Cannot construct Asymmetric Unit from data of type {type(parsed)}; expected PDBRecordDict')
+
+        if is_pdb: # PDB format
             # minimal parsed has ATOMS
             model_id = sourcespecs.get('model', None)
             atoms = AtomList.from_pdb(parsed, model_id=model_id)
@@ -128,14 +146,12 @@ class AsymmetricUnit:
             logger.debug(f'Parsed {len(atoms)} atoms, {len(missings)} missing residues, {len(ssbonds)} ssbonds, {len(seqadvs)} seqadvs, {len(ters)} ters')
             links = LinkList.from_pdb(parsed)
             links.remove_duplicates(fields=['chainID1', 'resid1', 'chainID2', 'resid2']) # some pdb files list links multiple times (2ins, i'm looking at you)
-        elif isinstance(parsed, DataContainer): # mmCIF format
+        elif is_cif: # mmCIF format
             atoms = AtomList.from_cif(parsed)
             seqadvs = SeqadvList.from_cif(parsed)
             missings = ResiduePlaceholderList.from_cif(parsed)
             ssbonds = SSBondList.from_cif(parsed)
             links = LinkList.from_cif(parsed)
-        else:
-            raise TypeError(f'Cannot construct Asymmetric Unit from data of type {type(parsed)}; expected PDBRecordDict or DataContainer')
 
         uniq_attr = atoms.uniqattrs(['chainID'])
         logger.debug(f'ChainIDs in structure: {uniq_attr["chainID"]}')

@@ -452,3 +452,61 @@ def remove_argument(parser: ArgumentParser, name_or_flag: str):
     # If it was optional, also clear option string mappings
     for opt in getattr(target_action, "option_strings", []):
         parser._option_string_actions.pop(opt, None)
+
+def symmetry_str(value) -> str:
+    """
+    Normalize a crystallographic symmetry operator to the PDB string form.
+
+    pidibble's mmCIF parser rectifies symmetry operators (e.g. ``1_555``) to a
+    numeric value (``1555.0``); its PDB parser yields the string ``'1555'``. This
+    coerces either representation to the PDB string form so SSBOND/LINK symmetry
+    values are consistent regardless of input format.
+    """
+    if isinstance(value, float):
+        return str(int(value))
+    if isinstance(value, int):
+        return str(value)
+    return '' if value is None else str(value)
+
+
+def strip_cif_category(filepath, category='pdbx_audit_revision_item'):
+    """
+    Remove an mmCIF category from a .cif file, in place, with a dependency-free text
+    edit (no mmcif/pdbx library needed).
+
+    VMD's pdbx plugin mis-parses some RCSB mmCIF files that carry a
+    ``pdbx_audit_revision_item`` loop — it reports "coordinate fields not found" and
+    reads only the audit rows as atoms. pestifer therefore strips that category before
+    handing the .cif to VMD. Handles both the ``loop_`` and single-row category forms.
+    """
+    from pathlib import Path
+    prefix = f'_{category}.'
+    src = Path(filepath).read_text().splitlines(keepends=True)
+    out = []
+    i, n = 0, len(src)
+    while i < n:
+        stripped = src[i].strip()
+        if stripped == 'loop_':
+            # collect the loop header lines that immediately follow
+            j = i + 1
+            while j < n and src[j].lstrip().startswith('_'):
+                j += 1
+            headers = [src[h].strip() for h in range(i + 1, j)]
+            if headers and all(h.startswith(prefix) for h in headers):
+                # drop `loop_`, its headers, and the data rows up to the next block
+                # terminator (`#`, another `loop_`, a `data_` block, or a new category)
+                k = j
+                while k < n:
+                    s = src[k].strip()
+                    if s == '#' or s == 'loop_' or s.startswith('data_') or s.startswith('_'):
+                        break
+                    k += 1
+                i = k
+                continue
+        elif stripped.startswith(prefix):
+            # single-row form: `_category.attr  value`
+            i += 1
+            continue
+        out.append(src[i])
+        i += 1
+    Path(filepath).write_text(''.join(out))

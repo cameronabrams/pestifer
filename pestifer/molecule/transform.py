@@ -50,7 +50,17 @@ class Transform(BaseObj):
             ba_record = args[0]
             RotMat, TransVec = get_symm_ops(ba_record)
             tmat = build_tmat(RotMat, TransVec)
-            applies_chainIDs = ba_record.header if hasattr(ba_record, 'header') else []
+            # mmCIF assemblies: prefer the raw label asym_id_list (`header_label`), which
+            # matches pestifer's label-primary chain identity. pidibble's `header` is the
+            # author-mapped list (correct for PDB, which has no label chains), but it
+            # collapses the many label chains onto fewer author chains and would leave
+            # non-protein label chains (waters/ions/glycans) unremapped in assembly copies.
+            if hasattr(ba_record, 'header_label'):
+                applies_chainIDs = ba_record.header_label
+            elif hasattr(ba_record, 'header'):
+                applies_chainIDs = ba_record.header
+            else:
+                applies_chainIDs = []
             input_dict = dict(index=Transform._count, 
                               tmat=tmat, 
                               applies_chainIDs=applies_chainIDs)

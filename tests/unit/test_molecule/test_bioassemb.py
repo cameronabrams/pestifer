@@ -2,7 +2,6 @@
 import unittest
 from pestifer.molecule.molecule import Molecule
 from pestifer.molecule.bioassemb import BioAssemb, Transform, TransformList, BioAssembList
-from mmcif.api.PdbxContainers import DataContainer
 from pestifer.molecule.asymmetricunit import AsymmetricUnit
 import numpy as np
 

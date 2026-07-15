@@ -2,7 +2,6 @@
 
 import unittest
 
-from mmcif.api.PdbxContainers import DataContainer
 from pathlib import Path
 
 from pidibble.pdbparse import PDBParser
@@ -12,7 +11,6 @@ from pestifer.molecule.atom import AtomList
 from pestifer.molecule.residue import Residue, ResidueList
 from pestifer.objs.resid import ResID
 from pestifer.objs.seqadv import Seqadv, SeqadvList
-from pestifer.util.cifutil import CIFdict, CIFload
 
 class TestSeqadv(unittest.TestCase):
 
@@ -36,11 +34,10 @@ class TestSeqadv(unittest.TestCase):
         seqadv = Seqadv(pr)
         self.assertIsInstance(seqadv, Seqadv)
 
-    def test_seqadv_from_cifdict(self):
-        p=CIFload(self.inputs_dir / '4zmj.cif')
-        obj=p.getObj(Seqadv._CIF_CategoryName)
-        d=CIFdict(obj, 0)
-        seqadv = Seqadv(d)
+    def test_seqadv_from_cif_record(self):
+        # pidibble maps mmCIF struct_ref_seq_dif onto SEQADV records (author identity).
+        p = PDBParser(filepath=str(self.inputs_dir / '4zmj.cif'), input_format='mmCIF').parse().parsed
+        seqadv = Seqadv(p['SEQADV'][0])
         self.assertIsInstance(seqadv, Seqadv)
 
 class TestSeqadvList(unittest.TestCase):
@@ -64,9 +61,9 @@ class TestSeqadvList(unittest.TestCase):
         self.assertGreater(len(seqadv_list), 0)
 
     def test_seqadv_list_from_cif(self):
-        cif_data = CIFload(self.inputs_dir / '4zmj.cif')
-        self.assertIsInstance(cif_data, DataContainer)
-        seqadv_list = SeqadvList.from_cif(cif_data)
+        parsed = PDBParser(filepath=str(self.inputs_dir / '4zmj.cif'), input_format='mmCIF').parse().parsed
+        self.assertIsInstance(parsed, PDBRecordDict)
+        seqadv_list = SeqadvList.from_cif(parsed)
         self.assertIsInstance(seqadv_list, SeqadvList)
         self.assertGreater(len(seqadv_list), 0)
 
