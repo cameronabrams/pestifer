@@ -67,6 +67,15 @@ class Config(Yclept):
     basefile : str
         Optional name of the Ycleptic-format base file
     """
+
+    _gpu_namd_candidates = ('namd3gpu',)
+    """
+    Conventional names for a *separate* GPU-resident NAMD3 binary, searched on PATH only to
+    decide whether to warn that an available GPU is going unused (see
+    :meth:`_warn_gpu_not_elected`).  Never used to select the executable -- that is always
+    driven by ``paths.namd3gpu``.
+    """
+
     def __init__(self, userfile='', userdict={}, quiet=False, RM: ResourceManager = None, basefile: str = '', ncpus_override: int = 0):
         self.userfile = userfile
         self.userdict = userdict
@@ -283,7 +292,45 @@ class Config(Yclept):
                 self.namd_type = 'cpu'
         else:
             self.namd_type = 'cpu'
+            self._warn_gpu_not_elected(namd3_path, namd3gpu_path)
         self.namd_deprecates = self['user']['namd']['deprecated3']
+
+    def _warn_gpu_not_elected(self, namd3_path: str, namd3gpu_path: str):
+        """
+        Warn when the host looks GPU-capable but GPU-resident NAMD was not elected.
+
+        GPU mode is enabled only when ``paths.namd3gpu`` differs from ``paths.namd3``
+        (see :meth:`_set_shell_commands`).  Both default to ``namd3``, so on a host whose
+        GPU-resident build is a *separate* binary the GPU is silently left unused and every
+        MD task runs CPU-only.  This is easy to miss, so warn when all three hold:
+
+        1. at least one GPU is present,
+        2. a conventionally-named GPU-resident NAMD build is on PATH, and
+        3. ``paths.namd3gpu`` still points at the CPU binary (i.e. the user has evidently
+           not elected GPU mode).
+
+        Says nothing when the host has no GPU, has no separate GPU build, or when the two
+        paths already resolve to the same binary (the single-binary case the default is
+        meant for).
+        """
+        if self.quiet or self.ngpus < 1:
+            return
+        candidate = None
+        for name in self._gpu_namd_candidates:
+            candidate = shutil.which(name)
+            if candidate:
+                break
+        if not candidate:
+            return
+        namd3_resolved = shutil.which(namd3_path)
+        if namd3_resolved and os.path.realpath(candidate) == os.path.realpath(namd3_resolved):
+            # single binary handling both modes; nothing to elect
+            return
+        logger.warning(
+            f'{self.ngpus} GPU(s) detected and a GPU-resident NAMD build appears to be '
+            f'available at {candidate!r}, but GPU mode is OFF: paths.namd3gpu is '
+            f'{namd3gpu_path!r}, the same as paths.namd3, so MD will run CPU-only. '
+            f'To use the GPU, set paths.namd3gpu to {candidate!r} in your config.')
 
     def _set_internal_shortcuts(self):
         # Progress bars are a terminal animation (carriage-return redraws) rendered by
