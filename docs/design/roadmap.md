@@ -110,6 +110,19 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
 
 ## Tooling / packaging
 
+- [ ] **GPU mode detection shouldn't hinge on path inequality.** `Config._set_shell_commands`
+      sets `namd_type='gpu'` only when `paths.namd3gpu != paths.namd3`; otherwise it silently
+      falls back to `'cpu'`. But the schema documents the shared default as *"correct when a
+      single module-loaded binary handles both CPU and GPU modes"* — and in exactly that case
+      the two paths are equal, so GPU mode can **never** be elected. The only workaround is to
+      give `namd3gpu` a different path *string* that resolves to the same binary (e.g. `namd3`
+      vs `/usr/local/bin/namd3`), which is fragile and undocumented. Give GPU mode an explicit
+      control (the `cpu|gpu` schema entry exists but is deprecated-and-ignored), and/or probe
+      the binary's CUDA capability, instead of inferring intent from two path strings. Symptom
+      worth noting: on a workstation whose GPU-resident build is a *separate* binary, the
+      default leaves the GPU idle and membrane examples run ~4 h CPU-only — pestifer now warns
+      about that case (`Config._warn_gpu_not_elected`, c1837aba), but warning is a stopgap for
+      a detection model that can't express the single-binary case at all.
 - [x] **Offload all mmCIF parsing to pidibble.** mmCIF is now parsed by pidibble **≥1.7.1**
       (`PDBParser(input_format='mmCIF')`, which normalizes mmCIF into the PDB-record namespace);
       pestifer's raw-CIF layer (`util/cifutil.py` `CIFdict`/`CIFload`) is deleted and the direct
