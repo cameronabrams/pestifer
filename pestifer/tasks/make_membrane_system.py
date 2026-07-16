@@ -272,7 +272,11 @@ class MakeMembraneSystemTask(BaseTask):
         """
         from ..objs.rottrans import RotTrans
         orient = self.embed_specs.get('orient', None)
-        if orient and orient.get('source') is not None and orient.get('target') is not None:
+        # A truthy (non-empty) source/target means an explicit orient spec was given; the
+        # schema materializes an empty `orient: {source: [], target: []}` default even when
+        # only z_head_group/z_tail_group was specified, so an emptiness check (not
+        # `is not None`) is required to let the shorthand below take effect.
+        if orient and orient.get('source') and orient.get('target'):
             return RotTrans(movetype='ALIGN', source=orient['source'], target=orient['target'])
         z_head_group = self.embed_specs.get('z_head_group', None)
         z_tail_group = self.embed_specs.get('z_tail_group', None)
