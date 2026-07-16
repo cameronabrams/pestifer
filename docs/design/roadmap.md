@@ -110,13 +110,20 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
 
 ## Tooling / packaging
 
-- [x] **Offload all mmCIF parsing to pidibble.** mmCIF is now parsed by pidibble 1.7.0
+- [x] **Offload all mmCIF parsing to pidibble.** mmCIF is now parsed by pidibble **≥1.7.1**
       (`PDBParser(input_format='mmCIF')`, which normalizes mmCIF into the PDB-record namespace);
       pestifer's raw-CIF layer (`util/cifutil.py` `CIFdict`/`CIFload`) is deleted and the direct
       `mmcif`/`mmcif-pdbx` dependencies dropped. Label-primary chain identity preserved; the only
-      behavior change is symmetry operators normalizing `1_555`→`1555` (aligns CIF with the PDB path).
-      Validated by a golden AsymmetricUnit oracle on 4zmj/6pti (diffs to only the sym delta) and the
-      full unit suite. Design doc: `docs/design/mmcif-offload.md`.
+      parsed-object behavior change is symmetry operators normalizing `1_555`→`1555` (aligns CIF with
+      the PDB path). Two downstream fixes were needed (found running the examples): (a) the psfgen task
+      hands the source `.cif` to VMD via `mol new`, whose pdbx plugin mis-parses a
+      `pdbx_audit_revision_item` loop — `CIFload` used to strip it as a side effect, restored as the
+      dependency-free `util.util.strip_cif_category`; and (b) mmCIF biological-assembly chain lists
+      must be in the *label* namespace (pidibble's REMARK.350 `header` is author-mapped and lossy), so
+      pidibble 1.7.1 adds `header_label` (the raw label `asym_id_list`) and `Transform` prefers it.
+      Validated by a golden AsymmetricUnit oracle on 4zmj/6pti (diffs to only the sym delta), the full
+      unit suite, and an all-examples runthrough (the CIF/glycan/assembly builds — 7–12, 14, 15, 18,
+      21 — all pass). Design doc: `docs/design/mmcif-offload.md`.
 - [x] **Ledger for `modify-package`.** Append-only record at
       `pestifer/resources/modifications.jsonl`; every mutating command records an entry
       (committed alongside the change). `ledger show` lists them; `ledger revert <id>`
