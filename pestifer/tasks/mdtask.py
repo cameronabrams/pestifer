@@ -267,7 +267,9 @@ class MDTask(VMDTask):
         cvtraj = NAMDColvarsTrajectoryArtifact(self.basename)
         cvstate = NAMDColvarsStateArtifact(self.basename)
         
-        self.coor_to_pdb(f'{self.basename}.coor', state.psf.name)
+        # The pre-MD state PDB carries the authoritative chain IDs; restore them onto the
+        # PDB regenerated from the .coor (catdcd re-derives chain from segid[0] otherwise).
+        self.coor_to_pdb(f'{self.basename}.coor', state.psf.name, refpdb=state.pdb.name)
         pdb = PDBFileArtifact(f'{self.basename}.pdb', pytestable=True)
         psf = state.psf
         if not pdb.exists():

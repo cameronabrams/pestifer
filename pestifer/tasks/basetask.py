@@ -35,6 +35,49 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
+
+def _pdb_atom_key(line: str) -> tuple:
+    """Identity of a PDB ATOM/HETATM record within a structure: (segid, resSeq+iCode,
+    atomName, altLoc). Fixed columns per the PDB spec (0-indexed slices)."""
+    return (line[72:76].strip(),   # segID  (cols 73-76)
+            line[22:27].strip(),   # resSeq + iCode (cols 23-27)
+            line[12:16].strip(),   # atom name (cols 13-16)
+            line[16:17].strip())   # altLoc (col 17)
+
+
+def restore_pdb_chains(target_pdb: str, reference_pdb: str) -> int:
+    """
+    Overwrite the chain column (col 22) of ``target_pdb`` in place with the chain each
+    atom carries in ``reference_pdb``, matched by atom identity (segid, resid+iCode, atom
+    name, altLoc).
+
+    A PSF has no chain column, so a PDB regenerated from PSF+coordinates (via catdcd or
+    VMD) has its chain re-derived from ``segid[0]``; this restores the authoritative chain
+    from a reference that still has it. Atoms present in the target but not the reference
+    (e.g. waters/ions added after the reference was written) keep their existing chain.
+
+    Returns the number of atom records whose chain was changed.
+    """
+    ref_chain = {}
+    with open(reference_pdb) as f:
+        for line in f:
+            if line.startswith(('ATOM', 'HETATM')):
+                ref_chain[_pdb_atom_key(line)] = line[21:22]
+    if not ref_chain:
+        return 0
+    out, changed = [], 0
+    with open(target_pdb) as f:
+        for line in f:
+            if line.startswith(('ATOM', 'HETATM')):
+                chain = ref_chain.get(_pdb_atom_key(line))
+                if chain is not None and chain != line[21:22]:
+                    line = line[:21] + chain + line[22:]
+                    changed += 1
+            out.append(line)
+    with open(target_pdb, 'w') as f:
+        f.writelines(out)
+    return changed
+
 class BaseTask(ABC):
     """ 
     A base class for Tasks. This class is intended to be subclassed by specific task types.
@@ -358,9 +401,17 @@ class VMDTask(BaseTask, ABC):
     It includes methods for converting coordinate files to PDB files, converting PDB files to coordinate files, and creating constraint PDB files. The VMDTask class is intended to be subclassed.
     """
 
-    def coor_to_pdb(self, coorfilename: str, psffilename: str) -> str:
+    def coor_to_pdb(self, coorfilename: str, psffilename: str, refpdb: str = None) -> str:
         """
         Converts a namdbin coordinate file to a PDB file using catdcd.
+
+        A PSF carries no chain column, so catdcd (like VMD) re-derives each atom's chain
+        from its segid's leading character. When ``refpdb`` names a PDB that already carries
+        the authoritative chain assignments for this same PSF (e.g. the pre-MD state PDB),
+        those chains are restored onto the regenerated PDB so a chainID that differs from
+        ``segid[0]`` survives the round-trip. Restoration is a no-op when ``refpdb`` is None,
+        missing, or its atoms already match — it never invents chains for atoms absent from
+        the reference.
         """
         if not Path(coorfilename).exists():
             raise PestiferBuildError(f'Coordinate file {coorfilename} not found')
@@ -372,6 +423,8 @@ class VMDTask(BaseTask, ABC):
             for line in pdb_lines:
                 if not line.startswith('REMARK') and not line.startswith('CRYST'):
                     f.write(line)
+        if refpdb and Path(refpdb).exists():
+            restore_pdb_chains(f'{self.basename}.pdb', refpdb)
         return f'{self.basename}.pdb'
 
     def pdb_to_coor(self, pdbfilename: str) -> str:
