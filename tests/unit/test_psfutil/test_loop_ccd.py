@@ -382,3 +382,71 @@ class TestApplyBackboneDihedrals(unittest.TestCase):
             return apply_backbone_dihedrals(prob['coords'], prob, loop, pp,
                                             bb[23]['C'], bb[29]['N'])
         np.testing.assert_array_equal(run(), run())
+
+
+class TestLoopClashReport(unittest.TestCase):
+
+    def _order_coords(self, spec):
+        # spec: list of (resid, name, xyz)
+        order = [(r, n) for (r, n, _x) in spec]
+        coords = np.array([x for (_r, _n, x) in spec], dtype=float)
+        return order, coords
+
+    def test_clean_loop_not_topological(self):
+        from pestifer.psfutil.loop_ccd import loop_clash_report
+        # three residues laid out along x, well separated -> no clashes, no threading
+        spec = []
+        for i, resid in enumerate((10, 11, 12)):
+            base = i * 4.0
+            spec += [(resid, 'N', [base, 0, 0]), (resid, 'CA', [base + 1.5, 0, 0]),
+                     (resid, 'C', [base + 2.5, 0, 0]), (resid, 'O', [base + 2.5, 1.2, 0])]
+        order, coords = self._order_coords(spec)
+        rep = loop_clash_report(order, coords, [10, 11, 12])
+        self.assertFalse(rep['topological'])
+        self.assertEqual(rep['n_deep'], 0)
+        self.assertGreater(rep['min_ca'], 3.0)
+
+    def test_interpenetration_flagged_deep(self):
+        from pestifer.psfutil.loop_ccd import loop_clash_report
+        # residue 10 and residue 13 (|dresid|>=2) have near-superimposed CA -> deep + threading
+        spec = [
+            (10, 'N', [0, 0, 0]), (10, 'CA', [1.5, 0, 0]), (10, 'C', [2.5, 0, 0]), (10, 'O', [2.5, 1.2, 0]),
+            (11, 'N', [4, 0, 0]), (11, 'CA', [5.5, 0, 0]), (11, 'C', [6.5, 0, 0]), (11, 'O', [6.5, 1.2, 0]),
+            (12, 'N', [8, 0, 0]), (12, 'CA', [9.5, 0, 0]), (12, 'C', [10.5, 0, 0]), (12, 'O', [10.5, 1.2, 0]),
+            (13, 'N', [1.6, 0, 0]), (13, 'CA', [1.6, 0.1, 0]), (13, 'C', [2.6, 0.1, 0]), (13, 'O', [2.6, 1.3, 0]),
+        ]
+        order, coords = self._order_coords(spec)
+        rep = loop_clash_report(order, coords, [10, 11, 12, 13])
+        self.assertTrue(rep['topological'])
+        self.assertGreater(rep['n_deep'], 0)
+        self.assertLess(rep['worst'], 1.6)
+        self.assertLess(rep['min_ca'], 3.0)   # CA(10) and CA(13) nearly coincident
+
+    def test_environment_clash_flagged(self):
+        from pestifer.psfutil.loop_ccd import loop_clash_report
+        # a clean, well-separated loop, but an environment atom sits on top of a loop atom
+        spec = []
+        for i, resid in enumerate((10, 11, 12)):
+            base = i * 4.0
+            spec += [(resid, 'N', [base, 0, 0]), (resid, 'CA', [base + 1.5, 0, 0]),
+                     (resid, 'C', [base + 2.5, 0, 0]), (resid, 'O', [base + 2.5, 1.2, 0])]
+        order, coords = self._order_coords(spec)
+        clean = loop_clash_report(order, coords, [10, 11, 12])
+        self.assertFalse(clean['topological'])
+        env = np.array([[1.5, 0.2, 0.0]])   # right on residue 10's CA
+        rep = loop_clash_report(order, coords, [10, 11, 12], env_coords=env)
+        self.assertTrue(rep['topological'])
+        self.assertGreater(rep['n_env_deep'], 0)
+
+    def test_hydrogens_ignored(self):
+        from pestifer.psfutil.loop_ccd import loop_clash_report
+        # two H atoms superimposed must NOT count (heavy-atom-only diagnostic)
+        spec = [
+            (10, 'N', [0, 0, 0]), (10, 'CA', [1.5, 0, 0]), (10, 'C', [2.5, 0, 0]),
+            (12, 'N', [8, 0, 0]), (12, 'CA', [9.5, 0, 0]), (12, 'C', [10.5, 0, 0]),
+            (10, 'HA', [5.0, 0, 0]), (12, 'HN', [5.0, 0.05, 0]),
+        ]
+        order, coords = self._order_coords(spec)
+        rep = loop_clash_report(order, coords, [10, 12])
+        self.assertEqual(rep['n_deep'], 0)
+        self.assertFalse(rep['topological'])

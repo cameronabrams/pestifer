@@ -463,3 +463,112 @@ def ccd_close(coords, bonds, moving_masks, end_idx, target,
             return X, r, it
         last = r
     return X, end_rmsd(X, end_idx, target), max_iters
+
+
+def _heavy_mask(order):
+    """Boolean mask (len == len(order)) of heavy (non-hydrogen) atoms."""
+    return np.array([not name.startswith('H') for (_r, name) in order], dtype=bool)
+
+
+def heavy_env_coords_from_pdb(pdb_path, exclude_serials=(), segname=None, chainID=None):
+    """
+    Heavy-atom coordinates of the *environment* -- every atom in ``pdb_path`` except those
+    whose PDB serial is in ``exclude_serials`` (typically the loop being scored). Used as the
+    frozen backdrop for :func:`loop_clash_report`'s loop-vs-environment check.
+    """
+    excl = set(int(s) for s in exclude_serials)
+    pts = []
+    with open(pdb_path) as fh:
+        for line in fh:
+            if not line.startswith(('ATOM', 'HETATM')):
+                continue
+            if segname is not None and line[72:76].strip() != segname:
+                continue
+            if chainID is not None and line[21:22].strip() != chainID:
+                continue
+            name = line[12:16].strip()
+            if name.startswith('H'):
+                continue
+            if int(line[6:11]) in excl:
+                continue
+            pts.append([float(line[30:38]), float(line[38:46]), float(line[46:54])])
+    return np.asarray(pts, dtype=float)
+
+
+def loop_clash_report(order, coords, loop_resids, env_coords=None,
+                      soft_cutoff=2.0, deep_cutoff=1.6, ca_thread=3.0):
+    """
+    Steric diagnostic for a (closed) loop, over heavy atoms only.
+
+    Distinguishes *soft* overlaps (van-der-Waals bumps that minimization/MD can relax)
+    from *topological* failures -- interpenetration or chain threading -- which a local
+    optimizer can **never** fix (separating superimposed atoms would require pulling one
+    strand back through another). A loop flagged ``topological`` is not a valid MD starting
+    structure regardless of how much it is minimized.
+
+    Checks two clash populations: intra-loop (non-adjacent residues, ``|dresid| >= 2``)
+    and, if ``env_coords`` is given, loop-vs-environment (the rest of the structure). The
+    minimum non-adjacent Ca-Ca distance is a threading proxy (native coil rarely brings
+    non-sequential Ca closer than ~4.5 A; well below ``ca_thread`` means strands crossing).
+
+    Parameters
+    ----------
+    order : list[tuple[int, str]]
+        ``(resid, atomname)`` per row of ``coords`` (from :func:`loop_atoms_from_pdb`).
+    coords : (M, 3) array
+    loop_resids : sequence[int]
+    env_coords : (K, 3) array, optional
+        Heavy-atom coordinates of every atom NOT in the loop (the frozen environment).
+    soft_cutoff, deep_cutoff : float
+        Heavy-atom separations (A) defining a soft contact and a deep (interpenetrating)
+        contact. ``deep_cutoff`` ~1.6 A is well inside any real heavy-atom vdW contact.
+    ca_thread : float
+        Non-adjacent Ca-Ca distance (A) below which the backbone is treated as threaded.
+
+    Returns
+    -------
+    dict with keys ``n_soft``, ``n_deep``, ``n_env_soft``, ``n_env_deep``, ``worst``
+    (smallest heavy-atom separation seen, A), ``min_ca`` (A), and ``topological`` (bool:
+    any deep contact, or ``min_ca < ca_thread``).
+    """
+    from scipy.spatial import cKDTree
+    X = np.asarray(coords, dtype=float)
+    heavy = _heavy_mask(order)
+    hX = X[heavy]
+    hres = np.array([order[i][0] for i in range(len(order)) if heavy[i]])
+    report = dict(n_soft=0, n_deep=0, n_env_soft=0, n_env_deep=0, worst=9.99,
+                  min_ca=9.99, topological=False)
+    if len(hX) == 0:
+        return report
+    # intra-loop, non-adjacent residues
+    tree = cKDTree(hX)
+    for a, b in tree.query_pairs(soft_cutoff):
+        if abs(int(hres[a]) - int(hres[b])) < 2:
+            continue
+        d = float(np.linalg.norm(hX[a] - hX[b]))
+        report['n_soft'] += 1
+        report['worst'] = min(report['worst'], d)
+        if d < deep_cutoff:
+            report['n_deep'] += 1
+    # loop vs environment
+    if env_coords is not None and len(env_coords):
+        etree = cKDTree(np.asarray(env_coords, dtype=float))
+        for k, hits in enumerate(etree.query_ball_point(hX, soft_cutoff)):
+            for h in hits:
+                d = float(np.linalg.norm(hX[k] - etree.data[h]))
+                report['n_env_soft'] += 1
+                report['worst'] = min(report['worst'], d)
+                if d < deep_cutoff:
+                    report['n_env_deep'] += 1
+    # min non-adjacent Ca-Ca (threading proxy)
+    ca_rows = [i for i, (_r, name) in enumerate(order) if name == 'CA']
+    ca_res = [order[i][0] for i in ca_rows]
+    ca_xyz = X[ca_rows]
+    for i in range(len(ca_rows)):
+        for j in range(i + 2, len(ca_rows)):
+            if abs(int(ca_res[i]) - int(ca_res[j])) < 2:
+                continue
+            report['min_ca'] = min(report['min_ca'], float(np.linalg.norm(ca_xyz[i] - ca_xyz[j])))
+    report['topological'] = bool(report['n_deep'] or report['n_env_deep']
+                                 or report['min_ca'] < ca_thread)
+    return report

@@ -6,7 +6,8 @@ import yaml
 
 from pestifer.core.controller import Controller
 from pestifer.core.config import Config
-from pestifer.psfutil.loop_ccd import backbone_from_pdb
+from pestifer.psfutil.loop_ccd import (backbone_from_pdb, loop_atoms_from_pdb,
+                                       loop_clash_report, heavy_env_coords_from_pdb)
 
 # An internal, cysteine-free loop of BPTI (6pti) to delete and rebuild.
 _LOOP = {24: 'ASN', 25: 'ALA', 26: 'LYS', 27: 'ALA', 28: 'GLY'}
@@ -76,6 +77,20 @@ class TestLigateCCD(unittest.TestCase):
         rmsd = _loop_rmsd_to_native(built, native, loop=[24, 25, 26, 27, 28],
                                     anchors=[20, 21, 22, 23, 29, 30, 31, 32])
         self.assertLess(rmsd, 2.0, f"rebuilt loop backbone RMSD-to-native = {rmsd:.2f} A (>2.0)")
+
+        # 3. the rebuilt loop is sterically valid -- not interpenetrating itself or the fold.
+        # This short exposed loop must close cleanly; a topological flag here is a regression.
+        loop = [24, 25, 26, 27, 28]
+        order, coords, serials = loop_atoms_from_pdb('my_system.pdb', loop, segname='A')
+        # exclude the flanking anchors 23/29: the junction peptide bonds to them are expected
+        _ao, _ac, anchor_serials = loop_atoms_from_pdb('my_system.pdb', [23, 29], segname='A')
+        env = heavy_env_coords_from_pdb('my_system.pdb',
+                                        exclude_serials=list(serials) + list(anchor_serials))
+        rep = loop_clash_report(order, coords, loop, env_coords=env)
+        self.assertFalse(rep['topological'],
+                         f"rebuilt loop is topologically broken: worst overlap {rep['worst']:.2f} A, "
+                         f"min non-adjacent CA {rep['min_ca']:.2f} A, "
+                         f"{rep['n_deep']} intra + {rep['n_env_deep']} loop-vs-structure deep overlaps")
 
 
 if __name__ == '__main__':

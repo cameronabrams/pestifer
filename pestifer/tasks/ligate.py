@@ -86,7 +86,8 @@ class LigateTask(MDTask):
         import numpy as np
         from ..psfutil.loop_ccd import (backbone_from_pdb, loop_atoms_from_pdb,
                                         build_loop_problem, anchor_closure_target, ccd_close,
-                                        sample_backbone_dihedrals, apply_backbone_dihedrals)
+                                        sample_backbone_dihedrals, apply_backbone_dihedrals,
+                                        loop_clash_report, heavy_env_coords_from_pdb)
         from ..util.coord import pdb_replace_coords
 
         self.next_basename('ccd')
@@ -100,9 +101,11 @@ class LigateTask(MDTask):
         seed = int(ccd_specs.get('seed', 27021972))
         max_iters = int(ccd_specs.get('max_iters', 2000))
         tol = float(ccd_specs.get('tol', 0.1))
+        on_clash = str(ccd_specs.get('on_clash', 'warn')).casefold()
         rng = np.random.default_rng(seed)
 
         new_coords = {}   # PDB serial -> closed xyz
+        broken = []       # loops flagged topologically broken
         for gap in gaps:
             seg, loop = gap['segname'], gap['loop_resids']
             n_anchor, c_anchor = gap['n_anchor_resid'], gap['c_anchor_resid']
@@ -120,8 +123,37 @@ class LigateTask(MDTask):
             closed, rmsd, iters = ccd_close(start, prob['bonds'], prob['moving_masks'],
                                             end_idx, target, tol=tol, max_iters=max_iters)
             logger.debug(f'CCD closed loop {seg}:{loop[0]}-{loop[-1]}: end-RMSD {rmsd:.3f} A in {iters} iters')
+            # steric diagnostic: single-CCD closure is only reliable for short, exposed loops;
+            # for longer/buried loops it can interpenetrate the fold -- clashes that no
+            # minimization can undo. Report them loudly rather than silently emitting garbage.
+            # Exclude the flanking anchor residues from the environment: the loop is covalently
+            # bonded to them (junction peptide bonds ~1.33 A), which are expected close contacts,
+            # not clashes.
+            _ao, _ac, anchor_serials = loop_atoms_from_pdb(src_pdb, [n_anchor, c_anchor], segname=seg)
+            env = heavy_env_coords_from_pdb(src_pdb, exclude_serials=list(serials) + list(anchor_serials))
+            rep = loop_clash_report(order, closed, loop, env_coords=env)
+            tag = f'{seg}:{loop[0]}-{loop[-1]} (len {len(loop)})'
+            if rep['topological']:
+                broken.append((tag, rep))
+                logger.warning(
+                    f'ligate/ccd: loop {tag} is TOPOLOGICALLY BROKEN after closure '
+                    f'(worst heavy-atom overlap {rep["worst"]:.2f} A, min non-adjacent CA '
+                    f'{rep["min_ca"]:.2f} A, {rep["n_deep"]} intra + {rep["n_env_deep"]} '
+                    f'loop-vs-structure deep overlaps). Single-CCD closure does not scale to '
+                    f'this loop; these overlaps cannot be relaxed by minimization. Provide an '
+                    f'externally-modeled loop or await the KIC generator (see '
+                    f'docs/design/loop-modeling.md).')
+            elif rep['n_soft'] or rep['n_env_soft']:
+                logger.info(f'ligate/ccd: loop {tag} closed with soft contacts only '
+                            f'({rep["n_soft"]} intra + {rep["n_env_soft"]} loop-vs-structure; '
+                            f'worst {rep["worst"]:.2f} A) -- relaxable by minimization')
             for k, serial in enumerate(serials):
                 new_coords[serial] = closed[k]
+
+        if broken and on_clash == 'error':
+            logger.error(f'ligate/ccd: {len(broken)} loop(s) topologically broken; '
+                         f'aborting (ccd.on_clash=error)')
+            return 1
 
         out_pdb = f'{self.basename}.pdb'
         serial_list = sorted(new_coords)

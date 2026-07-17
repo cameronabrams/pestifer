@@ -803,6 +803,17 @@ attributes:
                 text: end-effector convergence RMSD (Angstrom)
                 type: float
                 default: 0.1
+              - name: on_clash
+                text: |
+                  What to do when a closed loop is topologically broken (interpenetrates
+                  the fold or threads itself -- overlaps that no minimization can undo).
+                  'warn' (default) logs a prominent warning and continues; 'error' aborts
+                  the build. Single-CCD closure is reliable only for short, solvent-exposed
+                  loops; longer/buried loops require the KIC generator (see
+                  docs/design/loop-modeling.md).
+                type: str
+                choices: [warn, error]
+                default: warn
       - name: pdb2pqr
         text: Parameters controlling a PDB2PQR run on an input molecule
         type: dict
