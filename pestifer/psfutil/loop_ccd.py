@@ -179,6 +179,51 @@ def build_loop_ccd_problem(backbone, loop_resids, n_anchor_resid):
             'moving_masks': masks, 'end_idx': end_idx}
 
 
+def place_atom_nerf(a, b, c, bond, angle_deg, dihedral_deg):
+    """
+    NeRF placement: return the position of atom D given three reference atoms a-b-c and the
+    internal coordinates bond (|c-D|), angle (b-c-D, degrees), and dihedral (a-b-c-D, degrees).
+    """
+    a = np.asarray(a, float); b = np.asarray(b, float); c = np.asarray(c, float)
+    ang = np.radians(angle_deg); dih = np.radians(dihedral_deg)
+    bc = c - b; bc /= np.linalg.norm(bc)
+    n = np.cross(b - a, bc)
+    nn = np.linalg.norm(n)
+    n = n / nn if nn > 1e-9 else np.array([0.0, 0.0, 1.0])
+    m = np.cross(n, bc)
+    # D in the local frame (bc, m, n) about c
+    d2 = np.array([-bond * np.cos(ang),
+                   bond * np.sin(ang) * np.cos(dih),
+                   bond * np.sin(ang) * np.sin(dih)])
+    return c + d2[0] * bc + d2[1] * m + d2[2] * n
+
+
+# Standard trans-peptide internal coordinates for the loop_last -> anchor junction.
+_PEP = dict(C_N=1.33, CA_C=1.52, C_O=1.23,
+            CA_N_C=121.7, N_C_CA=116.6, N_C_O=122.7)
+
+
+def anchor_closure_target(anchor_N, anchor_CA, anchor_C, phi_deg=-120.0):
+    """
+    Build ideal target positions for the loop's C-terminal residue backbone atoms
+    ``(CA, C, O)`` such that that residue forms a good trans peptide bond to the downstream
+    anchor (anchor:N).
+
+    Constructed from the fixed anchor N/CA/C by NeRF placement using standard peptide
+    geometry; ``phi_deg`` is the assumed C(prev)-N-CA-C torsion (the one free parameter --
+    the subsequent psfgen guesscoord+regenerate in ``connect`` refines the exact junction, so
+    a generic extended value is fine). Returns ``(target_CA, target_C, target_O)`` to be
+    superimposed on the loop's last-residue ``(CA, C, O)`` by CCD.
+    """
+    # prev C bonded to anchor N: bond C-N, angle CA-N-C, torsion C-CA-N-(prevC)=phi
+    C = place_atom_nerf(anchor_C, anchor_CA, anchor_N, _PEP['C_N'], _PEP['CA_N_C'], phi_deg)
+    # prev CA from prev C: omega = 180 (trans)
+    CA = place_atom_nerf(anchor_CA, anchor_N, C, _PEP['CA_C'], _PEP['N_C_CA'], 180.0)
+    # prev O from prev C: in the peptide plane, opposite CA (torsion 0 wrt anchor N)
+    O = place_atom_nerf(anchor_CA, anchor_N, C, _PEP['C_O'], _PEP['N_C_O'], 0.0)
+    return np.array([CA, C, O])
+
+
 def optimal_ccd_angle(moving, target, pivot, axis, weights=None):
     """
     Closed-form rotation angle (degrees, right-handed about ``axis``) that minimizes

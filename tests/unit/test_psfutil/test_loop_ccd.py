@@ -262,3 +262,32 @@ class TestLoopExtractionAndReclose(unittest.TestCase):
         # the anchor C (row 0) is never movable
         for m in prob['moving_masks']:
             self.assertFalse(m[0])
+
+
+class TestAnchorClosureTarget(unittest.TestCase):
+    """The analytic ghost target must give a good trans peptide bond to the anchor."""
+
+    def test_nerf_reproduces_internal_coords(self):
+        from pestifer.psfutil.loop_ccd import place_atom_nerf, dihedral_deg
+        a = np.array([0.0, 0.0, 0.0]); b = np.array([1.5, 0.0, 0.0]); c = np.array([2.0, 1.4, 0.0])
+        D = place_atom_nerf(a, b, c, bond=1.33, angle_deg=116.0, dihedral_deg=-57.0)
+        self.assertAlmostEqual(np.linalg.norm(D - c), 1.33, places=4)
+        # angle b-c-D
+        v1 = b - c; v2 = D - c
+        ang = np.degrees(np.arccos(np.dot(v1, v2) / (np.linalg.norm(v1) * np.linalg.norm(v2))))
+        self.assertAlmostEqual(ang, 116.0, places=3)
+        self.assertAlmostEqual(dihedral_deg(a, b, c, D), -57.0, places=3)
+
+    def test_target_forms_good_peptide_bond_to_anchor(self):
+        from pestifer.psfutil.loop_ccd import backbone_from_pdb, anchor_closure_target
+        from pathlib import Path
+        pdb = Path(__file__).parents[2] / 'inputs' / '6pti.pdb'
+        bb = backbone_from_pdb(str(pdb), chainID='A')
+        aN, aCA, aC = bb[25]['N'], bb[25]['CA'], bb[25]['C']   # use residue 25 as a fixed anchor
+        tgt_CA, tgt_C, tgt_O = anchor_closure_target(aN, aCA, aC)
+        # the ghost C must sit ~1.33 A from the anchor N (a peptide bond)
+        self.assertAlmostEqual(np.linalg.norm(tgt_C - aN), 1.33, places=2)
+        # ghost C=O bond length sane
+        self.assertAlmostEqual(np.linalg.norm(tgt_C - tgt_O), 1.23, places=2)
+        # ghost CA-C bond length sane
+        self.assertAlmostEqual(np.linalg.norm(tgt_CA - tgt_C), 1.52, places=2)
