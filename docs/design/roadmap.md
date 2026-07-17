@@ -175,11 +175,19 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
 
 ## Ideas / unsorted
 
-- [ ] **Persist chain IDs across PSF→PDB regeneration.** A PSF has no chain column, so
+- [~] **Persist chain IDs across PSF→PDB regeneration.** A PSF has no chain column, so
       every `coor`→`pdb`/`solvate` regeneration re-derives each atom's chain from its
       segid's leading character. This is why merged copies collapsed onto one chain
-      (v3.7.0 worked around it by forcing single-character segids in `merge`). A general
-      fix would carry chain IDs as a first-class persistent attribute — e.g. restore them
-      from a reference PDB by (segid, resid, name) after each regeneration — so arbitrary
-      chain IDs survive a full build, not just segid-derived ones.
+      (v3.7.0 worked around it by forcing single-character segids in `merge`).
+  - [x] **`coor`→`pdb` path (the common case).** `BaseTask.coor_to_pdb` now takes a
+        reference PDB and, via `restore_pdb_chains`, reinstates each atom's authoritative
+        chain (matched by segid+resid+iCode+atomname+altloc) after catdcd regenerates it;
+        `mdtask` passes the pre-MD state PDB. So a chainID differing from `segid[0]` survives
+        the round-trip that runs after every NAMD stage. No-op on current builds
+        (`segid[0]==chainID`); a correctness guarantee + prerequisite for relaxing merge.
+  - [ ] **General fix.** Extend the same reference-restore to the scattered VMD write sites
+        (`solvate`, psfgen `writescript`, declash writers, Tcl templates), seeded from an
+        evolving authoritative PDB, then relax merge's single-char-segid constraint
+        (`_fresh_segid`/`_resolve_collisions`) so arbitrary segids/chains persist. Higher
+        blast radius; needs full example re-validation.
 - [ ] _(add items here)_
