@@ -803,6 +803,14 @@ attributes:
                 text: end-effector convergence RMSD (Angstrom)
                 type: float
                 default: 0.1
+              - name: ensemble
+                text: |
+                  Number of independent Ramachandran-seeded closures to try per loop; the
+                  candidate that introduces the fewest steric clashes with the rest of the
+                  structure is kept. Larger values improve the odds of a clash-free surface
+                  loop at the cost of more (cheap, offline) CCD closures.
+                type: int
+                default: 10
               - name: on_clash
                 text: |
                   What to do when a closed loop is topologically broken (interpenetrates

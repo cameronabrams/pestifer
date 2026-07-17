@@ -80,8 +80,17 @@ class LigateTask(MDTask):
         descent (offline, deterministic). For each gap the loop's C-terminal backbone is
         walked onto an ideal peptide-bond target built from the anchor, distributing the
         closure across the loop's own phi/psi dihedrals (whole residues, sidechains included).
-        The closed coordinates replace the loop atoms in a new state PDB; the ``connect`` step
-        then patches the actual LINK bond and rebuilds the junction with guesscoord.
+
+        These gaps are floppy, solvent-exposed surface loops (that is *why* they are
+        unresolved): the goal is not to recover a unique native conformation but to produce a
+        *physically plausible, closed, clash-free* starting structure for MD. Each loop is
+        seeded from realistic Ramachandran basins (not a straight chain) and, for each gap, a
+        small **ensemble** of independent seeds is closed and the candidate that introduces the
+        fewest steric clashes with the rest of the structure is kept -- preserving the one
+        virtue of the old straight-chain+steer approach (it added no clashes) while giving a
+        far more defensible backbone. The closed coordinates replace the loop atoms in a new
+        state PDB; ``connect`` then patches the LINK bond and rebuilds the junction, and a light
+        minimization (if enabled) relaxes residual strain.
         """
         import numpy as np
         from ..psfutil.loop_ccd import (backbone_from_pdb, loop_atoms_from_pdb,
@@ -101,6 +110,7 @@ class LigateTask(MDTask):
         seed = int(ccd_specs.get('seed', 27021972))
         max_iters = int(ccd_specs.get('max_iters', 2000))
         tol = float(ccd_specs.get('tol', 0.1))
+        ensemble = max(1, int(ccd_specs.get('ensemble', 10)))
         on_clash = str(ccd_specs.get('on_clash', 'warn')).casefold()
         rng = np.random.default_rng(seed)
 
@@ -114,35 +124,43 @@ class LigateTask(MDTask):
             prob = build_loop_problem(order, coords, loop)
             r = prob['row']
             last = loop[-1]
-            # replace the arbitrary guesscoord backbone with a seeded basin-sampled one
-            phipsi = sample_backbone_dihedrals(rng, len(loop))
-            start = apply_backbone_dihedrals(prob['coords'], prob, loop, phipsi,
-                                             prev_C=bb[n_anchor]['C'], next_N=bb[c_anchor]['N'])
             end_idx = [r[(last, 'CA')], r[(last, 'C')]]
             target = anchor_closure_target(bb[c_anchor]['N'], bb[c_anchor]['CA'], bb[c_anchor]['C'])[[0, 1]]
-            closed, rmsd, iters = ccd_close(start, prob['bonds'], prob['moving_masks'],
-                                            end_idx, target, tol=tol, max_iters=max_iters)
-            logger.debug(f'CCD closed loop {seg}:{loop[0]}-{loop[-1]}: end-RMSD {rmsd:.3f} A in {iters} iters')
-            # steric diagnostic: single-CCD closure is only reliable for short, exposed loops;
-            # for longer/buried loops it can interpenetrate the fold -- clashes that no
-            # minimization can undo. Report them loudly rather than silently emitting garbage.
-            # Exclude the flanking anchor residues from the environment: the loop is covalently
-            # bonded to them (junction peptide bonds ~1.33 A), which are expected close contacts,
-            # not clashes.
+            # environment for clash scoring: everything but this loop, minus the flanking anchor
+            # residues (the loop is covalently bonded to them -- junction peptide bonds ~1.33 A
+            # are expected close contacts, not clashes).
             _ao, _ac, anchor_serials = loop_atoms_from_pdb(src_pdb, [n_anchor, c_anchor], segname=seg)
             env = heavy_env_coords_from_pdb(src_pdb, exclude_serials=list(serials) + list(anchor_serials))
-            rep = loop_clash_report(order, closed, loop, env_coords=env)
             tag = f'{seg}:{loop[0]}-{loop[-1]} (len {len(loop)})'
+
+            # clash-filtered ensemble: close `ensemble` independent Ramachandran-seeded starts,
+            # keep the one with the fewest clashes (deep first, then soft, then tightest closure).
+            best = None
+            for cand in range(ensemble):
+                phipsi = sample_backbone_dihedrals(rng, len(loop))
+                start = apply_backbone_dihedrals(prob['coords'], prob, loop, phipsi,
+                                                 prev_C=bb[n_anchor]['C'], next_N=bb[c_anchor]['N'])
+                closed, rmsd, iters = ccd_close(start, prob['bonds'], prob['moving_masks'],
+                                                end_idx, target, tol=tol, max_iters=max_iters)
+                rep = loop_clash_report(order, closed, loop, env_coords=env)
+                key = (rep['n_deep'] + rep['n_env_deep'],
+                       rep['n_soft'] + rep['n_env_soft'], rmsd)
+                if best is None or key < best[0]:
+                    best = (key, closed, rep, rmsd, iters, cand)
+            _key, closed, rep, rmsd, iters, cand = best
+            logger.debug(f'CCD closed loop {tag}: kept seed {cand + 1}/{ensemble}, '
+                         f'end-RMSD {rmsd:.3f} A in {iters} iters, '
+                         f'{rep["n_deep"] + rep["n_env_deep"]} deep / '
+                         f'{rep["n_soft"] + rep["n_env_soft"]} soft clashes')
             if rep['topological']:
                 broken.append((tag, rep))
                 logger.warning(
-                    f'ligate/ccd: loop {tag} is TOPOLOGICALLY BROKEN after closure '
-                    f'(worst heavy-atom overlap {rep["worst"]:.2f} A, min non-adjacent CA '
-                    f'{rep["min_ca"]:.2f} A, {rep["n_deep"]} intra + {rep["n_env_deep"]} '
-                    f'loop-vs-structure deep overlaps). Single-CCD closure does not scale to '
-                    f'this loop; these overlaps cannot be relaxed by minimization. Provide an '
-                    f'externally-modeled loop or await the KIC generator (see '
-                    f'docs/design/loop-modeling.md).')
+                    f'ligate/ccd: best of {ensemble} closures for loop {tag} is still '
+                    f'TOPOLOGICALLY BROKEN (worst heavy-atom overlap {rep["worst"]:.2f} A, '
+                    f'min non-adjacent CA {rep["min_ca"]:.2f} A, {rep["n_deep"]} intra + '
+                    f'{rep["n_env_deep"]} loop-vs-structure deep overlaps). These overlaps '
+                    f'cannot be relaxed by minimization; try a larger ccd.ensemble, or provide '
+                    f'an externally-modeled loop (see docs/design/loop-modeling.md).')
             elif rep['n_soft'] or rep['n_env_soft']:
                 logger.info(f'ligate/ccd: loop {tag} closed with soft contacts only '
                             f'({rep["n_soft"]} intra + {rep["n_env_soft"]} loop-vs-structure; '
