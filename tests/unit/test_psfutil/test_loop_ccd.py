@@ -337,3 +337,48 @@ class TestFullAtomLoopProblem(unittest.TestCase):
             X[m] = rotate_points_about_axis(X[m], X[a], X[b] - X[a], rng.uniform(-60, 60))
         after = [dist(r[(26, 'CA')], r[(26, 'CB')], X), dist(r[(26, 'N')], r[(26, 'CB')], X)]
         np.testing.assert_allclose(after, before, atol=1e-6)
+
+
+class TestApplyBackboneDihedrals(unittest.TestCase):
+    """Setting sampled phi/psi on a real loop must realize those exact torsions."""
+
+    @classmethod
+    def setUpClass(cls):
+        from pathlib import Path
+        cls.pdb = str(Path(__file__).parents[2] / 'inputs' / '6pti.pdb')
+
+    def test_realizes_requested_torsions(self):
+        from pestifer.psfutil.loop_ccd import (loop_atoms_from_pdb, build_loop_problem,
+            backbone_from_pdb, apply_backbone_dihedrals, dihedral_deg)
+        loop = [24, 25, 26, 27, 28]
+        bb = backbone_from_pdb(self.pdb, chainID='A')
+        order, coords, serials = loop_atoms_from_pdb(self.pdb, loop, chainID='A')
+        prob = build_loop_problem(order, coords, loop)
+        target = np.array([[-63.0, -43.0], [-135.0, 135.0], [-75.0, 145.0],
+                           [-63.0, -43.0], [-120.0, 120.0]])
+        X = apply_backbone_dihedrals(prob['coords'], prob, loop, target,
+                                     prev_C=bb[23]['C'], next_N=bb[29]['N'])
+        r = prob['row']
+        for p, resid in enumerate(loop):
+            N, CA, C = r[(resid, 'N')], r[(resid, 'CA')], r[(resid, 'C')]
+            pC = X[r[(loop[p - 1], 'C')]] if p > 0 else bb[23]['C']
+            self.assertAlmostEqual(dihedral_deg(pC, X[N], X[CA], X[C]), target[p, 0], places=3,
+                                   msg=f'phi of loop residue {resid}')
+            # psi is settable for every residue except the last (fixed C-anchor N)
+            if p < len(loop) - 1:
+                nN = X[r[(loop[p + 1], 'N')]]
+                self.assertAlmostEqual(dihedral_deg(X[N], X[CA], X[C], nN), target[p, 1], places=3,
+                                       msg=f'psi of loop residue {resid}')
+
+    def test_deterministic_given_seed(self):
+        from pestifer.psfutil.loop_ccd import (loop_atoms_from_pdb, build_loop_problem,
+            backbone_from_pdb, apply_backbone_dihedrals, sample_backbone_dihedrals)
+        loop = [24, 25, 26, 27, 28]
+        bb = backbone_from_pdb(self.pdb, chainID='A')
+        order, coords, serials = loop_atoms_from_pdb(self.pdb, loop, chainID='A')
+        prob = build_loop_problem(order, coords, loop)
+        def run():
+            pp = sample_backbone_dihedrals(np.random.default_rng(27021972), len(loop))
+            return apply_backbone_dihedrals(prob['coords'], prob, loop, pp,
+                                            bb[23]['C'], bb[29]['N'])
+        np.testing.assert_array_equal(run(), run())

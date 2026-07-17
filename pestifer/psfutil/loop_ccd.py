@@ -273,6 +273,49 @@ def build_loop_problem(order, coords, loop_resids):
             'bonds': bonds, 'moving_masks': masks}
 
 
+def apply_backbone_dihedrals(coords, prob, loop_resids, phipsi, prev_C, next_N):
+    """
+    Set each loop residue's (phi, psi) to sampled values, in N->C order, on the full-atom
+    ``prob`` from :func:`build_loop_problem`.
+
+    Rotates about each residue's N-CA (phi) and CA-C (psi) bonds using that bond's
+    topology-correct moving mask, so whole residues (sidechains included) follow. References
+    for the terminal torsions come from outside the loop: ``prev_C`` (the N-anchor's C, for
+    the first residue's phi) and ``next_N`` (the C-anchor's N, for the last residue's psi).
+
+    Parameters
+    ----------
+    coords : (M, 3)  -- not modified; a copy is returned
+    prob : dict from build_loop_problem (provides ``row`` and ``moving_masks``)
+    loop_resids : sequence[int]  (N->C)
+    phipsi : (len(loop_resids), 2) array of (phi, psi) in degrees
+    prev_C, next_N : (3,) reference positions
+
+    Returns
+    -------
+    np.ndarray (M, 3)
+    """
+    X = np.array(coords, dtype=float)
+    r = prob['row']
+    masks = prob['moving_masks']
+    for p, resid in enumerate(loop_resids):
+        N, CA, C = r[(resid, 'N')], r[(resid, 'CA')], r[(resid, 'C')]
+        pC = X[r[(loop_resids[p - 1], 'C')]] if p > 0 else np.asarray(prev_C, float)
+        nN = X[r[(loop_resids[p + 1], 'N')]] if p < len(loop_resids) - 1 else np.asarray(next_N, float)
+        # phi = prevC-N-CA-C : rotate downstream of N-CA
+        cur = dihedral_deg(pC, X[N], X[CA], X[C])
+        X[masks[2 * p]] = rotate_points_about_axis(X[masks[2 * p]], X[N], X[CA] - X[N],
+                                                   phipsi[p, 0] - cur)
+        # psi = N-CA-C-nextN : rotate downstream of CA-C. The LAST residue's psi is defined by
+        # the fixed C-anchor N (not a loop atom), so it cannot be set by rotating loop atoms --
+        # it is determined by CCD closure. Skip it.
+        if p < len(loop_resids) - 1:
+            cur = dihedral_deg(X[N], X[CA], X[C], nN)
+            X[masks[2 * p + 1]] = rotate_points_about_axis(X[masks[2 * p + 1]], X[CA], X[C] - X[CA],
+                                                           phipsi[p, 1] - cur)
+    return X
+
+
 def place_atom_nerf(a, b, c, bond, angle_deg, dihedral_deg):
     """
     NeRF placement: return the position of atom D given three reference atoms a-b-c and the

@@ -85,7 +85,8 @@ class LigateTask(MDTask):
         """
         import numpy as np
         from ..psfutil.loop_ccd import (backbone_from_pdb, loop_atoms_from_pdb,
-                                        build_loop_problem, anchor_closure_target, ccd_close)
+                                        build_loop_problem, anchor_closure_target, ccd_close,
+                                        sample_backbone_dihedrals, apply_backbone_dihedrals)
         from ..util.coord import pdb_replace_coords
 
         self.next_basename('ccd')
@@ -96,20 +97,27 @@ class LigateTask(MDTask):
             logger.warning('ligate method=ccd: has_protein_loops is set but no interior gaps '
                            'were enumerated; nothing to close')
             return 0
+        seed = int(ccd_specs.get('seed', 27021972))
         max_iters = int(ccd_specs.get('max_iters', 2000))
         tol = float(ccd_specs.get('tol', 0.1))
+        rng = np.random.default_rng(seed)
 
         new_coords = {}   # PDB serial -> closed xyz
         for gap in gaps:
-            seg, loop, anchor = gap['segname'], gap['loop_resids'], gap['c_anchor_resid']
+            seg, loop = gap['segname'], gap['loop_resids']
+            n_anchor, c_anchor = gap['n_anchor_resid'], gap['c_anchor_resid']
             bb = backbone_from_pdb(src_pdb, segname=seg)
             order, coords, serials = loop_atoms_from_pdb(src_pdb, loop, segname=seg)
             prob = build_loop_problem(order, coords, loop)
             r = prob['row']
             last = loop[-1]
+            # replace the arbitrary guesscoord backbone with a seeded basin-sampled one
+            phipsi = sample_backbone_dihedrals(rng, len(loop))
+            start = apply_backbone_dihedrals(prob['coords'], prob, loop, phipsi,
+                                             prev_C=bb[n_anchor]['C'], next_N=bb[c_anchor]['N'])
             end_idx = [r[(last, 'CA')], r[(last, 'C')]]
-            target = anchor_closure_target(bb[anchor]['N'], bb[anchor]['CA'], bb[anchor]['C'])[[0, 1]]
-            closed, rmsd, iters = ccd_close(prob['coords'], prob['bonds'], prob['moving_masks'],
+            target = anchor_closure_target(bb[c_anchor]['N'], bb[c_anchor]['CA'], bb[c_anchor]['C'])[[0, 1]]
+            closed, rmsd, iters = ccd_close(start, prob['bonds'], prob['moving_masks'],
                                             end_idx, target, tol=tol, max_iters=max_iters)
             logger.debug(f'CCD closed loop {seg}:{loop[0]}-{loop[-1]}: end-RMSD {rmsd:.3f} A in {iters} iters')
             for k, serial in enumerate(serials):
