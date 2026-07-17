@@ -89,6 +89,96 @@ def sample_backbone_dihedrals(rng, n, jitter_deg=10.0):
     return centers + rng.normal(0.0, jitter_deg, size=(n, 2))
 
 
+_BACKBONE = ('N', 'CA', 'C', 'O')
+
+
+def backbone_from_pdb(pdb_path, chainID=None, segname=None):
+    """
+    Parse backbone atoms (N, CA, C, O) from a PDB into ``{resid: {atomname: xyz}}``.
+
+    Selects records by ``segname`` (cols 73-76) when given, else by ``chainID`` (col 22),
+    else all. resid is the integer residue sequence number (col 23-26). Later records win on
+    a duplicate (resid, atomname) -- callers should pass an altloc-free / single-model PDB.
+    """
+    out = {}
+    with open(pdb_path) as fh:
+        for line in fh:
+            if not line.startswith(('ATOM', 'HETATM')):
+                continue
+            name = line[12:16].strip()
+            if name not in _BACKBONE:
+                continue
+            if segname is not None and line[72:76].strip() != segname:
+                continue
+            if chainID is not None and line[21:22].strip() != chainID:
+                continue
+            try:
+                resid = int(line[22:26])
+                xyz = np.array([float(line[30:38]), float(line[38:46]), float(line[46:54])])
+            except ValueError:
+                continue
+            out.setdefault(resid, {})[name] = xyz
+    return out
+
+
+def build_loop_ccd_problem(backbone, loop_resids, n_anchor_resid):
+    """
+    Assemble the CCD arrays for closing one loop, from a per-residue backbone map.
+
+    Parameters
+    ----------
+    backbone : dict[int, dict[str, ndarray]]
+        ``{resid: {atomname: xyz}}`` for at least the atoms named in ``N, CA, C, O`` of the
+        loop residues plus the N-terminal anchor's C (needed as the phi reference of the first
+        loop residue).
+    loop_resids : sequence[int]
+        The loop residues, N->C order (the movable residues).
+    n_anchor_resid : int
+        The resolved residue just before the loop (fixed); its C anchors the first phi.
+
+    Returns
+    -------
+    dict with keys:
+        coords       : (M, 3) backbone atoms, order = [n_anchor:C] + per loop residue N,CA,C,O
+        row          : {(resid, atomname): row index into coords}
+        bonds        : list of (a_row, b_row) rotatable backbone bonds, N->C
+                       (each loop residue contributes phi = N-CA and psi = CA-C)
+        moving_masks : list of bool arrays (len M), atoms downstream of each bond
+        end_idx      : rows of the last loop residue's N, CA, C (the end effector)
+
+    The caller supplies the closure ``target`` (the desired positions of ``end_idx``): the
+    native positions for a delete-and-rebuild test, or the downstream anchor's geometry for a
+    real build.
+    """
+    order = []          # (resid, atomname) in coords order
+    coords = []
+    coords.append(backbone[n_anchor_resid]['C']); order.append((n_anchor_resid, 'C'))
+    for r in loop_resids:
+        for an in _BACKBONE:
+            if an in backbone[r]:
+                coords.append(backbone[r][an]); order.append((r, an))
+    coords = np.asarray(coords, dtype=float)
+    row = {key: i for i, key in enumerate(order)}
+    M = len(coords)
+
+    def downstream_mask(after_row):
+        m = np.zeros(M, dtype=bool)
+        m[after_row + 1:] = True
+        return m
+
+    bonds, masks = [], []
+    for r in loop_resids:
+        n, ca, c = row[(r, 'N')], row[(r, 'CA')], row[(r, 'C')]
+        # phi: rotate about N-CA -> moves everything after CA (C, O, downstream residues)
+        bonds.append((n, ca)); masks.append(downstream_mask(ca))
+        # psi: rotate about CA-C -> moves everything after C (O, downstream residues)
+        bonds.append((ca, c)); masks.append(downstream_mask(c))
+    last = loop_resids[-1]
+    end_idx = [row[(last, 'N')], row[(last, 'CA')], row[(last, 'C')]]
+    return {'coords': coords, 'row': row, 'bonds': bonds,
+            'moving_masks': masks, 'end_idx': end_idx}
+
+
 def optimal_ccd_angle(moving, target, pivot, axis, weights=None):
     """
     Closed-form rotation angle (degrees, right-handed about ``axis``) that minimizes

@@ -199,3 +199,66 @@ class TestSampleBackboneDihedrals(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestLoopExtractionAndReclose(unittest.TestCase):
+    """Extraction + CCD on real BPTI backbone: open an internal loop, then re-close it."""
+
+    @classmethod
+    def setUpClass(cls):
+        from pathlib import Path
+        from pestifer.psfutil.loop_ccd import backbone_from_pdb
+        pdb = Path(__file__).parents[2] / 'inputs' / '6pti.pdb'
+        cls.bb = backbone_from_pdb(str(pdb), chainID='A')
+
+    def _bond_lengths(self, coords, problem):
+        # N-CA and CA-C bond lengths for each loop residue
+        r = problem['row']
+        lens = []
+        for (a, b) in problem['bonds']:
+            lens.append(np.linalg.norm(coords[a] - coords[b]))
+        return np.array(lens)
+
+    def test_open_then_ccd_recloses_to_native(self):
+        from pestifer.psfutil.loop_ccd import (build_loop_ccd_problem, ccd_close,
+                                               end_rmsd, RAMACHANDRAN_BASINS)
+        loop = [12, 13, 14, 15, 16, 17]
+        prob = build_loop_ccd_problem(self.bb, loop, n_anchor_resid=11)
+        coords0 = prob['coords']
+        end_idx = prob['end_idx']
+        target = coords0[end_idx].copy()               # native end positions
+        native_bonds = self._bond_lengths(coords0, prob)
+
+        # OPEN the loop: perturb each rotatable bond by a random angle
+        rng = np.random.default_rng(2024)
+        opened = coords0.copy()
+        for (a, b), mask in zip(prob['bonds'], prob['moving_masks']):
+            deg = rng.uniform(-50, 50)
+            opened[mask] = rotate_points_about_axis(opened[mask], opened[a], opened[b] - opened[a], deg)
+        opened_rmsd = end_rmsd(opened, end_idx, target)
+        self.assertGreater(opened_rmsd, 2.0, "perturbation should have opened the loop")
+
+        # CLOSE with CCD back onto the native end
+        closed, rmsd, iters = ccd_close(opened, prob['bonds'], prob['moving_masks'],
+                                        end_idx, target, tol=0.1)
+        self.assertLess(rmsd, 0.1, f"CCD failed to reclose (rmsd={rmsd:.3f}, {iters} iters)")
+
+        # rotations are rigid: internal loop bond lengths must be unchanged
+        closed_bonds = self._bond_lengths(closed, prob)
+        np.testing.assert_allclose(closed_bonds, native_bonds, atol=1e-6)
+
+    def test_problem_structure(self):
+        from pestifer.psfutil.loop_ccd import build_loop_ccd_problem
+        loop = [20, 21, 22]
+        prob = build_loop_ccd_problem(self.bb, loop, n_anchor_resid=19)
+        # 1 anchor C + 3 residues x 4 backbone atoms = 13 rows
+        self.assertEqual(prob['coords'].shape, (13, 3))
+        # 2 rotatable bonds (phi, psi) per loop residue
+        self.assertEqual(len(prob['bonds']), 6)
+        self.assertEqual(len(prob['moving_masks']), 6)
+        # end effector = last loop residue N, CA, C
+        r = prob['row']
+        self.assertEqual(prob['end_idx'], [r[(22, 'N')], r[(22, 'CA')], r[(22, 'C')]])
+        # the anchor C (row 0) is never movable
+        for m in prob['moving_masks']:
+            self.assertFalse(m[0])
