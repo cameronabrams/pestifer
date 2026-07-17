@@ -100,7 +100,8 @@ class LigateTask(MDTask):
                                         build_loop_problem, anchor_closure_target, ccd_close,
                                         sample_backbone_dihedrals, apply_backbone_dihedrals,
                                         loop_clash_report, heavy_env_coords_from_pdb,
-                                        refine_declash_ccd, end_rmsd)
+                                        refine_declash_ccd, end_rmsd, ccd_close_guarded)
+        from scipy.spatial import cKDTree
         from ..util.coord import pdb_replace_coords
 
         self.next_basename('ccd')
@@ -174,34 +175,66 @@ class LigateTask(MDTask):
                 images = [ch @ R.T + t for (R, t) in _RT]
                 return np.vstack([_env] + images) if len(_env) else np.vstack(images)
 
-            # Compact-assign + CCD, then iterative declash refinement: seed a few compact
-            # Ramachandran starts, close each, and polish by perturb-and-reclose simulated
-            # annealing on the symmetry-aware clash score (this is what walks a crowded/axial
-            # loop into the clean region -- random sampling alone rarely finds it).
+            # Deep-clash count of a trial pose against the present background AND the loop's own
+            # symmetry images -- the guard the guarded CCD uses to reject clash-introducing
+            # rotations (the protein stays "there" during closure). Kept cheap: one prebuilt
+            # tree query for the (large, fixed) background, vectorized pairwise distances for the
+            # small loop-vs-image and intra-loop terms (no per-call tree builds).
+            from scipy.spatial.distance import cdist
+            heavy_mask = np.array([not nm.startswith('H') for (_r, nm) in order])
+            loop_pos = {rr: i for i, rr in enumerate(loop)}
+            hpos = np.array([loop_pos[order[i][0]] for i in range(len(order)) if heavy_mask[i]])
+            _nonadj = np.abs(hpos[:, None] - hpos[None, :]) >= 2      # non-adjacent residue pairs
+            _intra_mask = np.triu(_nonadj, k=1)
+            env_tree = cKDTree(env) if len(env) else None
+
+            def clash_fn(X):
+                hx = X[heavy_mask]
+                deep = 0
+                if env_tree is not None:
+                    deep += int(env_tree.query_ball_point(hx, 1.6, return_length=True).sum())
+                for (R, t) in mate_RT:
+                    deep += int(((cdist(hx, hx @ R.T + t) < 1.6)).sum())
+                deep += int(((cdist(hx, hx) < 1.6) & _intra_mask).sum())
+                return deep
+
+            # Compact-assign, then CLOSE with the background present, rejecting any rotation that
+            # increases the deep-clash count (guarded CCD). Optionally polish with the iterative
+            # declash refiner. Keep the least-clashing candidate across the ensemble.
             refine_iters = int(ccd_specs.get('refine', 250))
+            guard = bool(ccd_specs.get('guard', False))
             best = None
             for cand in range(ensemble):
                 phipsi = sample_backbone_dihedrals(rng, len(loop))
                 start = apply_backbone_dihedrals(prob['coords'], prob, loop, phipsi,
                                                  prev_C=bb[n_anchor]['C'], next_N=bb[c_anchor]['N'])
-                closed, rmsd, iters = ccd_close(start, prob['bonds'], prob['moving_masks'],
-                                                end_idx, target, tol=tol, max_iters=max_iters)
+                if guard:
+                    closed, rmsd, _nc = ccd_close_guarded(start, prob['bonds'], prob['moving_masks'],
+                                                          end_idx, target, clash_fn,
+                                                          tol=max(tol, 0.15), max_iters=max_iters)
+                else:
+                    closed, rmsd, _it = ccd_close(start, prob['bonds'], prob['moving_masks'],
+                                                  end_idx, target, tol=tol, max_iters=max_iters)
                 if refine_iters > 0:
+                    # a refinement re-close follows a single small perturbation, so it is a short
+                    # move -- cap its CCD iterations low (esp. important for the guarded re-close,
+                    # whose per-bond clash check is the expensive part).
                     closed, rep = refine_declash_ccd(closed, prob, order, loop, end_idx, target,
                                                      rng, clash_env_fn, n_iters=refine_iters,
-                                                     close_iters=max_iters)
+                                                     close_iters=120,
+                                                     clash_fn=clash_fn if guard else None)
                 else:
                     rep = loop_clash_report(order, closed, loop, env_coords=clash_env_fn(closed))
                 rmsd = end_rmsd(closed, end_idx, target)
                 key = (rep['n_deep'] + rep['n_env_deep'],
                        rep['n_soft'] + rep['n_env_soft'], rmsd)
                 if best is None or key < best[0]:
-                    best = (key, closed, rep, rmsd, iters, cand)
+                    best = (key, closed, rep, rmsd, cand)
                 if key[0] == 0 and key[1] == 0:
                     break
-            _key, closed, rep, rmsd, iters, cand = best
+            _key, closed, rep, rmsd, cand = best
             logger.debug(f'CCD closed loop {tag}: kept seed {cand + 1}/{ensemble}, '
-                         f'end-RMSD {rmsd:.3f} A in {iters} iters, '
+                         f'end-RMSD {rmsd:.3f} A, '
                          f'{rep["n_deep"] + rep["n_env_deep"]} deep / '
                          f'{rep["n_soft"] + rep["n_env_soft"]} soft clashes')
             if rep['topological']:

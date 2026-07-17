@@ -821,6 +821,15 @@ attributes:
                   0 disables refinement (pure ensemble).
                 type: int
                 default: 250
+              - name: guard
+                text: |
+                  Keep the protein background (and the loop's symmetry images) present during
+                  the CCD closure and reject any bond rotation that increases the deep-clash
+                  count, so the loop closes without being driven into the structure. Off by
+                  default (the per-bond clash check is costly); enable for stubborn, crowded
+                  loops (e.g. gp41 HR1N converging at a trimer axis), ideally with refinement on.
+                type: bool
+                default: false
               - name: on_clash
                 text: |
                   What to do when a closed loop is topologically broken (interpenetrates

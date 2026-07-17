@@ -598,7 +598,7 @@ def _clash_score(report, weight_deep=100.0):
 
 def refine_declash_ccd(coords, prob, order, loop_resids, end_idx, target, rng, clash_env_fn,
                        n_iters=250, perturb_deg=25.0, close_tol=0.15, close_iters=400,
-                       weight_deep=100.0, T0=8.0, Tmin=0.4):
+                       weight_deep=100.0, T0=8.0, Tmin=0.4, clash_fn=None):
     """
     Iteratively declash a *closed* compact loop by perturb-and-reclose simulated annealing.
 
@@ -657,8 +657,12 @@ def refine_declash_ccd(coords, prob, order, loop_resids, end_idx, target, rng, c
         mask = np.asarray(masks[b], dtype=bool)
         trial = np.array(cur)
         trial[mask] = rotate_points_about_axis(trial[mask], trial[a], trial[c] - trial[a], delta)
-        trial, rmsd, _ = ccd_close(trial, bonds, masks, end_idx, target,
-                                   tol=close_tol, max_iters=close_iters)
+        if clash_fn is not None:          # guarded re-close: refuse to reintroduce clashes
+            trial, rmsd, _ = ccd_close_guarded(trial, bonds, masks, end_idx, target, clash_fn,
+                                               tol=close_tol, max_iters=close_iters)
+        else:
+            trial, rmsd, _ = ccd_close(trial, bonds, masks, end_idx, target,
+                                       tol=close_tol, max_iters=close_iters)
         if rmsd > 0.6:                    # could not re-close cleanly -> reject
             continue
         s, rep = evaluate(trial)
@@ -669,3 +673,40 @@ def refine_declash_ccd(coords, prob, order, loop_resids, end_idx, target, rng, c
                 if best_s == 0:
                     break
     return best, best_rep
+
+
+def ccd_close_guarded(coords, bonds, moving_masks, end_idx, target, clash_fn,
+                      tol=0.15, max_iters=500, stall_tol=1e-6):
+    """
+    CCD closure that keeps the environment present and refuses to clash into it.
+
+    Identical sweep to :func:`ccd_close`, but at each rotatable bond the closure-optimal
+    rotation is committed **only if it does not increase** the environment clash count
+    (``clash_fn(coords) -> number of deep clashes``); otherwise that bond is left alone this
+    pass. So the loop walks its end toward ``target`` without ever being driven into the
+    protein background (or, when ``clash_fn`` includes them, its own symmetry images). If a
+    clash-free path to the anchor does not exist, the end simply will not fully close -- the
+    returned ``rmsd`` reports that honestly rather than forcing an interpenetrating pose.
+
+    Returns ``(coords, final_rmsd, final_clash)``.
+    """
+    X = np.array(coords, dtype=float)
+    target = np.asarray(target, dtype=float)
+    end_idx = np.asarray(end_idx, dtype=int)
+    cur_clash = clash_fn(X)
+    last = end_rmsd(X, end_idx, target)
+    for it in range(1, max_iters + 1):
+        for (a, b), mask in zip(bonds, moving_masks):
+            theta = optimal_ccd_angle(X[end_idx], target, X[a], X[b] - X[a])
+            mask = np.asarray(mask, dtype=bool)
+            trial = X.copy()
+            trial[mask] = rotate_points_about_axis(trial[mask], X[a], X[b] - X[a], theta)
+            tc = clash_fn(trial)
+            if tc <= cur_clash:
+                X = trial
+                cur_clash = tc
+        r = end_rmsd(X, end_idx, target)
+        if r < tol or abs(last - r) < stall_tol:
+            break
+        last = r
+    return X, end_rmsd(X, end_idx, target), cur_clash
