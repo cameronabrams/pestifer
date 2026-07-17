@@ -87,6 +87,59 @@ class TestConfig(unittest.TestCase):
         self.assertIn('/usr/local/bin/namd3gpu', msg)
         self.assertIn('GPU mode is OFF', msg)
 
+    # --- processor-type: cpu | gpu | auto ----------------------------------------
+
+    def test_processor_type_gpu_elects_gpu_with_paths_set(self):
+        # explicit gpu + paths.namd3gpu pointed at a separate build -> gpu, no warning
+        c = Config(userdict={'namd': {'processor-type': 'gpu'},
+                             'paths': {'namd3gpu': '/usr/local/bin/namd3gpu'}}).configure_new()
+        self.assertEqual(c.namd_type, 'gpu')
+        self.assertEqual(c.shell_commands['namd3gpu'], '/usr/local/bin/namd3gpu')
+
+    def test_processor_type_cpu_forces_cpu_silently(self):
+        # explicit cpu opt-out: cpu, no unused-GPU warning even if a GPU build is around
+        c = self._gpu_stub(ngpus=1)
+        c._user = {'namd': {'processor-type': 'cpu'}}
+        # exercise the real branch via a full config
+        cfg = Config(userdict={'namd': {'processor-type': 'cpu'}})
+        with self.assertNoLogs('pestifer.core.config', level='WARNING'):
+            cfg.configure_new()
+        self.assertEqual(cfg.namd_type, 'cpu')
+
+    def test_verify_gpu_electable_warns_when_namd3gpu_is_cpu_binary(self):
+        # forcing gpu while namd3gpu still == namd3, but a separate GPU build exists
+        c = self._gpu_stub(ngpus=1)
+        c.shell_commands = {}
+        which = self._which({'namd3gpu': '/usr/local/bin/namd3',
+                             'namd3': '/usr/local/bin/namd3',
+                             'namd3gpu_candidate': '/usr/local/bin/namd3gpu'})
+
+        def which_fn(name):
+            return {'namd3': '/usr/local/bin/namd3',
+                    'namd3gpu': '/usr/local/bin/namd3gpu'}.get(name)
+        with mock.patch('pestifer.core.config.shutil.which', side_effect=which_fn), \
+             mock.patch('pestifer.core.config.os.path.realpath', side_effect=lambda p: p):
+            with self.assertLogs('pestifer.core.config', level='WARNING') as cm:
+                c._verify_gpu_electable('namd3', 'namd3', verify_access=False)
+        self.assertIn('CPU build will be launched with GPU-resident options', ''.join(cm.output))
+
+    def test_verify_gpu_electable_silent_when_paths_set(self):
+        # gpu + namd3gpu already a distinct binary -> no warning
+        c = self._gpu_stub(ngpus=1)
+        c.namd_type = 'gpu'
+        c.shell_commands = {}
+        # an absolute path resolves to itself; bare names map to their install paths
+        def which_fn(name):
+            if name.startswith('/'):
+                return name
+            return {'namd3': '/usr/local/bin/namd3',
+                    'namd3gpu': '/usr/local/bin/namd3gpu'}.get(name)
+        with mock.patch('pestifer.core.config.shutil.which', side_effect=which_fn), \
+             mock.patch('pestifer.core.config.os.path.realpath', side_effect=lambda p: p):
+            with self.assertNoLogs('pestifer.core.config', level='WARNING'):
+                c._verify_gpu_electable('namd3', '/usr/local/bin/namd3gpu', verify_access=False)
+        self.assertEqual(c.namd_type, 'gpu')
+
     def test_no_warn_when_no_gpu(self):
         c = self._gpu_stub(ngpus=0)
         which = self._which({'namd3gpu': '/usr/local/bin/namd3gpu',

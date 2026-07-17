@@ -280,7 +280,18 @@ class Config(Yclept):
         namd3_path = self.shell_commands['namd3']
         namd3gpu_path = self['user']['paths']['namd3gpu']
         self.shell_commands['namd3gpu'] = namd3gpu_path
-        if namd3gpu_path != namd3_path:
+        # namd.processor-type selects the mode: 'cpu'/'gpu' force it, 'auto' (default) infers
+        # GPU mode from paths.namd3gpu differing from paths.namd3.  Inference cannot express
+        # the single-binary-handles-both case, which is why the explicit settings exist.
+        requested = self['user']['namd'].get('processor-type', 'auto')
+        if requested == 'gpu':
+            self.namd_type = 'gpu'
+            self._verify_gpu_electable(namd3_path, namd3gpu_path, verify_access)
+        elif requested == 'cpu':
+            # explicit opt-out; say nothing about an idle GPU, the user chose this
+            self.namd_type = 'cpu'
+            self.shell_commands['namd3gpu'] = namd3_path
+        elif namd3gpu_path != namd3_path:
             namd3gpu_resolved = shutil.which(namd3gpu_path)
             if namd3gpu_resolved:
                 if verify_access:
@@ -294,6 +305,42 @@ class Config(Yclept):
             self.namd_type = 'cpu'
             self._warn_gpu_not_elected(namd3_path, namd3gpu_path)
         self.namd_deprecates = self['user']['namd']['deprecated3']
+
+    def _verify_gpu_electable(self, namd3_path: str, namd3gpu_path: str, verify_access: bool):
+        """
+        Sanity-check an explicit ``processor-type: gpu`` request.
+
+        GPU mode launches ``paths.namd3gpu`` with ``+devices`` and applies the ``gpu-resident``
+        parameters, so forcing it while ``paths.namd3gpu`` still points at a CPU-only build
+        produces a NAMD that does not understand either.  Warn about the two ways that goes
+        wrong; the request is still honored, since only the user knows whether their binary is
+        GPU-capable.
+        """
+        namd3gpu_resolved = shutil.which(namd3gpu_path)
+        if not namd3gpu_resolved:
+            logger.warning(f'processor-type is "gpu" but namd3gpu {namd3gpu_path!r} was not found; '
+                           f'falling back to CPU mode')
+            self.shell_commands['namd3gpu'] = namd3_path
+            self.namd_type = 'cpu'
+            return
+        if verify_access:
+            assert os.access(namd3gpu_resolved, os.X_OK), f'You do not have permission to execute {namd3gpu_resolved}'
+        if self.ngpus < 1:
+            logger.warning('processor-type is "gpu" but no GPU was detected; NAMD will be launched '
+                           'in GPU-resident mode anyway and will likely fail.')
+        # If namd3gpu is still the CPU default while a separate GPU build sits on PATH, the user
+        # has almost certainly forgotten to point paths.namd3gpu at it.
+        if namd3gpu_path == namd3_path:
+            for name in self._gpu_namd_candidates:
+                candidate = shutil.which(name)
+                if candidate and os.path.realpath(candidate) != os.path.realpath(namd3gpu_resolved):
+                    logger.warning(
+                        f'processor-type is "gpu" but paths.namd3gpu is {namd3gpu_path!r}, the same as '
+                        f'paths.namd3, so the CPU build will be launched with GPU-resident options. '
+                        f'A separate GPU-resident build appears to be available at {candidate!r}; set '
+                        f'paths.namd3gpu to it. (If {namd3gpu_path!r} is a single binary that handles '
+                        f'both modes, this is fine.)')
+                    break
 
     def _warn_gpu_not_elected(self, namd3_path: str, namd3gpu_path: str):
         """

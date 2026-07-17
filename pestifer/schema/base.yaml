@@ -255,10 +255,18 @@ attributes:
         choices: [2, 3]
         default: 3
       - name: processor-type
-        text: "Deprecated and ignored: GPU mode is now auto-detected by comparing paths.namd3 and paths.namd3gpu. This entry is accepted for backward compatibility but has no effect."
+        text: >-
+          Selects CPU or GPU-resident NAMD. 'auto' (the default) infers GPU mode when
+          paths.namd3gpu differs from paths.namd3 -- correct when the GPU-resident build is a
+          separate binary, but it cannot express the case where a single binary handles both
+          modes, so use 'gpu' explicitly there. 'gpu' forces GPU-resident mode (launches
+          paths.namd3gpu with +devices and applies the gpu-resident parameters); 'cpu' forces
+          CPU mode. Note that the executable is always taken from paths.namd3gpu/paths.namd3 --
+          selecting 'gpu' does not change which binary is used, so point paths.namd3gpu at your
+          GPU-resident build if it is a separate executable.
         type: str
-        choices: [cpu, gpu]
-        default: cpu
+        choices: [auto, cpu, gpu]
+        default: auto
       - name: ncpus
         text: number of processing elements (PEs) for NAMD; 0 means auto-detect from SLURM environment or local CPU count
         type: int
