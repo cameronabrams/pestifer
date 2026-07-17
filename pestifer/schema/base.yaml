@@ -805,12 +805,22 @@ attributes:
                 default: 0.1
               - name: ensemble
                 text: |
-                  Number of independent Ramachandran-seeded closures to try per loop; the
-                  candidate that introduces the fewest steric clashes with the rest of the
-                  structure is kept. Larger values improve the odds of a clash-free surface
-                  loop at the cost of more (cheap, offline) CCD closures.
+                  Number of independent Ramachandran-seeded closures to try per loop; each is
+                  polished by the iterative declash refiner and the candidate that introduces
+                  the fewest steric clashes with the rest of the structure is kept. Larger
+                  values improve the odds of a clash-free loop at the cost of more (cheap,
+                  offline) closures.
                 type: int
                 default: 10
+              - name: refine
+                text: |
+                  Iterations of iterative declash refinement (perturb-and-reclose simulated
+                  annealing on the symmetry-aware clash score) applied to each closed candidate.
+                  This is what walks a crowded or axially-symmetric loop (e.g. gp41 HR1N in a
+                  trimer) into the clash-free region that random sampling alone rarely finds.
+                  0 disables refinement (pure ensemble).
+                type: int
+                default: 250
               - name: on_clash
                 text: |
                   What to do when a closed loop is topologically broken (interpenetrates

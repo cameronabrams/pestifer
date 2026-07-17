@@ -99,7 +99,8 @@ class LigateTask(MDTask):
         from ..psfutil.loop_ccd import (backbone_from_pdb, loop_atoms_from_pdb,
                                         build_loop_problem, anchor_closure_target, ccd_close,
                                         sample_backbone_dihedrals, apply_backbone_dihedrals,
-                                        loop_clash_report, heavy_env_coords_from_pdb)
+                                        loop_clash_report, heavy_env_coords_from_pdb,
+                                        refine_declash_ccd, end_rmsd)
         from ..util.coord import pdb_replace_coords
 
         self.next_basename('ccd')
@@ -164,8 +165,20 @@ class LigateTask(MDTask):
             mate_RT = [(np.asarray(m['tmat'], dtype=float)[:3, :3], np.asarray(m['tmat'], dtype=float)[:3, 3])
                        for m in members if not m['is_reference']]
 
-            # clash-filtered ensemble: close `ensemble` independent Ramachandran-seeded starts,
-            # keep the one with the fewest clashes (deep first, then soft, then tightest closure).
+            # environment for a trial pose, including the loop's OWN symmetry images (all copies
+            # share the conformation), so an axial loop declashes against its mates radially.
+            def clash_env_fn(closed_pose, _env=env, _RT=mate_RT, _hr=heavy_rows):
+                if not _RT:
+                    return _env
+                ch = closed_pose[_hr]
+                images = [ch @ R.T + t for (R, t) in _RT]
+                return np.vstack([_env] + images) if len(_env) else np.vstack(images)
+
+            # Compact-assign + CCD, then iterative declash refinement: seed a few compact
+            # Ramachandran starts, close each, and polish by perturb-and-reclose simulated
+            # annealing on the symmetry-aware clash score (this is what walks a crowded/axial
+            # loop into the clean region -- random sampling alone rarely finds it).
+            refine_iters = int(ccd_specs.get('refine', 250))
             best = None
             for cand in range(ensemble):
                 phipsi = sample_backbone_dihedrals(rng, len(loop))
@@ -173,16 +186,19 @@ class LigateTask(MDTask):
                                                  prev_C=bb[n_anchor]['C'], next_N=bb[c_anchor]['N'])
                 closed, rmsd, iters = ccd_close(start, prob['bonds'], prob['moving_masks'],
                                                 end_idx, target, tol=tol, max_iters=max_iters)
-                cand_env = env
-                if mate_RT:
-                    ch = closed[heavy_rows]
-                    images = [ch @ R.T + t for (R, t) in mate_RT]
-                    cand_env = np.vstack([env] + images) if len(env) else np.vstack(images)
-                rep = loop_clash_report(order, closed, loop, env_coords=cand_env)
+                if refine_iters > 0:
+                    closed, rep = refine_declash_ccd(closed, prob, order, loop, end_idx, target,
+                                                     rng, clash_env_fn, n_iters=refine_iters,
+                                                     close_iters=max_iters)
+                else:
+                    rep = loop_clash_report(order, closed, loop, env_coords=clash_env_fn(closed))
+                rmsd = end_rmsd(closed, end_idx, target)
                 key = (rep['n_deep'] + rep['n_env_deep'],
                        rep['n_soft'] + rep['n_env_soft'], rmsd)
                 if best is None or key < best[0]:
                     best = (key, closed, rep, rmsd, iters, cand)
+                if key[0] == 0 and key[1] == 0:
+                    break
             _key, closed, rep, rmsd, iters, cand = best
             logger.debug(f'CCD closed loop {tag}: kept seed {cand + 1}/{ensemble}, '
                          f'end-RMSD {rmsd:.3f} A in {iters} iters, '

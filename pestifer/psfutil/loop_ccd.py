@@ -586,3 +586,86 @@ def loop_clash_report(order, coords, loop_resids, env_coords=None,
     report['topological'] = bool(report['n_deep'] or report['n_env_deep']
                                  or report['min_ca'] < ca_thread)
     return report
+
+
+def _clash_score(report, weight_deep=100.0):
+    """Scalar penalty from a :func:`loop_clash_report`: deep (interpenetrating) overlaps
+    dominate soft ones. Lower is better; 0 means clash-free."""
+    deep = report['n_deep'] + report['n_env_deep']
+    soft = report['n_soft'] + report['n_env_soft']
+    return weight_deep * deep + soft
+
+
+def refine_declash_ccd(coords, prob, order, loop_resids, end_idx, target, rng, clash_env_fn,
+                       n_iters=250, perturb_deg=25.0, close_tol=0.15, close_iters=400,
+                       weight_deep=100.0, T0=8.0, Tmin=0.4):
+    """
+    Iteratively declash a *closed* compact loop by perturb-and-reclose simulated annealing.
+
+    Random sampling rarely lands a crowded loop in the small clash-free region of
+    conformation space; iterative descent walks there. Each step perturbs one backbone
+    dihedral by a small random angle, re-closes the end onto ``target`` with CCD (a short move
+    because the loop stays compact), and scores the result with :func:`loop_clash_report`
+    against ``clash_env_fn(coords)`` -- a callback returning the environment coordinates for a
+    trial pose, which lets the caller fold in the loop's own symmetry images (so the mutually
+    interacting copies of an axial loop declash *together*, radially outward). Moves that lower
+    the clash score are accepted; worse moves are accepted with a Metropolis probability under
+    a geometrically annealed temperature, to escape local minima. Deterministic for a fixed
+    ``rng``.
+
+    Parameters
+    ----------
+    coords : (M, 3)   -- a closed starting pose (e.g. from :func:`ccd_close`)
+    prob : dict from :func:`build_loop_problem` (``bonds``, ``moving_masks``)
+    order : list[(resid, atomname)] per row (for :func:`loop_clash_report`)
+    loop_resids, end_idx, target : as for :func:`ccd_close`
+    rng : numpy.random.Generator
+    clash_env_fn : callable (M,3) array -> (K,3) environment coords for scoring that pose
+    n_iters, perturb_deg, close_tol, close_iters, weight_deep, T0, Tmin : tuning
+
+    Returns
+    -------
+    (best_coords, best_report) : (np.ndarray, dict)
+    """
+    bonds = prob['bonds']
+    masks = prob['moving_masks']
+    nb = len(bonds)
+
+    def evaluate(X):
+        rep = loop_clash_report(order, X, loop_resids, env_coords=clash_env_fn(X))
+        return _clash_score(rep, weight_deep), rep
+
+    cur = np.array(coords, dtype=float)
+    cur_s, cur_rep = evaluate(cur)
+    best, best_s, best_rep = np.array(cur), cur_s, cur_rep
+    if best_s == 0:
+        return best, best_rep
+    early = max(1, nb // 3)              # leading third of the bonds = longest levers
+    for it in range(n_iters):
+        T = T0 * (Tmin / T0) ** (it / max(1, n_iters - 1))
+        # Two move types: an occasional LARGE swing about a leading (long-lever) bond, which
+        # rotates the whole loop bulk (e.g. radially outward, away from an assembly axis), and
+        # otherwise a small local perturbation that refines shape. The swing supplies the big
+        # concerted motion a crowded loop needs to escape; the local move polishes.
+        if rng.random() < 0.35:
+            b = int(rng.integers(early))
+            delta = float(rng.normal(0.0, 90.0))
+        else:
+            b = int(rng.integers(nb))
+            delta = float(rng.normal(0.0, perturb_deg))
+        a, c = bonds[b]
+        mask = np.asarray(masks[b], dtype=bool)
+        trial = np.array(cur)
+        trial[mask] = rotate_points_about_axis(trial[mask], trial[a], trial[c] - trial[a], delta)
+        trial, rmsd, _ = ccd_close(trial, bonds, masks, end_idx, target,
+                                   tol=close_tol, max_iters=close_iters)
+        if rmsd > 0.6:                    # could not re-close cleanly -> reject
+            continue
+        s, rep = evaluate(trial)
+        if s <= cur_s or rng.random() < np.exp(-(s - cur_s) / max(T, 1e-6)):
+            cur, cur_s, cur_rep = trial, s, rep
+            if s < best_s:
+                best, best_s, best_rep = np.array(trial), s, rep
+                if best_s == 0:
+                    break
+    return best, best_rep
