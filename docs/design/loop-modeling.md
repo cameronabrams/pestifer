@@ -163,3 +163,80 @@ distributions.
   category set for the library; the high-res PDB subset + culling criteria for
   derivation; ensemble size / best-K defaults; internal score terms; whether P1 ships
   the ensemble or a single CCD closure.
+
+## Scalability analysis (empirical, 2026-07-17)
+
+Motivated by the observation that many bundled examples carry **long** internal loops,
+not the 5-residue case P1 was benchmarked on. Missing-internal-loop survey (REMARK 465,
+consecutive missing residues flanked by resolved anchors):
+
+| structure | longest internal loop | others | example |
+|-----------|----------------------:|--------|---------|
+| 7txd | **63** | 18–21 | 11 |
+| 4zxb | 37 | 16, 15, 11 | 14 |
+| 4zmj / 4tvp | 21 | | 07 / 08 |
+| 7xix | 20 | 11 | 15 |
+| 5fkw | 18 | | 18 |
+| 8fad | 15 | | 09 |
+| 5vn3 | 14 | | 12 / 25 |
+
+(HIV-Env glycoproteins: V1/V2, V3, V4 loops.) So the real workload is 14–63-residue
+buried loops, far outside P1's tested regime.
+
+**Method.** Engine-level delete-and-rebuild on fully-resolved myoglobin (1mob, chain A,
+no gaps): carve internal windows of length N, rebuild with the loop_ccd engine, measure
+closure, RMSD-to-native, and steric validity vs the frozen protein environment. Scripts
+under scratch (`scaling.py`, `severity.py`, `gen*.py`).
+
+**Findings.**
+
+1. **CCD closure scales indefinitely — never the bottleneck.** Every length 4→28 closes
+   to ~0.1 Å in a handful of iterations; iterations *drop* as loops grow (more DOF).
+
+2. **RMSD-to-native saturates at ~10 Å for N≥12** (4→1.5, 8→5.3, 12→8.8, ≥16→~9–11 Å).
+   A single basin sample lands in an arbitrary valid closure. (For these disordered
+   loops native is ill-defined anyway; the real bar is steric validity, not RMSD.)
+
+3. **The generator, not CCD, is the bottleneck, and its clashes are topological.**
+   Deepest heavy-atom overlaps sit at **~0.35 Å** (atoms superimposed = one strand
+   passing *through* another), min non-adjacent Cα down to 2.4 Å. These are **not**
+   relaxable by minimization/MD (a local optimizer cannot pull one strand back through
+   another). Loop-vs-core clashes dominate and appear from **N≈8 up**, not just long
+   loops — because per-residue φ/ψ sampling is **environment-blind** and builds the loop
+   straight into the fold. Short surface loops (e.g. the BPTI 24–28 benchmark) escape
+   only by luck; note that benchmark checked bond+RMSD but **never clashes**.
+
+4. **Closure and sterics are coupled — no sequential heuristic works** (validated across
+   four prototypes):
+
+   | approach | closure | sterics |
+   |----------|---------|---------|
+   | naive sample + full CCD | ✅ exact | ❌ catastrophic, topological |
+   | env-aware growth + full CCD | ✅ | ❌ CCD re-swings loop back through core |
+   | env-aware growth + clash-aware tail CCD | ❌ 2–11 Å | ✅ soft (~1.3 Å) |
+   | land-close growth + 3-point CCD tail | ✅ 0.5 Å (N≥12) | ❌ single arc sweeps core |
+
+   Growth **cannot land the end near the anchor** (median end-gap 7–14 Å): dodging the
+   core pushes the end away, and a short pivot cannot bridge that. Exact closure of that
+   gap with 3 residues forces a large arc; a single-solution solver (CCD) finds one arc,
+   which sweeps the crowded core → many clashes.
+
+**Conclusion — the required architecture.** Exact closure alone is insufficient; the
+missing mechanism is **solution diversity at the closure step**. This is precisely
+**KIC** (Coutsias–Seok–Dill 2004): analytic closure of a 3-residue pivot yields up to
+**16 discrete** closures, giving many distinct arcs to filter for a clash-free one — the
+one thing CCD (single local solution) cannot provide. The working generator is therefore
+the *combination*:
+
+> **environment-aware self-avoiding growth** (bulk, sterics-only) **+ KIC exact
+> multi-solution closure** (3-residue pivot) **+ clash-filtered ensemble** (over
+> grown-starts × ≤16 KIC roots) **+ best-K + minimize.**
+
+No single piece suffices; long/buried loops need all of them, at ensemble scale.
+
+**Revised phasing implication.** KIC moves from "P3, nice-to-have" to **required** for
+the medium/long (14–63 res) example loops. P1's single-sample CCD is honestly a
+**short, solvent-exposed loop** tool (≲8 res); it must not silently emit topologically
+broken long loops. Near-term: (a) add a clash/threading diagnostic so the builder and
+benchmark fail loud instead of shipping interpenetrated loops; (b) build the native KIC
+generator per the architecture above.
