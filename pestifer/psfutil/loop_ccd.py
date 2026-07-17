@@ -92,13 +92,24 @@ def sample_backbone_dihedrals(rng, n, jitter_deg=10.0):
 _BACKBONE = ('N', 'CA', 'C', 'O')
 
 
+def _resid_key(line):
+    """Residue identifier from a PDB ATOM/HETATM line, matching how
+    :meth:`Molecule.protein_loop_gaps` reports resids: the plain ``int`` sequence number
+    (cols 23-26) when there is no insertion code, else the ``'<seq><icode>'`` string (e.g.
+    ``'185A'``) so insertion-coded loops (HIV Env V1/V2, etc.) key consistently."""
+    resseq = int(line[22:26])
+    icode = line[26].strip()
+    return f'{resseq}{icode}' if icode else resseq
+
+
 def backbone_from_pdb(pdb_path, chainID=None, segname=None):
     """
     Parse backbone atoms (N, CA, C, O) from a PDB into ``{resid: {atomname: xyz}}``.
 
     Selects records by ``segname`` (cols 73-76) when given, else by ``chainID`` (col 22),
-    else all. resid is the integer residue sequence number (col 23-26). Later records win on
-    a duplicate (resid, atomname) -- callers should pass an altloc-free / single-model PDB.
+    else all. resid is the sequence number (int) or ``'<seq><icode>'`` when an insertion code
+    is present (see :func:`_resid_key`). Later records win on a duplicate (resid, atomname) --
+    callers should pass an altloc-free / single-model PDB.
     """
     out = {}
     with open(pdb_path) as fh:
@@ -113,7 +124,7 @@ def backbone_from_pdb(pdb_path, chainID=None, segname=None):
             if chainID is not None and line[21:22].strip() != chainID:
                 continue
             try:
-                resid = int(line[22:26])
+                resid = _resid_key(line)
                 xyz = np.array([float(line[30:38]), float(line[38:46]), float(line[46:54])])
             except ValueError:
                 continue
@@ -199,7 +210,7 @@ def loop_atoms_from_pdb(pdb_path, resids, segname=None, chainID=None):
             if chainID is not None and line[21:22].strip() != chainID:
                 continue
             try:
-                resid = int(line[22:26])
+                resid = _resid_key(line)
             except ValueError:
                 continue
             if resid not in want:
@@ -535,7 +546,10 @@ def loop_clash_report(order, coords, loop_resids, env_coords=None,
     X = np.asarray(coords, dtype=float)
     heavy = _heavy_mask(order)
     hX = X[heavy]
-    hres = np.array([order[i][0] for i in range(len(order)) if heavy[i]])
+    hres = [order[i][0] for i in range(len(order)) if heavy[i]]
+    # sequence position of each loop residue (handles insertion codes / mixed int-str resids):
+    # "adjacent" means near in chain order, not near in resid number.
+    pos = {r: i for i, r in enumerate(loop_resids)}
     report = dict(n_soft=0, n_deep=0, n_env_soft=0, n_env_deep=0, worst=9.99,
                   min_ca=9.99, topological=False)
     if len(hX) == 0:
@@ -543,7 +557,7 @@ def loop_clash_report(order, coords, loop_resids, env_coords=None,
     # intra-loop, non-adjacent residues
     tree = cKDTree(hX)
     for a, b in tree.query_pairs(soft_cutoff):
-        if abs(int(hres[a]) - int(hres[b])) < 2:
+        if abs(pos[hres[a]] - pos[hres[b]]) < 2:
             continue
         d = float(np.linalg.norm(hX[a] - hX[b]))
         report['n_soft'] += 1
@@ -566,7 +580,7 @@ def loop_clash_report(order, coords, loop_resids, env_coords=None,
     ca_xyz = X[ca_rows]
     for i in range(len(ca_rows)):
         for j in range(i + 2, len(ca_rows)):
-            if abs(int(ca_res[i]) - int(ca_res[j])) < 2:
+            if abs(pos[ca_res[i]] - pos[ca_res[j]]) < 2:
                 continue
             report['min_ca'] = min(report['min_ca'], float(np.linalg.norm(ca_xyz[i] - ca_xyz[j])))
     report['topological'] = bool(report['n_deep'] or report['n_env_deep']

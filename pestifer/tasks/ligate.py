@@ -117,11 +117,21 @@ class LigateTask(MDTask):
         on_clash = str(ccd_specs.get('on_clash', 'warn')).casefold()
         rng = np.random.default_rng(seed)
 
+        # Group the (gap, transform) entries by their asymmetric-unit origin so that all
+        # symmetry copies of one loop are closed together -- close the asymmetric-unit copy
+        # once and place every mate by its transform, keeping the trimer (or other symmetric
+        # assembly) axially symmetric. An independent closure per chain would break that.
+        from collections import OrderedDict
+        groups = OrderedDict()
+        for gap in gaps:
+            groups.setdefault(gap['group'], []).append(gap)
+
         new_coords = {}   # PDB serial -> closed xyz
         broken = []       # loops flagged topologically broken
-        for gap in gaps:
-            seg, loop = gap['segname'], gap['loop_resids']
-            n_anchor, c_anchor = gap['n_anchor_resid'], gap['c_anchor_resid']
+        for gid, members in groups.items():
+            ref = next((m for m in members if m['is_reference']), members[0])
+            seg, loop = ref['ref_segname'], ref['loop_resids']
+            n_anchor, c_anchor = ref['n_anchor_resid'], ref['c_anchor_resid']
             bb = backbone_from_pdb(src_pdb, segname=seg)
             order, coords, serials = loop_atoms_from_pdb(src_pdb, loop, segname=seg)
             prob = build_loop_problem(order, coords, loop)
@@ -129,12 +139,30 @@ class LigateTask(MDTask):
             last = loop[-1]
             end_idx = [r[(last, 'CA')], r[(last, 'C')]]
             target = anchor_closure_target(bb[c_anchor]['N'], bb[c_anchor]['CA'], bb[c_anchor]['C'])[[0, 1]]
-            # environment for clash scoring: everything but this loop, minus the flanking anchor
-            # residues (the loop is covalently bonded to them -- junction peptide bonds ~1.33 A
-            # are expected close contacts, not clashes).
-            _ao, _ac, anchor_serials = loop_atoms_from_pdb(src_pdb, [n_anchor, c_anchor], segname=seg)
-            env = heavy_env_coords_from_pdb(src_pdb, exclude_serials=list(serials) + list(anchor_serials))
-            tag = f'{seg}:{loop[0]}-{loop[-1]} (len {len(loop)})'
+            # environment for clash scoring: everything but this loop and its flanking anchors
+            # (junction peptide bonds ~1.33 A are expected close contacts, not clashes). Also
+            # exclude every symmetry-mate loop of this group: those are still in their throwaway
+            # guesscoord positions and are about to be overwritten with this closure's transform,
+            # so scoring against them would be meaningless.
+            exclude = []
+            for m in members:
+                _mo, _mc, mser = loop_atoms_from_pdb(src_pdb, m['loop_resids'], segname=m['segname'])
+                exclude.extend(mser)
+                _ao, _ac, aser = loop_atoms_from_pdb(src_pdb, [m['n_anchor_resid'], m['c_anchor_resid']],
+                                                     segname=m['segname'])
+                exclude.extend(aser)
+            env = heavy_env_coords_from_pdb(src_pdb, exclude_serials=exclude)
+            ncopies = len(members)
+            tag = f'{seg}:{loop[0]}-{loop[-1]} (len {len(loop)}' + (f', x{ncopies} copies)' if ncopies > 1 else ')')
+
+            # Symmetry mates converge for loops near an assembly axis (e.g. gp41 HR1N at the
+            # trimer 3-fold): a conformation that is clean in one protomer can still crash into
+            # its own symmetry images once replicated. Since every copy gets the SAME
+            # conformation, score each candidate against the transformed images of THAT candidate,
+            # so the winner is mutually clash-free across all protomers -- not just locally clean.
+            heavy_rows = [i for i, (_r, nm) in enumerate(order) if not nm.startswith('H')]
+            mate_RT = [(np.asarray(m['tmat'], dtype=float)[:3, :3], np.asarray(m['tmat'], dtype=float)[:3, 3])
+                       for m in members if not m['is_reference']]
 
             # clash-filtered ensemble: close `ensemble` independent Ramachandran-seeded starts,
             # keep the one with the fewest clashes (deep first, then soft, then tightest closure).
@@ -145,7 +173,12 @@ class LigateTask(MDTask):
                                                  prev_C=bb[n_anchor]['C'], next_N=bb[c_anchor]['N'])
                 closed, rmsd, iters = ccd_close(start, prob['bonds'], prob['moving_masks'],
                                                 end_idx, target, tol=tol, max_iters=max_iters)
-                rep = loop_clash_report(order, closed, loop, env_coords=env)
+                cand_env = env
+                if mate_RT:
+                    ch = closed[heavy_rows]
+                    images = [ch @ R.T + t for (R, t) in mate_RT]
+                    cand_env = np.vstack([env] + images) if len(env) else np.vstack(images)
+                rep = loop_clash_report(order, closed, loop, env_coords=cand_env)
                 key = (rep['n_deep'] + rep['n_env_deep'],
                        rep['n_soft'] + rep['n_env_soft'], rmsd)
                 if best is None or key < best[0]:
@@ -168,8 +201,16 @@ class LigateTask(MDTask):
                 logger.info(f'ligate/ccd: loop {tag} closed with soft contacts only '
                             f'({rep["n_soft"]} intra + {rep["n_env_soft"]} loop-vs-structure; '
                             f'worst {rep["worst"]:.2f} A) -- relaxable by minimization')
-            for k, serial in enumerate(serials):
-                new_coords[serial] = closed[k]
+
+            # place the closure onto the asymmetric-unit copy and every symmetry mate by
+            # applying each copy's transform to the (identical) closed loop.
+            closed_by_key = {order[k]: closed[k] for k in range(len(order))}
+            for m in members:
+                tmat = np.asarray(m['tmat'], dtype=float)
+                R, t = tmat[:3, :3], tmat[:3, 3]
+                morder, _mc, mser = loop_atoms_from_pdb(src_pdb, m['loop_resids'], segname=m['segname'])
+                for k, akey in enumerate(morder):
+                    new_coords[mser[k]] = R @ closed_by_key[akey] + t
 
         if broken and on_clash == 'error':
             logger.error(f'ligate/ccd: {len(broken)} loop(s) topologically broken; '

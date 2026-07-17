@@ -488,17 +488,27 @@ class Molecule:
         Enumerate interior protein loop gaps for the CCD loop closer.
 
         Returns one dict per (gap, biological-assembly transform):
-        ``{'segname', 'loop_resids': [int, ...], 'n_anchor_resid', 'c_anchor_resid'}`` where
-        ``segname`` is the transform-mapped segid, ``loop_resids`` are the model-built loop
-        residues (N->C), ``n_anchor_resid`` is the last resolved residue before the loop, and
-        ``c_anchor_resid`` is the first resolved residue after it (the closure target). Uses
-        the same interior-loop gating as :meth:`write_gaps`.
+        ``{'segname', 'ref_segname', 'group', 'tmat', 'is_reference', 'loop_resids': [int,
+        ...], 'n_anchor_resid', 'c_anchor_resid'}`` where ``segname`` is the transform-mapped
+        segid, ``ref_segname`` is the asymmetric-unit segid the loop is actually built in,
+        ``group`` is an integer shared by all symmetry copies of the same asymmetric gap,
+        ``tmat`` is the 4x4 homogeneous biological-assembly transform (identity for the
+        reference copy), ``is_reference`` flags the asymmetric-unit copy, ``loop_resids`` are
+        the model-built loop residues (N->C), ``n_anchor_resid`` is the last resolved residue
+        before the loop, and ``c_anchor_resid`` is the first resolved residue after it (the
+        closure target). Uses the same interior-loop gating as :meth:`write_gaps`.
+
+        The ``group``/``tmat``/``is_reference`` fields let the closer honor axial symmetry:
+        close the asymmetric-unit copy once and place every symmetry mate by applying its
+        ``tmat`` to that closed loop, so the copies stay identical (an independent closure per
+        chain would break the symmetry of e.g. a C3 trimer).
         """
         if min_length is None:
             min_length = getattr(self, 'min_loop_length', 4)
         ba = self.active_biological_assembly
         au = self.asymmetric_unit
         gaps = []
+        group = 0
         for S in au.segments:
             if S.segtype != 'protein':
                 continue
@@ -513,10 +523,15 @@ class Molecule:
                         act = transform.chainIDmap.get(asymm_segname, asymm_segname)
                         gaps.append({
                             'segname': act,
+                            'ref_segname': asymm_segname,
+                            'group': group,
+                            'tmat': transform.tmat,
+                            'is_reference': act == asymm_segname,
                             'loop_resids': [r.resid.resid for r in loop_res],
                             'n_anchor_resid': n_anchor.resid.resid,
                             'c_anchor_resid': c_anchor.resid.resid,
                         })
+                    group += 1
         return gaps
 
     def cleave_chains(self, clv_list: CleavageSiteList):
