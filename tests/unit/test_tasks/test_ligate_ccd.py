@@ -1,0 +1,82 @@
+import unittest
+from pathlib import Path
+
+import numpy as np
+import yaml
+
+from pestifer.core.controller import Controller
+from pestifer.core.config import Config
+from pestifer.psfutil.loop_ccd import backbone_from_pdb
+
+# An internal, cysteine-free loop of BPTI (6pti) to delete and rebuild.
+_LOOP = {24: 'ASN', 25: 'ALA', 26: 'LYS', 27: 'ALA', 28: 'GLY'}
+
+
+def _carve_missing_loop(src_pdb, dst_pdb):
+    """Write dst_pdb == src_pdb minus the _LOOP residues' atoms, with REMARK 465 added
+    for them so pestifer models them as a missing internal loop."""
+    r465 = [f"REMARK 465     {rn} A  {rid:>4d}\n" for rid, rn in _LOOP.items()]
+    out, inserted = [], False
+    for line in open(src_pdb):
+        if line.startswith("REMARK 465     ALA A    58") and not inserted:
+            out.append(line); out.extend(r465); inserted = True; continue
+        if line.startswith(("ATOM", "ANISOU", "HETATM")):
+            try:
+                rid, ch = int(line[22:26]), line[21]
+            except ValueError:
+                out.append(line); continue
+            if ch == 'A' and rid in _LOOP:
+                continue
+        out.append(line)
+    with open(dst_pdb, 'w') as f:
+        f.writelines(out)
+
+
+def _loop_rmsd_to_native(built, native, loop, anchors):
+    """Backbone (N,CA,C) RMSD of the rebuilt loop vs native, after a rigid superposition on
+    the flanking resolved anchor residues (Kabsch)."""
+    def stack(bb, rs):
+        return np.array([bb[r][a] for r in rs for a in ('N', 'CA', 'C')])
+    P, Q = stack(built, anchors), stack(native, anchors)
+    Pc, Qc = P - P.mean(0), Q - Q.mean(0)
+    U, _, Vt = np.linalg.svd(Pc.T @ Qc)
+    d = np.sign(np.linalg.det(Vt.T @ U.T))
+    R = Vt.T @ np.diag([1, 1, d]) @ U.T
+    B, N = stack(built, loop), stack(native, loop)
+    Bt = (R @ (B - P.mean(0)).T).T + Q.mean(0)
+    return float(np.sqrt(((Bt - N) ** 2).sum(1).mean()))
+
+
+class TestLigateCCD(unittest.TestCase):
+    """Delete-and-rebuild benchmark: CCD must close a modeled BPTI loop near native."""
+
+    def setUp(self):
+        self.native = str(Path(__file__).parents[2] / 'inputs' / '6pti.pdb')
+        _carve_missing_loop(self.native, 'bptidr.pdb')
+        cfg = {'title': 'BPTI delete-and-rebuild, CCD loop closure',
+               'tasks': [
+                   {'fetch': {'source': 'local', 'sourceID': 'bptidr', 'source_format': 'pdb'}},
+                   {'psfgen': {'source': {'sequence': {'loops': {
+                       'min_loop_length': 4, 'declash': {'maxcycles': 0}}}}}},
+                   {'ligate': {'method': 'ccd'}},
+               ]}
+        with open('drccd.yaml', 'w') as f:
+            yaml.safe_dump(cfg, f)
+
+    def test_ccd_closes_loop_near_native(self):
+        Controller().configure(Config(userfile='drccd.yaml').configure_new()).do_tasks()
+        built = backbone_from_pdb('my_system.pdb', segname='A')
+        native = backbone_from_pdb(self.native, chainID='A')
+
+        # 1. the loop's C-terminus is bonded to the downstream anchor (peptide bond ~1.33 A)
+        bond = np.linalg.norm(built[28]['C'] - built[29]['N'])
+        self.assertLess(bond, 1.6, f"loop not closed: 28:C -> 29:N = {bond:.2f} A")
+
+        # 2. the rebuilt loop is near native (deterministic via the default ligate.ccd.seed)
+        rmsd = _loop_rmsd_to_native(built, native, loop=[24, 25, 26, 27, 28],
+                                    anchors=[20, 21, 22, 23, 29, 30, 31, 32])
+        self.assertLess(rmsd, 2.0, f"rebuilt loop backbone RMSD-to-native = {rmsd:.2f} A (>2.0)")
+
+
+if __name__ == '__main__':
+    unittest.main()

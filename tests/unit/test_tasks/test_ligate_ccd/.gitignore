@@ -1,0 +1,3 @@
+# build artifacts produced by test_ligate_ccd.py (delete-and-rebuild)
+*
+!.gitignore
