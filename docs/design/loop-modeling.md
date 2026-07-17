@@ -281,3 +281,36 @@ solvent-exposed and would likely fare better, but that is untested.
 minimize (accepting it won't fix deep clashes), or (3) treat long/buried loops as an
 external-import problem (Modeller/Rosetta/AF → pestifer stitches + minimizes) and keep
 the shipped diagnostic as the guardrail.
+
+## Scope correction (2026-07-17) — this was the wrong problem
+
+The analyses above chase *native reconstruction* of resolved loops (delete-and-rebuild
+RMSD-to-native, clash-free re-routing through a packed fold). **That is not the actual
+requirement.** In the bundled examples the unresolved internal gaps are, without
+exception, **floppy solvent-exposed surface loops** — they are unresolved precisely
+*because* they interconvert among many conformations. There is no unique native to
+recover, and no need to build a loop-modeling algorithm (growth, KIC, distributed pivots)
+at all.
+
+The real requirement is modest: replace the legacy *grow-a-straight-chain-then-steer-the-
+end-to-the-anchor* closure with something **more physically defensible** whose one
+essential virtue is preserved — **it introduces no new steric clashes**. A straight chain
+projects cleanly into solvent; the improvement is a *realistic* backbone that still does.
+
+**Adopted solution (simple, shipped):**
+
+1. Seed each loop residue from **Ramachandran basins** (realistic φ/ψ, not a straight
+   line) and close by **CCD** (distributes the small closure adjustment across the loop's
+   own torsions — no steered-MD artifact).
+2. **Clash-filtered ensemble** — close a handful of independent seeds per gap and keep the
+   one that adds the fewest clashes (via `loop_clash_report`). Surface loops have a solvent
+   halfspace, so a few seeds reliably include a clean one. This restores the old approach's
+   no-new-clashes guarantee with a far better backbone. (`ligate.ccd.ensemble`, default 10.)
+3. **Light minimization** of the closed loop (rest of the structure fixed) to relax
+   residual torsional strain — a defensible finish, replacing steered MD.
+
+**Retired:** the KIC generator, environment-aware growth, and distributed-pivot closure.
+The validated findings above are kept as an honest record of *why* that machinery is
+unnecessary here (it targets buried-loop native reconstruction, which the real workload
+never asks for). The clash/threading diagnostic stays as a guardrail. If a genuinely
+buried, non-floppy long loop ever arises, revisit the retired analysis.
