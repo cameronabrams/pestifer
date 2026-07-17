@@ -72,6 +72,9 @@ class LigateTask(MDTask):
         logger.debug('Connecting loop C-termini to their partner N-termini')
         connect_specs = self.specs.get('connect', {})
         self.result = self.connect(connect_specs)
+        # Relaxation is intentionally left to an explicit downstream `minimize`/`md` task
+        # (the standard pattern is to follow `ligate` with one). The clash-filtered ensemble
+        # already hands off a closed, clash-free structure ready for that minimization.
         return self.result
 
     def close_loops_ccd(self, ccd_specs: dict) -> int:

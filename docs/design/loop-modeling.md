@@ -306,8 +306,10 @@ projects cleanly into solvent; the improvement is a *realistic* backbone that st
    one that adds the fewest clashes (via `loop_clash_report`). Surface loops have a solvent
    halfspace, so a few seeds reliably include a clean one. This restores the old approach's
    no-new-clashes guarantee with a far better backbone. (`ligate.ccd.ensemble`, default 10.)
-3. **Light minimization** of the closed loop (rest of the structure fixed) to relax
-   residual torsional strain — a defensible finish, replacing steered MD.
+3. **Light minimization** to relax residual torsional strain — done by the explicit
+   downstream `minimize`/`md` task that already follows `ligate` in the standard workflow
+   (not inline in `ligate`), so the user keeps control of the relaxation protocol. The
+   ensemble hands off a closed, clash-free structure ready for it.
 
 **Retired:** the KIC generator, environment-aware growth, and distributed-pivot closure.
 The validated findings above are kept as an honest record of *why* that machinery is
