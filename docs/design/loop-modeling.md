@@ -240,3 +240,44 @@ the medium/long (14–63 res) example loops. P1's single-sample CCD is honestly 
 broken long loops. Near-term: (a) add a clash/threading diagnostic so the builder and
 benchmark fail loud instead of shipping interpenetrated loops; (b) build the native KIC
 generator per the architecture above.
+
+## KIC generator: prototyping results (2026-07-17)
+
+Item (a) shipped (`loop_clash_report`/`heavy_env_coords_from_pdb` + `on_clash` knob).
+Item (b) was prototyped offline (scratch `kic_*.py`, `distpivot*.py`) with these results:
+
+- **Forward kinematics (NeRF) + internal-coordinate extraction: exact** — reconstructs a
+  real backbone to 1.6e-14 Å. Solid substrate.
+- **Multi-start closure solver (numpy/scipy `least_squares`, no analytic polynomial):
+  correct** — recovers native torsions to 0.000°, all closures exact to ~1e-13 Å, and
+  the distinct-solution count is stable across start budgets (2–4 real closures for
+  compact tripeptides; not silently missing roots). This is the "robust numerical,
+  revisit the Coutsias polynomial later" route.
+- **Pivot placement matters decisively.** Reserving the *last 3 consecutive* residues as
+  the pivot fails on long loops: the end-gap after env-aware growth is 7–17 Å, more than
+  3 consecutive residues can reach → **zero closures**. The canonical KIC choice —
+  **3 pivots distributed across the loop** (¼, ½, ¾) — gives each pivot a long lever
+  (the whole downstream loop swings), so even a 15 Å gap closes with small torsion
+  changes. Distributed pivots restored closure (24–48 solutions/seed) and cut clashes
+  **~10×** vs the single-arc CCD (N=20: best ~6 contacts vs 52–109).
+- **But not clash-free for crowded loops with a small ensemble.** Delete-and-rebuild on
+  myoglobin (all-α, compact; even its most-exposed 20-mer has ~100 env atoms within 5 Å
+  of the loop path) still left **deep** clashes in the best of 8 grown-starts × 16
+  closures (worst heavy-atom overlap ~0.5 Å, min non-adjacent Cα ~2.5 Å = residual
+  threading). Clash-free yield 0 at N=20/28.
+
+**Assessment.** Distributed-pivot KIC is confirmed as the *correct closure mechanism*
+(reachability solved, large clash reduction, exact + diverse). Reaching *clash-free* for
+crowded medium/long loops needs more than growth + closure + a small ensemble: (i) much
+larger ensembles, (ii) a better clash-aware growth than the crude single-pass greedy
+walk (proper backtracking self-avoiding growth, biased sampling), and/or (iii) an
+energy-based refinement stage. That is a genuine loop-modeler effort with uncertain
+payoff on the hardest (buried) loops — which are hard for dedicated tools too. Myoglobin
+is a demanding proxy (no truly exposed long loops); the real HIV-Env V-loops are more
+solvent-exposed and would likely fare better, but that is untested.
+
+**Open decision.** Whether to (1) invest in the full sampling+refinement modeler,
+(2) ship distributed-pivot KIC as a *better-but-not-guaranteed* generator feeding NAMD
+minimize (accepting it won't fix deep clashes), or (3) treat long/buried loops as an
+external-import problem (Modeller/Rosetta/AF → pestifer stitches + minimizes) and keep
+the shipped diagnostic as the guardrail.
