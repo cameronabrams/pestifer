@@ -18,8 +18,8 @@ from ..core.objmanager import ObjManager
 from ..objs.cleavagesite import CleavageSiteList
 from ..objs.graft import Graft
 
-from ..util.cifutil import CIFload
 from ..util.stringthings import my_logger
+from ..util.util import strip_cif_category
 
 logger=logging.getLogger(__name__)
 
@@ -105,13 +105,19 @@ class Molecule:
                         p_struct = PDBParser(filepath=source_path).parse().parsed
                     elif file_format in ['mmCIF', 'cif']:
                         logger.debug(f'CIF source {source['source_id']}')
-                        p_struct = CIFload(source_path)
+                        p_struct = PDBParser(filepath=source_path, input_format='mmCIF').parse().parsed
                 else:
                     if file_format in ['PDB', 'pdb']:
                         p_struct = PDBParser(source_id=source['source_id'], source_db=source['source_db']).parse().parsed
                     elif file_format in ['mmCIF', 'cif']:
                         logger.debug(f'CIF source {source['source_id']}')
-                        p_struct = CIFload(source['source_id'], source_db=source['source_db'])
+                        p_struct = PDBParser(source_id=source['source_id'], source_db=source['source_db'], input_format='mmCIF').parse().parsed
+                if file_format in ['mmCIF', 'cif'] and source_path.exists():
+                    # VMD's pdbx plugin mis-parses the pdbx_audit_revision_item loop
+                    # ("coordinate fields not found"), so strip it from the on-disk .cif
+                    # that the psfgen task later loads with `mol new`. (Formerly a side
+                    # effect of util.cifutil.CIFload, removed in the pidibble migration.)
+                    strip_cif_category(source_path)
             elif 'prebuilt' in source:
                 logger.debug(f'Prebuilt record:')
                 my_logger(source["prebuilt"], logger.debug)
@@ -135,11 +141,12 @@ class Molecule:
         self.rcsb_file_format = file_format
         self.molid = kwargs.get('molid', Molecule._molcounter)
         self.parsed_struct = p_struct
-        self.asymmetric_unit = AsymmetricUnit(parsed=p_struct, 
-                                              sourcespecs=source, 
-                                              objmanager=objmanager, 
-                                              chainIDmanager=chainIDmanager, 
-                                              psf=psf)
+        self.asymmetric_unit = AsymmetricUnit(parsed=p_struct,
+                                              sourcespecs=source,
+                                              objmanager=objmanager,
+                                              chainIDmanager=chainIDmanager,
+                                              psf=psf,
+                                              source_format=file_format)
         self.asymmetric_unit.set_parent_molecule(self)
         self.biological_assemblies = BioAssembList(p_struct)
         self.biological_assemblies.set_parent_molecule(self)

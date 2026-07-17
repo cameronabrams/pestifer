@@ -110,15 +110,33 @@ just somewhere to park ideas so they aren't lost. Move items into a design doc u
 
 ## Tooling / packaging
 
-- [ ] **Offload all mmCIF parsing to pidibble.** mmCIF input is currently parsed with the
-      `mmcif`/`mmcif-pdbx` libraries (`DataContainer`/`getObj`, wrapped by `util/cifutil.CIFdict`),
-      while PDB input already goes through pidibble — so pestifer carries two structure parsers and
-      each object's `from_cif`/`from_pdb` paths diverge (`molecule/{bioassemb,asymmetricunit,atom,
-      residue}.py`, `objs/{ssbond,link,seqadv}.py`). Move CIF parsing onto pidibble too, unifying on
-      one parser and dropping the `mmcif` and `mmcif-pdbx` dependencies. (Enabled by the pidibble
-      `>=1.6.0` bump; verify pidibble covers the categories pestifer reads — `atom_site`,
-      `struct_conn`, `struct_conf`/`_ssbond`, `pdbx_struct_assembly*`/`_oper_list`, `entity_poly`,
-      `struct_ref_seq_dif` — before removing the old path.)
+- [ ] **GPU mode detection shouldn't hinge on path inequality.** `Config._set_shell_commands`
+      sets `namd_type='gpu'` only when `paths.namd3gpu != paths.namd3`; otherwise it silently
+      falls back to `'cpu'`. But the schema documents the shared default as *"correct when a
+      single module-loaded binary handles both CPU and GPU modes"* — and in exactly that case
+      the two paths are equal, so GPU mode can **never** be elected. The only workaround is to
+      give `namd3gpu` a different path *string* that resolves to the same binary (e.g. `namd3`
+      vs `/usr/local/bin/namd3`), which is fragile and undocumented. Give GPU mode an explicit
+      control (the `cpu|gpu` schema entry exists but is deprecated-and-ignored), and/or probe
+      the binary's CUDA capability, instead of inferring intent from two path strings. Symptom
+      worth noting: on a workstation whose GPU-resident build is a *separate* binary, the
+      default leaves the GPU idle and membrane examples run ~4 h CPU-only — pestifer now warns
+      about that case (`Config._warn_gpu_not_elected`, c1837aba), but warning is a stopgap for
+      a detection model that can't express the single-binary case at all.
+- [x] **Offload all mmCIF parsing to pidibble.** mmCIF is now parsed by pidibble **≥1.7.1**
+      (`PDBParser(input_format='mmCIF')`, which normalizes mmCIF into the PDB-record namespace);
+      pestifer's raw-CIF layer (`util/cifutil.py` `CIFdict`/`CIFload`) is deleted and the direct
+      `mmcif`/`mmcif-pdbx` dependencies dropped. Label-primary chain identity preserved; the only
+      parsed-object behavior change is symmetry operators normalizing `1_555`→`1555` (aligns CIF with
+      the PDB path). Two downstream fixes were needed (found running the examples): (a) the psfgen task
+      hands the source `.cif` to VMD via `mol new`, whose pdbx plugin mis-parses a
+      `pdbx_audit_revision_item` loop — `CIFload` used to strip it as a side effect, restored as the
+      dependency-free `util.util.strip_cif_category`; and (b) mmCIF biological-assembly chain lists
+      must be in the *label* namespace (pidibble's REMARK.350 `header` is author-mapped and lossy), so
+      pidibble 1.7.1 adds `header_label` (the raw label `asym_id_list`) and `Transform` prefers it.
+      Validated by a golden AsymmetricUnit oracle on 4zmj/6pti (diffs to only the sym delta), the full
+      unit suite, and an all-examples runthrough (the CIF/glycan/assembly builds — 7–12, 14, 15, 18,
+      21 — all pass). Design doc: `docs/design/mmcif-offload.md`.
 - [x] **Ledger for `modify-package`.** Append-only record at
       `pestifer/resources/modifications.jsonl`; every mutating command records an entry
       (committed alongside the change). `ledger show` lists them; `ledger revert <id>`

@@ -11,7 +11,6 @@ from pestifer.objs.insertion import Insertion, InsertionList
 from pestifer.objs.link import Link, LinkList
 from pestifer.objs.resid import ResID
 from pestifer.objs.substitution import Substitution, SubstitutionList
-from pestifer.util.cifutil import CIFload
 
 class TestResiduePlaceholder(unittest.TestCase):
 
@@ -61,7 +60,7 @@ class TestResiduePlaceholderList(unittest.TestCase):
         self.assertGreater(len(empty_residue_list), 0)
 
     def test_empty_residue_list_from_cif(self):
-        p = CIFload(Path(self.inputs_dir / '4zmj.cif'))
+        p = PDBParser(filepath=str(self.inputs_dir / '4zmj.cif'), input_format='mmCIF').parse().parsed
         empty_residue_list = ResiduePlaceholderList.from_cif(p)
         self.assertGreater(len(empty_residue_list), 0)
 

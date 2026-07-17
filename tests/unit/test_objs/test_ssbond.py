@@ -5,7 +5,6 @@ from pidibble.pdbrecord import PDBRecordDict
 
 from pathlib import Path
 
-from mmcif.api.PdbxContainers import DataContainer
 
 from pestifer.objs.resid import ResID
 from pestifer.objs.ssbond import SSBond, SSBondList
@@ -15,7 +14,6 @@ from pestifer.molecule.atom import AtomList
 
 from pestifer.psfutil.psfpatch import PSFDISUPatch
 
-from pestifer.util.cifutil import CIFload
 
 class TestSSBond(unittest.TestCase):
 
@@ -76,9 +74,9 @@ class TestSSBondList(unittest.TestCase):
         self.assertGreater(len(ssbond_list), 0)
 
     def test_ssbond_list_from_cif(self):
-        cif_data = CIFload(Path(self.inputs_dir / '4zmj.cif'))
-        self.assertIsInstance(cif_data, DataContainer)
-        ssbond_list = SSBondList.from_cif(cif_data)
+        parsed = PDBParser(filepath=str(self.inputs_dir / '4zmj.cif'), input_format='mmCIF').parse().parsed
+        self.assertIsInstance(parsed, PDBRecordDict)
+        ssbond_list = SSBondList.from_cif(parsed)
         self.assertIsInstance(ssbond_list, SSBondList)
         self.assertGreater(len(ssbond_list), 0)
 
