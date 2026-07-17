@@ -381,20 +381,24 @@ class Molecule:
     #                         act_segID=cm.get(asymm_segname,asymm_segname)
     #                         writer.addline(f'declash_loop $mLL {act_segID} {tcllist} {cycles}')
 
-    def write_gaps(self,writer,min_length=4):
+    def write_gaps(self,writer,min_length=None):
         """
         Write Tcl commands to declare gaps in the asymmetric unit that are in the ``MISSING``
         state and have a length greater than or equal to the specified minimum length.
         This method iterates through the segments of the asymmetric unit and generates Tcl commands
         to declare the gaps.
-        
+
         Parameters
         ----------
         writer : scriptwriter
             An instance of a script writer that will be used to write the Tcl commands.
         min_length : int, optional
-            The minimum length of gaps to consider. Default is 4.
+            The minimum length of gaps to consider. Defaults to ``self.min_loop_length`` (set
+            by :meth:`loop_counts` from ``loops.min_loop_length``), so the loops declared here
+            match the loops the ``has_protein_loops`` gate counted.
         """
+        if min_length is None:
+            min_length = getattr(self, 'min_loop_length', 4)
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
         writer.addline('# fields: segname loop-begin-res loop-end-res connect-to-res')
@@ -422,7 +426,7 @@ class Molecule:
                                 act_segID=cm.get(asymm_segname,asymm_segname)
                                 writer.addline(f'{act_segID} {reslist[0]} {reslist[-1]} {nreslist[0]}')
 
-    def write_connect_patches(self,writer,min_length=4):
+    def write_connect_patches(self,writer,min_length=None):
         """
         Write Tcl commands to create connect patches (``LINK``s) for gaps in the asymmetric unit.
         This method iterates through the segments of the asymmetric unit and generates Tcl commands
@@ -434,8 +438,12 @@ class Molecule:
         writer : scriptwriter
             An instance of a script writer that will be used to write the Tcl commands.
         min_length : int, optional
-            The minimum length of gaps to consider. Default is 4.
+            The minimum length of gaps to consider. Defaults to ``self.min_loop_length`` so the
+            connect patches cover exactly the loops :meth:`write_gaps` declared (and the
+            ``has_protein_loops`` gate counted).
         """
+        if min_length is None:
+            min_length = getattr(self, 'min_loop_length', 4)
         ba=self.active_biological_assembly
         au=self.asymmetric_unit
         for S in au.segments:
