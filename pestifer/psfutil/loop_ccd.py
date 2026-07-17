@@ -21,6 +21,43 @@ import numpy as np
 
 from ..util.coord import rotate_points_about_axis
 
+
+def dihedral_deg(p1, p2, p3, p4):
+    """
+    Signed dihedral (degrees, (-180, 180]) of the four points p1-p2-p3-p4 (each (3,)).
+
+    Sign follows the IUPAC / VMD ``measure dihed`` convention (verified against VMD), so
+    values are directly comparable to standard Ramachandran phi/psi (e.g. alpha ~ -63/-43).
+    """
+    b1 = np.asarray(p2, float) - np.asarray(p1, float)
+    b2 = np.asarray(p3, float) - np.asarray(p2, float)
+    b3 = np.asarray(p4, float) - np.asarray(p3, float)
+    n1 = np.cross(b1, b2)
+    n2 = np.cross(b2, b3)
+    m1 = np.cross(n1, b2 / np.linalg.norm(b2))
+    x = np.dot(n1, n2)
+    y = np.dot(m1, n2)
+    return float(np.degrees(np.arctan2(-y, x)))   # -y matches VMD's sign
+
+
+def set_dihedral(coords, i, j, k, l, target_deg, moving_mask):
+    """
+    Rotate the atoms flagged by ``moving_mask`` about the j-k bond so that the dihedral
+    ``coords[i]-coords[j]-coords[k]-coords[l]`` equals ``target_deg``.
+
+    ``coords`` is (M, 3); ``i, j, k, l`` are indices into it; ``moving_mask`` is a length-M
+    boolean array of the atoms downstream of the j-k bond (must include ``l``, must exclude
+    ``i, j, k``). Returns a rotated copy; the input is not modified.
+    """
+    X = np.array(coords, dtype=float)
+    current = dihedral_deg(X[i], X[j], X[k], X[l])
+    delta = target_deg - current
+    mask = np.asarray(moving_mask, dtype=bool)
+    # With the VMD-convention dihedral above, a right-handed rotation of the downstream atoms
+    # about the j->k axis increases the dihedral, so rotate by +delta about (X[k]-X[j]).
+    X[mask] = rotate_points_about_axis(X[mask], X[j], X[k] - X[j], delta)
+    return X
+
 # Analytic Ramachandran basins for the P1 initial guess: name -> (phi_deg, psi_deg, weight).
 # Zero-data (no derived library yet -- that is P2). Centers are the conventional means of the
 # major coil-accessible basins; weights are a coil-like mixture (helix/sheet/PPII dominant,

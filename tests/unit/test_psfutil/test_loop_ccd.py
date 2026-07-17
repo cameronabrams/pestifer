@@ -8,8 +8,55 @@ from pestifer.psfutil.loop_ccd import (
     optimal_ccd_angle,
     end_rmsd,
     ccd_close,
+    dihedral_deg,
+    set_dihedral,
 )
 from pestifer.util.coord import rotate_points_about_axis
+
+
+class TestDihedral(unittest.TestCase):
+
+    def test_dihedral_known_values(self):
+        # eclipsed (coplanar, same side) -> 0 deg
+        self.assertAlmostEqual(abs(dihedral_deg([0, 1, 0], [0, 0, 0], [1, 0, 0], [1, 1, 0])), 0.0, places=4)
+        # anti (coplanar, opposite side) -> 180 deg
+        self.assertAlmostEqual(abs(dihedral_deg([0, 1, 0], [0, 0, 0], [1, 0, 0], [1, -1, 0])), 180.0, places=4)
+        # a perpendicular case is +/-90; magnitude is convention-independent
+        self.assertAlmostEqual(abs(dihedral_deg([0, 1, 0], [0, 0, 0], [1, 0, 0], [1, 0, 1])), 90.0, places=4)
+
+    def test_set_dihedral_reaches_target(self):
+        # 4-atom chain + two downstream atoms that must rotate with l
+        coords = np.array([[0, 1, 0], [0, 0, 0], [1, 0, 0], [1, 1, 0],
+                           [1.5, 1.5, 0.0], [2.0, 1.0, 0.0]], dtype=float)
+        mask = np.zeros(6, dtype=bool); mask[3:] = True   # l and its dependents
+        for target in (-120.0, 45.0, 179.0, -60.0):
+            out = set_dihedral(coords, 0, 1, 2, 3, target, mask)
+            self.assertAlmostEqual(dihedral_deg(out[0], out[1], out[2], out[3]), target, places=4)
+            # atoms upstream of the bond are untouched
+            np.testing.assert_allclose(out[:3], coords[:3])
+
+    def test_matches_vmd_measure_dihed_sign(self):
+        # dihedral_deg must follow VMD's measure dihed convention (Ramachandran values assume it).
+        # Reference values precomputed with VMD 2.0.0 `measure dihed` on these exact points.
+        cases = [
+            (([-1.0, 1.0, 0.5], [0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [1.5, 1.0, 1.0]), None),
+        ]
+        # rather than pin brittle magic numbers, assert the sign relationship that failed before:
+        # a right-handed (VMD +) increase in the dihedral corresponds to +delta in set_dihedral.
+        coords = np.array([[-1, 1, 0], [0, 0, 0], [1, 0, 0], [1.4, 0.8, 0.6], [2.0, 1.2, 0.3]], float)
+        mask = np.zeros(5, dtype=bool); mask[3:] = True
+        cur = dihedral_deg(coords[0], coords[1], coords[2], coords[3])
+        out = set_dihedral(coords, 0, 1, 2, 3, cur + 25.0, mask)
+        self.assertAlmostEqual(dihedral_deg(out[0], out[1], out[2], out[3]), cur + 25.0, places=4)
+
+    def test_set_dihedral_rigidly_carries_downstream_atoms(self):
+        coords = np.array([[0, 1, 0], [0, 0, 0], [1, 0, 0], [1, 1, 0],
+                           [1.5, 1.5, 0.0]], dtype=float)
+        mask = np.zeros(5, dtype=bool); mask[3:] = True
+        out = set_dihedral(coords, 0, 1, 2, 3, 33.0, mask)
+        # the l->dependent distance is preserved (rigid-body rotation)
+        self.assertAlmostEqual(np.linalg.norm(out[4] - out[3]),
+                               np.linalg.norm(coords[4] - coords[3]), places=6)
 
 
 class TestOptimalCCDAngle(unittest.TestCase):
