@@ -483,6 +483,42 @@ class Molecule:
                                 writer.addline(f'patch LINK {ll} {l} {r} {rr}')
                                 # writer.addline(f'patch HEAL {ll} {l} {r} {rr}')
 
+    def protein_loop_gaps(self, min_length=None):
+        """
+        Enumerate interior protein loop gaps for the CCD loop closer.
+
+        Returns one dict per (gap, biological-assembly transform):
+        ``{'segname', 'loop_resids': [int, ...], 'n_anchor_resid', 'c_anchor_resid'}`` where
+        ``segname`` is the transform-mapped segid, ``loop_resids`` are the model-built loop
+        residues (N->C), ``n_anchor_resid`` is the last resolved residue before the loop, and
+        ``c_anchor_resid`` is the first resolved residue after it (the closure target). Uses
+        the same interior-loop gating as :meth:`write_gaps`.
+        """
+        if min_length is None:
+            min_length = getattr(self, 'min_loop_length', 4)
+        ba = self.active_biological_assembly
+        au = self.asymmetric_unit
+        gaps = []
+        for S in au.segments:
+            if S.segtype != 'protein':
+                continue
+            asymm_segname = S.segname
+            for i, b in enumerate(S.subsegments):
+                if b.state == 'MISSING' and b.num_items() >= min_length and 0 < i < (len(S.subsegments) - 1):
+                    loop_res = S.residues[b.bounds[0]:b.bounds[1] + 1]
+                    n_anchor = S.residues[b.bounds[0] - 1]
+                    nextb = S.subsegments[i + 1]
+                    c_anchor = S.residues[nextb.bounds[0]]
+                    for transform in ba.transforms:
+                        act = transform.chainIDmap.get(asymm_segname, asymm_segname)
+                        gaps.append({
+                            'segname': act,
+                            'loop_resids': [r.resid.resid for r in loop_res],
+                            'n_anchor_resid': n_anchor.resid.resid,
+                            'c_anchor_resid': c_anchor.resid.resid,
+                        })
+        return gaps
+
     def cleave_chains(self, clv_list: CleavageSiteList):
         """
         Cleave segments in the asymmetric unit based on a list of cleavage specifications.

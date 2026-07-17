@@ -777,6 +777,32 @@ attributes:
                 text: Specifies whether or not to clean up temporary files
                 type: bool
                 default: True
+          - name: method
+            text: >-
+              How to close each modeled loop onto the first resolved residue after the gap
+              before the LINK patch. 'ccd' (default) uses offline, deterministic cyclic
+              coordinate descent to distribute the closure across the loop's own backbone
+              dihedrals; 'steer' uses the legacy steered-MD path (kept as a fallback).
+            type: str
+            case_sensitive: False
+            choices: [ccd, steer]
+            default: ccd
+          - name: ccd
+            text: Parameters for the CCD loop closer (used when method is 'ccd')
+            type: dict
+            attributes:
+              - name: seed
+                text: RNG seed; a fixed default keeps builds reproducible
+                type: int
+                default: 27021972
+              - name: max_iters
+                text: maximum CCD sweeps per loop
+                type: int
+                default: 2000
+              - name: tol
+                text: end-effector convergence RMSD (Angstrom)
+                type: float
+                default: 0.1
       - name: pdb2pqr
         text: Parameters controlling a PDB2PQR run on an input molecule
         type: dict

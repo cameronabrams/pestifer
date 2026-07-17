@@ -52,24 +52,80 @@ class LigateTask(MDTask):
         if not self.base_molecule.has_protein_loops:
             self.log_message('bypassed')
             return
-        logger.debug('Storing sequence gaps.')
-        self.write_gaps()
-        logger.debug('Measuring gap distances.')
-        steering_specs = self.specs.get('steer', {})
-        if not steering_specs:
-            logger.debug(f'No steering specifications for ligate task; this is a bug; bypassing')
-            return
-        self.measure_distances(steering_specs)
-        logger.debug('Steering loop C-termini toward their partner N-termini')
-        self.result = self.do_steered_md(self.specs['steer'])
+        method = str(self.specs.get('method', 'ccd')).casefold()
+        if method == 'steer':
+            logger.debug('Storing sequence gaps.')
+            self.write_gaps()
+            logger.debug('Measuring gap distances.')
+            steering_specs = self.specs.get('steer', {})
+            if not steering_specs:
+                logger.debug(f'No steering specifications for ligate task; this is a bug; bypassing')
+                return
+            self.measure_distances(steering_specs)
+            logger.debug('Steering loop C-termini toward their partner N-termini')
+            self.result = self.do_steered_md(self.specs['steer'])
+        else:
+            logger.debug('Closing loops onto their downstream anchors by cyclic coordinate descent')
+            self.result = self.close_loops_ccd(self.specs.get('ccd', {}))
         if self.result != 0:
             return self.result
-        # stash the vel file
-        # self.stash_current_artifact('vel')
         logger.debug('Connecting loop C-termini to their partner N-termini')
         connect_specs = self.specs.get('connect', {})
         self.result = self.connect(connect_specs)
         return self.result
+
+    def close_loops_ccd(self, ccd_specs: dict) -> int:
+        """
+        Close each modeled interior loop onto its downstream anchor by cyclic coordinate
+        descent (offline, deterministic). For each gap the loop's C-terminal backbone is
+        walked onto an ideal peptide-bond target built from the anchor, distributing the
+        closure across the loop's own phi/psi dihedrals (whole residues, sidechains included).
+        The closed coordinates replace the loop atoms in a new state PDB; the ``connect`` step
+        then patches the actual LINK bond and rebuilds the junction with guesscoord.
+        """
+        import numpy as np
+        from ..psfutil.loop_ccd import (backbone_from_pdb, loop_atoms_from_pdb,
+                                        build_loop_problem, anchor_closure_target, ccd_close)
+        from ..util.coord import pdb_replace_coords
+
+        self.next_basename('ccd')
+        state: StateArtifacts = self.get_current_artifact('state')
+        src_pdb = state.pdb.name
+        gaps = self.base_molecule.protein_loop_gaps()
+        if not gaps:
+            logger.warning('ligate method=ccd: has_protein_loops is set but no interior gaps '
+                           'were enumerated; nothing to close')
+            return 0
+        max_iters = int(ccd_specs.get('max_iters', 2000))
+        tol = float(ccd_specs.get('tol', 0.1))
+
+        new_coords = {}   # PDB serial -> closed xyz
+        for gap in gaps:
+            seg, loop, anchor = gap['segname'], gap['loop_resids'], gap['c_anchor_resid']
+            bb = backbone_from_pdb(src_pdb, segname=seg)
+            order, coords, serials = loop_atoms_from_pdb(src_pdb, loop, segname=seg)
+            prob = build_loop_problem(order, coords, loop)
+            r = prob['row']
+            last = loop[-1]
+            end_idx = [r[(last, 'CA')], r[(last, 'C')]]
+            target = anchor_closure_target(bb[anchor]['N'], bb[anchor]['CA'], bb[anchor]['C'])[[0, 1]]
+            closed, rmsd, iters = ccd_close(prob['coords'], prob['bonds'], prob['moving_masks'],
+                                            end_idx, target, tol=tol, max_iters=max_iters)
+            logger.debug(f'CCD closed loop {seg}:{loop[0]}-{loop[-1]}: end-RMSD {rmsd:.3f} A in {iters} iters')
+            for k, serial in enumerate(serials):
+                new_coords[serial] = closed[k]
+
+        out_pdb = f'{self.basename}.pdb'
+        serial_list = sorted(new_coords)
+        coords_arr = np.array([new_coords[s] for s in serial_list])
+        row_of_serial = {s: i for i, s in enumerate(serial_list)}
+        pdb_replace_coords(src_pdb, out_pdb, coords_arr, row_of_serial)
+        self.pdb_to_coor(out_pdb)
+        self.register(dict(psf=state.psf,
+                           pdb=PDBFileArtifact(self.basename, pytestable=True),
+                           coor=NAMDCoorFileArtifact(self.basename)),
+                      key='state', artifact_type=StateArtifacts)
+        return 0
     
     def write_gaps(self):
         """
