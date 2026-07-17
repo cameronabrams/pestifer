@@ -291,3 +291,49 @@ class TestAnchorClosureTarget(unittest.TestCase):
         self.assertAlmostEqual(np.linalg.norm(tgt_C - tgt_O), 1.23, places=2)
         # ghost CA-C bond length sane
         self.assertAlmostEqual(np.linalg.norm(tgt_CA - tgt_C), 1.52, places=2)
+
+
+class TestFullAtomLoopProblem(unittest.TestCase):
+    """Full-atom extraction: sidechains must ride the backbone; masks respect topology."""
+
+    @classmethod
+    def setUpClass(cls):
+        from pathlib import Path
+        cls.pdb = str(Path(__file__).parents[2] / 'inputs' / '6pti.pdb')
+
+    def test_phi_carries_sidechain_psi_does_not(self):
+        from pestifer.psfutil.loop_ccd import loop_atoms_from_pdb, build_loop_problem
+        loop = [24, 25, 26]   # ASN-ALA-LYS
+        order, coords, serials = loop_atoms_from_pdb(self.pdb, loop, chainID='A')
+        prob = build_loop_problem(order, coords, loop)
+        r = prob['row']
+        # bonds: [phi24, psi24, phi25, psi25, phi26, psi26]
+        phi24, psi24 = prob['moving_masks'][0], prob['moving_masks'][1]
+        # residue 24 sidechain (CB) moves under phi24 but NOT under psi24
+        cb = r[(24, 'CB')]
+        self.assertTrue(phi24[cb])
+        self.assertFalse(psi24[cb])
+        # residue 24 carbonyl O moves under both
+        o = r[(24, 'O')]
+        self.assertTrue(phi24[o]); self.assertTrue(psi24[o])
+        # residue 24 N/CA never move under its own phi
+        self.assertFalse(phi24[r[(24, 'N')]]); self.assertFalse(phi24[r[(24, 'CA')]])
+        # a downstream residue (26) atom moves under residue 24's phi and psi
+        self.assertTrue(phi24[r[(26, 'CA')]]); self.assertTrue(psi24[r[(26, 'CA')]])
+
+    def test_rotation_is_rigid_on_whole_residues(self):
+        # after an arbitrary sweep, intra-residue distances (backbone+sidechain) are preserved
+        from pestifer.psfutil.loop_ccd import loop_atoms_from_pdb, build_loop_problem
+        loop = [24, 25, 26]
+        order, coords, serials = loop_atoms_from_pdb(self.pdb, loop, chainID='A')
+        prob = build_loop_problem(order, coords, loop)
+        X = prob['coords'].copy()
+        # a reference intra-residue distance in residue 26 (CA-CB) and (N-CB)
+        r = prob['row']
+        def dist(i, j, C): return np.linalg.norm(C[i] - C[j])
+        before = [dist(r[(26, 'CA')], r[(26, 'CB')], X), dist(r[(26, 'N')], r[(26, 'CB')], X)]
+        rng = np.random.default_rng(5)
+        for (a, b), m in zip(prob['bonds'], prob['moving_masks']):
+            X[m] = rotate_points_about_axis(X[m], X[a], X[b] - X[a], rng.uniform(-60, 60))
+        after = [dist(r[(26, 'CA')], r[(26, 'CB')], X), dist(r[(26, 'N')], r[(26, 'CB')], X)]
+        np.testing.assert_allclose(after, before, atol=1e-6)

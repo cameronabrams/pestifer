@@ -179,6 +179,100 @@ def build_loop_ccd_problem(backbone, loop_resids, n_anchor_resid):
             'moving_masks': masks, 'end_idx': end_idx}
 
 
+def loop_atoms_from_pdb(pdb_path, resids, segname=None, chainID=None):
+    """
+    Parse ALL atoms of the given ``resids`` from a PDB into an ordered structure.
+
+    Returns ``(order, coords, serials)`` where ``order[k] = (resid, atomname)``,
+    ``coords`` is (M, 3), and ``serials[k]`` is the PDB serial of row k (for writing
+    coordinates back with :func:`pestifer.util.coord.pdb_replace_coords`). Atoms are kept in
+    file order within each residue and in ``resids`` order across residues.
+    """
+    want = set(resids)
+    per = {r: [] for r in resids}
+    with open(pdb_path) as fh:
+        for line in fh:
+            if not line.startswith(('ATOM', 'HETATM')):
+                continue
+            if segname is not None and line[72:76].strip() != segname:
+                continue
+            if chainID is not None and line[21:22].strip() != chainID:
+                continue
+            try:
+                resid = int(line[22:26])
+            except ValueError:
+                continue
+            if resid not in want:
+                continue
+            name = line[12:16].strip()
+            serial = int(line[6:11])
+            xyz = np.array([float(line[30:38]), float(line[38:46]), float(line[46:54])])
+            per[resid].append((name, serial, xyz))
+    order, coords, serials = [], [], []
+    for r in resids:
+        for (name, serial, xyz) in per[r]:
+            order.append((r, name)); coords.append(xyz); serials.append(serial)
+    return order, np.asarray(coords, dtype=float), serials
+
+
+# residue-p atoms that stay fixed under a phi (N-CA) rotation: the N-side backbone
+_PHI_FIXED = {'N', 'HN', 'H', 'HT1', 'HT2', 'HT3', 'CA'}
+# residue-p atoms that move under a psi (CA-C) rotation: only the carbonyl/terminal oxygens
+_PSI_MOVERS = {'O', 'OT1', 'OT2', 'OXT', 'OT'}
+
+
+def build_loop_problem(order, coords, loop_resids):
+    """
+    Build the full-atom CCD arrays for a loop, with topology-correct moving masks.
+
+    Each loop residue contributes two rotatable backbone bonds: phi (N-CA) and psi (CA-C),
+    swept N->C. A phi rotation carries the residue's sidechain and carbonyl plus all
+    downstream residues; a psi rotation carries only the carbonyl O and all downstream
+    residues (the sidechain stays on the CA side). So sidechain atoms move rigidly with the
+    backbone -- essential, since CCD only rotates about backbone bonds.
+
+    Parameters
+    ----------
+    order : list[tuple[int, str]]
+        ``(resid, atomname)`` per row, from :func:`loop_atoms_from_pdb`.
+    coords : (M, 3) array
+    loop_resids : sequence[int]  (N->C order)
+
+    Returns
+    -------
+    dict with keys ``coords`` (copy), ``row`` {(resid,atomname):i}, ``bonds``, ``moving_masks``.
+    Callers pick ``end_idx``/``target`` (e.g. last residue's CA/C/O onto an anchor target).
+    """
+    M = len(order)
+    row = {}
+    for i, key in enumerate(order):
+        row[key] = i           # later duplicate names (altloc) win; caller should pass single-altloc
+    pos = {r: p for p, r in enumerate(loop_resids)}  # loop position of each resid
+
+    def resid_pos(r):
+        return pos.get(r, len(loop_resids))          # non-loop (shouldn't occur) sorts last
+
+    bonds, masks = [], []
+    for p, r in enumerate(loop_resids):
+        n, ca, c = row[(r, 'N')], row[(r, 'CA')], row[(r, 'C')]
+        phi_mask = np.zeros(M, dtype=bool)
+        psi_mask = np.zeros(M, dtype=bool)
+        for i, (rr, name) in enumerate(order):
+            downstream = resid_pos(rr) > p
+            if downstream:
+                phi_mask[i] = True
+                psi_mask[i] = True
+            elif rr == r:
+                if name not in _PHI_FIXED:
+                    phi_mask[i] = True
+                if name in _PSI_MOVERS:
+                    psi_mask[i] = True
+        bonds.append((n, ca)); masks.append(phi_mask)
+        bonds.append((ca, c)); masks.append(psi_mask)
+    return {'coords': np.array(coords, dtype=float), 'row': row,
+            'bonds': bonds, 'moving_masks': masks}
+
+
 def place_atom_nerf(a, b, c, bond, angle_deg, dihedral_deg):
     """
     NeRF placement: return the position of atom D given three reference atoms a-b-c and the
