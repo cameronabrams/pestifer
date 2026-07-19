@@ -316,3 +316,40 @@ The validated findings above are kept as an honest record of *why* that machiner
 unnecessary here (it targets buried-loop native reconstruction, which the real workload
 never asks for). The clash/threading diagnostic stays as a guardrail. If a genuinely
 buried, non-floppy long loop ever arises, revisit the retired analysis.
+
+## Shipped approach (2026-07-19)
+
+The `ligate method: ccd` closer as shipped, per gap:
+
+1. **Compact Ramachandran seed** — sample each loop residue's (φ, ψ) from the coil basins
+   (a realistic, compact backbone, not the ~90 Å extended arm `guesscoord` grows).
+2. **CCD close** onto an ideal peptide-bond target built from the downstream anchor.
+3. **Iterative declash refinement** (`refine`, default 250) — perturb one backbone dihedral,
+   re-close by CCD (a short move while the loop is compact), accept by simulated annealing on
+   the deep-clash count against the actual surroundings; occasional large leading-bond swings
+   supply concerted motion, local moves polish. This is what walks a crowded loop out of
+   clashes where a single sample cannot.
+4. Optional **clash-guarded CCD** (`guard`, default off) rejects any closure rotation that
+   increases the clash count. It reaches fewer residual clashes but is much slower
+   (per-bond clash checks); off by default because a downstream minimize does the same job.
+
+**Independent per-loop closure (no symmetry preservation).** Each loop copy is closed on its
+own against the resolved structure plus the copies already closed this pass. Symmetry of the
+modeled-in residues is intentionally *not* preserved: forcing the copies identical creates a
+mutual-clash floor where they converge at an assembly axis; letting them differ lets them
+interleave. (Verified on 4zmj gp41 HR1N: independent closure ~5 min, all three copies
+non-threaded; the symmetric variant floored at ~10 residual and took ~33 min with the guard.)
+
+**Threading vs. relaxable overlaps.** The diagnostic separates a *threaded* loop (crossed
+backbone, min non-adjacent Cα < 3 Å — a topological defect no minimization can undo; warned,
+and abortable via `on_clash: error`) from *deep-but-not-threaded* overlaps (atoms merely
+overlapping; logged as minimize-relaxable). **Verified end-to-end on 4zmj:** HR1N B/C/D close
+with 7–24 deep non-threaded overlaps each, and a 2000-step NAMD minimize resolves **all** to
+zero (no NaN, peptide bonds intact at 1.35 Å). So the standard workflow is `ligate (ccd)`
+followed by the `minimize` you already run.
+
+**Insertion codes** (HIV-Env gp120 V1/V2, e.g. `185A`–`185I`) are handled throughout
+(`_resid_key`; adjacency by chain position, not resid arithmetic).
+
+**Example 7** (4zmj SOSIP trimer) now uses `ligate method: ccd` (`refine: 500`, `ensemble: 4`)
++ `minimize`, dropping the hand-tuned HR1N crotations.
