@@ -119,21 +119,27 @@ class LigateTask(MDTask):
         on_clash = str(ccd_specs.get('on_clash', 'warn')).casefold()
         rng = np.random.default_rng(seed)
 
-        # Group the (gap, transform) entries by their asymmetric-unit origin so that all
-        # symmetry copies of one loop are closed together -- close the asymmetric-unit copy
-        # once and place every mate by its transform, keeping the trimer (or other symmetric
-        # assembly) axially symmetric. An independent closure per chain would break that.
-        from collections import OrderedDict
-        groups = OrderedDict()
-        for gap in gaps:
-            groups.setdefault(gap['group'], []).append(gap)
+        from scipy.spatial.distance import cdist
+        refine_iters = int(ccd_specs.get('refine', 250))
+        guard = bool(ccd_specs.get('guard', False))
 
-        new_coords = {}   # PDB serial -> closed xyz
-        broken = []       # loops flagged topologically broken
-        for gid, members in groups.items():
-            ref = next((m for m in members if m['is_reference']), members[0])
-            seg, loop = ref['ref_segname'], ref['loop_resids']
-            n_anchor, c_anchor = ref['n_anchor_resid'], ref['c_anchor_resid']
+        # Serials of EVERY modeled loop copy (all chains): while unclosed they hold throwaway
+        # guesscoord positions, so they are excluded from the closure environment; each loop is
+        # instead scored against the resolved structure plus the loops already closed this pass.
+        all_loop_serials = set()
+        for gap in gaps:
+            _o, _c, gser = loop_atoms_from_pdb(src_pdb, gap['loop_resids'], segname=gap['segname'])
+            all_loop_serials.update(gser)
+
+        new_coords = {}     # PDB serial -> closed xyz
+        closed_heavy = []   # heavy-atom coords of loops already closed this pass
+        broken = []         # loops flagged topologically broken
+        # Close each loop independently against the actual surroundings (including already-closed
+        # copies), so copies converging at an assembly axis interleave and avoid one another.
+        # Symmetry of the modeled residues is not preserved -- deliberately (see protein_loop_gaps).
+        for gap in gaps:
+            seg, loop = gap['segname'], gap['loop_resids']
+            n_anchor, c_anchor = gap['n_anchor_resid'], gap['c_anchor_resid']
             bb = backbone_from_pdb(src_pdb, segname=seg)
             order, coords, serials = loop_atoms_from_pdb(src_pdb, loop, segname=seg)
             prob = build_loop_problem(order, coords, loop)
@@ -141,68 +147,34 @@ class LigateTask(MDTask):
             last = loop[-1]
             end_idx = [r[(last, 'CA')], r[(last, 'C')]]
             target = anchor_closure_target(bb[c_anchor]['N'], bb[c_anchor]['CA'], bb[c_anchor]['C'])[[0, 1]]
-            # environment for clash scoring: everything but this loop and its flanking anchors
-            # (junction peptide bonds ~1.33 A are expected close contacts, not clashes). Also
-            # exclude every symmetry-mate loop of this group: those are still in their throwaway
-            # guesscoord positions and are about to be overwritten with this closure's transform,
-            # so scoring against them would be meaningless.
-            exclude = []
-            for m in members:
-                _mo, _mc, mser = loop_atoms_from_pdb(src_pdb, m['loop_resids'], segname=m['segname'])
-                exclude.extend(mser)
-                _ao, _ac, aser = loop_atoms_from_pdb(src_pdb, [m['n_anchor_resid'], m['c_anchor_resid']],
-                                                     segname=m['segname'])
-                exclude.extend(aser)
-            env = heavy_env_coords_from_pdb(src_pdb, exclude_serials=exclude)
-            ncopies = len(members)
-            tag = f'{seg}:{loop[0]}-{loop[-1]} (len {len(loop)}' + (f', x{ncopies} copies)' if ncopies > 1 else ')')
+            # environment: resolved structure minus every modeled loop (throwaway) and minus this
+            # loop's own flanking anchors (bonded junctions ~1.33 A are expected, not clashes),
+            # PLUS the loops already closed this pass.
+            _ao, _ac, anch_ser = loop_atoms_from_pdb(src_pdb, [n_anchor, c_anchor], segname=seg)
+            env_static = heavy_env_coords_from_pdb(src_pdb,
+                                                   exclude_serials=list(all_loop_serials) + list(anch_ser))
+            env = np.vstack([env_static, np.array(closed_heavy)]) if closed_heavy else env_static
+            tag = f'{seg}:{loop[0]}-{loop[-1]} (len {len(loop)})'
 
-            # Symmetry mates converge for loops near an assembly axis (e.g. gp41 HR1N at the
-            # trimer 3-fold): a conformation that is clean in one protomer can still crash into
-            # its own symmetry images once replicated. Since every copy gets the SAME
-            # conformation, score each candidate against the transformed images of THAT candidate,
-            # so the winner is mutually clash-free across all protomers -- not just locally clean.
-            heavy_rows = [i for i, (_r, nm) in enumerate(order) if not nm.startswith('H')]
-            mate_RT = [(np.asarray(m['tmat'], dtype=float)[:3, :3], np.asarray(m['tmat'], dtype=float)[:3, 3])
-                       for m in members if not m['is_reference']]
-
-            # environment for a trial pose, including the loop's OWN symmetry images (all copies
-            # share the conformation), so an axial loop declashes against its mates radially.
-            def clash_env_fn(closed_pose, _env=env, _RT=mate_RT, _hr=heavy_rows):
-                if not _RT:
-                    return _env
-                ch = closed_pose[_hr]
-                images = [ch @ R.T + t for (R, t) in _RT]
-                return np.vstack([_env] + images) if len(_env) else np.vstack(images)
-
-            # Deep-clash count of a trial pose against the present background AND the loop's own
-            # symmetry images -- the guard the guarded CCD uses to reject clash-introducing
-            # rotations (the protein stays "there" during closure). Kept cheap: one prebuilt
-            # tree query for the (large, fixed) background, vectorized pairwise distances for the
-            # small loop-vs-image and intra-loop terms (no per-call tree builds).
-            from scipy.spatial.distance import cdist
             heavy_mask = np.array([not nm.startswith('H') for (_r, nm) in order])
             loop_pos = {rr: i for i, rr in enumerate(loop)}
             hpos = np.array([loop_pos[order[i][0]] for i in range(len(order)) if heavy_mask[i]])
-            _nonadj = np.abs(hpos[:, None] - hpos[None, :]) >= 2      # non-adjacent residue pairs
-            _intra_mask = np.triu(_nonadj, k=1)
+            _intra_mask = np.triu(np.abs(hpos[:, None] - hpos[None, :]) >= 2, k=1)
             env_tree = cKDTree(env) if len(env) else None
 
-            def clash_fn(X):
-                hx = X[heavy_mask]
+            # env for a trial pose is fixed for this loop (no symmetry images now); kept as a
+            # callback for the refiner. clash_fn is the deep-clash count for the optional guard.
+            def clash_env_fn(_pose, _env=env):
+                return _env
+
+            def clash_fn(X, _mask=heavy_mask, _tree=env_tree, _im=_intra_mask):
+                hx = X[_mask]
                 deep = 0
-                if env_tree is not None:
-                    deep += int(env_tree.query_ball_point(hx, 1.6, return_length=True).sum())
-                for (R, t) in mate_RT:
-                    deep += int(((cdist(hx, hx @ R.T + t) < 1.6)).sum())
-                deep += int(((cdist(hx, hx) < 1.6) & _intra_mask).sum())
+                if _tree is not None:
+                    deep += int(_tree.query_ball_point(hx, 1.6, return_length=True).sum())
+                deep += int(((cdist(hx, hx) < 1.6) & _im).sum())
                 return deep
 
-            # Compact-assign, then CLOSE with the background present, rejecting any rotation that
-            # increases the deep-clash count (guarded CCD). Optionally polish with the iterative
-            # declash refiner. Keep the least-clashing candidate across the ensemble.
-            refine_iters = int(ccd_specs.get('refine', 250))
-            guard = bool(ccd_specs.get('guard', False))
             best = None
             for cand in range(ensemble):
                 phipsi = sample_backbone_dihedrals(rng, len(loop))
@@ -237,33 +209,32 @@ class LigateTask(MDTask):
                          f'end-RMSD {rmsd:.3f} A, '
                          f'{rep["n_deep"] + rep["n_env_deep"]} deep / '
                          f'{rep["n_soft"] + rep["n_env_soft"]} soft clashes')
-            if rep['topological']:
+            ndeep = rep['n_deep'] + rep['n_env_deep']
+            threaded = rep['min_ca'] < 3.0     # a crossed backbone -- minimization cannot undo it
+            if threaded:
                 broken.append((tag, rep))
                 logger.warning(
-                    f'ligate/ccd: best of {ensemble} closures for loop {tag} is still '
-                    f'TOPOLOGICALLY BROKEN (worst heavy-atom overlap {rep["worst"]:.2f} A, '
-                    f'min non-adjacent CA {rep["min_ca"]:.2f} A, {rep["n_deep"]} intra + '
-                    f'{rep["n_env_deep"]} loop-vs-structure deep overlaps). These overlaps '
-                    f'cannot be relaxed by minimization; try a larger ccd.ensemble, or provide '
-                    f'an externally-modeled loop (see docs/design/loop-modeling.md).')
+                    f'ligate/ccd: loop {tag} (best of {ensemble}) is THREADED (min non-adjacent '
+                    f'CA {rep["min_ca"]:.2f} A, worst overlap {rep["worst"]:.2f} A) -- a crossed '
+                    f'backbone that minimization cannot undo. Increase ccd.ensemble/refine, or '
+                    f'provide an externally-modeled loop (see docs/design/loop-modeling.md).')
+            elif ndeep:
+                logger.info(
+                    f'ligate/ccd: loop {tag} closed with {ndeep} deep + '
+                    f'{rep["n_soft"] + rep["n_env_soft"]} soft overlaps (worst {rep["worst"]:.2f} A, '
+                    f'min CA {rep["min_ca"]:.2f} A) -- not threaded; a downstream minimize relaxes these.')
             elif rep['n_soft'] or rep['n_env_soft']:
                 logger.info(f'ligate/ccd: loop {tag} closed with soft contacts only '
-                            f'({rep["n_soft"]} intra + {rep["n_env_soft"]} loop-vs-structure; '
-                            f'worst {rep["worst"]:.2f} A) -- relaxable by minimization')
+                            f'({rep["n_soft"] + rep["n_env_soft"]}; worst {rep["worst"]:.2f} A).')
 
-            # place the closure onto the asymmetric-unit copy and every symmetry mate by
-            # applying each copy's transform to the (identical) closed loop.
-            closed_by_key = {order[k]: closed[k] for k in range(len(order))}
-            for m in members:
-                tmat = np.asarray(m['tmat'], dtype=float)
-                R, t = tmat[:3, :3], tmat[:3, 3]
-                morder, _mc, mser = loop_atoms_from_pdb(src_pdb, m['loop_resids'], segname=m['segname'])
-                for k, akey in enumerate(morder):
-                    new_coords[mser[k]] = R @ closed_by_key[akey] + t
+            # write this loop's closed coords, and add its heavy atoms to the environment so
+            # loops closed after it avoid it.
+            for k, serial in enumerate(serials):
+                new_coords[serial] = closed[k]
+            closed_heavy.extend(closed[heavy_mask].tolist())
 
         if broken and on_clash == 'error':
-            logger.error(f'ligate/ccd: {len(broken)} loop(s) topologically broken; '
-                         f'aborting (ccd.on_clash=error)')
+            logger.error(f'ligate/ccd: {len(broken)} loop(s) threaded; aborting (ccd.on_clash=error)')
             return 1
 
         out_pdb = f'{self.basename}.pdb'

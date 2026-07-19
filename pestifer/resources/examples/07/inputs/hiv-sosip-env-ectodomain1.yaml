@@ -9,9 +9,12 @@
 #   - Chain B produces daughter chains C and D upon BIOMT transformation to build trimer
 #   - Existing chains C and D (these are glycans) are assigned new chainIDs
 #   - All glycans are assigned chainIDs that are not shared with any protein
-#   - Missing protein is built-in
-#   - Fine-tuning ramachandran rotations performed at N-terminus of HN1
-#     to avoid steric clashes when building in these missing residues
+#   - Missing protein is built-in and closed by the offline CCD loop closer
+#     (ligate method: ccd): each loop is seeded from Ramachandran basins and closed
+#     by symmetry-aware, clash-guarded cyclic coordinate descent + iterative declash,
+#     so the three symmetry copies stay identical and declash against one another --
+#     no hand-tuned crotations needed. The gp41 HR1N loops converge at the trimer
+#     3-fold and are left with a few soft residual overlaps that the equilibration relaxes.
 #   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_4zmj.tgz
 #
@@ -30,9 +33,6 @@ tasks:
           - G:CYS,501,ALA
           - B:PRO,559,ILE
           - B:CYS,605,THR
-        crotations:
-          - psi,B,546,568,-180.0
-          - phi,B,547,568,-60.0
   - validate:
       tests:
         - attribute_test:
@@ -56,8 +56,13 @@ tasks:
   - md:
       ensemble: minimize
   - ligate:
-      steer:
-        nsteps: 4200
+      method: ccd
+      ccd:
+        refine: 500      # iterative declash of each built-in loop vs the actual surroundings
+        ensemble: 4      # a few compact seeds; the refiner does the heavy lifting
+      # each loop copy is closed independently against the real neighbors, so the three HR1N
+      # copies at the trimer 3-fold interleave rather than clashing identically; the residual
+      # (non-threaded) overlaps are relaxed by the minimize below
   - validate:
       tests:
         - connection_test:
