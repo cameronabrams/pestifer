@@ -821,6 +821,15 @@ attributes:
                   0 disables refinement (pure ensemble).
                 type: int
                 default: 250
+              - name: thread_ca
+                text: |
+                  Loops are closed in parallel. Set > 0 to re-close, sequentially, any pair of
+                  loops whose backbones come closer than this Ca-Ca separation (Angstrom) after
+                  the parallel pass. Off by default (0): verification shows the mutual overlaps
+                  from parallel closure are ordinary clashes the downstream minimize resolves, not
+                  topological interlinks, so no re-closure is needed.
+                type: float
+                default: 0.0
               - name: guard
                 text: |
                   Keep the protein background (and the loop's symmetry images) present during

@@ -95,13 +95,11 @@ class LigateTask(MDTask):
         state PDB; ``connect`` then patches the LINK bond and rebuilds the junction, and a light
         minimization (if enabled) relaxes residual strain.
         """
+        import os
         import numpy as np
-        from ..psfutil.loop_ccd import (backbone_from_pdb, loop_atoms_from_pdb,
-                                        build_loop_problem, anchor_closure_target, ccd_close,
-                                        sample_backbone_dihedrals, apply_backbone_dihedrals,
-                                        loop_clash_report, heavy_env_coords_from_pdb,
-                                        refine_declash_ccd, end_rmsd, ccd_close_guarded)
-        from scipy.spatial import cKDTree
+        from concurrent.futures import ProcessPoolExecutor
+        from scipy.spatial.distance import cdist
+        from ..psfutil.loop_ccd import loop_atoms_from_pdb, close_one_loop
         from ..util.coord import pdb_replace_coords
 
         self.next_basename('ccd')
@@ -116,108 +114,94 @@ class LigateTask(MDTask):
         max_iters = int(ccd_specs.get('max_iters', 2000))
         tol = float(ccd_specs.get('tol', 0.1))
         ensemble = max(1, int(ccd_specs.get('ensemble', 10)))
-        on_clash = str(ccd_specs.get('on_clash', 'warn')).casefold()
-        rng = np.random.default_rng(seed)
-
-        from scipy.spatial.distance import cdist
         refine_iters = int(ccd_specs.get('refine', 250))
         guard = bool(ccd_specs.get('guard', False))
+        on_clash = str(ccd_specs.get('on_clash', 'warn')).casefold()
 
-        # Serials of EVERY modeled loop copy (all chains): while unclosed they hold throwaway
-        # guesscoord positions, so they are excluded from the closure environment; each loop is
-        # instead scored against the resolved structure plus the loops already closed this pass.
+        # Serials of EVERY modeled loop copy: while unclosed they hold throwaway guesscoord
+        # positions, so all are excluded from every loop's closure environment.
         all_loop_serials = set()
         for gap in gaps:
             _o, _c, gser = loop_atoms_from_pdb(src_pdb, gap['loop_resids'], segname=gap['segname'])
             all_loop_serials.update(gser)
+        all_loop_serials = sorted(all_loop_serials)
 
-        new_coords = {}     # PDB serial -> closed xyz
-        closed_heavy = []   # heavy-atom coords of loops already closed this pass
-        broken = []         # loops flagged topologically broken
-        # Close each loop independently against the actual surroundings (including already-closed
-        # copies), so copies converging at an assembly axis interleave and avoid one another.
-        # Symmetry of the modeled residues is not preserved -- deliberately (see protein_loop_gaps).
-        for gap in gaps:
-            seg, loop = gap['segname'], gap['loop_resids']
-            n_anchor, c_anchor = gap['n_anchor_resid'], gap['c_anchor_resid']
-            bb = backbone_from_pdb(src_pdb, segname=seg)
-            order, coords, serials = loop_atoms_from_pdb(src_pdb, loop, segname=seg)
-            prob = build_loop_problem(order, coords, loop)
-            r = prob['row']
-            last = loop[-1]
-            end_idx = [r[(last, 'CA')], r[(last, 'C')]]
-            target = anchor_closure_target(bb[c_anchor]['N'], bb[c_anchor]['CA'], bb[c_anchor]['C'])[[0, 1]]
-            # environment: resolved structure minus every modeled loop (throwaway) and minus this
-            # loop's own flanking anchors (bonded junctions ~1.33 A are expected, not clashes),
-            # PLUS the loops already closed this pass.
-            _ao, _ac, anch_ser = loop_atoms_from_pdb(src_pdb, [n_anchor, c_anchor], segname=seg)
-            env_static = heavy_env_coords_from_pdb(src_pdb,
-                                                   exclude_serials=list(all_loop_serials) + list(anch_ser))
-            env = np.vstack([env_static, np.array(closed_heavy)]) if closed_heavy else env_static
-            tag = f'{seg}:{loop[0]}-{loop[-1]} (len {len(loop)})'
+        def _args(i, extra_env=None):
+            g = gaps[i]
+            return dict(src_pdb=src_pdb, segname=g['segname'], loop_resids=g['loop_resids'],
+                        n_anchor_resid=g['n_anchor_resid'], c_anchor_resid=g['c_anchor_resid'],
+                        all_loop_serials=all_loop_serials, seed=seed + i, ensemble=ensemble,
+                        refine=refine_iters, guard=guard, max_iters=max_iters, tol=tol,
+                        extra_env=extra_env)
 
-            heavy_mask = np.array([not nm.startswith('H') for (_r, nm) in order])
-            loop_pos = {rr: i for i, rr in enumerate(loop)}
-            hpos = np.array([loop_pos[order[i][0]] for i in range(len(order)) if heavy_mask[i]])
-            _intra_mask = np.triu(np.abs(hpos[:, None] - hpos[None, :]) >= 2, k=1)
-            env_tree = cKDTree(env) if len(env) else None
+        # Loops that do not interfere can be closed at once (steering closes all loops
+        # simultaneously too). Close every loop CONCURRENTLY against the resolved structure only;
+        # a downstream minimize resolves whatever mutual (non-threaded) clashes result. The one
+        # thing minimize cannot undo is one loop's backbone threaded through another's, so a
+        # post-pass detects loops whose backbones interpenetrate and RE-CLOSES those sequentially
+        # (each avoiding the ones before it). Deterministic: per-loop seed = base + index.
+        n = len(gaps)
+        results = [None] * n
+        nworkers = max(1, min(n, (os.cpu_count() or 2)))
+        if n == 1 or nworkers == 1:
+            for i in range(n):
+                results[i] = close_one_loop(**_args(i))
+        else:
+            with ProcessPoolExecutor(max_workers=nworkers) as ex:
+                futs = {ex.submit(close_one_loop, **_args(i)): i for i in range(n)}
+                for fut in futs:
+                    results[futs[fut]] = fut.result()
+        logger.debug(f'ligate/ccd: closed {n} loop(s) in parallel across {nworkers} worker(s)')
 
-            # env for a trial pose is fixed for this loop (no symmetry images now); kept as a
-            # callback for the refiner. clash_fn is the deep-clash count for the optional guard.
-            def clash_env_fn(_pose, _env=env):
-                return _env
+        # Optional threading repair (OFF by default). Closing all loops at once lets copies
+        # converging at an assembly axis overlap; verification on the 4zmj trimer shows those
+        # overlaps are ordinary clashes that the downstream minimize pushes apart cleanly (they
+        # are not topologically interlinked), so no re-closure is needed and the parallelism is
+        # kept. Set ccd.thread_ca > 0 to re-close, sequentially, any pair whose backbones come
+        # closer than that Ca-Ca distance -- a belt-and-braces option for the (not observed here)
+        # case of a genuinely interlinked pair that minimize could not undo.
+        THREAD_CA = float(ccd_specs.get('thread_ca', 0.0))
+        if THREAD_CA > 0:
+            adj = [[] for _ in range(n)]
+            for i in range(n):
+                for j in range(i + 1, n):
+                    if cdist(results[i]['ca'], results[j]['ca']).min() < THREAD_CA:
+                        adj[i].append(j); adj[j].append(i)
+            seen = [False] * n
+            for i in range(n):
+                if seen[i]:
+                    continue
+                comp, stack = [], [i]
+                while stack:
+                    u = stack.pop()
+                    if seen[u]:
+                        continue
+                    seen[u] = True; comp.append(u)
+                    stack.extend(v for v in adj[u] if not seen[v])
+                if len(comp) > 1:
+                    comp.sort()
+                    logger.info(f'ligate/ccd: {len(comp)} loops interpenetrate after the parallel '
+                                f'closure; re-closing them sequentially (ccd.thread_ca={THREAD_CA})')
+                    placed = [results[comp[0]]['heavy']]   # keep the first; re-close the rest
+                    for idx in comp[1:]:
+                        results[idx] = close_one_loop(**_args(idx, extra_env=np.vstack(placed)))
+                        placed.append(results[idx]['heavy'])
 
-            def clash_fn(X, _mask=heavy_mask, _tree=env_tree, _im=_intra_mask):
-                hx = X[_mask]
-                deep = 0
-                if _tree is not None:
-                    deep += int(_tree.query_ball_point(hx, 1.6, return_length=True).sum())
-                deep += int(((cdist(hx, hx) < 1.6) & _im).sum())
-                return deep
-
-            best = None
-            for cand in range(ensemble):
-                phipsi = sample_backbone_dihedrals(rng, len(loop))
-                start = apply_backbone_dihedrals(prob['coords'], prob, loop, phipsi,
-                                                 prev_C=bb[n_anchor]['C'], next_N=bb[c_anchor]['N'])
-                if guard:
-                    closed, rmsd, _nc = ccd_close_guarded(start, prob['bonds'], prob['moving_masks'],
-                                                          end_idx, target, clash_fn,
-                                                          tol=max(tol, 0.15), max_iters=max_iters)
-                else:
-                    closed, rmsd, _it = ccd_close(start, prob['bonds'], prob['moving_masks'],
-                                                  end_idx, target, tol=tol, max_iters=max_iters)
-                if refine_iters > 0:
-                    # a refinement re-close follows a single small perturbation, so it is a short
-                    # move -- cap its CCD iterations low (esp. important for the guarded re-close,
-                    # whose per-bond clash check is the expensive part).
-                    closed, rep = refine_declash_ccd(closed, prob, order, loop, end_idx, target,
-                                                     rng, clash_env_fn, n_iters=refine_iters,
-                                                     close_iters=120,
-                                                     clash_fn=clash_fn if guard else None)
-                else:
-                    rep = loop_clash_report(order, closed, loop, env_coords=clash_env_fn(closed))
-                rmsd = end_rmsd(closed, end_idx, target)
-                key = (rep['n_deep'] + rep['n_env_deep'],
-                       rep['n_soft'] + rep['n_env_soft'], rmsd)
-                if best is None or key < best[0]:
-                    best = (key, closed, rep, rmsd, cand)
-                if key[0] == 0 and key[1] == 0:
-                    break
-            _key, closed, rep, rmsd, cand = best
-            logger.debug(f'CCD closed loop {tag}: kept seed {cand + 1}/{ensemble}, '
-                         f'end-RMSD {rmsd:.3f} A, '
-                         f'{rep["n_deep"] + rep["n_env_deep"]} deep / '
-                         f'{rep["n_soft"] + rep["n_env_soft"]} soft clashes')
+        # collect coordinates and emit per-loop steric diagnostics
+        new_coords = {}
+        broken = []
+        for i, g in enumerate(gaps):
+            res = results[i]
+            rep = res['rep']
+            tag = f"{g['segname']}:{g['loop_resids'][0]}-{g['loop_resids'][-1]} (len {len(g['loop_resids'])})"
             ndeep = rep['n_deep'] + rep['n_env_deep']
-            threaded = rep['min_ca'] < 3.0     # a crossed backbone -- minimization cannot undo it
-            if threaded:
+            if rep['min_ca'] < 3.0:     # a crossed backbone -- minimization cannot undo it
                 broken.append((tag, rep))
                 logger.warning(
-                    f'ligate/ccd: loop {tag} (best of {ensemble}) is THREADED (min non-adjacent '
-                    f'CA {rep["min_ca"]:.2f} A, worst overlap {rep["worst"]:.2f} A) -- a crossed '
-                    f'backbone that minimization cannot undo. Increase ccd.ensemble/refine, or '
-                    f'provide an externally-modeled loop (see docs/design/loop-modeling.md).')
+                    f'ligate/ccd: loop {tag} is THREADED (min non-adjacent CA {rep["min_ca"]:.2f} A, '
+                    f'worst overlap {rep["worst"]:.2f} A) -- a crossed backbone that minimization '
+                    f'cannot undo. Increase ccd.ensemble/refine, or provide an externally-modeled '
+                    f'loop (see docs/design/loop-modeling.md).')
             elif ndeep:
                 logger.info(
                     f'ligate/ccd: loop {tag} closed with {ndeep} deep + '
@@ -226,12 +210,8 @@ class LigateTask(MDTask):
             elif rep['n_soft'] or rep['n_env_soft']:
                 logger.info(f'ligate/ccd: loop {tag} closed with soft contacts only '
                             f'({rep["n_soft"] + rep["n_env_soft"]}; worst {rep["worst"]:.2f} A).')
-
-            # write this loop's closed coords, and add its heavy atoms to the environment so
-            # loops closed after it avoid it.
-            for k, serial in enumerate(serials):
-                new_coords[serial] = closed[k]
-            closed_heavy.extend(closed[heavy_mask].tolist())
+            for k, serial in enumerate(res['serials']):
+                new_coords[serial] = res['closed'][k]
 
         if broken and on_clash == 'error':
             logger.error(f'ligate/ccd: {len(broken)} loop(s) threaded; aborting (ccd.on_clash=error)')

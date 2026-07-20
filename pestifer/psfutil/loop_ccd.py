@@ -710,3 +710,86 @@ def ccd_close_guarded(coords, bonds, moving_masks, end_idx, target, clash_fn,
             break
         last = r
     return X, end_rmsd(X, end_idx, target), cur_clash
+
+
+def close_one_loop(src_pdb, segname, loop_resids, n_anchor_resid, c_anchor_resid,
+                   all_loop_serials, seed, ensemble=10, refine=250, guard=False,
+                   max_iters=2000, tol=0.1, extra_env=None):
+    """
+    Close one interior loop against the resolved structure and (optionally) a set of
+    already-closed loops -- the standalone, picklable unit the ligate task runs in parallel
+    across loops and re-runs sequentially for the rare threaded pair.
+
+    Reads the loop and its environment from ``src_pdb``: the environment is every heavy atom
+    NOT in ``all_loop_serials`` (all modeled loops are throwaway) and NOT in this loop's two
+    flanking anchors (bonded junctions), plus ``extra_env`` (heavy coords of loops already
+    closed, passed during sequential repair). Seeds each loop residue from Ramachandran basins,
+    closes onto the anchor by CCD (guarded if ``guard``), polishes by iterative declash
+    (``refine`` iterations), and keeps the least-clashing of ``ensemble`` seeds. Deterministic
+    for a fixed ``seed``.
+
+    Returns a dict: ``segname``, ``loop`` (resids), ``serials``, ``order``, ``closed`` (M,3),
+    ``rep`` (:func:`loop_clash_report`), ``heavy`` (heavy-atom coords), ``ca`` (Ca coords).
+    """
+    from scipy.spatial import cKDTree
+    from scipy.spatial.distance import cdist
+    rng = np.random.default_rng(seed)
+    bb = backbone_from_pdb(src_pdb, segname=segname)
+    order, coords, serials = loop_atoms_from_pdb(src_pdb, loop_resids, segname=segname)
+    prob = build_loop_problem(order, coords, loop_resids)
+    r = prob['row']
+    last = loop_resids[-1]
+    end_idx = [r[(last, 'CA')], r[(last, 'C')]]
+    target = anchor_closure_target(bb[c_anchor_resid]['N'], bb[c_anchor_resid]['CA'],
+                                   bb[c_anchor_resid]['C'])[[0, 1]]
+    _ao, _ac, anch_ser = loop_atoms_from_pdb(src_pdb, [n_anchor_resid, c_anchor_resid], segname=segname)
+    env = heavy_env_coords_from_pdb(src_pdb, exclude_serials=list(all_loop_serials) + list(anch_ser))
+    if extra_env is not None and len(extra_env):
+        extra_env = np.asarray(extra_env, dtype=float)
+        env = np.vstack([env, extra_env]) if len(env) else extra_env
+
+    heavy_mask = np.array([not nm.startswith('H') for (_rr, nm) in order])
+    loop_pos = {rr: i for i, rr in enumerate(loop_resids)}
+    hpos = np.array([loop_pos[order[i][0]] for i in range(len(order)) if heavy_mask[i]])
+    _intra = np.triu(np.abs(hpos[:, None] - hpos[None, :]) >= 2, k=1)
+    env_tree = cKDTree(env) if len(env) else None
+
+    def clash_env_fn(_pose):
+        return env
+
+    def clash_fn(X):
+        hx = X[heavy_mask]
+        deep = 0
+        if env_tree is not None:
+            deep += int(env_tree.query_ball_point(hx, 1.6, return_length=True).sum())
+        deep += int(((cdist(hx, hx) < 1.6) & _intra).sum())
+        return deep
+
+    best = None
+    for cand in range(max(1, ensemble)):
+        phipsi = sample_backbone_dihedrals(rng, len(loop_resids))
+        start = apply_backbone_dihedrals(prob['coords'], prob, loop_resids, phipsi,
+                                         prev_C=bb[n_anchor_resid]['C'], next_N=bb[c_anchor_resid]['N'])
+        if guard:
+            closed, _rmsd, _nc = ccd_close_guarded(start, prob['bonds'], prob['moving_masks'],
+                                                   end_idx, target, clash_fn,
+                                                   tol=max(tol, 0.15), max_iters=max_iters)
+        else:
+            closed, _rmsd, _it = ccd_close(start, prob['bonds'], prob['moving_masks'],
+                                           end_idx, target, tol=tol, max_iters=max_iters)
+        if refine > 0:
+            closed, rep = refine_declash_ccd(closed, prob, order, loop_resids, end_idx, target,
+                                             rng, clash_env_fn, n_iters=refine, close_iters=120,
+                                             clash_fn=clash_fn if guard else None)
+        else:
+            rep = loop_clash_report(order, closed, loop_resids, env_coords=env)
+        key = (rep['n_deep'] + rep['n_env_deep'], rep['n_soft'] + rep['n_env_soft'],
+               end_rmsd(closed, end_idx, target))
+        if best is None or key < best[0]:
+            best = (key, closed, rep)
+        if key[0] == 0 and key[1] == 0:
+            break
+    _key, closed, rep = best
+    ca = closed[[i for i, (_rr, nm) in enumerate(order) if nm == 'CA']]
+    return dict(segname=segname, loop=loop_resids, serials=serials, order=order,
+                closed=closed, rep=rep, heavy=closed[heavy_mask], ca=ca)
