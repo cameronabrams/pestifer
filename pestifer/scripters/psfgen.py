@@ -27,6 +27,7 @@ from ..objs.resid import ResID
 from ..objs.ssbond import SSBond, SSBondList
 
 from ..logparsers import PsfgenLogParser
+from ..util.coord import standardize_pdb_columns
 from ..util.progress import PsfgenProgress
 from ..util.stringthings import my_logger
 from ..util.util import reduce_intlist
@@ -767,6 +768,11 @@ class PsfgenScripter(VMDScripter):
             self.addline(f'writepsf cmap {statename}.psf')
         if writepdb:
             self.addline(f'writepdb {statename}.pdb')
+            # psfgen writes CHARMM resnames verbatim; 6-char carbohydrate names (BGLCNA, ANE5AC)
+            # overflow the PDB resName field and shift the coordinate columns, which every
+            # downstream fixed-column reader (VMD, coorddf_from_pdb) then misparses -- corrupting
+            # glycan coordinates.  Re-anchor the coordinate columns after the run (see runscript).
+            self._written_pdb = f'{statename}.pdb'
         super().writescript(force_exit=force_exit)
 
     def runscript(self, *args, **options):
@@ -804,6 +810,12 @@ class PsfgenScripter(VMDScripter):
         result = c.run(logfile=self.logname, logparser=self.logparser)
         logger.debug(f'FileCollector:')
         my_logger(self.F, logger.debug)
+        # psfgen writes wide (column-shifted) coordinate records for 6-char CHARMM carbohydrate
+        # resnames; re-anchor them into standard columns so VMD and the numpy coordinate readers
+        # ingest the glycan coordinates correctly instead of silently corrupting them.
+        written_pdb = getattr(self, '_written_pdb', None)
+        if written_pdb and os.path.exists(written_pdb):
+            standardize_pdb_columns(written_pdb)
         if not options.get('keep_tempfiles', False):
             self.F.flush()
         if os.path.exists(self.logname):

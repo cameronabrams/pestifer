@@ -3,7 +3,7 @@ import tempfile
 import numpy as np
 import unittest
 
-from pestifer.util.coord import rotate_points_about_axis, pdb_replace_coords
+from pestifer.util.coord import rotate_points_about_axis, pdb_replace_coords, standardize_pdb_columns
 
 
 class TestRotatePointsAboutAxis(unittest.TestCase):
@@ -63,6 +63,40 @@ class TestPdbReplaceCoords(unittest.TestCase):
         self.assertEqual(lines[2].strip(), "END")
         for p in (src_path, out_path):
             os.remove(p)
+
+
+class TestStandardizePdbColumns(unittest.TestCase):
+    def _write(self, text):
+        fd, path = tempfile.mkstemp(suffix='.pdb')
+        with os.fdopen(fd, 'w') as fh:
+            fh.write(text)
+        return path
+
+    def test_reanchors_wide_resname_coords_and_leaves_standard_lines(self):
+        # first line: standard protein record (coords already at cols 31-54)
+        # second line: psfgen wide record -- 6-char carb resname BGLCNA shifts coords right by ~3
+        src = (
+            "ATOM      1  N   ALA A 512     193.912 186.468 172.509  0.00  0.00      A     \n"
+            "ATOM  30841  C4  BGLCNAA 665     218.343 223.129 159.086  1.00  0.00      AG01 C\n"
+            "END\n"
+        )
+        path = self._write(src)
+        n = standardize_pdb_columns(path)
+        self.assertEqual(n, 1)  # only the wide glycan line moved
+        with open(path) as fh:
+            lines = fh.readlines()
+        # protein line unchanged
+        self.assertEqual(lines[0].rstrip(),
+                         "ATOM      1  N   ALA A 512     193.912 186.468 172.509  0.00  0.00      A")
+        # glycan coords now parse from the standard columns
+        self.assertAlmostEqual(float(lines[1][30:38]), 218.343, places=3)
+        self.assertAlmostEqual(float(lines[1][38:46]), 223.129, places=3)
+        self.assertAlmostEqual(float(lines[1][46:54]), 159.086, places=3)
+        # trailing occupancy/beta/segname preserved
+        self.assertIn("1.00  0.00      AG01", lines[1])
+        # idempotent: a second pass moves nothing
+        self.assertEqual(standardize_pdb_columns(path), 0)
+        os.remove(path)
 
 
 if __name__ == '__main__':

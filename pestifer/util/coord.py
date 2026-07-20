@@ -4,6 +4,7 @@ Some calculations based on atom coordinates
 """
 import logging
 import os
+import re
 
 import numpy as np
 import pandas as pd
@@ -230,3 +231,60 @@ def pdb_replace_coords(src_pdb, out_pdb, coords, row_of_serial):
         out.append(line)
     with open(out_pdb, 'w') as fh:
         fh.writelines(out)
+
+
+# a coordinate written by psfgen/VMD as %8.3f -- exactly three decimals.  occupancy/beta are
+# %6.2f (two decimals) so they never match, which is what lets us pick out x/y/z unambiguously.
+_COORD3 = re.compile(r'-?\d+\.\d{3}(?!\d)')
+
+
+def standardize_pdb_columns(pdb_in, pdb_out=None):
+    """Re-anchor every ATOM/HETATM record's x/y/z into the standard PDB coordinate columns
+    (31-54, i.e. ``[30:54]``), returning the number of records that had to be shifted.
+
+    psfgen's ``writepdb`` emits CHARMM residue names verbatim, and carbohydrate names such as
+    ``BGLCNA``/``ANE5AC`` are six characters -- two more than the four-column PDB resName field.
+    That overflow pushes the chainID, resSeq, and *coordinate* columns right by a few characters,
+    so a downstream fixed-column reader (VMD's own PDB reader, or :func:`coorddf_from_pdb`) reads
+    the wrong substring and silently corrupts the glycan coordinates (and the corruption becomes
+    permanent the moment such a reader rewrites the file).  This pass finds the coordinate triplet
+    by value (the only three-decimal fields on the line) and rewrites the record with the triplet
+    back in columns 31-54, leaving the (still-wide) name/resid portion and the trailing
+    occupancy/beta/segname columns intact.  Records already in standard columns are unchanged, so
+    it is a safe no-op on well-formed PDBs and idempotent.
+
+    Parameters
+    ----------
+    pdb_in : str
+        Path to the PDB to standardize.
+    pdb_out : str, optional
+        Where to write the result; defaults to ``pdb_in`` (in-place).
+    """
+    if pdb_out is None:
+        pdb_out = pdb_in
+    with open(pdb_in) as fh:
+        lines = fh.readlines()
+    out = []
+    shifted = 0
+    for line in lines:
+        if line.startswith(('ATOM', 'HETATM')):
+            m = list(_COORD3.finditer(line))
+            if len(m) >= 3:
+                prefix = line[:m[0].start()].rstrip()
+                suffix = line[m[2].end():]
+                if len(prefix) > 30:
+                    # only a resName of 8+ chars could do this; keep coords parseable rather
+                    # than let them spill, and flag it since it means truncating identity columns
+                    logger.warning(f'standardize_pdb_columns: prefix >30 cols, truncating: {prefix!r}')
+                    prefix = prefix[:30]
+                x, y, z = (float(mm.group()) for mm in m[:3])
+                newline = f'{prefix:<30}{x:8.3f}{y:8.3f}{z:8.3f}{suffix}'
+                if newline != line:
+                    shifted += 1
+                line = newline
+        out.append(line)
+    with open(pdb_out, 'w') as fh:
+        fh.writelines(out)
+    if shifted:
+        logger.debug(f'standardize_pdb_columns: re-anchored {shifted} record(s) in {pdb_out}')
+    return shifted
