@@ -10,11 +10,12 @@
 #   - Existing chains C and D (these are glycans) are assigned new chainIDs
 #   - All glycans are assigned chainIDs that are not shared with any protein
 #   - Missing protein is built-in and closed by the offline CCD loop closer
-#     (ligate method: ccd): each loop is seeded from Ramachandran basins and closed
-#     by symmetry-aware, clash-guarded cyclic coordinate descent + iterative declash,
-#     so the three symmetry copies stay identical and declash against one another --
-#     no hand-tuned crotations needed. The gp41 HR1N loops converge at the trimer
-#     3-fold and are left with a few soft residual overlaps that the equilibration relaxes.
+#     (ligate method: ccd): each loop is seeded from Ramachandran basins and closed by
+#     cyclic coordinate descent + iterative declash against its actual surroundings --
+#     no hand-tuned crotations needed. Each loop copy is closed independently (symmetry of
+#     the modeled residues is not preserved), so the gp41 HR1N loops converging at the
+#     trimer 3-fold interleave rather than clashing; the residual soft overlaps are relaxed
+#     by the equilibration.
 #   - A five-phase NPT equilibration is used to settle the density
 #   - A production tarball is generated: prod_4zmj.tgz
 #
@@ -111,7 +112,6 @@ tasks:
       basename: solvated
   - terminate:
       basename: my_4zmj
-      artifacts: artifacts
       package:
         basename: prod_4zmj
         namd:

@@ -118,7 +118,6 @@ tasks:
       grid: True
   - terminate:
       basename: my_5vn3
-      artifacts: artifacts
       package:
         basename: prod_5vn3
         namd:

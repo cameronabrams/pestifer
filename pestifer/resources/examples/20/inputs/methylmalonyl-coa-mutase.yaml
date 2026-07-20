@@ -49,7 +49,6 @@ tasks:
     grid: True
 - terminate:
     basename: my_mcm
-    artifacts: artifacts
     package:
       basename: my_mcm
       namd:

@@ -140,7 +140,6 @@ tasks:
       grid: True
   - terminate:
       basename: my_7txd
-      artifacts: artifacts
       package:
         basename: prod_7txd
         namd:

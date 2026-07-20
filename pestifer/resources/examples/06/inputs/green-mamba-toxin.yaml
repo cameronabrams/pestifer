@@ -49,7 +49,6 @@ tasks:
     - density
 - terminate:
     basename: my_1fas
-    artifacts: artifacts
     package:
       basename: prod_1fas
       namd:

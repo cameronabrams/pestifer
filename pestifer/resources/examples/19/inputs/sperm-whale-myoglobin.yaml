@@ -53,7 +53,6 @@ tasks:
         - density
   - terminate:
       basename: my_1mob
-      artifacts: artifacts
       package:
         basename: my_1mob
         namd:

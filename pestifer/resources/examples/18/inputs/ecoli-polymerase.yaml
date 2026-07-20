@@ -70,7 +70,6 @@ tasks:
         - density
   - terminate:
       basename: my_5fkw
-      artifacts: artifacts
       package:
         basename: prod_5fkw
         namd:

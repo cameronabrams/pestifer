@@ -84,7 +84,6 @@ tasks:
       grid: True
   - terminate:
       basename: my_6pti
-      artifacts: artifacts
       package:
         basename: prod_6pti
         namd:

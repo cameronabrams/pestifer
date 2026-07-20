@@ -88,7 +88,6 @@ tasks:
       grid: True
   - terminate:
       basename: my_1f7a
-      artifacts: artifacts
       package:
         basename: prod_1f7a
         namd:

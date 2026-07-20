@@ -155,7 +155,6 @@ tasks:
       grid: True
   - terminate:
       basename: my_7xix
-      artifacts: artifacts
       package:
         basename: prod_7xix
         namd:

@@ -48,7 +48,6 @@ tasks:
     - density
 - terminate:
     basename: my_2bgj
-    artifacts: artifacts
     package:
       basename: my_2bgj
       namd:

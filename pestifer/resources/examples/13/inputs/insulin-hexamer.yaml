@@ -61,7 +61,6 @@ tasks:
       grid: True
   - terminate:
       basename: my_2ins
-      artifacts: artifacts
       package:
         basename: prod_2ins
         namd:

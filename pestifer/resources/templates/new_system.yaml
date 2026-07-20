@@ -43,7 +43,6 @@ tasks:
     grid: True
 - terminate:
     basename: my_system
-    artifacts: artifacts
     package:
       basename: prod_system
       namd:

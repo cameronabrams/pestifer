@@ -189,7 +189,6 @@ tasks:
       legend: True
   - terminate:
       basename: my_6e8w
-      artifacts: artifacts
       package:
         basename: prod_6e8w
         namd:

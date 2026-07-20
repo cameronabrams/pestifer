@@ -71,7 +71,6 @@ tasks:
       grid: True
   - terminate:
       basename: my_4zxb
-      artifacts: artifacts
       package:
         basename: prod_4zxb
         namd:

@@ -235,7 +235,6 @@ tasks:
       basename: bilayer
   - terminate:
       basename: my_6e8w
-      artifacts: artifacts
       package:
         basename: prod_6e8w
         namd:

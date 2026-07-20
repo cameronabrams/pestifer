@@ -75,7 +75,6 @@ tasks:
       grid: True
   - terminate:
       basename: my_8fad
-      artifacts: artifacts
       package:
         basename: prod_8fad
         namd:

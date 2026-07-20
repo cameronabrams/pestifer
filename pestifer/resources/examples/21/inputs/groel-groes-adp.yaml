@@ -43,7 +43,6 @@ tasks:
     - density
 - terminate:
     basename: my_1aon
-    artifacts: artifacts
     package:
       basename: my_1aon
       namd:

@@ -111,7 +111,6 @@ tasks:
       grid: True
   - terminate:
       basename: my_4tvp
-      artifacts: artifacts
       package:
         basename: prod_4tvp
         namd:
