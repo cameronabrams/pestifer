@@ -65,7 +65,11 @@ class TestPDBRepository(unittest.TestCase):
     
     def setUp(self):
         charmmff_root = Path(resources.__file__).parent / 'charmmff'
-        version_dirs = sorted(charmmff_root.iterdir(), key=lambda p: p.stat().st_mtime)
+        # pick the most recent charmmff *version* dir that actually holds a pdbrepository --
+        # not merely the newest subdir (e.g. 'custom/', which has no pdbrepository, can be
+        # touched more recently and would otherwise be chosen, breaking these tests).
+        version_dirs = sorted((p for p in charmmff_root.iterdir() if (p / 'pdbrepository').is_dir()),
+                              key=lambda p: p.stat().st_mtime)
         charmmff_path = version_dirs[-1]
         self.repopath = str(charmmff_path / 'pdbrepository')
         self.pdbrepo = PDBRepository(self.repopath)
