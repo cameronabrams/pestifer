@@ -804,7 +804,7 @@ attributes:
                 type: float
                 default: 0.1
               - name: ensemble
-                text: |
+                text: >-
                   Number of independent Ramachandran-seeded closures to try per loop; each is
                   polished by the iterative declash refiner and the candidate that introduces
                   the fewest steric clashes with the rest of the structure is kept. Larger
@@ -813,7 +813,7 @@ attributes:
                 type: int
                 default: 10
               - name: refine
-                text: |
+                text: >-
                   Iterations of iterative declash refinement (perturb-and-reclose simulated
                   annealing on the symmetry-aware clash score) applied to each closed candidate.
                   This is what walks a crowded or axially-symmetric loop (e.g. gp41 HR1N in a
@@ -822,7 +822,7 @@ attributes:
                 type: int
                 default: 250
               - name: thread_ca
-                text: |
+                text: >-
                   Loops are closed in parallel. Set > 0 to re-close, sequentially, any pair of
                   loops whose backbones come closer than this Ca-Ca separation (Angstrom) after
                   the parallel pass. Off by default (0): verification shows the mutual overlaps
@@ -831,7 +831,7 @@ attributes:
                 type: float
                 default: 0.0
               - name: guard
-                text: |
+                text: >-
                   Keep the protein background (and the loop's symmetry images) present during
                   the CCD closure and reject any bond rotation that increases the deep-clash
                   count, so the loop closes without being driven into the structure. Off by
@@ -840,7 +840,7 @@ attributes:
                 type: bool
                 default: false
               - name: on_clash
-                text: |
+                text: >-
                   What to do when a closed loop is topologically broken (interpenetrates
                   the fold or threads itself -- overlaps that no minimization can undo).
                   'warn' (default) logs a prominent warning and continues; 'error' aborts
