@@ -1,8 +1,8 @@
 # Pestifer roadmap
 
-A running checklist of planned/possible future work. Not a commitment or a schedule —
-just somewhere to park ideas so they aren't lost. Move items into a design doc under
-`docs/design/` when they're ready to be worked on; check them off (or delete) when done.
+A running checklist of planned and possible future work — somewhere to park ideas so they
+aren't lost. It is not a commitment or a schedule: items are checked off as they ship, and
+what appears here is refined and reprioritized as the project evolves.
 
 ## Solvation
 

@@ -47,6 +47,13 @@ Assembling and solvating
 
 The final script merges the three completed Fabs into the base and solvates.  Note that no chain-ID or segment-name bookkeeping is needed: the three Fabs all arrive as segments/chains H/L, and pestifer's ``merge`` automatically resolves the collisions.  It renames each colliding segment to a fresh **single-character segid** (e.g. the second Fab's heavy chain becomes segid ``E``, the third ``J``).  A single-character segid matters because a PSF has no chain column: every time the pipeline regenerates a PDB from the PSF — the ``solvate`` step, and every coordinate-to-PDB conversion — VMD re-derives each atom's chain ID from its segid's leading character.  Enumerated segids like ``H0``/``H1`` would both derive back to chain ``H`` and collapse the three Fabs onto one chain in any chain-based view (VMD cartoon tracing, ``chain H`` selections), making three Fabs look like one; a single-character segid keeps each Fab's chain ID unique **and** stable through the whole build, so the three Fabs stay distinct in the final structure.
 
+A gentle staged warmup
+++++++++++++++++++++++
+
+Merging three freshly-completed Fabs into the trimer leaves each Fab's newly-built N-terminus packed tightly against its neighbors — a hard, interlocked contact that energy minimization alone cannot fully relieve (the clashing atoms sit on the wrong side of a small energy barrier).  Starting NVT dynamics at full temperature on such a structure blows up on the very first step: an atom is driven so far that its bond-length constraint cannot be satisfied and NAMD aborts with a ``RATTLE`` constraint failure.
+
+The equilibration therefore begins **cold and slow**.  The first dynamics stage runs at 50 K with a 0.5 fs timestep and ``rigidbonds`` turned *off* — with no bond constraints there is nothing for ``RATTLE`` to fail, and the small timestep keeps the large initial forces from launching any atom across the box, so the strained contact simply unwinds.  The temperature is then ramped back up (150 K, then 300 K) before the usual series of progressively longer NPT runs equilibrates the density.  The two minimizations flanking the solvation are also lengthened (5000 steps each) to take the packing as far as minimization can before dynamics starts.  This cold-start recipe is a good default for **any** freshly-merged complex with tight new interfaces.
+
 .. literalinclude:: ../../../../pestifer/resources/examples/25/inputs/hiv-env-cd4-17b-liganded.yaml
     :language: yaml
 
@@ -67,6 +74,12 @@ Because it consumes pre-built structure files, this example is run as a sequence
     pestifer build hiv-env-cd4-17b-liganded.yaml  # merge + solvate + equilibrate
 
 The merged, unsolvated complex is a ~60,000-atom system: the Env trimer with its glycans, three sCD4, and three complete 17b Fabs, with the gp120–17b interfaces preserved exactly from 5vn3.
+
+.. figure:: solvated-density.png
+    :width: 80%
+    :align: center
+
+    System density through equilibration.  The flat opening segment is the cold, small-timestep warmup, which runs at constant volume; density then climbs and plateaus once the NPT schedule begins, confirming the solvated complex has equilibrated.
 
 .. raw:: html
 

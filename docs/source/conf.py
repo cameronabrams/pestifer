@@ -30,6 +30,9 @@ extensions = [
     'myst_parser',
 ]
 
+# render GitHub-style task lists ([ ] / [x]) as checkboxes (used by the roadmap page)
+myst_enable_extensions = ['tasklist']
+
 autosummary_generate = True  # Enable autosummary tables
 
 intersphinx_mapping = {

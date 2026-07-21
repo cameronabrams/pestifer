@@ -24,6 +24,20 @@ There is also a ``ligate`` task.  Together, the ``loops`` subdirective of the ``
 2. The ``ligate`` task (``method: ccd``, the default) then closes each loop.  Every loop residue's backbone :math:`(\phi, \psi)` is re-seeded from the coil regions of the Ramachandran plot -- a realistic, compact backbone instead of a straight chain -- and the loop is closed onto its downstream anchor by cyclic coordinate descent, followed by an iterative declash refinement against the surrounding structure.  Each loop copy is closed **independently** against its actual neighbors (including copies already closed), so the three gp41 HR1N loops that converge at the trimer 3-fold interleave rather than clashing; symmetry of the modeled-in residues is not preserved, which is what makes that possible.  A final ``psfgen`` run heals each gap with a peptide bond.
 3. Because the closure is purely geometric, a few soft (non-threaded) steric overlaps typically remain; the ``minimize`` and equilibration stages that follow relax them.  (In earlier versions this loop closure was instead done by steered MD, and the HR1N loops needed hand-tuned ``crotations`` to avoid clashes; neither is necessary now.)
 
+The result is shown below: the closed, connected trimer after ``ccd`` loop closure and healing.
+
+.. figure:: 4zmj_ccd_overview.png
+    :width: 65%
+    :align: center
+
+    The ccd-closed 4zmj Env trimer, drawn as a cartoon with the six chains coloured uniquely.  The three gp41 HR1N loops grown in and closed by ``ccd`` (residues 548–568 of chains B, C, and D) are drawn as thick tubes, each a brighter shade of its own protomer's colour.  They converge at the trimer 3-fold and **interleave** rather than clashing, because each copy is closed independently against its neighbours -- the symmetry of the modeled-in residues is not preserved.
+
+.. figure:: 4zmj_ccd_interleave.png
+    :width: 65%
+    :align: center
+
+    The same three HR1N loops, viewed straight down the trimer 3-fold axis with the surrounding gp41 core ghosted.  Because each copy is closed independently, the three loops (coral, orange, and gold for chains B, C, and D) take up *different* conformations and interleave around the axis.  A symmetry-preserving closure would instead place three identical copies at the same radius and collapse them into a clash at the centre.
+
 The 4zmj entry contains partially resolved glycans.  By default, pestifer will include all resolved glycans.  These can be excluded using an ``excludes`` list that specifies ``resnames`` like ``NAG``, ``MAN``, etc.
 
 The snapshots below illustrate the *legacy* steered-MD workflow (``method: steer``) by which the loops were previously grown in and dragged onto their anchors; they are retained here as a visual reference for how a model-built loop is closed onto resolved protein.  The default ``ccd`` closure described above reaches a comparable closed, connected structure geometrically rather than by steering.  In these snapshots, only backbone protein atoms are shown with bonds drawn as lines.  The model-built parts are drawn with thick bonds, and the six chains are colored uniquely.
