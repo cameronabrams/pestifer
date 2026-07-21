@@ -25,16 +25,39 @@ tasks:
           pdb: fab_p2.pdb
         - psf: fab_p3.psf
           pdb: fab_p3.pdb
-  # relax the Fv/constant-domain junctions
+  # relax the Fv/constant-domain junctions and the tightly-packed completed-Fab N-termini
   - md:
       cpu-override: True
       ensemble: minimize
+      minimize: 5000
   # solvate neutralizes the net charge with counter-ions
   - solvate:
   - md:
       ensemble: minimize
+      minimize: 5000
+  # Gentle staged warmup.  The completed 17b Fab N-termini pack tightly against neighboring
+  # chains (a hard, interlocked contact minimization alone can't fully clear), so a full-
+  # temperature NVT start RATTLE-fails on the first step.  Warm up cold and slow first: a
+  # 50 K, 0.5 fs stage with rigidBonds off (no constraints to fail) lets the residual strain
+  # dissipate, then ramp the temperature back up before the production NPT schedule.
   - md:
       ensemble: NVT
+      temperature: 50
+      nsteps: 2000
+      other_parameters:
+        timestep: 0.5
+        rigidbonds: none   # must match the built-in key's spelling to override it (pestifer
+                           # merges NAMD directives in a case-sensitive dict; a mismatched
+                           # spelling emits a second line and NAMD rejects the duplicate)
+  - md:
+      ensemble: NVT
+      temperature: 150
+      nsteps: 2000
+      other_parameters:
+        timestep: 1.0
+  - md:
+      ensemble: NVT
+      temperature: 300
   - md:
       ensemble: NPT
       nsteps: 200
