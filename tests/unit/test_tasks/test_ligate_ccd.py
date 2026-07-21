@@ -2,12 +2,15 @@ import unittest
 from pathlib import Path
 
 import numpy as np
+import pytest
 import yaml
 
 from pestifer.core.controller import Controller
 from pestifer.core.config import Config
 from pestifer.psfutil.loop_ccd import (backbone_from_pdb, loop_atoms_from_pdb,
                                        loop_clash_report, heavy_env_coords_from_pdb)
+
+pytestmark = pytest.mark.needs_tools
 
 # An internal, cysteine-free loop of BPTI (6pti) to delete and rebuild.
 _LOOP = {24: 'ASN', 25: 'ALA', 26: 'LYS', 27: 'ALA', 28: 'GLY'}

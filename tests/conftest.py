@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import pytest
 import os
+import shutil
 import logging
 
 logging.getLogger("pidibble").setLevel(logging.WARNING)
@@ -96,6 +97,8 @@ def pytest_configure(config):
     config._logfile_path = str(_LOGFILE)
 
     config.addinivalue_line("markers", "slow: mark test as slow to run")
+    config.addinivalue_line("markers",
+                            "needs_tools: requires the external vmd and namd3 executables on PATH")
 
 def pytest_unconfigure(config):
     """Remove and close our handler cleanly."""
@@ -120,11 +123,18 @@ def pytest_report_header(config):
     return f"Logging to: {p}" if p else None
 
 def pytest_collection_modifyitems(config, items):
-    if config.getoption("--runslow"):
-        # --runslow given in cli: do not skip slow tests
-        return
+    run_slow = config.getoption("--runslow")
     skip_slow = pytest.mark.skip(reason="need --runslow option to run")
+    # Tests marked `needs_tools` drive the external VMD/psfgen and NAMD binaries; skip them
+    # when those executables are not on PATH (e.g. on a stock CI runner), rather than letting
+    # them hard-fail.  This is what lets the pure-Python core suite run anywhere.
+    missing = [t for t in ("vmd", "namd3") if shutil.which(t) is None]
+    skip_tools = (pytest.mark.skip(reason=f"requires external executable(s) not on PATH: "
+                                          f"{', '.join(missing)}")
+                  if missing else None)
     for item in items:
-        if "slow" in item.keywords:
+        if not run_slow and "slow" in item.keywords:
             item.add_marker(skip_slow)
+        if skip_tools is not None and "needs_tools" in item.keywords:
+            item.add_marker(skip_tools)
 

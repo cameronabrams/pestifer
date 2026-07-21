@@ -3,6 +3,9 @@ from pestifer.core.config import Config
 import os
 from pathlib import Path
 import unittest
+import pytest
+
+pytestmark = pytest.mark.needs_tools
 
 class TestCleaveTask(unittest.TestCase):
     def setUp(self):

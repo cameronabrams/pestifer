@@ -20,6 +20,8 @@ from pestifer.tasks.make_membrane_system import (
 from pestifer.tasks.validate import ValidateTask
 from pestifer.util.util import protect_str_arg
 
+pytestmark = pytest.mark.needs_tools
+
 class _StubMDPlot:
     """Minimal stand-in for the trailing mdplot task: just carries a ``dataframes`` dict."""
     def __init__(self, xst=None):

@@ -8,9 +8,12 @@ from pestifer.objs.patch import Patch
 from pestifer import objs, resources
 from pestifer.core.command import Command
 from pestifer.util.util import protect_str_arg
+import pytest
 
 _TCL_ROOT = str(Path(resources.__file__).parent / 'tcl')
 _VMD_STARTUP = str(Path(resources.__file__).parent / 'tcl' / 'vmdrc.tcl')
+
+pytestmark = pytest.mark.needs_tools
 
 import logging
 logger = logging.getLogger(__name__)

@@ -1,9 +1,12 @@
 # Pestifer
 > NAMD System Preparation Tool
 
+[![tests](https://github.com/cameronabrams/pestifer/actions/workflows/tests.yaml/badge.svg)](https://github.com/cameronabrams/pestifer/actions/workflows/tests.yaml)
 [![PyPI](https://img.shields.io/pypi/v/pestifer.svg)](https://pypi.org/project/pestifer/)
-[![PyPI Downloads](https://static.pepy.tech/badge/pestifer)](https://pepy.tech/projects/pestifer)
+[![Python](https://img.shields.io/pypi/pyversions/pestifer)](https://pypi.org/project/pestifer/)
+[![License: MIT](https://img.shields.io/pypi/l/pestifer)](https://github.com/cameronabrams/pestifer/blob/main/LICENSE)
 [![Docs](https://readthedocs.org/projects/pestifer/badge/?version=latest)](https://pestifer.readthedocs.io/en/latest/)
+[![PyPI Downloads](https://static.pepy.tech/badge/pestifer)](https://pepy.tech/projects/pestifer)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.16051498-blue)](https://doi.org/10.5281/zenodo.16051498)
 
 Pestifer is a fully automated simulation-ready MD system preparation tool, requiring as inputs only biomolecular structures (e.g., PDB IDs, PDB files, mmCIF files, alphafold IDs) and a handful of customization parameters, to generate NAMD-compatible input files (PSF, PDB, and xsc).  It is basically a highly functionalized front end for VMD's `psfgen` utility.  It also has a few handy subcommands for working with NAMD output.

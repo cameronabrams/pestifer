@@ -12,9 +12,12 @@ import tarfile
 import unittest
 from pathlib import Path
 
+import pytest
 
 from pestifer.core.config import Config
 from pestifer.core.controller import Controller
+
+pytestmark = pytest.mark.needs_tools
 
 
 _TARBALL = (Path(__file__).parents[3] / 'scratch' / 'builds' / '1' / 'artifacts.tar.gz').resolve()

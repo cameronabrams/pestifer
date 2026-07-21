@@ -1,0 +1,38 @@
+name: tests
+
+# Runs the pure-Python core of the test suite on every push to main and every PR.
+# Pestifer's build path drives the external VMD/psfgen and NAMD executables, which are not
+# available on GitHub-hosted runners; tests that need them are marked `needs_tools` and
+# auto-skip when vmd/namd3 are absent (see tests/conftest.py). This job therefore exercises
+# the schema, parsers, coordinate/geometry, and utility layers -- not the VMD/NAMD builds.
+# For full-suite coverage, run the tests on a machine (or self-hosted runner) with VMD + NAMD.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  core:
+    name: core tests (py${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install pestifer + test deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e '.[test]'
+      - name: Run tool-free tests
+        run: pytest tests/unit -q

@@ -15,6 +15,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
 
 from pestifer.core.artifacts import StateArtifacts
 from pestifer.core.config import Config
@@ -22,6 +23,8 @@ from pestifer.core.errors import PestiferBuildError
 from pestifer.core.controller import Controller
 from pestifer.psfutil.psfcontents import PSFContents
 from pestifer.tasks.merge import MergeTask
+
+pytestmark = pytest.mark.needs_tools
 
 
 # ---------------------------------------------------------------------------

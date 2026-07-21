@@ -1,7 +1,12 @@
 # pestifer
 
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.16051498-blue)](https://doi.org/10.5281/zenodo.16051498)
+[![tests](https://github.com/cameronabrams/pestifer/actions/workflows/tests.yaml/badge.svg)](https://github.com/cameronabrams/pestifer/actions/workflows/tests.yaml)
+[![PyPI](https://img.shields.io/pypi/v/pestifer.svg)](https://pypi.org/project/pestifer/)
+[![Python](https://img.shields.io/pypi/pyversions/pestifer)](https://pypi.org/project/pestifer/)
+[![License: MIT](https://img.shields.io/pypi/l/pestifer)](https://github.com/cameronabrams/pestifer/blob/main/LICENSE)
+[![Docs](https://readthedocs.org/projects/pestifer/badge/?version=latest)](https://pestifer.readthedocs.io/en/latest/)
 [![Downloads](https://static.pepy.tech/badge/pestifer)](https://pepy.tech/projects/pestifer)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.16051498-blue)](https://doi.org/10.5281/zenodo.16051498)
 
 **Pestifer** is a versatile system-preparation tool that facilitates the use of the [VMD](https://www.ks.uiuc.edu/Research/vmd/) tool [psfgen](https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen/ug.pdf) to generate CHARMM-force-field compatible PSF and PDB files for use in the MD simulation package [NAMD](https://www.ks.uiuc.edu/Research/namd/).  Pestifer automates and extends the standard `psfgen/VMD` workflow using a simple YAML interface to provide a versatile and user-friendly way to set up molecular dynamics simulations.
 

@@ -19,6 +19,8 @@ from pestifer.core.artifacts import StateArtifacts
 from pestifer.core.config import Config
 from pestifer.core.controller import Controller
 
+pytestmark = pytest.mark.needs_tools
+
 # The three disulfide bonds present in 6pti (chain A): C5-C55, C14-C38, C30-C51
 _BPTI_DISU_REMARKS = {
     'patch DISU A:5 A:55',

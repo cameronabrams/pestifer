@@ -33,6 +33,8 @@ import pytest
 from pestifer.core.config import Config
 from pestifer.core.controller import Controller
 
+pytestmark = pytest.mark.needs_tools
+
 # Small glycoproteins with branched N-glycans (and, for 4b7i/4byh, chloride ions).
 GLYCAN_PDB_IDS = ['2wah', '4b7i', '4byh']
 

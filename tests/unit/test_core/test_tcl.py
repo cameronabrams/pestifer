@@ -1,8 +1,11 @@
 import os
 import unittest
+import pytest
 from pidibble.pdbparse import PDBParser
 from pestifer.core.config import Config
 from pathlib import Path
+
+pytestmark = pytest.mark.needs_tools
 
 class TestTCL(unittest.TestCase):
 

@@ -47,6 +47,10 @@ ligand-paramgen = [
   "rdkit",
   "dimorphite_dl",
 ]
+# Test runner (the suite itself; the tool-driven tests auto-skip when vmd/namd3 are absent).
+test = [
+  "pytest",
+]
 
 [project.scripts]
 pestifer = "pestifer.cli.pestifer:cli"

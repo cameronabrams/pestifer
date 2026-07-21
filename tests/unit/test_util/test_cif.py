@@ -1,7 +1,10 @@
 import unittest
 import logging
+import pytest
 from pathlib import Path
 logger=logging.getLogger(__name__)
+
+pytestmark = pytest.mark.needs_tools
 from pidibble.pdbparse import PDBParser
 from pidibble.pdbrecord import PDBRecordDict
 from pestifer.molecule.residue import ResidueList, ResiduePlaceholder, ResiduePlaceholderList

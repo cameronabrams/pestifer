@@ -24,6 +24,8 @@ from pestifer.objs.rottrans import RotTrans
 from pestifer.objs.transfer_coords import TransferCoords
 from pestifer.scripters.vmd import VMDScripter
 
+pytestmark = pytest.mark.needs_tools
+
 
 # ---------------------------------------------------------------------------
 # Helpers
