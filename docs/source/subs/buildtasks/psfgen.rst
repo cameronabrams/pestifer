@@ -55,7 +55,7 @@ Under ``source``, there are several useful directives:
 2. ``transform_reserves``: A dictionary mapping chainID's in the asymmetric unit to their counterparts in other protomers of the biological assembly (if the assembly replicates the asymmetric unit).
 3. ``remap_chainIDs``: A dictionary mapping chainID's in the input structure file to their counterparts in the output structure file.
 4. ``reserialize``: A boolean. If true, resets the serial numbers of all atoms based on their order in the input structure file -- use with caution!!
-5. ``model``: The integer ID of the model to use from a multi-model structure file.  If unspecified, the **last** model in the file is used.
+5. ``model``: The integer ID of the model to use from a multi-model structure file.  If unspecified, **no** model filtering is applied and atoms from **all** models in the file are included.
 6. ``cif_residue_map_file``: If the structure file's format is CIF (rather than PDB), it often has its own labels for chainIDs and residue sequence numbers that differ from what the authors use in their publications.  This specifies the name of an output file that contains the information mapping the CIF-format resids to the author-format.
 7. ``include``: A list of strings representing **pythonic** logic for including atoms in the structure file in the final build.
 8. ``exclude``: A list of strings representing **pythonic** logic for excluding atoms from the structure file in the final build.
@@ -75,12 +75,12 @@ source.sequence.loops
 Under the ``loops`` directive under ``source.sequence``, one can specify three main directives.
 
 1. ``sac_res_name``: The is the 3-letter name of the residue used as a temporary C-terminus on the growing loop.  This is necessary to separate the actual least residue of the loop from an active C-terminus, making it very easy to delete the C-terminus prior to linking the C-terminus to the next residue to close the gap.  Defaul is **GLY**.
-2. ``min_loop_length``: The minimum number of residues in a loop that qualifies it for the steering simulations to close the gap.  Default is **4**.
-3. ``declash``: A dictionary of parameters governing a declashing procedure for grown in loop prior to steering.
+2. ``min_loop_length``: The minimum number of residues in a loop that qualifies it for the loop-closure step (``ccd``) to close the gap.  Default is **4**.
+3. ``declash``: A dictionary of parameters governing a declashing procedure for grown in loop prior to loop closure.
 
     a. ``maxcycles``: maximum number of declash cycles; a cycle is a random torsion angle displacment per residue of the loop.  Default is **0**, which turns off declashing.
     b. ``include_C_termini``: A boolean.  If true, any C-terminal loops are subject to declashing (provided that ``maxcycles`` is greater than 0.)  Default is **true**.
-    c. ``clash_dist``: The minimum distance in Angstrom between any two atoms in the loop during the declashing procedure.  Default is **1.5**.
+    c. ``clashdist``: The minimum distance in Angstrom between any two atoms in the loop during the declashing procedure.  Default is **1.5**.
 
 
 source.sequence.glycans

@@ -19,3 +19,9 @@ Reference
 +++++++++
 
 * `cryo-EM structures of the E. coli replicative DNA polymerase reveal its dynamic interactions with the DNA sliding clamp, exonuclease and tau. Fernandez-Leiro, R., Conrad, J., Scheres, S.H., Lamers, M.H. (2015) Elife 4: e07335. <https://doi.org/10.7554/eLife.11134>`_
+
+.. raw:: html
+
+    <div class="autogen-footer">
+        <p>Example author: Cameron F Abrams &nbsp;&nbsp;&nbsp; Contact: <a href="mailto:cfa22@drexel.edu">cfa22@drexel.edu</a></p>
+    </div>

@@ -1,4 +1,4 @@
-.. _subs_buildtasks_psfgen_mods_subtitutions:
+.. _subs_buildtasks_psfgen_mods_substitutions:
 
 substitutions
 -------------

@@ -27,6 +27,7 @@ General options for all subcommands:
   --banner, --no-banner             enable or disable the banner
   --log-level {info,debug,warning}  logging level (default: debug)
   --log-file LOG_FILE               log file (default: subcommand-specific)
+  --version                         show the pestifer version and exit
 
 Subcommands
 -----------
@@ -51,6 +52,10 @@ Subcommands
    subs/modify-package
    subs/setup-vmd
    subs/cache
+
+The ``fetch-example`` subcommand (:ref:`fetch-example <sub_fetch_example>`) is
+documented alongside :ref:`build-example <sub_build_example>`; it copies an
+example's YAML config file to the current directory without building it.
 
 .. _custom_charmm_stream_file:
 

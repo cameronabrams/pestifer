@@ -6,7 +6,7 @@ Installation
 Software Prerequisites
 ----------------------
 
-The commands ``vmd`` (v. 1.9.4 or better; v. 2.0.0 or better recommended), ``charmrun``, ``catdcd`` (v. 5.2 required), and ``namd3`` (v. 3.0.2 recommended) should be in your path.  By default, Pestifer expects your GPU-enabled ``namd3`` to be in your path as ``namd3gpu``.
+Pestifer requires Python 3.12 or newer.  The commands ``vmd`` (v. 1.9.4 or better; v. 2.0.0 or better recommended), ``charmrun``, ``catdcd`` (v. 5.2 required), and ``namd3`` (v. 3.0.2 recommended) should be in your path.  By default, Pestifer expects your GPU-enabled ``namd3`` to be in your path as ``namd3gpu``.  If your GPU-resident NAMD build has a different executable name, override it by setting the ``paths.namd3gpu`` key in your configuration.
 
 .. note::
 
@@ -26,6 +26,14 @@ Pestifer is under very active development.  To get the latest version, just upda
 .. code-block:: console
 
    $ pip install -U pestifer
+
+.. note::
+
+   To use CGenFF ligand auto-parameterization (needed by Examples 9, 10, and 24, and the ``make-ligand-mol2`` subcommand), install the optional ``ligand-paramgen`` extra, which pulls in ``rdkit`` and ``dimorphite_dl``:
+
+   .. code-block:: console
+
+      $ pip install pestifer[ligand-paramgen]
 
 If you want a bleeding-edge, potentially unstable version, or you just want the source code, you can clone it from `GitHub <https://github.com/cameronabrams/pestifer>`_:
 

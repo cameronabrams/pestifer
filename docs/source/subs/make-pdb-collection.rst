@@ -52,7 +52,7 @@ The lipid collection was created using ``make-pdb-collection`` in the following 
     $ pestifer make-pdb-collection --streamID lipid --substreamID cholesterol --resname CHM1 --take-ic-from CHL1
     $ pestifer make-pdb-collection --streamID lipid --substreamID sphingo
     $ pestifer make-pdb-collection --streamID lipid --substreamID miscellaneous
-    $ pestifer make-pdb-collection --streamID lipid --substreamID detergent --residueID C6DHPC
+    $ pestifer make-pdb-collection --streamID lipid --substreamID detergent --resname C6DHPC
     $ tar zcf lipid.tgz lipid
 
 The tarball ``lipid.tgz`` is the compressed PDB collection that pestifer uses, and it is contained in the ``resources`` data directory of the project.  The residue CHM1 does not have valid internal coordinates (ICs) because it is just a truncated version of the cholesterol residue CHL1, so we use the ``--take-ic-from`` option to copy the ICs from CHL1 to CHM1.

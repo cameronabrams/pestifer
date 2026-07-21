@@ -6,15 +6,19 @@ fetch
 A ``fetch`` task allows you to retrieve a structure file from a remote source, such as the PDB or AlphaFold databases.
 This task is typically the first step in a pestifer run, injecting the first representation of the system state (the downloaded structure file) into the workflow.
 
-The fetch task currently supports two sources:
+The fetch task currently supports four sources:
 
 1. **RCSB**: The Research Collaboratory for Structural Bioinformatics (RCSB) is a repository for 3D structural data of biological macromolecules. You can specify a PDB ID to fetch a structure from the RCSB.
 
 2. **AlphaFold**: AlphaFold is a deep learning model for predicting protein structures. You can specify a UniProt ID to fetch a structure from the AlphaFold database.
 
+3. **OPM**: The Orientations of Proteins in Membranes (OPM) database provides structures pre-oriented in an implicit membrane. You can specify a PDB ID to fetch a membrane-oriented structure from OPM.
+
+4. **local**: A local file already present in the working directory. Pestifer uses the file ``sourceID.pdb`` or ``sourceID.cif`` directly, performing no download.
+
 A ``fetch`` task has three attributes that can be set in the config file:
 
-1. ``source``: either ``rcsb`` or ``alphafold`` (case-insensitive); ``rcsb`` by default.
+1. ``source``: one of ``rcsb``, ``alphafold``, ``opm``, or ``local`` (case-insensitive); ``rcsb`` by default.
 2. ``sourceID``: the ID of the structure in the source database (a PDB ID or a UniProt ID); **this attribute is required**.
 3. ``source_format``: either ``pdb`` or ``cif``.  Some structures in the RCSB are only available in the new mmCIF/PDBx format; in this case you should specify ``cif`` here.  Default is ``pdb``.
 

@@ -15,3 +15,9 @@ The rest of the build mirrors the DMSO and acetone examples: the equilibrated ac
     :language: yaml
 
 .. task-table:: ../../../../pestifer/resources/examples/26/inputs/subtilisin-acetonitrile.yaml
+
+.. raw:: html
+
+    <div class="autogen-footer">
+        <p>Example author: Cameron F Abrams &nbsp;&nbsp;&nbsp; Contact: <a href="mailto:cfa22@drexel.edu">cfa22@drexel.edu</a></p>
+    </div>

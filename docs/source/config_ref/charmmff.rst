@@ -12,7 +12,7 @@ CHARMMFF release.
 
 Single-valued attribute:
 
-  * ``release``: CHARMMFF release in MonthYEAR format (e.g., "July2024", "February2026", etc.) (default: February2026)
+  * ``release``: CHARMMFF release in MonthYEAR format (e.g., "February2026") (default: February2026)
 
 
 

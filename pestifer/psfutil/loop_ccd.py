@@ -149,13 +149,15 @@ def build_loop_ccd_problem(backbone, loop_resids, n_anchor_resid):
 
     Returns
     -------
-    dict with keys:
-        coords       : (M, 3) backbone atoms, order = [n_anchor:C] + per loop residue N,CA,C,O
-        row          : {(resid, atomname): row index into coords}
-        bonds        : list of (a_row, b_row) rotatable backbone bonds, N->C
-                       (each loop residue contributes phi = N-CA and psi = CA-C)
-        moving_masks : list of bool arrays (len M), atoms downstream of each bond
-        end_idx      : rows of the last loop residue's N, CA, C (the end effector)
+    dict
+        A mapping with keys::
+
+            coords       : (M, 3) backbone atoms, order = [n_anchor:C] + per loop residue N,CA,C,O
+            row          : {(resid, atomname): row index into coords}
+            bonds        : list of (a_row, b_row) rotatable backbone bonds, N->C
+                           (each loop residue contributes phi = N-CA and psi = CA-C)
+            moving_masks : list of bool arrays (len M), atoms downstream of each bond
+            end_idx      : rows of the last loop residue's N, CA, C (the end effector)
 
     The caller supplies the closure ``target`` (the desired positions of ``end_idx``): the
     native positions for a delete-and-rebuild test, or the downstream anchor's geometry for a
@@ -330,7 +332,7 @@ def apply_backbone_dihedrals(coords, prob, loop_resids, phipsi, prev_C, next_N):
 def place_atom_nerf(a, b, c, bond, angle_deg, dihedral_deg):
     """
     NeRF placement: return the position of atom D given three reference atoms a-b-c and the
-    internal coordinates bond (|c-D|), angle (b-c-D, degrees), and dihedral (a-b-c-D, degrees).
+    internal coordinates bond (``|c-D|``), angle (b-c-D, degrees), and dihedral (a-b-c-D, degrees).
     """
     a = np.asarray(a, float); b = np.asarray(b, float); c = np.asarray(c, float)
     ang = np.radians(angle_deg); dih = np.radians(dihedral_deg)

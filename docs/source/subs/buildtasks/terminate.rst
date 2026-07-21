@@ -18,7 +18,7 @@ For example, if your list of tasks ends with the following ``terminate`` task sp
          basename: my_system
          package:
            basename: prod_system
-           md:
+           namd:
              ensemble: NPT
 
 then pestifer will generate the output files
@@ -42,10 +42,9 @@ The directives you can specify in a ``terminate`` task are:
 
 1. ``basename``: The basename of the output files and package.  Default is ``my_system``.
 2. ``cleanup``: A boolean.  If true, the task will delete all intermediate files generated during the run, **after** they are stored in an archive tarball.  Default is **true**.  If false, the intermediate files will be left in place.
-3. ``artifacts_dir``: This is the directory name prepended to each file name that is included in the archive tarball.  The archive contains all intermediate files generated during the run.  This option is useful so that you can untar the archive an all it will do is create this directory and populated it with the contents, rather than spewing them all over your current working directory.  Default is **artifacts**.
-4. ``chainmapfile``:  If specified, the ``terminate`` task will write a small YAML file that contains a dictionary mapping chainIDs in the PSF file to their corresponding chainIDs from the author's specifications in the original structure file. This can be useful for tracking changes to chainIDs during the build process.  By default it is not set.
+3. ``artifacts``: This is the directory name prepended to each file name that is included in the archive tarball.  The archive contains all intermediate files generated during the run.  This option is useful so that you can untar the archive an all it will do is create this directory and populated it with the contents, rather than spewing them all over your current working directory.  Default is unset (**null**), which becomes ``{basename}-artifacts``.
+4. ``chainmapfile``:  If specified, the ``terminate`` task will write a small YAML file that contains a dictionary mapping chainIDs in the PSF file to their corresponding chainIDs from the author's specifications in the original structure file. This can be useful for tracking changes to chainIDs during the build process.  Default is ``chainmap.yaml``.
 5. ``package``: A dictionary of directives for creating the tarball package. If populated, the tarball will be created.  By default it is **not populated**.  The following fields are available:
 
    - ``basename``: The basename of all entries in the tarball file.  Default is ``prod_system``.
-   - ``state_dir``: Like ``artifacts_dir``, this is the directory name prepended to each file name that is included in the tarball package.  Default is **state**.
-   - Any parameters you would include in an ``md`` task -- these are only made available so that a sample NAMD configuration file can be included in the package tarball.
+   - ``namd``: Any parameters you would include in an ``md`` task -- these are only made available so that a sample NAMD configuration file can be included in the package tarball.

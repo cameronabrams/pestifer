@@ -34,7 +34,7 @@ Parameters
 
    - ring_check:
        segtypes: [lipid, glycan]   # REQUIRED: segment types whose rings are checked
-       cutoff: 10.0                # bond-ring COM pre-screen distance in Å (default: 10.0)
+       cutoff: 4.0                 # bond-ring COM pre-screen distance in Å (default: 4.0)
        max_ring_size: 7            # largest ring (atoms) to consider (default: 7)
        delete: piercee             # lipid-ring deletion strategy (default: piercee)
 
@@ -42,7 +42,7 @@ Parameters
   List of segment types whose rings are examined (e.g. ``lipid``, ``glycan``, ``protein``).  Bonds from *any* segment can be the piercer; only rings belonging to segments of these types are tested.  **There is no default** — if ``segtypes`` is omitted or empty, the task warns and checks nothing, so it must be set explicitly.
 
 **cutoff**
-  Distance in Å between a bond midpoint and a ring center-of-mass used to pre-screen candidate pairs before the full geometric (winding-number) test.  The default of 10.0 Å is safe for all ring sizes; a smaller value (e.g. 4.0) is much faster on large membranes and still catches every true piercing, at the cost of not reporting the same lipid twice for its fused rings.
+  Distance in Å between a bond midpoint and a ring center-of-mass used to pre-screen candidate pairs before the full geometric (winding-number) test.  The default of 4.0 Å sits just above the 3.5 Å ring-piercing detection gate, so it prunes candidate bonds cheaply while still catching every true piercing.  A *larger* cutoff does not find more piercings; it only tests more candidate bonds and so runs slower on large membranes.
 
 **max_ring_size**
   Only chordless cycles of at most this many atoms are treated as rings (default 7).  This bounds the cycle search so real 5-/6-membered chemical rings are found while the giant cycle that a disulfide closes through the protein backbone is skipped.

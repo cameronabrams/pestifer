@@ -37,14 +37,14 @@ I developed most of the examples by iteration, so I would start with a simple YA
     $ cd
     $ mkdir ~/1mob_working_directory # create a working directory
     $ cd ~/1mob_working_directory
-    $ pestifer new-system --id 1mob # this is the PDB ID for sperm whale myoglobin
+    $ pestifer new-system 1mob # this is the PDB ID for sperm whale myoglobin
     $ pestifer build 1mob.yaml # this will run the psfgen task and generate a PSF file for the system
 
 This run built successfully.  So I rebuilt a full template config:
 
 .. code-block:: bash
 
-    $ pestifer build 1mob.yaml --full
+    $ pestifer new-system 1mob --full
 
 Then I edited ``1mob.yaml`` to add a salt concentration specification to the ``solvate`` task.  Then I ran it again:
 
@@ -114,8 +114,8 @@ Satisfied with the example, I merged the branch back into ``main``:
 .. code-block:: bash
 
     $ git checkout main
-    $ git merge new-1mob
-    $ git branch -d new-1mob
+    $ git merge modpkg/example-add-1mob-yaml
+    $ git branch -d modpkg/example-add-1mob-yaml
 
 If you want to add an example, you can do so in your own fork of the repository, and then submit a pull request to have it merged into the main repository.
 

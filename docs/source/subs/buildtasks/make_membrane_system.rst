@@ -91,7 +91,7 @@ Bilayer composition is specified either using a single ``composition`` directive
 
           lipids: POPC:POPC
           mole_fractions: 0.5:0.5
-          conformers: 3:5
+          lipid_conformers: 3:5
 
    - **Optional subdirectives**: The ``bilayer`` subdirective can also include optional subdirectives to control how the bilayer is built and relaxed:
      
