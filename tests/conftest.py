@@ -26,9 +26,6 @@ _FILE_HANDLER: FileHandler | None = None
 _CONSOLE_HANDLER: StreamHandler | None = None
 _LOGFILE: Path | None = None
 
-## pytest_plugins = ["pestifer.util.pytest_plugin"]
-
-
 @pytest.fixture(autouse=True)
 def change_test_dir(request, monkeypatch):
     """Causes each test to run in the directory in which the module is found **or** a subdirectory with the same base name as the module

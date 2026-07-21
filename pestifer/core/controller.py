@@ -17,7 +17,6 @@ from ..tasks import TerminateTask
 from ..tasks.pipeline_contract import validate_pipeline
 from ..util.stringthings import plu, my_logger
 from ..util.util import running_under_pytest
-from ..util._goldenmode import report_example_id
 
 logger = logging.getLogger(__name__)
 

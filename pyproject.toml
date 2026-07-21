@@ -71,9 +71,6 @@ override-dependencies = ["docutils>=0.21,<0.23"]
 [tool.pytest.ini_options]
 log_cli = false
 
-[project.entry-points.pytest11]
-pestifer = "pestifer.util.pytest_plugin"
-
 [tool.hatch.build]
 exclude = [
   "pestifer/resources/_archive/**",
