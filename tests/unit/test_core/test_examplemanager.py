@@ -1,3 +1,8 @@
+import pytest
+# these tests construct a verify_access Config, which requires the external
+# vmd/namd/charmrun toolchain; skip them where those binaries are absent
+pytestmark = pytest.mark.needs_tools
+
 import unittest
 import shutil
 import os
