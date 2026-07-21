@@ -17,29 +17,10 @@ Why YAML?
 `YAML <https://yaml.org/>`_ is a human-readable data format.  Like JSON, it maps neatly to Python containers, but 
 unlike JSON, it has support for comments, making it an ideal format for input configuration files for simulations.  It also has a more flexible structure, allowing for complex data representations without the need for extensive punctuation.  I like YAML so much I wrote `Ycleptic <https://ycleptic.readthedocs.io/en/latest/>`_, a Python package that provides a YAML-based configuration system for Python applications.  Pestifer uses Ycleptic to parse its YAML input files.
 
-A partial list of things Pestifer can do
-----------------------------------------
+What Pestifer can do
+--------------------
 
-1. Generate a complete, self-contained set of files for NAMD simulation of a solvated system using the CHARMM36FF from nearly any PDB input, including glycosylated proteins and nucleic acids
-2. During this system-preparation process, introduce modifications, including
-   
-   * residue patches
-   * residue mutations
-   * residue insertions
-   * residue deletions
-   * residue substitutions
-   * fusions
-   * automatic construction of biomolecular assemblies
-   * automatic loop-building to model unresolved residues
-   * arbitrary backbone and side-chain rotations
-   * grafting of pendant groups from one PDB onto another (for glycans, mostly)
-   * chain cleavage
-   * chain relabeling
-3. Generate membrane-embedded proteins using any lipids for which a PDB is available (fast grid-based lipid placement), including automatic detection and resolution of pierced rings
-4. Generate restart files (NAMD configs and SLURM scripts) based on current runs 
-5. Generate solvent-stripped PSF and DCD files
-
-Check out the :ref:`examples` -- some of these capabilities are showcased there.
+Pestifer's full list of capabilities is on the :doc:`main page <index>`, and several are showcased in the :ref:`examples`.
 
 Who is Pestifer *not* for?
 ----------------------------
