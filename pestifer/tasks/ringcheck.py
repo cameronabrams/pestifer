@@ -267,24 +267,12 @@ class RingCheckTask(BaseTask):
 
     def _write_sidechain_candidates(self, psf, pdb, segname, resid, chi, degrees, out_prefix):
         """Emit one PDB per candidate chi rotation of the residue's side chain
-        (``<out_prefix>_<deg>.pdb``), each measured from the input pose."""
-        vm = self.get_scripter('vmd')
-        vm.newscript(f'{out_prefix}-gen', packages=['PestiferCRot'])
-        vm.addline(f'mol new {psf} waitfor all')
-        vm.addline(f'mol addfile {pdb} waitfor all')
-        vm.addline('set molid [molinfo top get id]')
-        vm.addline(f'set casel [atomselect $molid "segname {segname} and resid {resid} and name CA"]')
-        vm.addline('set rn [lindex [$casel get residue] 0]')
-        vm.addline('$casel delete')
-        vm.addline('set allsel [atomselect $molid all]')
-        vm.addline('set orig [$allsel get {x y z}]')
-        vm.addline(f'foreach deg {{{" ".join(str(d) for d in degrees)}}} {{')
-        vm.addline('  $allsel set {x y z} $orig')
-        vm.addline(f'  PestiferCRot::SCrot_chi{chi} $rn $molid $deg')
-        vm.addline('  set w [atomselect $molid all]')
-        vm.addline(f'  $w writepdb {out_prefix}_$deg.pdb')
-        vm.addline('  $w delete')
-        vm.addline('}')
-        vm.addline('$allsel delete')
-        vm.writescript()
-        vm.runscript()
+        (``<out_prefix>_<deg>.pdb``), each measured from the input pose -- pure numpy, no VMD."""
+        from ..molecule.coordmanip import CoordManipulator
+        cm = CoordManipulator(psf, pdb)
+        rn = cm.residue_of_segname(segname, resid)
+        orig = cm.coords.copy()
+        for deg in degrees:
+            cm.coords = orig.copy()
+            cm.apply_scrot(chi, rn, deg)
+            cm.write_pdb(f'{out_prefix}_{deg}.pdb')

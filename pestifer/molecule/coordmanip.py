@@ -405,6 +405,46 @@ class CoordManipulator:
         coords[mask] = rotate_points_about_axis(coords[mask], pn, pc - pn, deg)
         self.coords = coords
 
+    def residue_of_segname(self, segname, resid) -> int:
+        """VMD residue index of ``segname``/``resid`` (matched at its CA, else any atom)."""
+        ridx = self._residue_index()
+        cand = None
+        for i, a in enumerate(self.atoms.data):
+            if a.segname == segname and a.resid.resseqnum == resid:
+                if a.name == 'CA':
+                    return int(ridx[i])
+                if cand is None:
+                    cand = int(ridx[i])
+        if cand is None:
+            raise CoordManipulateError(f'residue segname {segname} resid {resid} not found')
+        return cand
+
+    def apply_scrot(self, chi, residue_index, deg):
+        """
+        Rotate a side chain about its chi1 (CA-CB) or chi2 (CB-CG) bond -- the numpy port of
+        crot.tcl ``SCrot_chi1``/``SCrot_chi2`` (rotation about the first axis atom, along the
+        first-minus-second direction).  Unlike the ``brot`` CHI path this excludes HA/HB and CB
+        from the moving set.
+        """
+        ridx = self._residue_index()
+        names = self._names
+        coords = self.coords
+
+        def xyz(nm):
+            idx = np.nonzero((ridx == residue_index) & (names == nm))[0]
+            return coords[idx[0]] if idx.size else None
+
+        if chi == 1:
+            p1, p2 = xyz('CA'), xyz('CB')
+            mask = (ridx == residue_index) & ~np.isin(names, ['N', 'HN', 'CA', 'CB', 'HA', 'C', 'O'])
+        else:
+            p1, p2 = xyz('CB'), xyz('CG')
+            mask = (ridx == residue_index) & ~np.isin(names, ['N', 'HN', 'CA', 'CB', 'HA', 'C', 'O', 'HB1', 'HB2'])
+        if p1 is None or p2 is None:
+            raise CoordManipulateError(f'SCrot chi{chi}: missing axis atoms at residue {residue_index}')
+        coords[mask] = rotate_points_about_axis(coords[mask], p1, p1 - p2, deg)
+        self.coords = coords
+
     def _get_phi_psi_omega(self, r):
         ridx = self._residue_index()
         names = self._names

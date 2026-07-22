@@ -198,6 +198,18 @@ class TestCrot(unittest.TestCase):
                        chainIDmap={'Q': 'A'})
         self.assertTrue(np.allclose(self.cm.coords, cm2.coords, atol=1e-9))
 
+    def test_scrot_chi1_moves_sidechain_beyond_cb(self):
+        r = self.cm._residue_of('A', 15)
+        res15 = self.cm.select('resid 15')
+        # CA, CB, and the backbone atoms stay put under a chi1 rotation
+        fixed = res15 & np.array([a.name in ('CA', 'CB', 'N', 'C', 'O', 'HA')
+                                  for a in self.cm.atoms.data])
+        self.cm.apply_scrot(1, r, 40.0)
+        self.assertTrue(np.allclose(self.cm.coords[fixed], self.orig[fixed], atol=1e-6))
+        # something beyond CB moved
+        moved = res15 & ~fixed
+        self.assertTrue(np.any(np.linalg.norm(self.cm.coords[moved] - self.orig[moved], axis=1) > 0.1))
+
     def test_angleijk_rejected(self):
         with self.assertRaises(CoordManipulateError):
             self.cm.apply_crot(Crot(angle='ANGLEIJK', segnamei='A', residi=ResID(1), atomi='N',
