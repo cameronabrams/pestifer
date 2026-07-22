@@ -1,0 +1,49 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# Showcase of the Cfusion (C-terminal fusion) feature.  A single YAML shortcode
+# fuses green fluorescent protein (GFP, PDB 1ema, residues 2-229 of chain A --
+# chromophore CRO included) onto the C-terminus of ubiquitin (PDB 1ubq, chain A)
+# to make one continuous polypeptide, then solvates and equilibrates the
+# fusion construct in 0.154 M NaCl.
+title: Ubiquitin with a C-terminal GFP fusion
+tasks:
+  - fetch:
+      sourceID: 1ubq
+  - psfgen:
+      source:
+        biological_assembly: 0
+      mods:
+        Cfusions:
+          - 1ema:A:2-229,A
+  - md:
+      ensemble: minimize
+  - solvate:
+      salt_con: 0.154
+      cation: SOD
+      anion: CLA
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - md:
+      ensemble: NPT
+      nsteps: 200
+  - md:
+      ensemble: NPT
+      nsteps: 400
+  - md:
+      ensemble: NPT
+      nsteps: 800
+  - md:
+      ensemble: NPT
+      nsteps: 1600
+  - md:
+      ensemble: NPT
+      nsteps: 13200
+  - mdplot:
+      timeseries:
+        - density
+      basename: solvated
+      grid: True
+  - terminate:
+      basename: ubiquitin-gfp

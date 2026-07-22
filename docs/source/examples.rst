@@ -33,6 +33,7 @@ Examples
    examples/24/subtilisin-acetone
    examples/25/hiv-env-cd4-17b-liganded
    examples/26/subtilisin-acetonitrile
+   examples/27/ubiquitin-gfp-fusion
 
 BPTI Series (Examples 1–4)
 ---------------------------
@@ -115,3 +116,12 @@ and very large multi-chain assemblies.
 - :doc:`Example 23 <examples/23/subtilisin-dmso>` — subtilisin Carlsberg (1scd) in DMSO; non-aqueous solvation using a shipped pre-equilibrated solvent box
 - :doc:`Example 24 <examples/24/subtilisin-acetone>` — subtilisin Carlsberg (1scd) in acetone; on-demand generation of a non-shipped CGenFF solvent box
 - :doc:`Example 25 <examples/25/hiv-env-cd4-17b-liganded>` — sCD4/17b-liganded HIV-1 Env trimer (5vn3); completing partially-resolved 17b Fabs from a second structure (1gc1) with ``align`` + ``transfer_coords``, preserving the interface, then ``merge``
+- :doc:`Example 26 <examples/26/subtilisin-acetonitrile>` — subtilisin Carlsberg (1scd) in acetonitrile; another on-demand CGenFF solvent box
+
+Protein Engineering (Example 27)
+--------------------------------
+
+Constructing a chimeric protein *in silico* by joining two structures into a
+single chain.
+
+- :doc:`Example 27 <examples/27/ubiquitin-gfp-fusion>` — a ubiquitin-GFP fusion construct; the ``Cfusions`` modification appends GFP (1ema) to the C-terminus of ubiquitin (1ubq), auto-fetching and orienting the donor, building the GFP chromophore ``CRO`` in-chain, and aliasing selenomethionine
