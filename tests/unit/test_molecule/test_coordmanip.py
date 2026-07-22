@@ -8,6 +8,7 @@ from pestifer.objs.rottrans import RotTrans
 from pestifer.objs.align import Align
 from pestifer.objs.transfer_coords import TransferCoords
 from pestifer.objs.crot import Crot
+from pestifer.objs.orient import Orient
 from pestifer.objs.resid import ResID
 from pestifer.psfutil.loop_ccd import dihedral_deg
 
@@ -129,6 +130,40 @@ class TestAlignAndTransfer(unittest.TestCase):
             cm.apply_transfer_coords(TransferCoords(donor_pdb=PDB, donor_psf=PSF,
                                                     donor_sel='resid 10 to 20',
                                                     mobile_sel='resid 10 to 21'), donor)
+
+
+def _long_axis(coords, m):
+    com = np.average(coords, axis=0, weights=m)
+    r = coords - com
+    x, y, z = r[:, 0], r[:, 1], r[:, 2]
+    inertia = np.array([[np.sum(m * (y * y + z * z)), -np.sum(m * x * y), -np.sum(m * x * z)],
+                        [-np.sum(m * x * y), np.sum(m * (x * x + z * z)), -np.sum(m * y * z)],
+                        [-np.sum(m * x * z), -np.sum(m * y * z), np.sum(m * (x * x + y * y))]])
+    return np.linalg.eigh(inertia)[1][:, 0]
+
+
+class TestOrient(unittest.TestCase):
+    def setUp(self):
+        self.cm = CoordManipulator(PSF, PDB)
+
+    def test_long_axis_aligns_to_target(self):
+        for axis, tgt in (('z', [0, 0, 1]), ('x', [1, 0, 0]), ('y', [0, 1, 0])):
+            cm = CoordManipulator(PSF, PDB)
+            cm.apply_orient(Orient(axis=axis))
+            la = _long_axis(cm.coords, np.abs(cm._mass))
+            self.assertAlmostEqual(abs(float(np.dot(la, tgt))), 1.0, places=4)
+
+    def test_rigid_body(self):
+        # orient is a rigid-body move: all pairwise distances preserved
+        before = self.cm.coords.copy()
+        self.cm.apply_orient(Orient(axis='z'))
+        d0 = np.linalg.norm(before[:50] - before[0], axis=1)
+        d1 = np.linalg.norm(self.cm.coords[:50] - self.cm.coords[0], axis=1)
+        self.assertTrue(np.allclose(d0, d1, atol=1e-6))
+
+    def test_refatom_ends_on_positive_z(self):
+        self.cm.apply_orient(Orient(axis='z', refatom='CA'))
+        self.assertGreaterEqual(self.cm.coords[self.cm.select('name CA')][:, 2].mean(), 0.0)
 
 
 def _phi(cm, chain, resid):

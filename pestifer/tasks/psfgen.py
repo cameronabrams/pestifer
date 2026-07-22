@@ -108,12 +108,18 @@ class PsfgenTask(VMDTask):
                     self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf,
                                        xsc=state.xsc), key='state', artifact_type=StateArtifacts)
                     continue
+                if objtype == 'orient':
+                    # principal-axis reorientation of the whole molecule -- pure numpy
+                    if self._apply_python_orient(objlist, state) != 0:
+                        self.result = 1
+                        return
+                    self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf,
+                                       xsc=state.xsc), key='state', artifact_type=StateArtifacts)
+                    continue
                 vm: VMDScripter = self.scripters['vmd']
                 vm.newscript(self.basename, packages=[])
                 vm.load_psf_pdb(state.psf.name, state.pdb.name, new_molid_varname='mCM')
                 match objtype:
-                    case 'orient':
-                        vm.write_orients(objlist)
                     case 'rottrans':
                         vm.write_rottranslist(objlist)
                 vm.write_pdb(self.basename, 'mCM')
@@ -137,6 +143,19 @@ class PsfgenTask(VMDTask):
                     cm.apply_crot(crot, chainIDmap=transform.chainIDmap)
         except CoordManipulateError as e:
             logger.error(f'psfgen crotations: {e}')
+            return 1
+        cm.write_pdb(f'{self.basename}.pdb')
+        return 0
+
+    def _apply_python_orient(self, objlist, state: StateArtifacts) -> int:
+        """Apply principal-axis orient(s) to the built psf/pdb in numpy, writing ``{basename}.pdb``."""
+        from ..molecule.coordmanip import CoordManipulator, CoordManipulateError
+        cm = CoordManipulator(state.psf.name, state.pdb.name)
+        try:
+            for orient in objlist:
+                cm.apply_orient(orient)
+        except CoordManipulateError as e:
+            logger.error(f'psfgen orient: {e}')
             return 1
         cm.write_pdb(f'{self.basename}.pdb')
         return 0

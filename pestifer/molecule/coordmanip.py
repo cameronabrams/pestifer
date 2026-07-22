@@ -282,6 +282,46 @@ class CoordManipulator:
         coords[m_sel] = donor.coords[d_sel]
         self.coords = coords
 
+    def apply_orient(self, orient):
+        """
+        Reorient the whole molecule so its long principal axis lies along the target axis -- the
+        numpy port of the VMD ``Orient`` package (mass-weighted inertia tensor -> principal axes).
+        With a ``refatom`` the molecule is then recentered at the origin (geometric center) and
+        flipped 180 about x when the reference atom sits at negative z.
+
+        VMD's underlying eigensolver (``mevsvd_br``) returns the principal axes in an unsorted,
+        sign-arbitrary order; this port instead aligns the least-inertia (long) axis with a
+        deterministic sign, so the result is a canonical equivalent -- identical up to the roll
+        about the target axis, which is physically immaterial for the membrane-embedding use this
+        serves.
+        """
+        m = np.abs(self._mass)
+        coords = self.coords
+        com = np.average(coords, axis=0, weights=m)
+        r = coords - com
+        x, y, z = r[:, 0], r[:, 1], r[:, 2]
+        inertia = np.array([
+            [np.sum(m * (y * y + z * z)), -np.sum(m * x * y), -np.sum(m * x * z)],
+            [-np.sum(m * x * y), np.sum(m * (x * x + z * z)), -np.sum(m * y * z)],
+            [-np.sum(m * x * z), -np.sum(m * y * z), np.sum(m * (x * x + y * y))],
+        ])
+        _, evecs = np.linalg.eigh(inertia)          # ascending eigenvalues; columns are axes
+        axisvec = evecs[:, 0]                        # smallest moment of inertia = molecular long axis
+        target = _AXIS_VEC[orient.axis]
+        if np.dot(axisvec, target) < 0.0:            # deterministic sign: rotate the short way
+            axisvec = -axisvec
+        cross = np.cross(axisvec, target)
+        sin = np.linalg.norm(cross)
+        if sin > 1.0e-9:
+            angle = np.degrees(np.arctan2(sin, float(np.dot(axisvec, target))))
+            coords = rotate_points_about_axis(coords, com, cross, angle)
+        if orient.refatom:
+            coords = coords - coords.mean(axis=0)    # recenter geometric center to the origin
+            ref = self.select(f'name {orient.refatom}')
+            if ref.any() and float(coords[ref][:, 2].mean()) < 0.0:
+                coords = rotate_points_about_axis(coords, np.zeros(3), _AXIS_VEC['x'], 180.0)
+        self.coords = coords
+
     # ---- internal-coordinate (torsion) rotations -- crot ------------------
 
     #: alpha-helix backbone target dihedrals (deg) used by fold_alpha
