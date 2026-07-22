@@ -15,7 +15,7 @@ from pydantic import Field
 from typing import ClassVar
 
 from .chainidmanager import ChainIDManager
-from ..util.coord import build_tmat
+from ..util.coord import build_tmat, apply_tmat, kabsch
 from ..core.baseobj import BaseObj, BaseObjList
 
 class Transform(BaseObj):
@@ -88,6 +88,58 @@ class Transform(BaseObj):
         input_dict = dict(index=cls._count, tmat=tmat, applies_chainIDs=[])
         cls._count += 1
         return cls(**input_dict)
+
+    @classmethod
+    def superpose(cls, mobile, ref) -> tuple["Transform", float]:
+        """
+        Build the transform that least-squares superposes ``mobile`` onto ``ref`` (Kabsch).
+
+        This is the numpy replacement for VMD's ``measure fit``: the returned Transform, applied
+        to ``mobile`` via :meth:`apply`, carries it onto ``ref``.
+
+        Parameters
+        ----------
+        mobile : numpy.ndarray or AtomList
+            Source points as an ``(N, 3)`` array, or any object exposing an ``(N, 3)`` ``coords``.
+        ref : numpy.ndarray or AtomList
+            Row-aligned target points, same accepted forms as ``mobile``.
+
+        Returns
+        -------
+        transform : Transform
+            The rigid-body transform mapping ``mobile`` onto ``ref``.
+        rmsd : float
+            RMSD after the optimal superposition.
+        """
+        mob = mobile.coords if hasattr(mobile, 'coords') else mobile
+        rf = ref.coords if hasattr(ref, 'coords') else ref
+        R, t, rmsd = kabsch(mob, rf)
+        return cls(R, t), rmsd
+
+    def apply(self, target):
+        """
+        Apply this transformation to coordinates.
+
+        This is the numpy equivalent of VMD's ``$sel move {tmat}``.
+
+        Parameters
+        ----------
+        target : numpy.ndarray or AtomList
+            Either a point ``(3,)`` / points ``(N, 3)`` array, returned transformed without
+            mutating the input; or an :class:`~pestifer.molecule.atom.AtomList` (anything with a
+            writable ``coords`` property), whose atom positions are overwritten in place.
+
+        Returns
+        -------
+        numpy.ndarray or AtomList
+            The transformed array (for array input), or ``target`` itself (mutated in place).
+        """
+        if isinstance(target, np.ndarray):
+            return apply_tmat(self.tmat, target)
+        if hasattr(target, 'coords'):
+            target.coords = apply_tmat(self.tmat, target.coords)
+            return target
+        return apply_tmat(self.tmat, np.asarray(target, dtype=float))
 
     def set_chainIDmap(self, chainIDmap: dict[str, str]):
         """

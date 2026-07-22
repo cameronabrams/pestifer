@@ -28,7 +28,7 @@ dependencies = [
   "pandas",
   "pdb2pqr>=3.6",       # pKa/protonation; its stale `docutils<0.18` pin is never
                         # used and is overridden in [tool.uv] below
-  "pidibble>=1.7.1",  # PDB + mmCIF parsing (mmCIF normalized into the PDB-record namespace; needs header_label on REMARK.350)
+  "pidibble>=1.8.0",  # PDB + mmCIF parsing + fixed-column PDB writer (CHARMM dialect used by molecule.pdbwrite; needs header_label on REMARK.350)
   "platformdirs",
   "propka>=3.5",
   "requests",

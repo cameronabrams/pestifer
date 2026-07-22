@@ -1,5 +1,7 @@
 import unittest
 from pestifer.molecule.transform import Transform, TransformList
+from pestifer.molecule.atom import Atom, AtomList
+from pestifer.objs.resid import ResID
 from pidibble.pdbparse import PDBRecord, PDBRecordList
 import numpy as np
 from dataclasses import dataclass
@@ -30,6 +32,65 @@ class TestTransform(unittest.TestCase):
         barec = PDBRecord(input_dict=input_dict)
         bi = Transform(barec)
         self.assertIsNotNone(bi.tmat)
+
+class TestTransformApply(unittest.TestCase):
+
+    def test_apply_array_matches_matrix_multiply(self):
+        R = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+        tf = Transform(R, np.array([1.0, 2.0, 3.0]))
+        pts = np.array([[1.0, 0.0, 0.0], [0.0, 1.0, 0.0]])
+        out = tf.apply(pts)
+        self.assertTrue(np.allclose(out, [[1.0, 3.0, 3.0], [0.0, 2.0, 3.0]]))
+
+    def test_apply_array_does_not_mutate_input(self):
+        tf = Transform(np.identity(3), np.array([5.0, 0.0, 0.0]))
+        pts = np.array([[1.0, 1.0, 1.0]])
+        orig = pts.copy()
+        tf.apply(pts)
+        self.assertTrue(np.array_equal(pts, orig))
+
+    def test_identity_apply_is_noop(self):
+        tf = Transform.identity()
+        pts = np.array([[1.0, 2.0, 3.0]])
+        self.assertTrue(np.allclose(tf.apply(pts), pts))
+
+    def test_apply_mutates_atomlist_in_place(self):
+        a1 = Atom(serial=1, name='C', altloc=' ', resname='ALA', chainID='A', resid=ResID(1),
+                  x=1.0, y=0.0, z=0.0, occ=1.0, beta=0.0, elem='C', charge=' ')
+        a2 = Atom(serial=2, name='O', altloc=' ', resname='ALA', chainID='A', resid=ResID(1),
+                  x=0.0, y=1.0, z=0.0, occ=1.0, beta=0.0, elem='O', charge=' ')
+        al = AtomList([a1, a2])
+        tf = Transform(np.identity(3), np.array([10.0, 20.0, 30.0]))
+        ret = tf.apply(al)
+        self.assertIs(ret, al)
+        self.assertEqual((a1.x, a1.y, a1.z), (11.0, 20.0, 30.0))
+        self.assertEqual((a2.x, a2.y, a2.z), (10.0, 21.0, 30.0))
+
+
+class TestTransformSuperpose(unittest.TestCase):
+
+    def test_superpose_recovers_transform_and_applies(self):
+        rng = np.random.default_rng(0)
+        P = rng.normal(size=(10, 3))
+        R = np.array([[0.0, 0.0, 1.0], [0.0, 1.0, 0.0], [-1.0, 0.0, 0.0]])
+        t = np.array([2.0, -1.0, 4.0])
+        Q = P @ R.T + t
+        tf, rmsd = Transform.superpose(P, Q)
+        self.assertAlmostEqual(rmsd, 0.0, places=9)
+        self.assertTrue(np.allclose(tf.apply(P), Q, atol=1e-9))
+
+    def test_superpose_accepts_atomlists(self):
+        def al(coords):
+            atoms = [Atom(serial=i + 1, name='C', altloc=' ', resname='ALA', chainID='A',
+                          resid=ResID(1), x=x, y=y, z=z, occ=1.0, beta=0.0, elem='C', charge=' ')
+                     for i, (x, y, z) in enumerate(coords)]
+            return AtomList(atoms)
+        P = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [0.0, 0.0, 1.0]])
+        Q = P + np.array([5.0, 6.0, 7.0])
+        tf, rmsd = Transform.superpose(al(P), al(Q))
+        self.assertAlmostEqual(rmsd, 0.0, places=9)
+        self.assertTrue(np.allclose(tf.apply(P), Q, atol=1e-9))
+
 
 class TestTransformList(unittest.TestCase):
 

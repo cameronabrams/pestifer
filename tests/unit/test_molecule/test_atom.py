@@ -1,5 +1,7 @@
 import unittest
 
+import numpy as np
+
 from pestifer.molecule.atom import Atom, AtomList, Hetatm
 from pidibble.pdbparse import PDBParser
 from pidibble.pdbrecord import PDBRecordDict
@@ -362,6 +364,35 @@ class TestAtomList(unittest.TestCase):
         self.assertEqual(atom_list1[0].x, 2.0)
         self.assertEqual(atom_list1[0].y, 3.0)
         self.assertEqual(atom_list1[0].z, 4.0)
+
+    def _pair(self):
+        atom1 = Atom(serial=1, name='C', altloc=' ', resname='ALA', chainID='A', resid=ResID(1),
+                     x=1.0, y=2.0, z=3.0, occ=1.0, beta=0.0, elem='C', charge=' ')
+        atom2 = Atom(serial=2, name='O', altloc=' ', resname='ALA', chainID='A', resid=ResID(1),
+                     x=4.0, y=5.0, z=6.0, occ=1.0, beta=0.0, elem='O', charge=' ')
+        return AtomList([atom1, atom2])
+
+    def test_atom_list_coords_getter(self):
+        al = self._pair()
+        c = al.coords
+        self.assertEqual(c.shape, (2, 3))
+        self.assertTrue(np.array_equal(c, [[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]]))
+
+    def test_atom_list_coords_getter_empty(self):
+        self.assertEqual(AtomList([]).coords.shape, (0, 3))
+
+    def test_atom_list_coords_setter_roundtrip(self):
+        al = self._pair()
+        al.coords = al.coords + np.array([10.0, 20.0, 30.0])
+        self.assertEqual((al[0].x, al[0].y, al[0].z), (11.0, 22.0, 33.0))
+        self.assertEqual((al[1].x, al[1].y, al[1].z), (14.0, 25.0, 36.0))
+        # scalar model preserved (plain floats, not numpy scalars)
+        self.assertIsInstance(al[0].x, float)
+
+    def test_atom_list_coords_setter_rejects_wrong_shape(self):
+        al = self._pair()
+        with self.assertRaises(ValueError):
+            al.coords = np.zeros((3, 3))
 
     def test_atom_list_apply_psf_resnames(self):
         atom1 = Atom(

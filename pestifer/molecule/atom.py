@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import logging
 
+import numpy as np
+
 from functools import singledispatchmethod
 from pidibble.pdbrecord import PDBRecord, PDBRecordDict
 from pydantic import Field
@@ -311,6 +313,73 @@ class AtomList(BaseObjList[Atom]):
 
     def describe(self):
         return f'<AtomList with {len(self)} atoms>'
+
+    @property
+    def coords(self) -> np.ndarray:
+        """
+        Gather the atom positions into an ``(N, 3)`` numpy array (row ``i`` is atom ``i``'s
+        ``x, y, z``), in list order.
+
+        The underlying :class:`Atom` model stays scalar; this is a read-only snapshot suitable
+        for vectorized geometry.  Write transformed coordinates back through the setter.
+
+        Returns
+        -------
+        numpy.ndarray
+            An ``(N, 3)`` array of coordinates (``(0, 3)`` for an empty list).
+        """
+        if not self.data:
+            return np.empty((0, 3), dtype=float)
+        return np.array([[a.x, a.y, a.z] for a in self.data], dtype=float)
+
+    @coords.setter
+    def coords(self, arr: np.ndarray):
+        """
+        Scatter an ``(N, 3)`` array of coordinates back onto the atoms, in list order.
+
+        Parameters
+        ----------
+        arr : numpy.ndarray
+            An ``(N, 3)`` array whose row count matches the number of atoms.
+
+        Raises
+        ------
+        ValueError
+            If ``arr`` is not shaped ``(len(self), 3)``.
+        """
+        arr = np.asarray(arr, dtype=float)
+        if arr.shape != (len(self.data), 3):
+            raise ValueError(f'coords must be shaped ({len(self.data)}, 3), got {arr.shape}')
+        for a, (x, y, z) in zip(self.data, arr):
+            a.x = float(x)
+            a.y = float(y)
+            a.z = float(z)
+
+    def write_pdb(self, filename: str, dialect: str = 'charmm', end: bool = True) -> list[str]:
+        """
+        Write these atoms as a psfgen-ready PDB coordinate file.
+
+        The fixed-column formatting is offloaded to pidibble's writer (default CHARMM dialect:
+        wide resNames, segID in cols 73-76, x/y/z pinned at 31-54), so the output stays congruent
+        with pidibble's column model and needs no downstream re-anchoring.  Atoms are written in
+        list order; :meth:`reserialize` first if a fresh serial run is needed.
+
+        Parameters
+        ----------
+        filename : str
+            Destination path.
+        dialect : str, optional
+            pidibble write dialect, ``'charmm'`` (default) or ``'standard'``.
+        end : bool, optional
+            Append a terminal ``END`` record (default True).
+
+        Returns
+        -------
+        list of str
+            The formatted record lines (without trailing newlines).
+        """
+        from .pdbwrite import write_atoms_pdb
+        return write_atoms_pdb(self.data, filename=filename, dialect=dialect, end=end)
 
     @classmethod
     def from_pdb(cls, parsed: PDBRecordDict, model_id = None) -> "AtomList":

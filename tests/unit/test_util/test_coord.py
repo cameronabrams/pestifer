@@ -3,7 +3,84 @@ import tempfile
 import numpy as np
 import unittest
 
-from pestifer.util.coord import rotate_points_about_axis, pdb_replace_coords, standardize_pdb_columns
+from pestifer.util.coord import (
+    rotate_points_about_axis,
+    pdb_replace_coords,
+    standardize_pdb_columns,
+    apply_tmat,
+    kabsch,
+    build_tmat,
+)
+
+
+class TestApplyTmat(unittest.TestCase):
+    def test_identity_leaves_points(self):
+        pts = np.array([[1.0, 2.0, 3.0], [-4.0, 5.0, -6.0]])
+        self.assertTrue(np.allclose(apply_tmat(np.identity(4), pts), pts))
+
+    def test_pure_translation(self):
+        tmat = build_tmat(np.identity(3), np.array([1.0, 2.0, 3.0]))
+        pts = np.array([[0.0, 0.0, 0.0], [1.0, 1.0, 1.0]])
+        self.assertTrue(np.allclose(apply_tmat(tmat, pts), [[1.0, 2.0, 3.0], [2.0, 3.0, 4.0]]))
+
+    def test_single_point_shape_preserved(self):
+        tmat = build_tmat(np.identity(3), np.array([5.0, 0.0, 0.0]))
+        out = apply_tmat(tmat, np.array([1.0, 1.0, 1.0]))
+        self.assertEqual(out.shape, (3,))
+        self.assertTrue(np.allclose(out, [6.0, 1.0, 1.0]))
+
+    def test_rotation_then_translation_order(self):
+        # 90 deg about z (x->y, y->-x) then translate by +x
+        R = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+        tmat = build_tmat(R, np.array([10.0, 0.0, 0.0]))
+        out = apply_tmat(tmat, np.array([[1.0, 0.0, 0.0]]))
+        # R @ (1,0,0) = (0,1,0); + (10,0,0) = (10,1,0)
+        self.assertTrue(np.allclose(out, [[10.0, 1.0, 0.0]]))
+
+    def test_input_not_mutated(self):
+        pts = np.array([[1.0, 2.0, 3.0]])
+        orig = pts.copy()
+        apply_tmat(build_tmat(np.identity(3), np.array([1.0, 1.0, 1.0])), pts)
+        self.assertTrue(np.array_equal(pts, orig))
+
+
+class TestKabsch(unittest.TestCase):
+    def _random(self, n=12, seed=0):
+        return np.random.default_rng(seed).normal(size=(n, 3))
+
+    def test_recovers_known_rigid_transform(self):
+        P = self._random()
+        R = np.array([[0.0, -1.0, 0.0], [1.0, 0.0, 0.0], [0.0, 0.0, 1.0]])
+        t = np.array([3.0, -2.0, 1.0])
+        Q = P @ R.T + t
+        Rf, tf, rmsd = kabsch(P, Q)
+        self.assertTrue(np.allclose(Rf, R, atol=1e-9))
+        self.assertTrue(np.allclose(tf, t, atol=1e-9))
+        self.assertAlmostEqual(rmsd, 0.0, places=9)
+
+    def test_result_is_proper_rotation(self):
+        Rf, _, _ = kabsch(self._random(seed=1), self._random(seed=2))
+        self.assertAlmostEqual(np.linalg.det(Rf), 1.0, places=9)
+        self.assertTrue(np.allclose(Rf @ Rf.T, np.identity(3), atol=1e-9))
+
+    def test_roundtrip_via_apply_tmat(self):
+        P = self._random(seed=3)
+        R = rotate_points_about_axis(np.identity(3), np.zeros(3), [1, 1, 1], 37.0)
+        Q = P @ R.T + np.array([1.0, 2.0, 3.0])
+        Rf, tf, _ = kabsch(P, Q)
+        moved = apply_tmat(build_tmat(Rf, tf), P)
+        self.assertTrue(np.allclose(moved, Q, atol=1e-9))
+
+    def test_reflection_not_introduced_for_coplanar_points(self):
+        # points in the z=0 plane; a naive SVD fit can flip handedness
+        P = np.array([[0.0, 0.0, 0.0], [1.0, 0.0, 0.0], [0.0, 1.0, 0.0], [1.0, 1.0, 0.0]])
+        Q = P.copy()
+        Rf, _, _ = kabsch(P, Q)
+        self.assertAlmostEqual(np.linalg.det(Rf), 1.0, places=9)
+
+    def test_rejects_mismatched_shapes(self):
+        with self.assertRaises(ValueError):
+            kabsch(self._random(4), self._random(5))
 
 
 class TestRotatePointsAboutAxis(unittest.TestCase):

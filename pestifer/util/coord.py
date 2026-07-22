@@ -46,6 +46,85 @@ def build_tmat(RotMat: np.ndarray, TransVec: np.ndarray) -> np.ndarray:
         tmat[i][3] = TransVec[i]
     return tmat
 
+def apply_tmat(tmat: np.ndarray, coords: np.ndarray) -> np.ndarray:
+    """
+    Apply a 4 x 4 homogeneous transformation matrix to one or more points.
+
+    This is the numpy equivalent of VMD's ``$sel move {tmat}``: each point ``p`` is mapped to
+    ``R @ p + t`` where ``R`` is the upper-left 3 x 3 block of ``tmat`` and ``t`` its top-three
+    translation column.  The input is not modified.
+
+    Parameters
+    ----------
+    tmat : numpy.ndarray
+        4 x 4 homogeneous transformation matrix.
+    coords : numpy.ndarray
+        A single point of shape ``(3,)`` or an ``(N, 3)`` array of points.
+
+    Returns
+    -------
+    numpy.ndarray
+        The transformed point(s), same shape as ``coords``.
+    """
+    tmat = np.asarray(tmat, dtype=float)
+    pts = np.asarray(coords, dtype=float)
+    single = pts.ndim == 1
+    if single:
+        pts = pts[None, :]
+    out = pts @ tmat[:3, :3].T + tmat[:3, 3]
+    return out[0] if single else out
+
+
+def kabsch(mobile: np.ndarray, ref: np.ndarray) -> tuple[np.ndarray, np.ndarray, float]:
+    """
+    Least-squares rigid-body superposition of ``mobile`` onto ``ref`` (the Kabsch algorithm).
+
+    Returns the rotation ``R`` and translation ``t`` that minimize the RMSD of
+    ``R @ mobile[i] + t`` against ``ref[i]`` over all corresponding rows, together with that
+    RMSD.  This reproduces VMD's ``measure fit $mobile $ref`` (whose returned matrix, applied
+    via ``$sel move``, carries ``mobile`` onto ``ref``); build a 4 x 4 with
+    :func:`build_tmat` (or ``Transform(R, t)``) to apply it.
+
+    The reflection correction (using ``det`` of the covariance via the sign of ``det(V @ U^T)``)
+    guarantees a proper rotation, never a mirror, even when the point sets are degenerate or
+    nearly coplanar.
+
+    Parameters
+    ----------
+    mobile : numpy.ndarray
+        ``(N, 3)`` array of source points (moved onto ``ref``).
+    ref : numpy.ndarray
+        ``(N, 3)`` array of target points, row-aligned with ``mobile``.
+
+    Returns
+    -------
+    R : numpy.ndarray
+        3 x 3 proper-rotation matrix.
+    t : numpy.ndarray
+        Length-3 translation vector.
+    rmsd : float
+        Root-mean-square deviation after the optimal superposition.
+    """
+    P = np.asarray(mobile, dtype=float)
+    Q = np.asarray(ref, dtype=float)
+    if P.shape != Q.shape or P.ndim != 2 or P.shape[1] != 3:
+        raise ValueError(f'kabsch expects two matching (N, 3) arrays, got {P.shape} and {Q.shape}')
+    if P.shape[0] == 0:
+        raise ValueError('kabsch needs at least one point')
+    p0 = P.mean(axis=0)
+    q0 = Q.mean(axis=0)
+    Pc = P - p0
+    Qc = Q - q0
+    H = Pc.T @ Qc
+    U, _, Vt = np.linalg.svd(H)
+    d = np.sign(np.linalg.det(Vt.T @ U.T))
+    D = np.diag([1.0, 1.0, d])
+    R = Vt.T @ D @ U.T
+    t = q0 - R @ p0
+    rmsd = float(np.sqrt(np.mean(np.sum((Pc @ R.T - Qc) ** 2, axis=1))))
+    return R, t, rmsd
+
+
 def measure_dihedral(a1, a2, a3, a4):
     """
     Measure dihedral angle IN RADIANS of a1->a2--a3->a4
