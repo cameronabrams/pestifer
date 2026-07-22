@@ -21,6 +21,9 @@ from ..molecule.molecule import Molecule
 from ..core.objmanager import ObjManager
 from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
+from pidibble.pdbparse import PDBParser
+
+from ..objs.cfusion import CfusionList
 from ..objs.graft import GraftList
 from ..psfutil.psfatom import PSFAtomList
 from ..psfutil.psfcontents import PSFContents
@@ -680,6 +683,26 @@ class PsfgenTask(VMDTask):
                 g.activate(deepcopy(self.molecules[g.source_pdbid]))
             if len(graft_artifacts) > 0:
                 self.register(graft_artifacts, key='graft_sources', artifact_type=PDBFileArtifactList)
+        if 'Cfusions' in seqmods:
+            # A Cfusion's donor coordinates are loaded directly in VMD by the psfgen scripter
+            # (`mol new <sourcefile>`), so we only need the raw PDB present -- not a parsed
+            # Molecule (parsing it would also raise spurious inter-residue link warnings for a
+            # structure we only mine coordinates from).  If the sourcefile isn't already local,
+            # treat its basename as an RCSB PDB ID and fetch the file (parity with grafts, which
+            # name a source PDB ID), so a Cfusion can name a PDB ID and pestifer provisions it.
+            Cfusions: CfusionList = seqmods['Cfusions']
+            cfusion_artifacts = []
+            for c in Cfusions.data:
+                pdbid = os.path.splitext(os.path.basename(c.sourcefile))[0]
+                target = f'{pdbid}.pdb'
+                if not os.path.exists(c.sourcefile):
+                    if not os.path.exists(target):
+                        logger.debug(f'Fetching Cfusion donor {pdbid}')
+                        PDBParser(source_db='rcsb', source_id=pdbid).fetch()
+                        cfusion_artifacts.append(PDBFileArtifact(pdbid))
+                    c.sourcefile = target
+            if len(cfusion_artifacts) > 0:
+                self.register(cfusion_artifacts, key='cfusion_sources', artifact_type=PDBFileArtifactList)
         self.chainIDmanager = ChainIDManager(
             format = self.source_specs['file_format'],
             transform_reserves = self.source_specs.get('transform_reserves', {}),

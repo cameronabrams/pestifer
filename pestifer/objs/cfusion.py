@@ -20,7 +20,7 @@ class Cfusion(BaseObj):
     """
 
     _required_fields = {'sourcefile', 'sourceseg', 'resid1', 'resid2', 'chainID'}
-    _optional_fields = {'insertion1', 'insertion2', 'obj_id'}
+    _optional_fields = {'insertion1', 'insertion2', 'obj_id', 'segfile'}
 
     sourcefile: str = Field(..., description="Path to the source coordinate file containing the residues to be fused")
     sourceseg: str = Field(..., description="Segment in the source file from which residues are taken")
@@ -28,12 +28,11 @@ class Cfusion(BaseObj):
     resid2: ResID = Field(..., description="Residue information for the C-terminal residue")
     chainID: str = Field(..., description="Chain ID of the segment in the base molecule to which the fusion is applied")
     obj_id: int = Field(0, description="Unique identifier for the Cfusion object")
+    segfile: str | None = Field(None, description="Path to the segment PDB written for the fusion (set during psfgen scripting)")
 
     _yaml_header: ClassVar[str] = 'Cfusions'
     _objcat: ClassVar[str] = 'seq'
     _counter: ClassVar[int] = 0  # Class variable to keep track of Cfusion instances
-
-    _segfile: str = None  # Internal attribute to store the segment file name
 
     @classmethod
     def _adapt(cls, *args, **kwargs) -> dict:

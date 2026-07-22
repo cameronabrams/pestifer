@@ -45,12 +45,12 @@ _segtypes = {
         'resnames': [
             'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY',
             'HIS', 'HSP', 'HSD', 'HSE', 'ILE', 'LEU', 'LYS', 'MET',
-            'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL'],
+            'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL'],
         'rescodes': {
             'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D',
             'CYS': 'C', 'GLN': 'Q', 'GLU': 'E', 'GLY': 'G',
             'HIS': 'H', 'HSD': 'H', 'HSE': 'H', 'ILE': 'I',
-            'LEU': 'L', 'LYS': 'K', 'MET': 'M', 'PHE': 'F',
+            'LEU': 'L', 'LYS': 'K', 'MET': 'M', 'MSE': 'M', 'PHE': 'F',
             'PRO': 'P', 'SER': 'S', 'THR': 'T', 'TRP': 'W',
             'TYR': 'Y', 'VAL': 'V', 'HSP': 'H'},
         'invrescodes': {
@@ -113,6 +113,7 @@ _segtypes = {
 
 _atom_aliases = [
     "ILE CD1 CD",
+    "MET SE SD",   # selenomethionine's selenium (SE) -> methionine sulfur (SD); pairs with the MSE->MET residue alias
     "BGLCNA C7 C",
     "BGLCNA O7 O",
     "BGLCNA C8 CT",
@@ -142,6 +143,7 @@ _atom_aliases = [
 ]
 _residue_aliases = [
     "HIS HSD",
+    "MSE MET",   # selenomethionine -> methionine (SeMet is a crystallography phasing substitution)
     "PO4 H2PO4",
     "H2PO H2PO4",
     "MAN AMAN",
