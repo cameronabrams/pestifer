@@ -148,10 +148,27 @@ Small, pure-Python, tool-free (good for the CI core). They unblock Groups A and 
       - [ ] **Graft alignment** — deferred to Phase 3: the presegment's `measure fit` is a clean
             `Transform.superpose` swap, but it is preceded by `glycan_pendant_rotate` dihedral
             pre-conditioning (Group C), so it can't shed VMD until the torsion port lands.
-- [ ] **Phase 2 — Group B** (`vmd.py` post-psfgen ops). Turn `RotTrans`/`Orient`/`Align`/
-      `TransferCoords` into Python that loads the current psf/pdb into an `AtomList`,
-      transforms (rigid move / Kabsch / `overwrite_positions`), and writes back. Removes
-      `vmd.py`'s coordinate role.
+- [~] **Phase 2 — Group B** (`vmd.py` post-psfgen ops). *transrot/align/transfer_coords done;
+      orient deferred (see below).*
+      - [x] **`transrot` / `align` / `transfer_coords`** — `molecule/coordmanip.py`
+            (`CoordManipulator`) loads the built psf+pdb into an `AtomList` plus a per-atom mass
+            array and bond graph from `PSFContents`, translates the restricted VMD atomselect
+            subset actually used (`all`/`protein`/`backbone`/`name`/`chain`/`segid`/`resid N`/
+            `resid N to M`/`fragment N`, joined by `and`) into a boolean mask, applies the
+            transform in numpy (rigid move about mass-COM, three-atom AXISANGLE, minimal
+            vector-ALIGN, Kabsch `measure fit`, coord copy), and writes the pdb back. The
+            `ManipulateTask` routes these three objtypes to the Python engine; the bond-crossing
+            disconnection guard and atom-count congruency guards are reproduced. Verified
+            atom-for-atom vs VMD on the 6PTI fixture: ROT and transfer exact (0.0 Å), vector-ALIGN
+            / AXISANGLE / Kabsch-align at the 0.001 Å rounding floor; all 12 selection strings
+            match VMD's atom sets exactly. Added pure-Python unit tests + the existing
+            `needs_tools` integration tests pass on the new path.
+      - [ ] **`orient`** (principal-axis) — left on VMD: it is unused in every shipping config, and
+            VMD's `mevsvd_br` returns eigenvectors in an unsorted, sign-quirked order that resists
+            faithful `numpy.linalg.eigh` reproduction; a best-effort port would risk a silent
+            behavior change. The membrane-embed "orient" already goes through `transrot` ALIGN
+            (now ported). Revisit alongside Phase 4's `la.tcl`/`orient.tcl` retirement.
+      - [ ] **`crotations` / `irotations`** (torsion) — Phase 3 (Group C), stay on VMD for now.
 - [ ] **Phase 3 — Group C** (torsion + declash). Port `brot`/`Crot_*`/`SCrot_*` using the
       existing `set_dihedral`; a bond-graph "mover set" (BFS over PSF connectivity) for
       `rotate_pendant`; a `scipy.spatial.cKDTree` contact counter to replace `measure contacts`

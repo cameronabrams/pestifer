@@ -1,0 +1,282 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+"""
+Apply post-psfgen rigid-body / alignment coordinate operations to a built psf+pdb in pure numpy --
+the replacement for the VMD/Tcl emitters ``write_rottrans`` / ``write_align`` /
+``write_transfer_coords`` in :mod:`pestifer.scripters.vmd` (coordinate-port plan, Group B / Phase 2).
+
+A built system's coordinates live only in its psf/pdb fileset, so each op loads the pdb into an
+:class:`~pestifer.molecule.atom.AtomList` (identity + coords), pulls per-atom mass and bond
+connectivity from the PSF, applies the transform with numpy, and writes the pdb back -- the
+"load / transform / save per task" model.  The principal-axis ``orient`` directive is intentionally
+left on the VMD path (it is unused in shipping configs and its eigensolver order/sign convention
+resists faithful reproduction).
+
+Selection support is the small closed subset of VMD atomselect syntax actually used by these
+directives: ``all``, ``protein``, ``backbone``, ``name X``, ``chain X``, ``segid X``, ``resid N``,
+``resid N to M``, ``fragment N``, joined only by ``and``.
+"""
+import logging
+import re
+
+import numpy as np
+
+from pidibble.pdbparse import PDBParser
+
+from .atom import AtomList
+from .transform import Transform
+from ..core.labels import Labels
+from ..psfutil.psfcontents import PSFContents
+from ..util.coord import rotate_points_about_axis
+
+logger = logging.getLogger(__name__)
+
+#: the protein-backbone atom names of VMD's ``backbone`` singleword (protein part) -- the four
+#: main-chain atoms plus the C-terminal carboxyl oxygens (CHARMM ``OT1``/``OT2``, PDB ``OXT``),
+#: which VMD flags as backbone
+_PROTEIN_BACKBONE = frozenset({'N', 'CA', 'C', 'O', 'OT1', 'OT2', 'OXT'})
+
+#: unit vectors for the x/y/z axis keywords
+_AXIS_VEC = {'x': np.array([1.0, 0.0, 0.0]),
+             'y': np.array([0.0, 1.0, 0.0]),
+             'z': np.array([0.0, 0.0, 1.0])}
+
+
+class CoordManipulateError(Exception):
+    """Raised when a coordinate op's selections are incongruent, a selection term is unsupported,
+    or a rigid-body fragment is not fully disconnected -- the numpy analogue of the Tcl
+    ``PESTIFER-ERROR`` guards."""
+
+
+class CoordManipulator:
+    """
+    A built psf+pdb loaded for numpy coordinate manipulation.
+
+    Parameters
+    ----------
+    psf : str or None
+        Path to the PSF (supplies per-atom mass, segid, segtype, and bonds).  ``None`` loads a
+        coordinate-only reference from the PDB alone (masses default to 1; ``segid`` falls back to
+        the PDB chain, and ``protein``/``backbone`` use resname classification; ``fragment`` and the
+        disconnection guard are unavailable without bonds).
+    pdb : str
+        Path to the PDB (supplies coordinates and per-atom chain identity).
+    """
+
+    def __init__(self, psf, pdb):
+        self.atoms = AtomList.from_pdb(PDBParser(filepath=pdb).parse().parsed)
+        n = len(self.atoms)
+        if psf:
+            psfc = PSFContents(psf, parse_topology=['bonds'])
+            if len(psfc.atoms) != n:
+                raise CoordManipulateError(
+                    f'psf/pdb atom-count mismatch: {len(psfc.atoms)} (psf) vs {n} (pdb)')
+            self.atoms.apply_psf_attributes(psfc.atoms)     # segname/serial/resid/resname
+            self._psf = psfc
+            self._mass = np.array([a.atomicwt for a in psfc.atoms.data], dtype=float)
+            self._segtype = [a.segtype for a in psfc.atoms.data]
+            self._name = [a.atomname for a in psfc.atoms.data]
+        else:
+            self._psf = None
+            self._mass = np.ones(n, dtype=float)
+            self._segtype = [Labels.segtype_of_resname.get(a.resname, '') for a in self.atoms.data]
+            self._name = [a.name for a in self.atoms.data]
+        self._fragment = None
+
+    # ---- coordinate access ------------------------------------------------
+
+    @property
+    def coords(self) -> np.ndarray:
+        return self.atoms.coords
+
+    @coords.setter
+    def coords(self, arr: np.ndarray):
+        self.atoms.coords = arr
+
+    def write_pdb(self, path: str):
+        """Write the (transformed) coordinates back to a PDB, standard columns (coords pinned at
+        31-54), matching what VMD's ``writepdb`` produced and what NAMD/psfgen read next."""
+        self.atoms.write_pdb(path, dialect='standard')
+
+    # ---- selection --------------------------------------------------------
+
+    def select(self, sel: str) -> np.ndarray:
+        """Translate a (restricted) VMD atomselection string into a boolean mask over the atoms."""
+        sel = (sel or 'all').strip()
+        mask = np.ones(len(self.atoms), dtype=bool)
+        for term in re.split(r'\s+and\s+', sel):
+            mask &= self._term_mask(term.strip())
+        return mask
+
+    def _term_mask(self, term: str) -> np.ndarray:
+        atoms = self.atoms.data
+        toks = term.split()
+        if term == 'all':
+            return np.ones(len(atoms), dtype=bool)
+        if term == 'protein':
+            return np.array([st == 'protein' for st in self._segtype])
+        if term == 'backbone':
+            return np.array([st == 'protein' and nm in _PROTEIN_BACKBONE
+                             for st, nm in zip(self._segtype, self._name)])
+        if len(toks) == 2 and toks[0] == 'name':
+            return np.array([a.name == toks[1] for a in atoms])
+        if len(toks) == 2 and toks[0] == 'chain':
+            return np.array([a.chainID == toks[1] for a in atoms])
+        if len(toks) == 2 and toks[0] == 'segid':
+            return np.array([a.segname == toks[1] for a in atoms])
+        if len(toks) == 2 and toks[0] == 'resid':
+            n = int(toks[1])
+            return np.array([a.resid.resseqnum == n for a in atoms])
+        if len(toks) == 4 and toks[0] == 'resid' and toks[2] == 'to':
+            lo, hi = int(toks[1]), int(toks[3])
+            return np.array([lo <= a.resid.resseqnum <= hi for a in atoms])
+        if len(toks) == 2 and toks[0] == 'fragment':
+            return self._fragments() == int(toks[1])
+        raise CoordManipulateError(f'unsupported atom-selection term: {term!r}')
+
+    def _fragments(self) -> np.ndarray:
+        """Per-atom VMD fragment id: connected components over PSF bonds, numbered in ascending
+        first-atom (index) order -- VMD's fragment-numbering convention."""
+        if self._psf is None:
+            raise CoordManipulateError('fragment selection requires a PSF (bond connectivity)')
+        if self._fragment is None:
+            n = len(self.atoms)
+            parent = list(range(n))
+
+            def find(i):
+                while parent[i] != i:
+                    parent[i] = parent[parent[i]]
+                    i = parent[i]
+                return i
+
+            for b in self._psf.bonds.data:
+                ri, rj = find(b.serial1 - 1), find(b.serial2 - 1)
+                if ri != rj:
+                    parent[max(ri, rj)] = min(ri, rj)
+            frag = np.empty(n, dtype=int)
+            roots, nextid = {}, 0
+            for i in range(n):
+                r = find(i)
+                if r not in roots:
+                    roots[r], nextid = nextid, nextid + 1
+                frag[i] = roots[r]
+            self._fragment = frag
+        return self._fragment
+
+    # ---- geometry helpers -------------------------------------------------
+
+    def _center(self, mask: np.ndarray, weighted: bool) -> np.ndarray:
+        """Center of the masked atoms; mass-weighted (``measure center ... weight mass``) or
+        geometric (``measure center``).  VMD uses ``abs`` of the weights."""
+        pts = self.coords[mask]
+        if weighted:
+            return np.average(pts, axis=0, weights=np.abs(self._mass[mask]))
+        return pts.mean(axis=0)
+
+    def _require_disconnected(self, mask: np.ndarray, sel: str):
+        """Hard-error unless the masked fragment is fully disconnected from the rest of the system
+        (no bond crosses the selection boundary), so a rigid-body move cannot deform the molecule."""
+        if self._psf is None:
+            raise CoordManipulateError(f'transrot selection "{sel}" needs a PSF to verify disconnection')
+        in_sel = mask                     # index i (0-based) selected?  serial = i+1
+        for b in self._psf.bonds.data:
+            if in_sel[b.serial1 - 1] != in_sel[b.serial2 - 1]:
+                raise CoordManipulateError(
+                    f'transrot selection "{sel}" is not fully disconnected '
+                    f'(a bond crosses the selection boundary); refusing to apply a rigid-body transform')
+
+    # ---- operations -------------------------------------------------------
+
+    def apply_rottrans(self, rt):
+        """Apply a :class:`~pestifer.objs.rottrans.RotTrans` (TRANS/ROT/AXISANGLE/ALIGN)."""
+        sel = rt.sel or 'all'
+        mask = self.select(sel)
+        if sel != 'all':
+            self._require_disconnected(mask, sel)
+        coords = self.coords
+        if rt.movetype == 'TRANS':
+            coords[mask] += np.array([rt.x, rt.y, rt.z], dtype=float)
+        elif rt.movetype == 'ROT':
+            com = self._center(mask, weighted=True)
+            coords[mask] = rotate_points_about_axis(coords[mask], com, _AXIS_VEC[rt.axis], rt.angle)
+        elif rt.movetype == 'AXISANGLE':
+            selI, selJ, selK = rt.axis_atoms
+            rI = self._center(self.select(selI), weighted=False)
+            rJ = self._center(self.select(selJ), weighted=False)
+            rK = self._center(self.select(selK), weighted=False)
+            axis = np.cross(rI - rJ, rJ - rK)
+            coords[mask] = rotate_points_about_axis(coords[mask], rJ, axis, rt.angle)
+        elif rt.movetype == 'ALIGN':
+            self._apply_align_vectors(rt, mask, coords)
+        else:
+            raise CoordManipulateError(f'unknown transrot movetype {rt.movetype!r}')
+        self.coords = coords
+
+    def _apply_align_vectors(self, rt, mask, coords):
+        """The minimal (roll-free) rotation carrying ``source`` onto ``target``, about the masked
+        fragment's mass-weighted center -- mirrors ``_write_align`` in vmd.py."""
+        src = self._align_vector(rt.source)
+        tgt = self._align_vector(rt.target)
+        src = src / np.linalg.norm(src)
+        tgt = tgt / np.linalg.norm(tgt)
+        cross = np.cross(src, tgt)
+        sin = np.linalg.norm(cross)
+        cos = float(np.dot(src, tgt))
+        com = self._center(mask, weighted=True)
+        if sin < 1.0e-6:
+            if cos < 0.0:                 # antiparallel: 180 about an arbitrary perpendicular
+                perp = np.cross(src, [1.0, 0.0, 0.0])
+                if np.linalg.norm(perp) < 1.0e-6:
+                    perp = np.cross(src, [0.0, 1.0, 0.0])
+                coords[mask] = rotate_points_about_axis(coords[mask], com, perp, 180.0)
+            # else already aligned: no rotation
+        else:
+            angle = np.degrees(np.arctan2(sin, cos))
+            coords[mask] = rotate_points_about_axis(coords[mask], com, cross, angle)
+
+    def _align_vector(self, spec) -> np.ndarray:
+        """An ALIGN vector: a literal ``[x, y, z]`` or a pair of selections ``[selA, selB]`` whose
+        mass-weighted centers define the vector (from A to B)."""
+        if len(spec) == 3 and all(isinstance(v, (int, float)) and not isinstance(v, bool) for v in spec):
+            return np.array(spec, dtype=float)
+        selA, selB = spec
+        return self._center(self.select(selB), weighted=True) - self._center(self.select(selA), weighted=True)
+
+    def apply_align(self, align, reference: "CoordManipulator"):
+        """Least-squares-fit ``mobile_sel`` (this system) onto ``ref_sel`` (``reference``) and move
+        ``apply_to`` by the fit -- the numpy ``measure fit`` / ``$mover move`` of :meth:`write_align`."""
+        mob_mask = self.select(align.mobile_sel)
+        ref_sel = align.ref_sel if align.ref_sel is not None else align.mobile_sel
+        ref_mask = reference.select(ref_sel)
+        nm, nr = int(mob_mask.sum()), int(ref_mask.sum())
+        if nm != nr:
+            raise CoordManipulateError(
+                f'align: mobile_sel "{align.mobile_sel}" has {nm} atoms but ref_sel "{ref_sel}" has {nr}')
+        transform, _ = Transform.superpose(self.coords[mob_mask], reference.coords[ref_mask])
+        apply_mask = self.select(align.apply_to)
+        coords = self.coords
+        coords[apply_mask] = transform.apply(coords[apply_mask])
+        self.coords = coords
+
+    def apply_transfer_coords(self, tc, donor: "CoordManipulator"):
+        """Copy ``donor_sel`` coordinates from ``donor`` onto ``mobile_sel`` here, optionally after
+        rigidly pre-fitting the whole donor -- the numpy port of :meth:`write_transfer_coords`."""
+        if tc.pre_align:
+            d_mask = donor.select(tc.align_donor_sel)
+            m_mask = self.select(tc.align_mobile_sel)
+            nd, nm = int(d_mask.sum()), int(m_mask.sum())
+            if nd != nm:
+                raise CoordManipulateError(
+                    f'transfer_coords align: align_donor_sel "{tc.align_donor_sel}" has {nd} atoms '
+                    f'but align_mobile_sel "{tc.align_mobile_sel}" has {nm}')
+            transform, _ = Transform.superpose(donor.coords[d_mask], self.coords[m_mask])
+            donor.coords = transform.apply(donor.coords)     # move the entire donor
+        d_sel = donor.select(tc.donor_sel)
+        m_sel = self.select(tc.mobile_sel)
+        nd, nm = int(d_sel.sum()), int(m_sel.sum())
+        if nd != nm:
+            raise CoordManipulateError(
+                f'transfer_coords: donor_sel "{tc.donor_sel}" has {nd} atoms but '
+                f'mobile_sel "{tc.mobile_sel}" has {nm}')
+        coords = self.coords
+        coords[m_sel] = donor.coords[d_sel]
+        self.coords = coords
