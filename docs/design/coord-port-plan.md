@@ -207,9 +207,15 @@ Small, pure-Python, tool-free (good for the CI core). They unblock Groups A and 
             dedicated port with functional validation (clash reduction + short-MD stability on real
             glycan/loop builds), plus a seeded RNG (an improvement -- VMD's `rand()` is unseeded, so
             declashed builds are currently non-reproducible).
-- [ ] **Phase 4 — cleanup**. Delete the `archive/` tree + dangling package entry; retire
-      `la.tcl`/`orient.tcl` behind `numpy.linalg`; decide whether Group D utilities get thin
-      Python ports or stay.
+- [~] **Phase 4 — cleanup**. Deleted the `archive/` tree + the dangling `PestiferPierce`
+      package entry, and removed the dead `write_orient`/`write_orients` VMD emitters (production
+      orient is `numpy.linalg` now). **`la.tcl`/`orient.tcl` are kept**, not retired: the
+      `bilayer_orient` script (which `package require`s `Orient`/`La`) is still exercised by the
+      `make_membrane_system` embed tests (`test_makemembranesystem_embed_with_orient`,
+      `test_orient_align_matches_bilayer_orient`) as the legacy reference the ported RotTrans-ALIGN
+      path is checked against. Retiring them cleanly means modernizing those tests off the legacy
+      script first. Group D utilities (`autools.tcl`/`multimer.tcl`/`axes.tcl`) are untouched (not
+      in the build path).
 
 ---
 
