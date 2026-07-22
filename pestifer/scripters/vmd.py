@@ -17,7 +17,6 @@ from ..molecule.residue import ResidueList
 from ..objs.align import Align
 from ..objs.transfer_coords import TransferCoords
 from ..objs.crot import Crot, CrotList
-from ..objs.orient import Orient, OrientList
 from ..objs.rottrans import RotTrans, RotTransList
 
 from ..util.util import reduce_intlist
@@ -293,10 +292,6 @@ class VMDScripter(TcLScripter):
         for crot in crots.data:
             self.write_crot(crot, chainIDmap=chainIDmap)
 
-    def write_orients(self, orients: OrientList):
-        for orient in orients.data:
-            self.write_orient(orient)
-
     def write_rottranslist(self, rottranslist: RotTransList):
         for rt in rottranslist.data:
             self.write_rottrans(rt)
@@ -352,30 +347,6 @@ class VMDScripter(TcLScripter):
             self.addline('glycan_pendant_rotate {} {} {} {} {} {} {}'.format(molid,the_chainID,crot.residi.resid,crot.residj.resid,crot.atomi,crot.atomj,crot.degrees))
         else:
             raise ValueError(f'Unknown CROT angle type: {crot.angle}')
-        
-    def write_orient(self, orient: Orient, molid: str = None):
-        """
-        Write a VMD Orient object to the script.
-        This method generates the Tcl commands to orient a coordinate set in VMD based on the provided Orient object.
-
-        Parameters
-        ----------
-        orient : Orient
-            The Orient object containing the orientation data.
-        """
-        molid = 'top' if not molid else f'${molid}'
-        self.addline(f'set a [atomselect {molid} all]')
-        self.addline('set I [draw principalaxes $a]')
-        adict=dict(x=r'{1 0 0}',y=r'{0 1 0}',z=r'{0 0 1}')
-        self.addline(f'set A [orient $a [lindex $I 2] {adict[orient.axis]}]')
-        self.addline(r'$a move $A')
-        if hasattr(orient,'refatom'):
-            self.addline(r'set com [measure center $a]')
-            self.addline(r'$a moveby [vecscale $com -1]')
-            self.addline(f'set z [[atomselect {molid} "name {orient.refatom}"] get z]')
-            self.addline(r'if { $z < 0.0 } {')
-            self.addline(r'   $a move [transaxis x 180 degrees]')
-            self.addline(r'}')
 
     def write_rottrans(self, rottrans: RotTrans, molid: str = None):
         """Emit VMD commands for a rigid-body transformation of a (possibly partial) fragment.
