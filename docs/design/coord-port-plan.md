@@ -197,16 +197,20 @@ Small, pure-Python, tool-free (good for the CI core). They unblock Groups A and 
             unchanged. Unit tests added for the bond/pendant helpers.
       - [x] **`SCrot_chi1/chi2`** — `CoordManipulator.apply_scrot`; ringcheck's side-chain trial
             rotations now go through the numpy path. Verified atom-for-atom vs VMD (0.0 Å).
-      - [ ] **`declash_loop` / `declash_pendant`** — the one remaining VMD coordinate touchpoint.
-            *Deliberately deferred:* unlike every other op it is a **stochastic** greedy Monte-Carlo
-            (random moves), so it cannot be validated atom-for-atom against VMD (different RNG) and
-            porting it *changes the coordinates of every glycan/loop build* -- a hot path. The
-            pieces exist (mover/bond enumeration is already Python via networkx in `_write_na_loops`/
-            `_write_glycans`; `psfring.clash_count` is a cKDTree contact counter; `loop_ccd`'s
-            annealing declash already supersedes `declash_loop` for the ligate path). It needs a
-            dedicated port with functional validation (clash reduction + short-MD stability on real
-            glycan/loop builds), plus a seeded RNG (an improvement -- VMD's `rand()` is unseeded, so
-            declashed builds are currently non-reproducible).
+      - [x] **`declash_loop` / `declash_pendant`** — ported to `psfutil/declash.py` (seeded greedy
+            MC scored by a `scipy.spatial.cKDTree` heavy-atom contact count). `declash_glycans`,
+            `declash_na_loops`, and `declash_protein_loops` now enumerate their mover/bond sets in
+            Python (`_enumerate_*_declash`) and run the numpy declasher; VMD is no longer invoked.
+            Being *pre-conditioning* (clashes are relaxed by the following minimization), the bar is
+            functional -- clash reduction, not VMD parity (it's stochastic anyway). One deliberate
+            improvement over the Tcl: each pendant declashes against the **static** structure
+            (protein), excluding the other movable pendants, so the sequential greedy doesn't chase
+            glycans into each other. Validated: 7xix glycans 109->48 clashes (residual = irreducible
+            root-attachment bonds), 4tvp protein-loops+glycans build minimizes cleanly, glycan-bond
+            integration green. The RNG is seeded, so declashed builds are now reproducible (VMD's
+            `rand()` was unseeded). *Note:* `declash.tcl`/`crot.tcl` are left in the tree (dead but
+            still `package require`d by the main build script + referenced by golden test tcl);
+            retiring them cleanly is deferred alongside the orient tcl retirement.
 - [~] **Phase 4 — cleanup**. Deleted the `archive/` tree + the dangling `PestiferPierce`
       package entry, and removed the dead `write_orient`/`write_orients` VMD emitters (production
       orient is `numpy.linalg` now). **`la.tcl`/`orient.tcl` are kept**, not retired: the

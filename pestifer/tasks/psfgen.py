@@ -7,6 +7,7 @@ Usage is described in the :ref:`subs_buildtasks_psfgen` documentation.
 """
 import logging
 import networkx as nx
+import numpy as np
 import os
 import shutil
 
@@ -407,10 +408,8 @@ class PsfgenTask(VMDTask):
 
     def declash_segtype(self, specs: dict, segtype='protein'):
         """
-        Declash loops in the base molecule using the custom ``PestiferDeclash`` TcL package.
-        This method generates a VMD script to identify and declash loops in the molecular structure.
-        It uses the ``PestiferDeclash`` package to perform the declashing operation, which involves identifying
-        and modifying the coordinates of atoms in loop regions.
+        Dispatch declashing of a segment type (protein gap loops, nucleic-acid loops, or glycans)
+        to the corresponding pure-numpy declasher.
         """
         specs_to_declashers = specs#['source']['sequence']['declash']
         if segtype == 'protein':
@@ -424,150 +423,132 @@ class PsfgenTask(VMDTask):
 
     def declash_protein_loops(self, specs: dict):
         """
-        Declash loops in the base molecule using the custom ``PestiferDeclash`` TcL package.
-        This method generates a VMD script to identify and declash loops in the molecular structure.
-        It uses the ``PestiferDeclash`` package to perform the declashing operation, which involves identifying
-        and modifying the coordinates of atoms in loop regions.
+        Declash model-built protein gap loops in pure numpy (no VMD): greedily wiggle each loop's
+        backbone phi angles to pull the loop out of steric overlap with the surrounding structure.
         """
-        mol = self.base_molecule
         cycles = specs['maxcycles']
+        if not cycles:
+            return
         self.next_basename('declash-loops')
         state: StateArtifacts = self.get_current_artifact('state')
-        psf = state.psf.name
-        pdb = state.pdb.name
-        vt: VMDScripter = self.scripters['vmd']
-        vt.newscript(self.basename, packages=['PestiferDeclash'])
-        vt.load_psf_pdb(psf, pdb, new_molid_varname='mLL')
-        vt.write_protein_loop_lines(mol, cycles=cycles, include_c_termini=specs['include_C_termini'])
-        vt.write_pdb(self.basename, 'mLL')
-        vt.writescript()
-        vt.runscript()
-        self.register(dict(
-            pdb=PDBFileArtifact(self.basename), 
-            psf=state.psf), key='state', artifact_type=StateArtifacts)
-        self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
-        self.register(self.basename, key='log', artifact_type=VMDLogFileArtifact)
+        loops = self._enumerate_protein_loops(include_c_termini=specs['include_C_termini'])
+        logger.debug(f'Declashing {len(loops)} protein loops (image copies); maxcycles {cycles}')
+        self._run_loop_declash(state, loops, cycles)
+        self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf),
+                      key='state', artifact_type=StateArtifacts)
 
-    def declash_na_loops(self,specs):
+    def _enumerate_protein_loops(self, include_c_termini=False):
+        """Return ``[(segname, [resids]), ...]`` for each model-built MISSING protein loop, once per
+        biological-assembly image (segname is the image's chain label)."""
+        mol = self.base_molecule
+        ba = mol.active_biological_assembly
+        au = mol.asymmetric_unit
+        min_length = self.min_loop_length
+        out = []
+        for S in (s for s in au.segments.data if s.segtype == 'protein'):
+            n_subsegs = len(S.subsegments)
+            for b in S.subsegments.data:
+                is_c_terminus = (S.subsegments.index(b) == (n_subsegs - 1))
+                is_processible = b.state == 'MISSING' and b.num_items() >= min_length
+                if is_processible and (not include_c_termini) and is_c_terminus:
+                    is_processible = False
+                if not is_processible:
+                    continue
+                resids = [r.resid.resseqnum for r in S.residues.data[b.bounds[0]:b.bounds[1] + 1]]
+                for transform in ba.transforms:
+                    out.append((transform.chainIDmap.get(S.segname, S.segname), resids))
+        return out
+
+    def _run_loop_declash(self, state, loops, cycles):
+        """Load the current psf/pdb and run the numpy phi-wiggle loop declasher over each
+        ``(segname, resids)`` loop against its static (non-loop) environment; write ``{basename}.pdb``."""
+        from ..molecule.coordmanip import CoordManipulator, CoordManipulateError
+        from ..psfutil.declash import declash_loop
+        cm = CoordManipulator(state.psf.name, state.pdb.name)
+        coords = cm.coords
+        heavy = cm._mass > 1.1
+        ridx = cm._residue_index()
+        names = cm._names
+        seg = np.array([a.segname for a in cm.atoms.data])
+        rng = np.random.default_rng(self._DECLASH_SEED)
+        not_nhn = ~np.isin(names, ['N', 'HN'])
+        for segname, resids in loops:
+            seg_mask = seg == segname
+            loop_mask = seg_mask & np.isin([a.resid.resseqnum for a in cm.atoms.data], resids)
+            env_heavy = np.nonzero(heavy & ~loop_mask)[0]
+            try:
+                r_end = cm.residue_of_segname(segname, resids[-1])
+            except CoordManipulateError:
+                continue
+            residues = []
+            for ri in resids:
+                r0 = cm.residue_of_segname(segname, ri)
+                n_i = np.nonzero(seg_mask & (ridx == r0) & (names == 'N'))[0]
+                ca_i = np.nonzero(seg_mask & (ridx == r0) & (names == 'CA'))[0]
+                if not n_i.size or not ca_i.size:
+                    continue
+                movers = np.nonzero(seg_mask & (((ridx == r0) & not_nhn) | ((ridx > r0) & (ridx <= r_end))))[0]
+                frag_heavy = np.nonzero(seg_mask & heavy & (ridx >= r0) & (ridx <= r_end))[0]
+                residues.append({'pivot': int(n_i[0]), 'axis_to': int(ca_i[0]),
+                                 'movers': movers, 'frag_heavy': frag_heavy})
+            declash_loop(coords, residues, env_heavy, cycles, 2.0, rng)
+        cm.coords = coords
+        cm.write_pdb(f'{self.basename}.pdb')
+
+    def declash_na_loops(self, specs):
         """
-        Declash nucleic acid loops in the base molecule using the custom ``PestiferDeclash`` TcL package.
-        This method generates a VMD script to identify and declash nucleic acid loops in the molecular structure.
-        It uses the ``PestiferDeclash`` package to perform the declashing operation, which involves identifying
-        and modifying the coordinates of atoms in nucleic acid loop regions.
+        Declash nucleic-acid loops in pure numpy (no VMD): rotate each model-built NA loop's
+        rotatable bonds (base groups) out of steric overlap with the rest of the structure.
         """
         cycles = specs['maxcycles']
         clashdist = specs['clashdist']
         self.next_basename('declash-na-loops')
-        vt: VMDScripter = self.scripters['vmd']
         state: StateArtifacts = self.get_current_artifact('state')
-        psf = state.psf.name
-        pdb = state.pdb.name
-        outpdb = f'{self.basename}.pdb'
-        vt.newscript(self.basename, packages=['PestiferDeclash'])
-        vt.addline(f'mol new {psf}')
-        vt.addline(f'mol addfile {pdb} waitfor all')
-        vt.addline(f'set a [atomselect top all]')
-        vt.addline(f'set molid [molinfo top get id]')
-        nna = self._write_na_loops(vt)
-        vt.addline(f'set nna {nna}')
-        vt.addline(f'vmdcon -info "Declashing $nna nucleic acid loops; clashdist {clashdist}; maxcycles {cycles}"')
-        vt.addline(r'for {set i 0} {$i<$nna} {incr i} {')
-        vt.addline(f'   declash_pendant $molid $na_idx($i) $rbonds($i) $movers($i) {cycles} {clashdist}')
-        vt.addline(r'}')
-        vt.addline(f'$a writepdb {outpdb}')
-        vt.writescript()
-        logger.debug(f'Declashing {nna} nucleic acid loops')
-        vt.runscript(progress_title='declash-nucleic-acid-loops')
-        self.register(dict(
-            pdb=PDBFileArtifact(self.basename), 
-            psf=state.psf), key='state', artifact_type=StateArtifacts)
-        self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
-        self.register(self.basename, key='log', artifact_type=VMDLogFileArtifact)
+        loops = self._enumerate_na_declash(state.psf.name)
+        logger.debug(f'Declashing {len(loops)} nucleic acid loops; clashdist {clashdist}; maxcycles {cycles}')
+        self._run_pendant_declash(state, loops, cycles, clashdist)
+        self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf),
+                      key='state', artifact_type=StateArtifacts)
 
-    def _write_na_loops(self, vt: VMDScripter, **options):
-        mol = self.base_molecule
-        au = mol.asymmetric_unit
-        state: StateArtifacts = self.get_current_artifact('state')
-        psf = state.psf.name
-        logger.debug(f'ingesting {psf}')
+    def _enumerate_na_declash(self, psf, **options):
+        """Return ``[(indices, bonds, movers), ...]`` for each model-built nucleic-acid gap loop."""
+        au = self.base_molecule.asymmetric_unit
         struct = PSFContents(psf, parse_topology=['bonds'])
-        logger.debug(f'PSF has {len(struct.atoms)} atoms; extracting nucleic acid atoms...')
         na_atoms: PSFAtomList = struct.atoms.get(lambda x: x.segtype == 'nucleicacid')
-        logger.debug(f'PSF has {len(na_atoms)} nucleic acid atoms')
-        # my_rep = list(set([(x.chainID, x.resid) for x in na_atoms.data]))
-        # my_rep.sort(key=lambda x: (x[0], x[1]))
-        logger.debug(f'Getting loops from {len(na_atoms)} nucleic acid atoms in PSF file {psf}')
-        # logger.debug(f'{my_rep}')
+        if not na_atoms:
+            return []
         min_length = self.min_loop_length
         include_c_termini = options.get('include_c_termini', False)
-        i = 0
-        SL = [S for S in au.segments.data if S.segtype == 'nucleicacid']
-        logger.debug(f'Asymmetric unit has {len(SL)} nucleic acid segments')
-        for S in SL:
-            asymm_segname = S.segname
-            logger.debug(f'Processing segment {asymm_segname} for nucleic acid loops')
+        out = []
+        for S in (s for s in au.segments.data if s.segtype == 'nucleicacid'):
             n_subsegs = len(S.subsegments)
             for b in S.subsegments.data:
                 lr_resid = S.residues[b.bounds[0]].resid
                 rr_resid = S.residues[b.bounds[1]].resid
-                logger.debug(f'Processing subsegment {b.state} for segname {asymm_segname} with bounds {lr_resid}-{rr_resid}')
                 is_c_terminus = (S.subsegments.index(b) == (n_subsegs - 1))
                 is_processible = b.state == 'MISSING' and b.num_items() >= min_length
                 if is_processible and (not include_c_termini) and is_c_terminus:
-                    logger.debug(f'A.U. C-terminal loop {b.state} declashing is skipped')
                     is_processible = False
-                if is_processible:
-                    logger.debug(f'Processing loop {b.state} {b.bounds} for segname {asymm_segname}')
-                    loop_atoms = PSFAtomList([x for x in na_atoms.data if x.segname == asymm_segname and x.resid >= lr_resid and x.resid <= rr_resid])
-                    logger.debug(f'Loop {b.state} has {len(loop_atoms)} atoms from PSFAtomList')
-                    na_graph = loop_atoms.graph()
-                    logger.debug(f'{na_graph}')
-                    G = [na_graph.subgraph(c).copy() for c in nx.connected_components(na_graph)]
-                    assert len(G) == 1, f'NA loop {b.state} has more than one connected component'
-                    logger.debug(f'Loop {b.state} has {len(loop_atoms)} atoms')
-                    g = G[0]
-                    serials = [x.serial for x in g]
-                    for at in g:
-                        lig_ser = [x.serial for x in at.ligands]
-                        for k, ls in enumerate(lig_ser):
-                            if not ls in serials:
-                                at.is_root = True
-                                rp = at.ligands[k]
-                                logger.debug(f'-> Atom {str(at)} is the root, bound to atom {str(rp)}')
-                    indices = ' '.join([str(x.serial-1) for x in g])
-                    vt.addline(f'set na_idx({i}) [list {indices}]')
-                    vt.addline(f'set rbonds({i}) [list]')
-                    vt.addline(f'set movers({i}) [list]')
-                    for bond in nx.bridges(g):
-                        ai, aj = bond
-                        if not (ai.isH() or aj.isH()) and not ai.is_pep(aj):
-                            g.remove_edge(ai, aj)
-                            CC = [g.subgraph(c).copy() for c in nx.connected_components(g)]
-                            assert len(CC) == 2, f'Bond {ai.serial-1}-{aj.serial-1} when cut makes more than 2 components'
-                            for sg in CC:
-                                is_root = any([hasattr(x, 'is_root') for x in sg])
-                                if not is_root:
-                                    if ai in sg:
-                                        sg.remove_node(ai)
-                                    if aj in sg:
-                                        sg.remove_node(aj)
-                                    if len(sg) > 1 or (len(sg) == 1 and not [x for x in sg.nodes][0].isH()):
-                                        mover_serials = [x.serial for x in sg]
-                                        mover_indices = " ".join([str(x-1) for x in mover_serials])
-                                        logger.debug(f'{str(ai)}--{str(aj)} is a rotatable bridging bond')
-                                        vt.addline(f'lappend rbonds({i}) [list {ai.serial-1} {aj.serial-1}]')
-                                        logger.debug(f'  -> movers: {" ".join([str(x) for x in sg])}')
-                                        vt.addline(f'lappend movers({i}) [list {mover_indices}]')
-                            g.add_edge(ai, aj)
-                    i += 1
-        return i
+                if not is_processible:
+                    continue
+                loop_atoms = PSFAtomList([x for x in na_atoms.data if x.segname == S.segname
+                                          and lr_resid <= x.resid <= rr_resid])
+                G = [loop_atoms.graph().subgraph(c).copy()
+                     for c in nx.connected_components(loop_atoms.graph())]
+                assert len(G) == 1, 'NA loop has more than one connected component'
+                g = G[0]
+                serials = {x.serial for x in g}
+                for at in g:                          # roots = atoms bonded outside the loop (both ends)
+                    if any(ls not in serials for ls in (x.serial for x in at.ligands)):
+                        at.is_root = True
+                out.append((np.array([x.serial - 1 for x in g], dtype=int),) + self._rotatable_bonds(g))
+        return out
 
     def declash_glycans(self, specs):
         """
-        Declash glycans in the base molecule using the custom ``PestiferDeclash`` TcL package.
-        This method generates a VMD script to identify and declash glycans in the molecular structure.
-        It uses the ``PestiferDeclash`` package to perform the declashing operation,
-        which involves identifying and modifying the coordinates of atoms in glycan regions.
+        Declash glycans in the base molecule in pure numpy (no VMD): rotate each glycan's rotatable
+        bonds to pull the sugar chains out of steric overlap with the rest of the structure before
+        minimization.  Greedy MC scored by a heavy-atom contact count, seeded for reproducibility.
         """
         mol: Molecule = self.base_molecule
         cycles: int = specs['maxcycles']
@@ -576,91 +557,91 @@ class PsfgenTask(VMDTask):
             logger.debug(f'Glycan declashing is intentionally not done.')
             return
         self.next_basename('declash-glycans')
-        outpdb = f'{self.basename}.pdb'
         state: StateArtifacts = self.get_current_artifact('state')
-        psf = state.psf.name
-        pdb = state.pdb.name
-        vt: VMDScripter = self.scripters['vmd']
-        vt.newscript(self.basename, packages=['PestiferDeclash'])
-        vt.addline(f'mol new {psf}')
-        vt.addline(f'mol addfile {pdb} waitfor all')
-        vt.addline(f'set a [atomselect top all]')
-        vt.addline(f'set molid [molinfo top get id]')
-        nglycans = self._write_glycans(vt)
-        vt.addline(f'vmdcon -info "Declashing $nglycans glycans; clashdist {clashdist}; maxcycles {cycles}"')
-        vt.addline(r'for {set i 0} {$i<$nglycans} {incr i} {')
-        vt.addline(f'   declash_pendant $molid $glycan_idx($i) $rbonds($i) $movers($i) {cycles} {clashdist}')
-        vt.addline(r'}')
-        vt.addline(f'$a writepdb {outpdb}')
-        vt.writescript()
-        logger.debug(f'Declashing {nglycans} glycans')
-        vt.runscript(progress_title='declash-glycans')
-        self.register(dict(
-            pdb=PDBFileArtifact(self.basename), 
-            psf=state.psf), key='state', artifact_type=StateArtifacts)
-        self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
-        self.register(self.basename, key='log', artifact_type=VMDLogFileArtifact)
+        glycans = self._enumerate_glycan_declash(state.psf.name)
+        logger.debug(f'Declashing {len(glycans)} glycans; clashdist {clashdist}; maxcycles {cycles}')
+        self._run_pendant_declash(state, glycans, cycles, clashdist)
+        self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf),
+                      key='state', artifact_type=StateArtifacts)
 
-    def _write_glycans(self, fw: VMDScripter):
-        state: StateArtifacts = self.get_current_artifact('state')
-        psf = state.psf.name
-        logger.debug(f'ingesting {psf}')
+    def _enumerate_glycan_declash(self, psf):
+        """Return ``[(indices, bonds, movers), ...]`` for each glycan (0-based atom row indices):
+        the pendant atoms, its rotatable bridging bonds, and the mover atoms per bond -- the
+        declash inputs formerly emitted as Tcl."""
         struct = PSFContents(psf, parse_topology=['bonds'])
-        logger.debug(f'Making graph structure of glycan atoms...')
         glycanatoms = struct.atoms.get(lambda x: x.segtype == 'glycan')
-        logger.debug(f'{len(glycanatoms)} total glycan atoms')
         glycangraph = glycanatoms.graph()
         G = [glycangraph.subgraph(c).copy() for c in nx.connected_components(glycangraph)]
-        logger.debug(f'Preparing declash input for {len(G)} glycans')
-        fw.addline(f'set nglycans {len(G)}')
-        for i, g in enumerate(G):
+        out = []
+        for g in G:
+            serials = {x.serial for x in g}
             rooted = False
-            logger.debug(f'Glycan {i} has {len(g)} atoms')
-            serials = [x.serial for x in g] # list of atoms in glycan by serial
-            for j, at in enumerate(g):
-                lig_ser = [x.serial for x in at.ligands] # list of ligands of this atom by serial
-                logger.debug(f'    {j}: {str(at)} {len(lig_ser)} ligands')
-                for k, ls in enumerate(lig_ser):
-                    if not ls in serials: # this atom has a ligand that is not in the glycan
+            for at in g:                              # root = the atom bonded outside the glycan
+                for k, ls in enumerate(x.serial for x in at.ligands):
+                    if ls not in serials:
                         at.is_root = True
                         rooted = True
-                        rp = at.ligands[k]
-                        logger.debug(f'        -> {str(at)} ({at.resname} {at.segtype}) is the root, bound to outside atom {rp.serial}')
                         break
                 if rooted:
                     break
-            assert rooted, f'    Could not find a root atom for glycan {i} -- this is a bug'
-            indices = ' '.join([str(x.serial-1) for x in g])
-            # logger.debug(f'indices {indices}')
-            fw.comment(f'Glycan {i}:')
-            fw.addline(f'set glycan_idx({i}) [list {indices}]')
-            fw.addline(f'set rbonds({i}) [list]')
-            fw.addline(f'set movers({i}) [list]')
-            # for each rotatable bond, define the two atoms in the bond by INDICES 
-            # and identify movers when pendant is rotated around this bond
-            # a rotatable bond is one that is a bridge, is not a peptide bond, and is not a bond to an H
-            for bond in nx.bridges(g):
-                ai, aj = bond
-                if not (ai.isH() or aj.isH()) and not ai.is_pep(aj):
-                    g.remove_edge(ai, aj)
-                    S = [g.subgraph(c).copy() for c in nx.connected_components(g)]
-                    assert len(S) == 2, f'Bond {str(ai)}-{str(aj)} when cut makes more than 2 components (not a bridge)'
-                    is_root = [any([getattr(x, 'is_root', False) for x in sg]) for sg in S]
-                    assert any(is_root), f'No root atom found in either half split by bond {str(ai)}-{str(aj)}'
-                    unrooted_subgraph = S[is_root.index(False)]
-                    if ai in unrooted_subgraph:
-                        unrooted_subgraph.remove_node(ai)
-                    if aj in unrooted_subgraph:
-                        unrooted_subgraph.remove_node(aj)
-                    if len(unrooted_subgraph) > 1 or (len(unrooted_subgraph) == 1 and not list(unrooted_subgraph.nodes)[0].isH()):
-                        mover_serials = [x.serial for x in unrooted_subgraph]
-                        mover_indices = " ".join([str(x-1) for x in mover_serials])
-                        logger.debug(f'{str(ai)}--{str(aj)} is a rotatable bridging bond')
-                        fw.addline(f'lappend rbonds({i}) [list {ai.serial-1} {aj.serial-1}]')
-                        logger.debug(f'  -> movers: {",".join([str(x) for x in unrooted_subgraph])}')
-                        fw.addline(f'lappend movers({i}) [list {mover_indices}]')
-                    g.add_edge(ai, aj)
-        return len(G)
+            assert rooted, 'Could not find a root atom for a glycan -- this is a bug'
+            out.append((np.array([x.serial - 1 for x in g], dtype=int),) + self._rotatable_bonds(g))
+        return out
+
+    @staticmethod
+    def _rotatable_bonds(g):
+        """From a rooted pendant graph (one or more atoms flagged ``is_root`` where the group is
+        anchored to the rest of the structure), return ``(bonds, movers)``: each bridging bond that
+        is not a bond-to-H and not a peptide bond, cut into (bond endpoints, unrooted-side mover
+        atoms).  A bond whose *both* sides carry a root (e.g. an internal backbone bond of a loop
+        anchored at both ends) is not rotatable and is skipped."""
+        bonds, movers = [], []
+        for ai, aj in list(nx.bridges(g)):
+            if (ai.isH() or aj.isH()) or ai.is_pep(aj):
+                continue
+            g.remove_edge(ai, aj)
+            S = [g.subgraph(c).copy() for c in nx.connected_components(g)]
+            assert len(S) == 2, f'Bond {ai.serial-1}-{aj.serial-1} is not a bridge'
+            rooted = [any(getattr(x, 'is_root', False) for x in sg) for sg in S]
+            if False in rooted:                       # exactly one unrooted side -> rotatable
+                unrooted = S[rooted.index(False)]
+                unrooted.remove_nodes_from([n for n in (ai, aj) if n in unrooted])
+                nodes = list(unrooted.nodes)
+                if len(nodes) > 1 or (len(nodes) == 1 and not nodes[0].isH()):
+                    bonds.append((ai.serial - 1, aj.serial - 1))
+                    movers.append(np.array([x.serial - 1 for x in nodes], dtype=int))
+            g.add_edge(ai, aj)
+        return bonds, movers
+
+    def _run_pendant_declash(self, state, pendants, cycles, clashdist):
+        """Load the current psf/pdb, run the numpy pendant declasher over each ``(indices, bonds,
+        movers)`` entry (sharing one seeded RNG), and write ``{basename}.pdb``.
+
+        The clash environment is the *static* set of heavy atoms outside every pendant in the batch
+        (e.g. the protein, for glycans).  Excluding the other movable pendants keeps the sequential
+        greedy from chasing them into each other; the destabilizing overlaps that matter for the
+        downstream minimization are pendant-vs-structure, and inter-pendant contacts relax out.
+        """
+        from ..molecule.coordmanip import CoordManipulator
+        from ..psfutil.declash import declash_pendant
+        cm = CoordManipulator(state.psf.name, state.pdb.name)
+        coords = cm.coords
+        heavy = cm._mass > 1.1                        # PSF masses: hydrogens ~1.008
+        batch = np.zeros(len(coords), dtype=bool)
+        for indices, _bonds, _movers in pendants:
+            batch[indices] = True
+        env_heavy = np.nonzero(heavy & ~batch)[0]
+        rng = np.random.default_rng(self._DECLASH_SEED)
+        for indices, bonds, movers in pendants:
+            pend = np.zeros(len(coords), dtype=bool)
+            pend[indices] = True
+            pendant_heavy = np.nonzero(heavy & pend)[0]
+            declash_pendant(coords, pendant_heavy, env_heavy, bonds, movers, cycles, clashdist, rng)
+        cm.coords = coords
+        cm.write_pdb(f'{self.basename}.pdb')
+
+    #: fixed RNG seed so declashed builds are reproducible (VMD's rand() was unseeded)
+    _DECLASH_SEED = 90125
 
     def ingest_molecules(self):
         """
