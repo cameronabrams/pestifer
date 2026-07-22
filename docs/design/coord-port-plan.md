@@ -182,9 +182,19 @@ Small, pure-Python, tool-free (good for the CI core). They unblock Groups A and 
             crotation path on 4tvp (env trimer, 3 images, crotations on B→B/D/F, a −180° loop
             flip moving atoms up to 147 Å) reproduced to 0.003 Å across all 33 693 atoms with 0
             identity mismatches. Pure-Python unit tests added.
-      - [ ] **`rotate_pendant` / `glycan_pendant_rotate`** — bond-graph BFS pendant rotation;
-            needed to unblock the deferred Phase 1 **graft** pre-conditioning. `ring_resolve.py`
-            already has the numpy pendant machinery to reuse.
+      - [x] **`rotate_pendant` / `glycan_pendant_rotate` + the full graft port** (unblocked the
+            deferred Phase 1 graft). `write_graft_presegment` is now pure Python: parse the donor
+            fresh (`molecule/graft_geom.py` guesses bonds by distance, as VMD's `mol new` does),
+            pre-condition each glycosidic dihedral by rotating its pendant sub-branch (bond-graph
+            BFS), Kabsch-fit the index residues onto the base receiver stub, carry the mover
+            residues, relabel and write the segfile. Validated atom-for-atom vs VMD on example 15
+            (7xix + 4b7i/2wah/4byh glycan grafts): all three graft segfiles 0 identity mismatches
+            / 0.001 Å, final PSF (54559 atoms / 55327 bonds) identical, final PDB 0.002 Å.
+            **Note:** VMD's `rotate_pendant` was a latent no-op bug (`trans bond` given atom
+            *indices* errors, so it rotated nothing); the numpy port does the pre-conditioning
+            correctly. This only affects multi-point glycan grafts (which have `index_internal_links`)
+            -- none exist in shipping examples (all grafts are 1-point), so every shipping build is
+            unchanged. Unit tests added for the bond/pendant helpers.
       - [ ] **`SCrot_chi1/chi2`** — ringcheck side-chain trial rotations (distinct from the `brot`
             CHI path).
       - [ ] **`declash_loop` / `declash_pendant`** — greedy contact-count declash on the psfgen

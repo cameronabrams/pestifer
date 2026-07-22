@@ -3,6 +3,8 @@
 import logging
 import os
 
+import numpy as np
+
 from .vmd import VMDScripter
 
 from ..core.command import Command
@@ -463,7 +465,7 @@ class PsfgenScripter(VMDScripter):
         self.banner(f'Segment {image_seglabel} begins as image of {seglabel}')
         for g in seg_grafts:
             # g.write_pre_segment(W)
-            self.write_graft_presegment(g)
+            self.write_graft_presegment(g, segment)
         pdb = f'segtype_generic_{image_seglabel}.pdb'
         self.addfile(pdb)  # appends this file to the scripters FileCollector for later cleanup
         # Author the generic-segment coordinate pdb directly in Python.  Each atom already carries
@@ -494,145 +496,114 @@ class PsfgenScripter(VMDScripter):
         # No A.U. restore needed: the coordinate pdb was authored from copies of the AU atoms.
         self.banner(f'Segment {image_seglabel} ends')
 
-    def write_graft_presegment(self, G: Graft):
+    def write_graft_presegment(self, G: Graft, segment: Segment):
         """
-        Writes the Tcl commands to create a graft segment in the Psfgen script.
+        Author the aligned graft segment PDB in pure Python (no VMD).
+
+        The donor is parsed fresh from ``{source_pdbid}.pdb`` (original resids / file order,
+        matching VMD's ``mol new``); its glycosidic dihedrals are pre-conditioned to match the
+        target stub by rotating each pendant sub-branch (bond-graph BFS over distance-guessed
+        bonds -- :mod:`pestifer.molecule.graft_geom`); the index residues are least-squares fit
+        (Kabsch = ``measure fit``) onto the base receiver stub; and the non-index "mover" residues,
+        carried by that fit, are relabeled and written to ``G.segfile``.
 
         Parameters
         ----------
         G : Graft
-            The Graft object representing the graft segment to be created.
-            This method generates the Tcl commands to create a graft segment in the Psfgen script,
-            including the selection of atoms and writing the segment to a PDB file.
+            The Graft object; its ``segfile`` is set here.
+        segment : Segment
+            The generic segment being built (its parent molecule's asymmetric unit is the base).
         """
         from ..objs.graft import _linkage_dihedrals, _patchname_to_linkage_key
+        from ..molecule.graft_geom import guess_bonds, pendant_indices
+        from ..psfutil.loop_ccd import dihedral_deg
+        from ..util.coord import rotate_points_about_axis
 
-        self.comment(f'{str(G)}')
-        self.addline(f'set topid [molinfo ${self.molid_varname} get id]')
-        if os.path.exists(f'{G.source_pdbid}.pdb'):
-            self.addline(f'mol new {G.source_pdbid}.pdb')
-        else:
-            self.addline(f'mol new {G.source_pdbid}')
-        self.addline(f'set graftid [molinfo top get id]')
-        self.addline(f'mol top $topid')
-
-        tgt_chain = G.residues[0].asym_chainID
+        G.segfile = f'graft{G.obj_id}.pdb'
+        self.addfile(G.segfile)
         src_chain = G.source_chainID
-
-        # All source index resids and corresponding target resids (in alignment order)
         all_src_index_resids = [G.source_root] + list(G.source_partners)
-        # Use original shortcode resids (G.target_root / G.target_partners), not the
-        # post-narrow-convention values on G.residues.  The $m4 base molecule is the
-        # raw source PDB which has not been renumbered yet at the point graft alignment
-        # runs, so the selection must match original PDB chain/resid.
-        all_tgt_resids = [G.target_root] + list(G.target_partners)
+        idx_resseqs = {r.resseqnum for r in all_src_index_resids}
 
-        # --- Pre-conditioning: match source glycosidic dihedrals to target ---
-        # Iterate over consecutive pairs of index residues (innermost first)
-        # and rotate the outer side to match the target dihedral angles.
+        # Fresh donor load -- original resids and file order (as VMD's `mol new` would present).
+        donor = AtomList([a for a in AtomList.from_pdb(PDBParser(filepath=f'{G.source_pdbid}.pdb').parse().parsed)
+                          if a.chainID == src_chain])
+        coords = donor.coords
+        adj = guess_bonds(coords, [a.elem for a in donor.data])
+
+        def d_idx(resseq, name):
+            for k, a in enumerate(donor.data):
+                if a.resid.resseqnum == resseq and a.name == name:
+                    return k
+            return None
+
+        def t_xyz(res_obj, name):
+            got = res_obj.atoms.get(lambda a: a.name == name)
+            return np.array([got.x, got.y, got.z]) if isinstance(got, Atom) else None
+
+        # --- Pre-conditioning: rotate each source glycosidic dihedral to its target value ---
         if G.index_internal_links and len(G.index_internal_links) > 0:
-            self.comment('Pre-conditioning: match source glycosidic dihedrals to target stub')
-            for i, link in enumerate(G.index_internal_links.data):
-                patchname = link.patchname or ''
-                lk = _patchname_to_linkage_key.get(patchname)
+            for link in G.index_internal_links.data:
+                lk = _patchname_to_linkage_key.get(link.patchname or '')
                 if lk is None:
-                    logger.warning(f'Graft {G.obj_id}: no linkage key for patchname {patchname!r}, skipping pre-conditioning for link {i}')
+                    logger.warning(f'Graft {G.obj_id}: no linkage key for patch {link.patchname!r}; skipping')
                     continue
                 dihed_def = _linkage_dihedrals[lk]
-
-                # Determine acc (inner) and don (outer) in both source and target
                 patchhead = link.patchhead if link.patchhead is not None else 1
-                if patchhead == 1:
-                    src_acc_residue, src_don_residue = link.residue1, link.residue2
-                else:
-                    src_acc_residue, src_don_residue = link.residue2, link.residue1
-
-                src_acc_resid = src_acc_residue.resid.resid
-                src_don_resid = src_don_residue.resid.resid
-
-                # Find corresponding target resids: acc is at index i, don is at index i+1
-                # (assuming links are ordered innermost→outermost, matching all_src_index_resids order)
-                src_acc_idx = next((j for j, r in enumerate(all_src_index_resids) if r.resid == src_acc_residue.resid.resid), None)
-                if src_acc_idx is None or src_acc_idx + 1 >= len(all_tgt_resids):
-                    logger.warning(f'Graft {G.obj_id}: cannot map link {i} to target resids, skipping pre-conditioning')
+                acc_res, don_res = (link.residue1, link.residue2) if patchhead == 1 else (link.residue2, link.residue1)
+                acc_resseq, don_resseq = acc_res.resid.resseqnum, don_res.resid.resseqnum
+                src_acc_idx = next((j for j, r in enumerate(all_src_index_resids) if r.resseqnum == acc_resseq), None)
+                if src_acc_idx is None or src_acc_idx + 1 >= len(G.residues):
+                    logger.warning(f'Graft {G.obj_id}: cannot map link to target residues; skipping')
                     continue
-                tgt_acc_resid = all_tgt_resids[src_acc_idx].resid
-                tgt_don_resid = all_tgt_resids[src_acc_idx + 1].resid
-
-                self.comment(f'Link {i}: {patchname} ({lk}), src acc={src_acc_resid} don={src_don_resid}, tgt acc={tgt_acc_resid} don={tgt_don_resid}')
-
-                role_to_src = {'acc': src_acc_resid, 'don': src_don_resid}
-                role_to_tgt = {'acc': tgt_acc_resid, 'don': tgt_don_resid}
-
-                for angle_name in ['phi', 'psi', 'omega']:
+                # G.residues[k] is the base receiver residue paired with source index residue k
+                role_tgt = {'acc': G.residues[src_acc_idx], 'don': G.residues[src_acc_idx + 1]}
+                role_src = {'acc': acc_resseq, 'don': don_resseq}
+                for angle_name in ('phi', 'psi', 'omega'):
                     if angle_name not in dihed_def:
                         continue
                     adef = dihed_def[angle_name]
-                    atoms = adef['dihed']   # list of (role, atomname)
-                    bond  = adef['bond']    # [(role_i, atm_i), (role_j, atm_j)]
+                    tgt_pts = [t_xyz(role_tgt[role], atm) for role, atm in adef['dihed']]
+                    src_ix = [d_idx(role_src[role], atm) for role, atm in adef['dihed']]
+                    if any(p is None for p in tgt_pts) or any(k is None for k in src_ix):
+                        continue
+                    delta = dihedral_deg(*tgt_pts) - dihedral_deg(*(coords[k] for k in src_ix))
+                    (bi_role, bi_atm), (bj_role, bj_atm) = adef['bond']
+                    ii, jj = d_idx(role_src[bi_role], bi_atm), d_idx(role_src[bj_role], bj_atm)
+                    if ii is None or jj is None:
+                        continue
+                    pend = pendant_indices(adj, ii, jj)
+                    if not pend:
+                        logger.warning(f'Graft {G.obj_id}: empty pendant for {angle_name}; skipping rotation')
+                        continue
+                    mask = np.zeros(len(donor), dtype=bool)
+                    mask[list(pend)] = True
+                    coords[mask] = rotate_points_about_axis(coords[mask], coords[ii], coords[jj] - coords[ii], delta)
+            donor.coords = coords
 
-                    # Measure target dihedral
-                    tgt_idx_vars = []
-                    for k, (role, atm) in enumerate(atoms):
-                        vname = f'tgt_{angle_name}{i}_{k}'
-                        tgt_resid = role_to_tgt[role]
-                        self.addline(f'set {vname} [[atomselect $topid "chain {tgt_chain} and resid {tgt_resid} and name {atm}"] get index]')
-                        tgt_idx_vars.append(f'${vname}')
-                    self.addline(f'set tgt_{angle_name}{i} [measure dihed [list {" ".join(tgt_idx_vars)}]]')
+        # --- Alignment: Kabsch-fit the index-residue heavy atoms onto the base receiver stub ---
+        src_fit = np.array([coords[k] for k, a in enumerate(donor.data)
+                            if a.resid.resseqnum in idx_resseqs and a.elem != 'H'])
+        tgt_fit = np.array([[a.x, a.y, a.z] for res in G.residues for a in res.atoms if a.elem != 'H'])
+        if len(src_fit) != len(tgt_fit):
+            logger.warning(f'Graft {G.obj_id}: source-fit {len(src_fit)} vs target-fit {len(tgt_fit)} atoms differ')
+        transform, _ = Transform.superpose(src_fit, tgt_fit)
 
-                    # Measure source dihedral (current, possibly post-prior-rotation)
-                    src_idx_vars = []
-                    for k, (role, atm) in enumerate(atoms):
-                        vname = f'src_{angle_name}{i}_{k}'
-                        src_resid = role_to_src[role]
-                        self.addline(f'set {vname} [[atomselect $graftid "chain {src_chain} and resid {src_resid} and name {atm}"] get index]')
-                        src_idx_vars.append(f'${vname}')
-                    self.addline(f'set src_{angle_name}{i} [measure dihed [list {" ".join(src_idx_vars)}]]')
-
-                    self.addline(f'set d{angle_name}{i} [expr ${{tgt_{angle_name}{i}}} - ${{src_{angle_name}{i}}}]')
-                    self.addline(f'vmdcon -info "Graft {G.obj_id} link {i} {angle_name}: tgt=${{tgt_{angle_name}{i}}} src=${{src_{angle_name}{i}}} delta=${{d{angle_name}{i}}}"')
-
-                    # Apply rotation: bond[0]=(role_i,atm_i), bond[1]=(role_j,atm_j)
-                    bi_role, bi_atm = bond[0]
-                    bj_role, bj_atm = bond[1]
-                    bi_resid = role_to_src[bi_role]
-                    bj_resid = role_to_src[bj_role]
-                    self.addline(f'glycan_pendant_rotate $graftid {src_chain} {bi_resid} {bj_resid} {bi_atm} {bj_atm} ${{d{angle_name}{i}}}')
-
-        # --- Alignment selections ---
-        alignment_target_resid_logic = '(' + ' or '.join(f'resid {r.resid}' for r in all_tgt_resids) + ') and noh'
-        alignment_source_resid_logic = '(' + ' or '.join(f'resid {r.resid}' for r in all_src_index_resids) + ') and noh'
-
-        self.addline(f'set target_sel [atomselect $topid "chain {tgt_chain} and {alignment_target_resid_logic}"]')
-        self.addline(f'set source_sel [atomselect $graftid "chain {src_chain} and {alignment_source_resid_logic}"]')
-        self.addline(f'vmdcon -info "[$source_sel num] atoms in source, [$target_sel num] atoms in target"')
-
-        # Mover selection: all source residues that are NOT index residues
-        all_src_index_resid_nums = [r.resid for r in all_src_index_resids]
-        excl_logic = ' or '.join(f'resid {r}' for r in all_src_index_resid_nums)
-        movers_source_resid_logic = f'(not ({excl_logic})'
-        if G.source_end is not None:
-            movers_source_resid_logic += f' and resid <= {G.source_end.resid}'
-        movers_source_resid_logic += ')'
-
-        self.addline(f'set mover_sel [atomselect $graftid "chain {src_chain} and {movers_source_resid_logic}"]')
-        self.addline(f'vmdcon -info "[$mover_sel num] atoms will be moved"')
-
-        # Compute and apply the N-point alignment transformation
-        self.addline(f'set TT [measure fit $source_sel $target_sel]')
-        self.addline(f'vmdcon -info "Homog. trans. matrix: $TT"')
-        self.addline(f'$mover_sel move $TT')
-
-        G.segfile = f'graft{G.obj_id}.pdb'
-        new_residlist = []
-        for y in G.donor_residues:
-            new_residlist.extend([f'{y.resid.resid}' for x in y.atoms])
-        self.addline(f'$mover_sel set resid [list {" ".join(new_residlist)}]')
-        self.addline(f'$mover_sel set chain {G.residues[0].chainID}')
-        self.addline(f'$mover_sel set segname {G.graft_segname}')
-        self.addline(f'$mover_sel writepdb {G.segfile}')
-        self.addfile(G.segfile)
-        self.addline(f'$mover_sel delete')
+        # --- Movers: non-index residues (capped by source_end), transformed and relabeled ---
+        src_end = G.source_end.resseqnum if G.source_end is not None else None
+        movers = AtomList([a for a in donor.data if a.resid.resseqnum not in idx_resseqs
+                           and (src_end is None or a.resid.resseqnum <= src_end)])
+        transform.apply(movers)
+        new_resids = [y.resid for y in G.donor_residues for _ in y.atoms]
+        if len(new_resids) == len(movers):
+            for a, rid in zip(movers.data, new_resids):
+                a.resid = rid.copy(deep=True)
+        else:
+            logger.warning(f'Graft {G.obj_id}: mover count {len(movers)} != donor-residue atom count {len(new_resids)}; resids left as-is')
+        for a in movers.data:
+            a.chainID = G.residues[0].chainID
+            a.segname = G.graft_segname
+        movers.write_pdb(G.segfile, dialect='standard')
 
     def write_cfusion_presegment(self, C: Cfusion, newstart: int, segment: Segment):
         """
