@@ -66,7 +66,8 @@ class TerminateTask(MDTask):
         This method retrieves the base molecule from the state variables, gets the chain maps, and writes them to a specified YAML file.
         The chain maps are used to map chains in the molecular structure, which is useful for understanding the topology of the system.
         """
-        bm: Molecule = self.get_current_artifact_data('base_molecule')
+        # build the molecule on demand if an upstream continuation/merge only provided files
+        bm: Molecule = self.ensure_base_molecule()
         if bm:
             maps = bm.get_chainmaps()
             with open(self.specs['chainmapfile'], 'w') as f:

@@ -254,6 +254,41 @@ class BaseTask(ABC):
         """
         return self.pipeline.get_current_artifact(key, **kwargs)
 
+    def ensure_base_molecule(self):
+        """
+        Return the pipeline's in-memory ``base_molecule``, building it lazily on first request.
+
+        Tasks that begin from a ready-made fileset rather than a fresh build -- ``continuation``
+        (and ``merge``) -- register only the STATE fileset (psf/pdb/coor/xsc/vel) and deliberately
+        defer the potentially expensive full :class:`~pestifer.molecule.molecule.Molecule` ingest,
+        since MD-family tasks never need the in-memory molecule.  A consumer that genuinely does
+        (e.g. ``terminate``'s optional chain-map output) calls this: if no task has produced a
+        molecule, it is parsed from the current prebuilt STATE and registered so later consumers
+        reuse it.
+
+        Returns
+        -------
+        Molecule or None
+            The base molecule, or ``None`` if neither a registered molecule nor a prebuilt
+            psf/pdb STATE is available.
+        """
+        bm = self.get_current_artifact_data('base_molecule')
+        if bm is not None:
+            return bm
+        state = self.get_current_artifact('state')
+        psf = getattr(state, 'psf', None) if state else None
+        pdb = getattr(state, 'pdb', None) if state else None
+        if not (psf and pdb):
+            return None
+        from ..molecule.molecule import Molecule
+        xsc = getattr(state, 'xsc', None)
+        source = {'prebuilt': {'psf': psf.name, 'pdb': pdb.name,
+                               'xsc': xsc.name if xsc else None}}
+        logger.debug(f'Lazily ingesting base_molecule from prebuilt state {source["prebuilt"]}')
+        bm = Molecule(source=source).activate_biological_assembly(0)
+        self.register(bm, key='base_molecule')
+        return bm
+
     def get_my_artifactfile_collection(self) -> FileArtifactList:
         """
         Get a collection of artifact files produced by the current task.

@@ -56,8 +56,44 @@ class TestContinuationTask(unittest.TestCase):
         state: StateArtifacts = task.get_current_artifact('state')
         psf = state.psf.name
         self.assertEqual(psf, 'my_6pti.psf')
-        base_molecule: Molecule = task.get_current_artifact_data('base_molecule')
-        self.assertIsInstance(base_molecule, Molecule)
+        # continuation registers the STATE fileset only; the full Molecule ingest is deferred
+        # (MD-family tasks never need it), so no base_molecule is produced here.
+        base_molecule = task.get_current_artifact_data('base_molecule')
+        self.assertIsNone(base_molecule)
+
+    def test_continuation_hex_serials_no_choke(self):
+        # A ready-to-run system large enough to carry hexadecimal PDB atom serials must not make
+        # the continuation task choke: because continuation no longer ingests a full Molecule,
+        # the hex-serial PDB is never parsed on this path.  Build a hex-serial variant of the
+        # fixture and confirm the task completes cleanly with no molecule ingested.
+        hex_pdb = Path('my_6pti_hex.pdb')
+        has_hex = False
+        with open('my_6pti.pdb') as src, open(hex_pdb, 'w') as dst:
+            n = 0
+            for line in src:
+                if line.startswith(('ATOM', 'HETATM')):
+                    n += 1
+                    s = n + 90000                     # push serials across the 99999 -> hex line
+                    enc = format(s, 'X') if s > 99999 else str(s)
+                    if any(ch in 'ABCDEF' for ch in enc):
+                        has_hex = True
+                    line = f'{line[:6]}{enc:>5}{line[11:]}'
+                dst.write(line)
+        self.assertTrue(has_hex, 'test setup failed to produce hexadecimal serials')
+        task_list = [{'continuation': dict(pdb=str(hex_pdb), psf='my_6pti.psf',
+                                            coor='my_6pti.coor', xsc='my_6pti.xsc', vel='my_6pti.vel')}]
+        self.controller.reconfigure_tasks(task_list)
+        self.controller.do_tasks()
+        task = self.controller.tasks[0]
+        self.assertEqual(task.result, 0)
+        self.assertIsNone(task.get_current_artifact_data('base_molecule'))
+        # And when the molecule IS genuinely needed later (the lazy path), parsing the hex-serial
+        # PDB must succeed rather than choke -- this is what would happen for a hex system that
+        # also requests, e.g., a terminate chainmap.
+        bm = task.ensure_base_molecule()
+        self.assertIsInstance(bm, Molecule)
+        self.assertGreater(bm.num_atoms(), 0)
+        hex_pdb.unlink()
 
     def test_termination_task(self):
         task_list = [

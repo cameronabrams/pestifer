@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
-Definition of the :class:`ContinuationTask` class for beginning (or resuming) a build from an existing, pre-built system: named ``psf``, ``pdb``, and optional ``xsc``, ``coor``, and ``vel`` files.  It copies the inputs into the working directory, resolves the topology stream files recorded in the PSF, rebuilds the in-memory molecule, and registers the resulting ``state``.
+Definition of the :class:`ContinuationTask` class for beginning (or resuming) a build from an existing, pre-built system: named ``psf``, ``pdb``, and optional ``xsc``, ``coor``, and ``vel`` files.  It copies the inputs into the working directory, resolves the topology stream files recorded in the PSF, and registers the resulting ``state``.  It does **not** ingest a full in-memory :class:`~pestifer.molecule.molecule.Molecule` -- MD-family tasks run entirely off the state fileset, so that (potentially expensive) parse is deferred; a later task that genuinely needs the molecule builds it lazily via :meth:`~pestifer.tasks.basetask.BaseTask.ensure_base_molecule`.
 
 Usage is described in the :ref:`config_ref tasks continuation` documentation.
 """
@@ -106,8 +106,13 @@ class ContinuationTask(PsfgenTask):
                         pdb=PDBFileArtifact(pdb),
                         coor=NAMDCoorFileArtifact(coor),
                         xsc=NAMDXscFileArtifact(xsc) if xsc else None,
-                        vel=NAMDVelFileArtifact(vel) if vel else None), 
+                        vel=NAMDVelFileArtifact(vel) if vel else None),
                         key='state', artifact_type=StateArtifacts)
-        self.update_molecule()
+        # A continuation provides the STATE fileset only (see pipeline_contract) -- MD-family
+        # tasks run entirely off psf/pdb/coor/xsc/vel and never touch the in-memory molecule.
+        # We therefore do NOT ingest a full pestifer Molecule here: it is pure overhead for the
+        # common ready-to-run-MD case and would needlessly parse a large system (e.g. one whose
+        # PDB carries hexadecimal atom serials).  Any later task that genuinely needs the molecule
+        # builds it on demand via BaseTask.ensure_base_molecule().
         self.result = 0
         return self.result
