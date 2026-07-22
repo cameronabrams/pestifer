@@ -122,7 +122,8 @@ Small, pure-Python, tool-free (good for the CI core). They unblock Groups A and 
       primitives (`apply_tmat`/`Transform.apply`, `kabsch`/`Transform.superpose`,
       `AtomList.coords`) with VMD parity checks, plus the pidibble-backed CHARMM PDB writer
       (`AtomList.write_pdb`). Bumped the pidibble pin to ≥1.8.0.
-- [~] **Phase 1 — Group A** (coords already in Python). *In progress.*
+- [~] **Phase 1 — Group A** (coords already in Python). *Cfusion + BIOMT done; graft deferred to
+      Phase 3 (entangled with `glycan_pendant_rotate` torsion pre-conditioning).*
       - [x] **Cfusion orientation** — `write_cfusion_presegment` is now pure Python: parse the
             donor via `AtomList.from_pdb`, select the fusion domain in serial/sequence order
             (so an in-chain CRO chromophore stays put — `from_pdb` otherwise tails all HETATM),
@@ -132,11 +133,18 @@ Small, pure-Python, tool-free (good for the CI core). They unblock Groups A and 
             CHARMM dialect). Validated atom-for-atom vs VMD on example 27: segfile 1771 atoms, 0
             identity mismatches, 0.001 Å max coord diff; full build PSF 4982 atoms/5033 bonds
             identical. Unit + `needs_tools` integration tests added.
-      - [ ] **BIOMT / assembly image generation** — next: apply the tmat in Python and author
-            already-transformed subsegment PDBs (delete `$sel move` + backup/restore) in the
-            polymer/generic stanzas. Core build path — regress against VMD across PDB, CIF,
-            reserialized, with-loops, and glycan cases. Respect: source-vs-shifted resid
-            (`ORIGINAL_ATTRIBUTES['resid']`), mmCIF chain/resid fixup, serial-sorted atom order.
+      - [x] **BIOMT / assembly image generation** — `_author_subsegment_pdb` authors every
+            resolved polymer subsegment and every generic (glycan/ion/water) segment directly
+            from *copies* of the AU atoms: relabel segname/chain, apply the image `tmat` via
+            `Transform.apply`, write standard-dialect PDB in serial order. Deleted the
+            `atomselect ... [set chain] set resid [list ...] move {tmat} writepdb` path and both
+            backup/restore brackets (copying the AU makes restore unnecessary). The atoms already
+            carry the resid the segment expects, so no positional `set resid` is needed. Validated
+            atom-for-atom vs VMD on 4zmj assembly 1 (3-fold: identity + 2 images, protein +
+            glycan) from **both PDB and mmCIF**: 69 intermediate PDBs / 14568 atoms, 0 identity
+            mismatches, 0.001 Å max diff; final PSF (30747 atoms/31134 bonds/56313 angles) and PDB
+            identical. Added a `needs_tools` image-invariant test; the glycan-bond integration
+            test still passes.
       - [ ] **Graft alignment** — deferred to Phase 3: the presegment's `measure fit` is a clean
             `Transform.superpose` swap, but it is preceded by `glycan_pendant_rotate` dihedral
             pre-conditioning (Group C), so it can't shed VMD until the torsion port lands.

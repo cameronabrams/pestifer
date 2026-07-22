@@ -33,7 +33,6 @@ from ..util.coord import standardize_pdb_columns, orient_peptide_fusion
 from ..util.psf import dedupe_psf_topology
 from ..util.progress import PsfgenProgress
 from ..util.stringthings import my_logger
-from ..util.util import reduce_intlist
 
 logger = logging.getLogger(__name__)
 
@@ -225,6 +224,43 @@ class PsfgenScripter(VMDScripter):
         else:
             self.write_generic_stanza(segment, transform)
 
+    def _author_subsegment_pdb(self, source_atoms, pdb, image_seglabel, chainID, transform, is_image):
+        """
+        Author a subsegment coordinate PDB directly from asymmetric-unit atoms -- the numpy
+        replacement for the VMD ``atomselect ... [set chain] [move {tmat}] writepdb`` path.
+
+        The AU atoms are *copied* (they are reused across every biological-assembly image), then
+        relabeled with the image segname/chain, transformed by the image ``tmat`` when this is an
+        image copy, and written in ascending-serial order with standard PDB columns (matching what
+        psfgen's ``pdb``/``coordpdb`` read, and VMD's atomselect write order).  Copying the atoms
+        is what makes the former backup/restore bracketing of the shared AU unnecessary.
+
+        Parameters
+        ----------
+        source_atoms : iterable of Atom
+            The asymmetric-unit atoms of this subsegment (their coords/resids are the source of
+            truth; each atom already carries the resid the segment expects).
+        pdb : str
+            Destination path.
+        image_seglabel : str
+            segname to stamp on every atom.
+        chainID : str or None
+            chainID to stamp on every atom; ``None`` leaves each atom's own chain unchanged.
+        transform : Transform
+            The image transform; its ``tmat`` is applied only when ``is_image`` is True.
+        is_image : bool
+            True for a non-identity assembly image (apply the transform); False for the AU copy.
+        """
+        sub = AtomList([a.copy() for a in source_atoms])
+        sub.sort(by=['serial'])
+        for a in sub:
+            a.segname = image_seglabel
+            if chainID is not None:
+                a.chainID = chainID
+        if is_image:
+            transform.apply(sub)
+        sub.write_pdb(pdb, dialect='standard')
+
     def write_polymer_stanza(self, segment: Segment, transform: Transform = None):
         """
         Write a polymer segment stanza to the psfgen script.
@@ -273,33 +309,17 @@ class PsfgenScripter(VMDScripter):
             cfusion_next_resid += sf.resid2.resid - sf.resid1.resid + 1
         for i, b in enumerate(segment.subsegments.data):
             if b.state == 'RESOLVED':
-                """ for a resolved subsegment, generate its pdb file """
-                b.selname = f'{image_seglabel}{i:02d}'
+                """ for a resolved subsegment, author its coordinate pdb directly in Python """
                 run = ResidueList(segment.residues[b.bounds[0]:b.bounds[1] + 1])
                 b.pdb = f'segtype_polymer_{image_seglabel}_{run.data[0].resid.resid}_to_{run.data[-1].resid.resid}.pdb'
                 logger.debug(f'Writing resolved subsegment {repr(b)} to {b.pdb}')
                 self.addfile(b.pdb)
-                serial_list = run.atom_serials(as_type=int)
-                logger.debug(f'Last atom has serial {serial_list[-1]} ({run.data[-1].resname}{run.data[-1].resid.resid}):')
-                at: Atom = segment.parent_molecule.asymmetric_unit.atoms.get(lambda x: x.serial == serial_list[-1])
-                if hasattr(at, '__len__'):
-                    for a in at:
-                        logger.debug(f'whoops: {a.chainID} {a.resid.resid} {a.name} is {a.serial}')
-                    raise Exception(f'More than one atom with serial {serial_list[-1]}??')
-                logger.debug(f'    {at.serial} {at.resname} {at.name} in chain {at.chainID} residue {at.resname}{at.resid.resid}')
-                assert at.resid == run.data[-1].resid
-                vmd_red_list = reduce_intlist(serial_list)
-                self.addline(f'set {b.selname} [atomselect $m{segment.parent_molecule.molid} "serial {vmd_red_list}"]')
-                self.addline(f'${b.selname} set segname {image_seglabel}')
-                if len(at.ORIGINAL_ATTRIBUTES) > 0:
-                    if at.ORIGINAL_ATTRIBUTES["serial"] != at.serial:
-                        self.banner(f'Atom with serial {at.ORIGINAL_ATTRIBUTES["serial"]} in PDB needs serial {at.serial} for VMD')
-                """ Relabel chain ID and request coordinate transformation """
-                if is_image:
-                    self.backup_selection(b.selname, dataholder=f'{b.selname}_data')
-                    self.addline(f'${b.selname} set chain {image_seglabel}')                 
-                    self.addline(f'${b.selname} move {transform.write_TcL()}')
-                self.addline(f'${b.selname} writepdb {b.pdb}')
+                # The AU atoms already carry the resid/name/coords VMD's writepdb would emit; an
+                # image copy gets the image chain label and the assembly transform, the AU copy
+                # keeps its own chain and coordinates.
+                run_atoms = [a for r in run.data for a in r.atoms]
+                self._author_subsegment_pdb(run_atoms, b.pdb, image_seglabel,
+                                            image_seglabel if is_image else None, transform, is_image)
             elif b.state == 'MISSING':
                 if i == 0:
                     if build_N_terminal_loop or build_all_terminal_loops:
@@ -381,11 +401,8 @@ class PsfgenScripter(VMDScripter):
                     self.addline(f'patch {patchname} {image_seglabel}:{Nterm.resid.resid}')
                     logger.debug(f'deleting sacrificial residue {str(b.sacres)}')
                     self.addline(f'delatom {image_seglabel} {b.sacres.resid.resid}')
-        self.banner('Restoring A.U. state for all resolved subsegments')
-        for b in segment.subsegments.data:
-            if b.state == 'RESOLVED':
-                if is_image:
-                    self.restore_selection(b.selname, dataholder=f'{b.selname}_data')
+        # No A.U. restore needed: the subsegment PDBs were authored from copies of the AU atoms,
+        # so the asymmetric unit was never mutated.
         self.banner(f'Segment {image_seglabel} ends')
 
     def write_glycan_stanza(self, segment: Segment, transform: Transform = None):
@@ -447,34 +464,23 @@ class PsfgenScripter(VMDScripter):
         for g in seg_grafts:
             # g.write_pre_segment(W)
             self.write_graft_presegment(g)
-        serial_list = segment.residues.atom_serials(as_type=int)
-        resid_list = segment.residues.atom_resids(as_type=ResID)
-        # VMD's `atomselect "serial ..."` returns atoms in ascending serial (index) order
-        # regardless of the order the serials are listed, and `$sel set resid [list ...]`
-        # applies the list positionally in that same ascending-serial order.  For glycan
-        # segments the residues are stored in BFS (root-outward) order, not serial order,
-        # so an unsorted resid_list would be applied to the wrong atoms -- scrambling the
-        # coordinate resids relative to the BFS resids that the LINK patches reference, and
-        # thereby wiring intra-glycan bonds to the wrong residues.  Pair each atom's serial
-        # with its resid and sort by serial so the two stay aligned with VMD's atom order.
-        paired = sorted(zip(serial_list, resid_list), key=lambda sr: sr[0])
-        serial_list = [s for s, _ in paired]
-        resid_list = [r for _, r in paired]
-        vmd_red_list = reduce_intlist(serial_list)
         pdb = f'segtype_generic_{image_seglabel}.pdb'
-        selname = image_seglabel
         self.addfile(pdb)  # appends this file to the scripters FileCollector for later cleanup
-        self.addline(f'set {selname} [atomselect $m{segment.parent_molecule.molid} "serial {vmd_red_list}"]')
-        self.addline(f'${selname} set segname {image_seglabel}')
+        # Author the generic-segment coordinate pdb directly in Python.  Each atom already carries
+        # the (possibly BFS-renumbered) resid the segment expects -- the former `$sel set resid
+        # [list ...]` only existed to push those resids into VMD's copy, which held the source
+        # resids -- so gathering the atoms and writing them (the helper sorts by serial, VMD's
+        # atomselect order) reproduces the same coordinate PDB.  This keeps the glycan resid/serial
+        # alignment intact because the resid travels with its own atom rather than being applied
+        # positionally.
         if is_image:
-            self.backup_selection(selname, dataholder=f'{selname}_data')
-            image_chainID = chainIDmap.get(segment.chainID, segment.chainID)
-            self.addline(f'${selname} set chain {image_chainID}')
-            self.addline(f'${selname} move {transform.write_TcL()}')
+            seg_chainID = chainIDmap.get(segment.chainID, segment.chainID)
         elif segment.chainID != image_seglabel:
-            self.addline(f'${selname} set chain {segment.chainID}')
-        self.addline(f'${selname} set resid [list {" ".join([str(x) for x in resid_list])}]')
-        self.addline(f'${selname} writepdb {pdb}')
+            seg_chainID = segment.chainID
+        else:
+            seg_chainID = None
+        seg_atoms = [a for r in segment.residues.data for a in r.atoms]
+        self._author_subsegment_pdb(seg_atoms, pdb, image_seglabel, seg_chainID, transform, is_image)
         self.addline(f'segment {image_seglabel} '+'{')
         self.addline(f'first none', indents=1)
         self.addline(f'last none', indents=1)
@@ -485,9 +491,7 @@ class PsfgenScripter(VMDScripter):
         self.addline(f'coordpdb {pdb} {image_seglabel}')
         for g in seg_grafts.data:
             self.addline(f'coordpdb {g.segfile} {image_seglabel}')
-        if is_image:
-            self.banner(f'Restoring A.U. state for {seglabel}')
-            self.restore_selection(selname, dataholder=f'{selname}_data')
+        # No A.U. restore needed: the coordinate pdb was authored from copies of the AU atoms.
         self.banner(f'Segment {image_seglabel} ends')
 
     def write_graft_presegment(self, G: Graft):
