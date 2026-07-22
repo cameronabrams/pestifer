@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.10.1] - 2026-07-22
+
 - fix: **a `continuation` build no longer chokes on a large system whose PDB carries hexadecimal atom serials.** A `continuation` task begins from a ready-made system (`psf`/`pdb`/`coor`/`xsc`/`vel`) so the user can just run MD, but it was eagerly parsing the PDB into a full in-memory `Molecule` — needless work for the MD path, and a hard failure for >99,999-atom systems whose PDB uses hexadecimal serials. MD-family tasks (`md`/`solvate`/`mdplot`/`merge`/`terminate` packaging) run entirely off the state fileset and never touch that molecule — the task's own pipeline contract already declared it provides files, not a molecule — so the eager ingest is dropped. Any later task that genuinely needs the molecule (only `terminate`'s optional chain map) now builds it on demand via the new `BaseTask.ensure_base_molecule`. Continuation-then-MD workflows no longer parse the system at all; when the molecule is needed, pidibble decodes the hex serials.
 
 ## [3.10.0] - 2026-07-22
