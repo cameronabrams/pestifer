@@ -122,11 +122,24 @@ Small, pure-Python, tool-free (good for the CI core). They unblock Groups A and 
       primitives (`apply_tmat`/`Transform.apply`, `kabsch`/`Transform.superpose`,
       `AtomList.coords`) with VMD parity checks, plus the pidibble-backed CHARMM PDB writer
       (`AtomList.write_pdb`). Bumped the pidibble pin to ≥1.8.0.
-- [ ] **Phase 1 — Group A** (coords already in Python). Apply BIOMT in Python and write
-      already-transformed subsegment PDBs (delete `$sel move` + backup/restore); redo Cfusion
-      orientation and graft alignment in Python (read the donor via `from_pdb`,
-      superpose/apply, write the segfile). Regression-test each against current VMD output
-      atom-for-atom (VMD is available).
+- [~] **Phase 1 — Group A** (coords already in Python). *In progress.*
+      - [x] **Cfusion orientation** — `write_cfusion_presegment` is now pure Python: parse the
+            donor via `AtomList.from_pdb`, select the fusion domain in serial/sequence order
+            (so an in-chain CRO chromophore stays put — `from_pdb` otherwise tails all HETATM),
+            renumber, orient with `util/coord.orient_peptide_fusion` (numpy port of the
+            translate+Rodrigues-rotate), and write the segfile with `write_pdb(dialect='standard')`
+            (standard columns match psfgen's reader; the donor's ≤4-char resnames don't need the
+            CHARMM dialect). Validated atom-for-atom vs VMD on example 27: segfile 1771 atoms, 0
+            identity mismatches, 0.001 Å max coord diff; full build PSF 4982 atoms/5033 bonds
+            identical. Unit + `needs_tools` integration tests added.
+      - [ ] **BIOMT / assembly image generation** — next: apply the tmat in Python and author
+            already-transformed subsegment PDBs (delete `$sel move` + backup/restore) in the
+            polymer/generic stanzas. Core build path — regress against VMD across PDB, CIF,
+            reserialized, with-loops, and glycan cases. Respect: source-vs-shifted resid
+            (`ORIGINAL_ATTRIBUTES['resid']`), mmCIF chain/resid fixup, serial-sorted atom order.
+      - [ ] **Graft alignment** — deferred to Phase 3: the presegment's `measure fit` is a clean
+            `Transform.superpose` swap, but it is preceded by `glycan_pendant_rotate` dihedral
+            pre-conditioning (Group C), so it can't shed VMD until the torsion port lands.
 - [ ] **Phase 2 — Group B** (`vmd.py` post-psfgen ops). Turn `RotTrans`/`Orient`/`Align`/
       `TransferCoords` into Python that loads the current psf/pdb into an `AtomList`,
       transforms (rigid move / Kabsch / `overwrite_positions`), and writes back. Removes

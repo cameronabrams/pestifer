@@ -10,7 +10,71 @@ from pestifer.util.coord import (
     apply_tmat,
     kabsch,
     build_tmat,
+    orient_peptide_fusion,
 )
+
+
+def _unit(v):
+    v = np.asarray(v, float)
+    return v / np.linalg.norm(v)
+
+
+class TestOrientPeptideFusion(unittest.TestCase):
+    def _case(self, seed=0):
+        rng = np.random.default_rng(seed)
+        base_C = rng.normal(size=3)
+        base_CA = base_C + _unit(rng.normal(size=3)) * 1.5
+        base_O = base_C + _unit(rng.normal(size=3)) * 1.23
+        donor_N = rng.normal(size=3) + 25
+        donor_CA = donor_N + _unit(rng.normal(size=3)) * 1.47
+        donor = np.vstack([donor_N, donor_CA, donor_N + rng.normal(size=(5, 3))])
+        return base_C, base_CA, base_O, donor_N, donor_CA, donor
+
+    def test_N_lands_at_ideal_amide_site(self):
+        bC, bCA, bO, dN, dCA, donor = self._case(1)
+        out = orient_peptide_fusion(donor, dN, dCA, bC, bCA, bO)
+        # donor N (row 0) is 1.33 A from the base carbonyl C
+        self.assertAlmostEqual(np.linalg.norm(out[0] - bC), 1.33, places=6)
+
+    def test_first_NCA_aligns_with_CN_bond(self):
+        bC, bCA, bO, dN, dCA, donor = self._case(2)
+        out = orient_peptide_fusion(donor, dN, dCA, bC, bCA, bO)
+        n_ca = _unit(out[1] - out[0])
+        c_n = _unit(out[0] - bC)
+        self.assertTrue(np.allclose(n_ca, c_n, atol=1e-9))
+
+    def test_matches_tcl_reference_math(self):
+        bC, bCA, bO, dN, dCA, donor = self._case(3)
+        # independent reimplementation of the VMD/Tcl vecmath
+        dirN = _unit(-1.0 * (_unit(bCA - bC) + _unit(bO - bC)))
+        Nideal = bC + 1.33 * dirN
+        moved = donor + (Nideal - dN)
+        u = _unit((dCA + (Nideal - dN)) - Nideal)
+        v = _unit(Nideal - bC)
+        axis = np.cross(u, v)
+        c = np.clip(np.dot(u, v), -1, 1)
+        ref = rotate_points_about_axis(moved, Nideal, axis, np.degrees(np.arccos(c)))
+        out = orient_peptide_fusion(donor, dN, dCA, bC, bCA, bO)
+        self.assertTrue(np.allclose(out, ref, atol=1e-12))
+
+    def test_input_not_mutated(self):
+        bC, bCA, bO, dN, dCA, donor = self._case(4)
+        orig = donor.copy()
+        orient_peptide_fusion(donor, dN, dCA, bC, bCA, bO)
+        self.assertTrue(np.array_equal(donor, orig))
+
+    def test_collinear_NCA_and_CN_is_translation_only(self):
+        # donor N->CA already parallel to the C->N bond: axis ~ 0, no rotation
+        bC = np.zeros(3)
+        bCA = np.array([1.5, 0.0, 0.0])
+        bO = np.array([-0.5, 1.1, 0.0])
+        dirN = _unit(-1.0 * (_unit(bCA - bC) + _unit(bO - bC)))
+        Nideal = bC + 1.33 * dirN
+        dN = np.array([10.0, 10.0, 10.0])
+        dCA = dN + _unit(Nideal - bC) * 1.47      # N->CA parallel to C->N
+        donor = np.vstack([dN, dCA])
+        out = orient_peptide_fusion(donor, dN, dCA, bC, bCA, bO)
+        self.assertTrue(np.allclose(out, donor + (Nideal - dN), atol=1e-9))
 
 
 class TestApplyTmat(unittest.TestCase):

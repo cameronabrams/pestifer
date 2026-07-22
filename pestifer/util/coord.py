@@ -125,6 +125,56 @@ def kabsch(mobile: np.ndarray, ref: np.ndarray) -> tuple[np.ndarray, np.ndarray,
     return R, t, rmsd
 
 
+def orient_peptide_fusion(donor_coords, donor_N, donor_CA, base_C, base_CA, base_O,
+                          bond_length=1.33):
+    """
+    Rigid-body orient a donor domain so its first-residue amide N forms an ideal peptide bond
+    with a base chain's C-terminal carbonyl.
+
+    This is the numpy port of the Cfusion presegment orientation (formerly VMD/Tcl): place the
+    donor's N at the sp2-planar amide site ``bond_length`` off the base carbonyl C (bisecting away
+    from the base CA and O), then rotate the whole donor about that N so its first N->CA points
+    along the new C-N bond -- an extended, non-backfolded junction that relaxes in minimization.
+
+    Parameters
+    ----------
+    donor_coords : numpy.ndarray
+        ``(N, 3)`` coordinates of every donor atom to be moved.
+    donor_N, donor_CA : array-like
+        Coordinates of the donor's first-fused-residue N and CA (pre-move).
+    base_C, base_CA, base_O : array-like
+        Coordinates of the base attachment residue's C, CA, and O.
+    bond_length : float, optional
+        Ideal C-N peptide bond length in angstroms (default 1.33).
+
+    Returns
+    -------
+    numpy.ndarray
+        The transformed ``(N, 3)`` donor coordinates (input not modified).
+    """
+    def _unit(v):
+        v = np.asarray(v, dtype=float)
+        n = np.linalg.norm(v)
+        return v / n if n else v
+
+    base_C = np.asarray(base_C, dtype=float)
+    donor_N = np.asarray(donor_N, dtype=float)
+    donor_CA = np.asarray(donor_CA, dtype=float)
+    # sp2-planar bisector off the carbonyl C, pointing away from CA and O
+    dirN = _unit(-(_unit(base_CA - base_C) + _unit(base_O - base_C)))
+    Nideal = base_C + bond_length * dirN
+    coords = np.asarray(donor_coords, dtype=float) + (Nideal - donor_N)
+    # rotate the donor N->CA onto the new C->N bond axis (translation-invariant directions)
+    u = _unit(donor_CA - donor_N)
+    v = _unit(Nideal - base_C)
+    axis = np.cross(u, v)
+    if np.linalg.norm(axis) > 1.0e-6:
+        c = float(np.clip(np.dot(u, v), -1.0, 1.0))
+        ang = np.degrees(np.arccos(c))
+        coords = rotate_points_about_axis(coords, Nideal, axis, ang)
+    return coords
+
+
 def measure_dihedral(a1, a2, a3, a4):
     """
     Measure dihedral angle IN RADIANS of a1->a2--a3->a4

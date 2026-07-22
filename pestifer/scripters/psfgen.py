@@ -26,8 +26,10 @@ from ..objs.patch import Patch, PatchList
 from ..objs.resid import ResID
 from ..objs.ssbond import SSBond, SSBondList
 
+from pidibble.pdbparse import PDBParser
+
 from ..logparsers import PsfgenLogParser
-from ..util.coord import standardize_pdb_columns
+from ..util.coord import standardize_pdb_columns, orient_peptide_fusion
 from ..util.psf import dedupe_psf_topology
 from ..util.progress import PsfgenProgress
 from ..util.stringthings import my_logger
@@ -267,7 +269,7 @@ class PsfgenScripter(VMDScripter):
         # continues past the previous end rather than colliding with the base chain's numbering.
         cfusion_next_resid = (segment.residues[-1].resid.resid + 1) if len(segment.residues) else 1
         for sf in seg_Cfusions.data:
-            self.write_cfusion_presegment(sf, cfusion_next_resid)
+            self.write_cfusion_presegment(sf, cfusion_next_resid, segment)
             cfusion_next_resid += sf.resid2.resid - sf.resid1.resid + 1
         for i, b in enumerate(segment.subsegments.data):
             if b.state == 'RESOLVED':
@@ -628,70 +630,79 @@ class PsfgenScripter(VMDScripter):
         self.addfile(G.segfile)
         self.addline(f'$mover_sel delete')
 
-    def write_cfusion_presegment(self, C: Cfusion, newstart: int):
+    def write_cfusion_presegment(self, C: Cfusion, newstart: int, segment: Segment):
         """
-        Writes the Tcl commands to create a fusion segment in the Psfgen script.
+        Author the oriented fusion-domain PDB for a Cfusion, in pure Python (no VMD).
+
+        The donor structure is parsed from ``C.sourcefile`` (loaded fresh; never merged into the
+        base molecule), its fusion-domain residues are selected and renumbered to append after the
+        base chain's C-terminus, and the domain is rigid-body oriented so its N-terminus forms an
+        ideal peptide bond with the base chain's last residue.  The result is written to
+        ``C.segfile`` (standard PDB columns, matching what psfgen's ``pdb``/``coordpdb`` read); the
+        companion :meth:`write_cfusion_insegment`/:meth:`write_cfusion_postsegment` reference it.
 
         Parameters
         ----------
         C : Cfusion
-            The Cfusion object representing the fusion segment to be created.
-            This method generates the Tcl commands to create a fusion segment in the Psfgen script,
-            including the selection of atoms and writing the segment to a PDB file.
+            The Cfusion object; its ``segfile`` attribute is set here.
+        newstart : int
+            The resid at which the fused block begins (one past the base chain's C-terminus).
+        segment : Segment
+            The base segment being built; its parent molecule's asymmetric unit supplies the
+            attachment residue's backbone coordinates.
         """
+        C.segfile = f'Cfusion{C.obj_id}_{C.sourceseg}_{C.resid1.resid}_to_{C.resid2.resid}.pdb'
 
-        self.addline(f'set topid [molinfo top get id]')
-        self.addline(f'mol new {C.sourcefile}')
-        self.addline(f'set cfusid [molinfo top get id]')
-        self.addline(f'mol top $topid')
-        # Select the whole fusion domain over the residue range -- everything on the chain except
-        # solvent/ions -- rather than VMD's `protein` macro, which drops in-chain modified residues
-        # (e.g. a GFP chromophore CRO) and would hand psfgen a broken chain.
-        self.addline(f'set fusres [atomselect $cfusid "chain {C.sourceseg} and resid {C.resid1.resid} to {C.resid2.resid} and not water and not ions"]')
-        # Renumber the fused residues to append after the base chain's C-terminus (starting at
-        # resid {newstart}), so they don't collide with the base chain's own numbering -- a
-        # collision would make psfgen overwrite/merge residues and drop the fusion.
-        self.addline(f'set _oldres [$fusres get resid]')
-        self.addline(f'set _newres {{}}')
-        self.addline(f'foreach _r $_oldres {{ lappend _newres [expr {{$_r - {C.resid1.resid} + {newstart}}}] }}')
-        self.addline(f'$fusres set resid $_newres')
-        # Orient the fused domain so its N-terminus forms a real peptide bond with the base
-        # chain's C-terminus.  Without this the donor sits at its own crystal coordinates, tens
-        # of angstroms from the attachment point, and psfgen's topological peptide bond spans
-        # that gap -- an unphysical junction that blows up in MD.  The attachment residue is the
-        # base chain's last residue (resid {newstart}-1); we place the donor's first-residue N at
-        # the ideal sp2-planar amide site 1.33 A off the carbonyl C, then rotate the whole domain
-        # about that N so it points away from the base (a strain-free, non-backfolded start that
-        # relaxes in minimization).
+        # Parse the donor and select the whole fusion domain over the residue range on the source
+        # chain, excluding solvent/ions -- mirrors VMD's `chain S and resid a to b and not water
+        # and not ions`.  Selecting the whole chain (minus solvent/ions) rather than a `protein`
+        # macro keeps in-chain modified residues (e.g. a GFP CRO chromophore) that psfgen needs.
+        donor = AtomList.from_pdb(PDBParser(filepath=C.sourcefile).parse().parsed)
+        r1, r2 = C.resid1.resseqnum, C.resid2.resseqnum
+        fusres = AtomList([
+            a for a in donor
+            if a.chainID == C.sourceseg and r1 <= a.resid.resseqnum <= r2
+            and Labels.segtype_of_resname.get(a.resname) not in ('water', 'ion')
+        ])
+        # Recover file/sequence order: `from_pdb` appends all HETATM after all ATOM records, which
+        # would move an in-chain modified residue (e.g. a GFP CRO chromophore, a HETATM) out of
+        # sequence to the tail; psfgen infers backbone connectivity from residue order, so the
+        # chain would be mis-wired.  VMD's atomselect emits atoms in serial order -- match that.
+        fusres.sort(by=['serial'])
+        if len(fusres) == 0:
+            logger.warning(f'Cfusion {C.sourcefile}:{C.sourceseg} resid {r1}-{r2} selected no atoms')
+            fusres.write_pdb(C.segfile, dialect='standard')
+            return
+        # Renumber so the fused block appends after the base C-terminus (starts at newstart),
+        # avoiding a resid collision that would make psfgen overwrite/merge residues.
+        for a in fusres:
+            a.resid = ResID(resseqnum=a.resid.resseqnum - r1 + newstart, insertion=a.resid.insertion)
+
+        # Orient the domain so its N-terminus forms a real peptide bond with the base chain's
+        # C-terminus (otherwise the donor sits at its crystal coordinates tens of angstroms away
+        # and psfgen's topological peptide bond spans that gap -- an unphysical junction that blows
+        # up in MD).  The base attachment residue's backbone comes from the Python AU (the same
+        # coordinates VMD's $topid held); the donor N/CA from the first fused residue.
         attach_resid = newstart - 1
-        self.addline(f'set _bC  [atomselect $topid "chain {C.chainID} and resid {attach_resid} and name C"]')
-        self.addline(f'set _bCA [atomselect $topid "chain {C.chainID} and resid {attach_resid} and name CA"]')
-        self.addline(f'set _bO  [atomselect $topid "chain {C.chainID} and resid {attach_resid} and name O"]')
-        self.addline(f'set _dN  [atomselect $cfusid "chain {C.sourceseg} and resid {newstart} and name N"]')
-        self.addline(f'set _dCA [atomselect $cfusid "chain {C.sourceseg} and resid {newstart} and name CA"]')
-        self.addline(f'if {{[$_bC num]==1 && [$_bCA num]==1 && [$_bO num]==1 && [$_dN num]==1 && [$_dCA num]==1}} {{')
-        self.addline(f'  set _Cb  [lindex [$_bC  get {{x y z}}] 0]', indents=0)
-        self.addline(f'  set _CAb [lindex [$_bCA get {{x y z}}] 0]', indents=0)
-        self.addline(f'  set _Ob  [lindex [$_bO  get {{x y z}}] 0]', indents=0)
-        self.addline(f'  set _dirN [vecnorm [vecscale -1.0 [vecadd [vecnorm [vecsub $_CAb $_Cb]] [vecnorm [vecsub $_Ob $_Cb]]]]]', indents=0)
-        self.addline(f'  set _Nideal [vecadd $_Cb [vecscale 1.33 $_dirN]]', indents=0)
-        self.addline(f'  set _Ndon [lindex [$_dN get {{x y z}}] 0]', indents=0)
-        self.addline(f'  $fusres moveby [vecsub $_Nideal $_Ndon]', indents=0)
-        self.addline(f'  set _CAdon [lindex [$_dCA get {{x y z}}] 0]', indents=0)
-        self.addline(f'  set _u [vecnorm [vecsub $_CAdon $_Nideal]]', indents=0)
-        self.addline(f'  set _v [vecnorm [vecsub $_Nideal $_Cb]]', indents=0)
-        self.addline(f'  set _axis [veccross $_u $_v]', indents=0)
-        self.addline(f'  if {{[veclength $_axis] > 1.0e-6}} {{', indents=0)
-        self.addline(f'    set _axis [vecnorm $_axis]', indents=0)
-        self.addline(f'    set _c [vecdot $_u $_v]', indents=0)
-        self.addline(f'    if {{$_c > 1.0}} {{ set _c 1.0 }} elseif {{$_c < -1.0}} {{ set _c -1.0 }}', indents=0)
-        self.addline(f'    set _ang [expr {{57.2957795*acos($_c)}}]', indents=0)
-        self.addline(f'    $fusres move [transmult [transoffset $_Nideal] [transabout $_axis $_ang deg] [transoffset [vecscale -1.0 $_Nideal]]]', indents=0)
-        self.addline(f'  }}', indents=0)
-        self.addline(f'}} else {{ puts "PESTIFER) WARNING: could not orient Cfusion {C.sourcefile}:{C.sourceseg}; using raw donor coordinates" }}')
-        C.segfile=f'Cfusion{C.obj_id}_{C.sourceseg}_{C.resid1.resid}_to_{C.resid2.resid}.pdb'
-        self.addline(f'$fusres writepdb {C.segfile}')
-        self.addline(f'delete $cfusid')
+        au = segment.parent_molecule.asymmetric_unit.atoms
+
+        def _one(objlist, pred):
+            m = objlist.get(pred)
+            return m if isinstance(m, Atom) else None
+
+        bC = _one(au, lambda a: a.chainID == C.chainID and a.resid.resseqnum == attach_resid and a.name == 'C')
+        bCA = _one(au, lambda a: a.chainID == C.chainID and a.resid.resseqnum == attach_resid and a.name == 'CA')
+        bO = _one(au, lambda a: a.chainID == C.chainID and a.resid.resseqnum == attach_resid and a.name == 'O')
+        dN = _one(fusres, lambda a: a.resid.resseqnum == newstart and a.name == 'N')
+        dCA = _one(fusres, lambda a: a.resid.resseqnum == newstart and a.name == 'CA')
+        if all(x is not None for x in (bC, bCA, bO, dN, dCA)):
+            fusres.coords = orient_peptide_fusion(
+                fusres.coords,
+                donor_N=[dN.x, dN.y, dN.z], donor_CA=[dCA.x, dCA.y, dCA.z],
+                base_C=[bC.x, bC.y, bC.z], base_CA=[bCA.x, bCA.y, bCA.z], base_O=[bO.x, bO.y, bO.z])
+        else:
+            logger.warning(f'Could not orient Cfusion {C.sourcefile}:{C.sourceseg}; using raw donor coordinates')
+        fusres.write_pdb(C.segfile, dialect='standard')
 
     def write_cfusion_insegment(self, C: Cfusion):
         """
