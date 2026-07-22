@@ -195,12 +195,18 @@ Small, pure-Python, tool-free (good for the CI core). They unblock Groups A and 
             correctly. This only affects multi-point glycan grafts (which have `index_internal_links`)
             -- none exist in shipping examples (all grafts are 1-point), so every shipping build is
             unchanged. Unit tests added for the bond/pendant helpers.
-      - [ ] **`SCrot_chi1/chi2`** — ringcheck side-chain trial rotations (distinct from the `brot`
-            CHI path).
-      - [ ] **`declash_loop` / `declash_pendant`** — greedy contact-count declash on the psfgen
-            build path (protein loops / NA loops / glycans). `loop_ccd` already supersedes
-            `declash_loop` for the ligate path; `psfring.clash_count` (cKDTree) is the reusable
-            contact counter for a numpy `declash_pendant`.
+      - [x] **`SCrot_chi1/chi2`** — `CoordManipulator.apply_scrot`; ringcheck's side-chain trial
+            rotations now go through the numpy path. Verified atom-for-atom vs VMD (0.0 Å).
+      - [ ] **`declash_loop` / `declash_pendant`** — the one remaining VMD coordinate touchpoint.
+            *Deliberately deferred:* unlike every other op it is a **stochastic** greedy Monte-Carlo
+            (random moves), so it cannot be validated atom-for-atom against VMD (different RNG) and
+            porting it *changes the coordinates of every glycan/loop build* -- a hot path. The
+            pieces exist (mover/bond enumeration is already Python via networkx in `_write_na_loops`/
+            `_write_glycans`; `psfring.clash_count` is a cKDTree contact counter; `loop_ccd`'s
+            annealing declash already supersedes `declash_loop` for the ligate path). It needs a
+            dedicated port with functional validation (clash reduction + short-MD stability on real
+            glycan/loop builds), plus a seeded RNG (an improvement -- VMD's `rand()` is unseeded, so
+            declashed builds are currently non-reproducible).
 - [ ] **Phase 4 — cleanup**. Delete the `archive/` tree + dangling package entry; retire
       `la.tcl`/`orient.tcl` behind `numpy.linalg`; decide whether Group D utilities get thin
       Python ports or stay.
