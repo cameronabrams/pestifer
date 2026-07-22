@@ -169,10 +169,28 @@ Small, pure-Python, tool-free (good for the CI core). They unblock Groups A and 
             behavior change. The membrane-embed "orient" already goes through `transrot` ALIGN
             (now ported). Revisit alongside Phase 4's `la.tcl`/`orient.tcl` retirement.
       - [ ] **`crotations` / `irotations`** (torsion) — Phase 3 (Group C), stay on VMD for now.
-- [ ] **Phase 3 — Group C** (torsion + declash). Port `brot`/`Crot_*`/`SCrot_*` using the
-      existing `set_dihedral`; a bond-graph "mover set" (BFS over PSF connectivity) for
-      `rotate_pendant`; a `scipy.spatial.cKDTree` contact counter to replace `measure contacts`
-      for `declash_*`. Some geometry already exists in `loop_ccd.py`.
+- [~] **Phase 3 — Group C** (torsion + declash). *irotations/crotations (`brot`/`fold_alpha`)
+      done; pendant/SCrot/declash pending.*
+      - [x] **`brot` (PHI/PSI/OMEGA/CHI1/CHI2) + `fold_alpha` (ALPHA)** — added to
+            `CoordManipulator`: a VMD-matching per-atom `residue` index, the exact per-angle moving
+            sets (residue-index ranges + main-chain-atom exclusions) and rotation axes, plus
+            `fold_alpha` (delta-rotate each residue's φ/ψ/ω toward the α targets, reading current
+            angles via `loop_ccd.dihedral_deg`). Both the psfgen task's post-build crotation
+            coormods (iterating BA-image `chainIDmap`s) and the manipulate task now route
+            irotations/crotations to the numpy engine. Verified atom-for-atom vs VMD: `brot`
+            phi/psi exact (0.0 Å), `fold_alpha` at the 0.001 Å floor on 6PTI, and the full psfgen
+            crotation path on 4tvp (env trimer, 3 images, crotations on B→B/D/F, a −180° loop
+            flip moving atoms up to 147 Å) reproduced to 0.003 Å across all 33 693 atoms with 0
+            identity mismatches. Pure-Python unit tests added.
+      - [ ] **`rotate_pendant` / `glycan_pendant_rotate`** — bond-graph BFS pendant rotation;
+            needed to unblock the deferred Phase 1 **graft** pre-conditioning. `ring_resolve.py`
+            already has the numpy pendant machinery to reuse.
+      - [ ] **`SCrot_chi1/chi2`** — ringcheck side-chain trial rotations (distinct from the `brot`
+            CHI path).
+      - [ ] **`declash_loop` / `declash_pendant`** — greedy contact-count declash on the psfgen
+            build path (protein loops / NA loops / glycans). `loop_ccd` already supersedes
+            `declash_loop` for the ligate path; `psfring.clash_count` (cKDTree) is the reusable
+            contact counter for a numpy `declash_pendant`.
 - [ ] **Phase 4 — cleanup**. Delete the `archive/` tree + dangling package entry; retire
       `la.tcl`/`orient.tcl` behind `numpy.linalg`; decide whether Group D utilities get thin
       Python ports or stay.

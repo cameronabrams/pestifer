@@ -95,32 +95,51 @@ class PsfgenTask(VMDTask):
         if coormods:
             logger.debug(f'performing coormods')
             for objtype, objlist in coormods.items():
-                if len(objlist) > 0:
-                    self.next_basename(objtype)
-                    vm: VMDScripter = self.scripters['vmd']
-                    packages = []
-                    if objtype in ('irotations', 'crotations'):
-                        packages.append('PestiferCRot')
-                    vm.newscript(self.basename, packages=packages)
-                    state: StateArtifacts = self.get_current_artifact('state')
-                    vm.load_psf_pdb(state.psf.name, state.pdb.name, new_molid_varname='mCM')
-                    match objtype:
-                        case 'irotations' | 'crotations':
-                            for transform in self.base_molecule.active_biological_assembly.transforms.data:
-                                vm.write_crots(objlist, chainIDmap=transform.chainIDmap)
-                        case 'orient':
-                            vm.write_orients(objlist)
-                        case 'rottrans':
-                            vm.write_rottranslist(objlist)
-                    vm.write_pdb(self.basename, 'mCM')
-                    vm.writescript()
-                    vm.runscript()
-                    self.register(dict(
-                        pdb=PDBFileArtifact(self.basename), 
-                        psf=state.psf, 
-                        xsc=state.xsc), key='state', artifact_type=StateArtifacts)
-                    self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
-                    self.register(self.basename, key='log', artifact_type=VMDLogFileArtifact)
+                if len(objlist) == 0:
+                    continue
+                self.next_basename(objtype)
+                state: StateArtifacts = self.get_current_artifact('state')
+                if objtype in ('irotations', 'crotations'):
+                    # internal-coordinate (torsion) rotations -- applied in pure numpy, once per
+                    # biological-assembly image (chainIDmap remaps the crotation onto each copy).
+                    if self._apply_python_crotations(objlist, state) != 0:
+                        self.result = 1
+                        return
+                    self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf,
+                                       xsc=state.xsc), key='state', artifact_type=StateArtifacts)
+                    continue
+                vm: VMDScripter = self.scripters['vmd']
+                vm.newscript(self.basename, packages=[])
+                vm.load_psf_pdb(state.psf.name, state.pdb.name, new_molid_varname='mCM')
+                match objtype:
+                    case 'orient':
+                        vm.write_orients(objlist)
+                    case 'rottrans':
+                        vm.write_rottranslist(objlist)
+                vm.write_pdb(self.basename, 'mCM')
+                vm.writescript()
+                vm.runscript()
+                self.register(dict(
+                    pdb=PDBFileArtifact(self.basename),
+                    psf=state.psf,
+                    xsc=state.xsc), key='state', artifact_type=StateArtifacts)
+                self.register(self.basename, key='tcl', artifact_type=VMDScriptArtifact)
+                self.register(self.basename, key='log', artifact_type=VMDLogFileArtifact)
+
+    def _apply_python_crotations(self, objlist, state: StateArtifacts) -> int:
+        """Apply irotations/crotations to the built psf/pdb in numpy, once per assembly image, and
+        write ``{basename}.pdb``.  Returns 0 on success, 1 if a rotation could not be applied."""
+        from ..molecule.coordmanip import CoordManipulator, CoordManipulateError
+        cm = CoordManipulator(state.psf.name, state.pdb.name)
+        try:
+            for transform in self.base_molecule.active_biological_assembly.transforms.data:
+                for crot in objlist:
+                    cm.apply_crot(crot, chainIDmap=transform.chainIDmap)
+        except CoordManipulateError as e:
+            logger.error(f'psfgen crotations: {e}')
+            return 1
+        cm.write_pdb(f'{self.basename}.pdb')
+        return 0
 
     def declash(self):
         """

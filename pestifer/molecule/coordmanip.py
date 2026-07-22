@@ -25,6 +25,7 @@ from pidibble.pdbparse import PDBParser
 from .atom import AtomList
 from .transform import Transform
 from ..core.labels import Labels
+from ..psfutil.loop_ccd import dihedral_deg
 from ..psfutil.psfcontents import PSFContents
 from ..util.coord import rotate_points_about_axis
 
@@ -280,3 +281,163 @@ class CoordManipulator:
         coords = self.coords
         coords[m_sel] = donor.coords[d_sel]
         self.coords = coords
+
+    # ---- internal-coordinate (torsion) rotations -- crot ------------------
+
+    #: alpha-helix backbone target dihedrals (deg) used by fold_alpha
+    _ALPHA = {'phi': -57.0, 'psi': -47.0, 'omega': 180.0}
+
+    def _residue_index(self) -> np.ndarray:
+        """Per-atom VMD ``residue`` index: a global 0-based counter incremented at each residue
+        boundary (change of segname/resid/insertion) in atom order.  Verified to match VMD."""
+        if getattr(self, '_ridx', None) is None:
+            ridx = np.empty(len(self.atoms), dtype=int)
+            r, prev = -1, None
+            for i, a in enumerate(self.atoms.data):
+                key = (a.segname, a.resid.resseqnum, a.resid.insertion)
+                if key != prev:
+                    r += 1
+                    prev = key
+                ridx[i] = r
+            self._ridx = ridx
+            self._names = np.array(self._name)
+            # chain (pdb) of each residue index -- first atom of each residue
+            nres = r + 1
+            self._rchain = [None] * nres
+            for i, a in enumerate(self.atoms.data):
+                if self._rchain[ridx[i]] is None:
+                    self._rchain[ridx[i]] = a.chainID
+        return self._ridx
+
+    def _residue_of(self, chain, resid) -> int:
+        """VMD residue index of ``chain``/``resid`` (matched at its CA, else any atom)."""
+        ridx = self._residue_index()
+        cand = None
+        for i, a in enumerate(self.atoms.data):
+            if a.chainID == chain and a.resid.resseqnum == resid:
+                if a.name == 'CA':
+                    return int(ridx[i])
+                if cand is None:
+                    cand = int(ridx[i])
+        if cand is None:
+            raise CoordManipulateError(f'crot: residue chain {chain} resid {resid} not found')
+        return cand
+
+    def _same_chain(self, q, r) -> bool:
+        ridx = self._residue_index()
+        nres = len(self._rchain)
+        if q < 0 or r < 0 or q >= nres or r >= nres:
+            return False
+        return self._rchain[q] == self._rchain[r]
+
+    def _res_xyz(self, coords, ridx, names, r, atom_name):
+        m = (ridx == r) & (names == atom_name)
+        idx = np.nonzero(m)[0]
+        return coords[idx[0]] if idx.size else None
+
+    def apply_crot(self, crot, chainIDmap=None):
+        """Apply a :class:`~pestifer.objs.crot.Crot` internal-coordinate rotation (PHI/PSI/OMEGA/
+        CHI1/CHI2 via bond rotation, ALPHA via fold_alpha), remapping the chain through
+        ``chainIDmap`` for biological-assembly images."""
+        chain = (chainIDmap or {}).get(crot.chainID, crot.chainID)
+        angle = crot.angle
+        if angle in ('PHI', 'PSI', 'OMEGA'):
+            r0 = self._residue_of(chain, crot.resid1.resseqnum)
+            r1 = self._residue_of(chain, crot.resid2.resseqnum)
+            direction = 'C' if crot.resid1 <= crot.resid2 else 'N'
+            self._brot(r0, r1, angle.lower(), direction, crot.degrees)
+        elif angle in ('CHI1', 'CHI2'):
+            r0 = self._residue_of(chain, crot.resid1.resseqnum)
+            self._brot(r0, -1, 'chi', int(angle[-1]), crot.degrees)
+        elif angle == 'ALPHA':
+            rb = self._residue_of(chain, crot.resid1.resseqnum)
+            re = self._residue_of(chain, crot.resid2.resseqnum)
+            rt = self._residue_of(chain, crot.resid3.resseqnum)
+            self._fold_alpha(rb, re, rt)
+        elif angle == 'ANGLEIJK':
+            raise CoordManipulateError('ANGLEIJK is deprecated; use a transrot AXISANGLE instead')
+        else:
+            raise CoordManipulateError(f'crot angle {angle!r} is not supported on the numpy path')
+
+    def _brot(self, r0, r1, angle_name, rot, deg):
+        """Rotate the moving set about the backbone (or chi) bond by ``deg`` degrees -- the numpy
+        port of crot.tcl ``brot``.  The moving set and rotation axis are chosen exactly as in the
+        Tcl (residue-index ranges + main-chain-atom exclusions); rotation is about the first axis
+        atom along the (second - first) direction (VMD ``trans bond``)."""
+        ridx = self._residue_index()
+        names = self._names
+        coords = self.coords
+
+        def xyz(r, nm):
+            return self._res_xyz(coords, ridx, names, r, nm)
+
+        if angle_name == 'phi':
+            pn, pc = xyz(r0, 'N'), xyz(r0, 'CA')
+            nter = np.isin(names, ['N', 'HN', 'HT1', 'HT2', 'HT3'])
+            if rot == 'C':
+                mask = ((ridx == r0) & ~nter) | ((ridx > r0) & (ridx <= r1))
+            else:
+                mask = ((ridx == r0) & nter) | ((ridx < r0) & (ridx >= r1))
+        elif angle_name == 'psi':
+            pn, pc = xyz(r0, 'CA'), xyz(r0, 'C')
+            cter = np.isin(names, ['C', 'O', 'OT1', 'OT2', 'OXT'])
+            if rot == 'C':
+                mask = ((ridx == r0) & cter) | ((ridx > r0) & (ridx <= r1))
+            else:
+                mask = ((ridx == r0) & ~cter) | ((ridx < r0) & (ridx >= r1))
+        elif angle_name == 'omega':
+            pn, pc = xyz(r0, 'C'), xyz(r0 + 1, 'N')
+            if rot == 'C':
+                mask = (ridx > r0) & (ridx <= r1)
+            else:
+                mask = (ridx <= r0) & (ridx >= r1)
+        elif angle_name == 'chi':
+            if rot == 1:
+                pn, pc = xyz(r0, 'CA'), xyz(r0, 'CB')
+                mask = (ridx == r0) & ~np.isin(names, ['N', 'HN', 'CA', 'C', 'O'])
+            else:
+                pn, pc = xyz(r0, 'CB'), xyz(r0, 'CG')
+                mask = (ridx == r0) & ~np.isin(names, ['N', 'HN', 'CA', 'CB', 'C', 'O'])
+        else:
+            raise CoordManipulateError(f'brot: angle {angle_name!r} not recognized')
+        if pn is None or pc is None:
+            raise CoordManipulateError(f'brot: missing axis atoms for {angle_name} at residue {r0}')
+        coords[mask] = rotate_points_about_axis(coords[mask], pn, pc - pn, deg)
+        self.coords = coords
+
+    def _get_phi_psi_omega(self, r):
+        ridx = self._residue_index()
+        names = self._names
+        coords = self.coords
+
+        def xyz(rr, nm):
+            return self._res_xyz(coords, ridx, names, rr, nm)
+
+        phi = psi = omega = None
+        if self._same_chain(r - 1, r):
+            phi = dihedral_deg(xyz(r - 1, 'C'), xyz(r, 'N'), xyz(r, 'CA'), xyz(r, 'C'))
+        if self._same_chain(r, r + 1):
+            psi = dihedral_deg(xyz(r, 'N'), xyz(r, 'CA'), xyz(r, 'C'), xyz(r + 1, 'N'))
+            omega = dihedral_deg(xyz(r, 'CA'), xyz(r, 'C'), xyz(r + 1, 'N'), xyz(r + 1, 'CA'))
+        return phi, psi, omega
+
+    def _fold_alpha(self, rbegin, rend, rterm):
+        """Fold residues ``rbegin..rend`` toward alpha-helical phi/psi/omega by delta-rotating each
+        current angle to its target -- the numpy port of crot.tcl ``fold_alpha``."""
+        if rbegin < rend:
+            side, inc = 'C', 1
+            done = lambda r: r > rend
+        else:
+            side, inc = 'N', -1
+            done = lambda r: r < rend
+        r = rbegin
+        while not done(r):
+            phi, psi, omega = self._get_phi_psi_omega(r)
+            for nm, cur in (('phi', phi), ('psi', psi), ('omega', omega)):
+                if cur is None:
+                    continue
+                d = self._ALPHA[nm] - cur
+                if side == 'N':
+                    d = -d
+                self._brot(r, rterm, nm, side, d)
+            r += inc

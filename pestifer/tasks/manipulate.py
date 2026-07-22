@@ -38,9 +38,8 @@ class ManipulateTask(BaseTask):
         self.result = self.coormods()
         return self.result
 
-    # coord-mod objtypes done in pure numpy (Phase 2); the rest (orient, crotations, irotations)
-    # remain on the VMD path.
-    _PYTHON_OBJTYPES = ('transrot', 'align', 'transfer_coords')
+    # coord-mod objtypes done in pure numpy; only orient remains on the VMD path.
+    _PYTHON_OBJTYPES = ('transrot', 'align', 'transfer_coords', 'irotations', 'crotations')
 
     def coormods(self):
         """
@@ -90,6 +89,8 @@ class ManipulateTask(BaseTask):
                 elif objtype == 'transfer_coords':
                     donor = CoordManipulator(obj.donor_psf, obj.donor_pdb)
                     cm.apply_transfer_coords(obj, donor)
+                elif objtype in ('irotations', 'crotations'):
+                    cm.apply_crot(obj)
         except CoordManipulateError as e:
             logger.error(f'manipulate {objtype}: {e}')
             return 1
@@ -108,14 +109,12 @@ class ManipulateTask(BaseTask):
         return CoordManipulator(align.ref_psf, align.effective_ref_pdb)
 
     def _apply_vmd_coormods(self, objtype, objlist, state: StateArtifacts) -> int:
-        """Apply a VMD-native coord-mod objtype (orient / crotations / irotations)."""
+        """Apply a VMD-native coord-mod objtype (only ``orient`` remains on this path)."""
         vm: VMDScripter = self.get_scripter('vmd')
         vm.newscript(self.basename, packages=['Orient'])
         vm.load_psf_pdb(state.psf.name, state.pdb.name, new_molid_varname='mCM')
         for obj in objlist:
-            if objtype in ('irotations', 'crotations'):
-                vm.write_crot(obj, molid='mCM')
-            elif objtype == 'orient':
+            if objtype == 'orient':
                 vm.write_orient(obj, molid='mCM')
         vm.write_pdb(self.basename, 'mCM')
         vm.writescript()
