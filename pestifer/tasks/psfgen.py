@@ -225,6 +225,7 @@ class PsfgenTask(VMDTask):
         new_coords = {}
         placed_tails = []      # heavy coords of tails already modeled this pass
         rotation_report = []   # (tag, segname, rotation rows) per tail, for the provenance file
+        tail_serials = set()   # all model-built tail atom serials (movers for piercing resolution)
         for k, t in enumerate(tails):
             extra_env = np.vstack(placed_tails) if placed_tails else None
             res = model_one_tail(src_pdb, t['segname'], t['tail_resids'], t['anchor_resid'],
@@ -244,6 +245,7 @@ class PsfgenTask(VMDTask):
                 logger.debug(f'psfgen/model-tails: tail {tag} modeled clash-free ({soft} soft).')
             for j, serial in enumerate(res['serials']):
                 new_coords[serial] = res['modeled'][j]
+            tail_serials.update(res['serials'])
         out_pdb = f'{self.basename}.pdb'
         serial_list = sorted(new_coords)
         coords_arr = np.array([new_coords[s] for s in serial_list])
@@ -253,6 +255,41 @@ class PsfgenTask(VMDTask):
                            xsc=getattr(state, 'xsc', None)), key='state', artifact_type=StateArtifacts)
         self.write_rotation_report(rotation_report, kind='terminal tail modeling')
         logger.info(f'psfgen: modeled {len(tails)} terminal tail(s) -> {self.basename}.pdb')
+        if specs.get('check_piercings', True):
+            self.resolve_tail_piercings(sorted(tail_serials))
+
+    def resolve_tail_piercings(self, tail_serials):
+        """Detect and clear any ring piercing caused by a model-built terminal-tail backbone bond,
+        by rotating the offending tail sub-branch out of the ring.
+
+        A threading has no atomic clash, so the tail modeler's declash cannot see it; this scan
+        catches the rare case where a modeled tail spears a proline/aromatic/sugar ring. A tail has
+        a free end, so swinging its distal portion about a backbone bridge is unconstrained. Shares
+        the glycan-graft resolution engine (:func:`~pestifer.psfutil.ring_resolve.resolve_model_built_piercings`);
+        best-effort and non-fatal (toggle ``loops.declash.check_piercings``).
+        """
+        if not tail_serials:
+            return
+        from ..psfutil.ring_resolve import resolve_model_built_piercings
+        state: StateArtifacts = self.get_current_artifact('state')
+        xsc = state.xsc.name if getattr(state, 'xsc', None) else None
+        self.next_basename('tail-piercing-check')
+        fixed_pdb, unresolved = resolve_model_built_piercings(
+            state.psf.name, state.pdb.name, xsc, self.basename, tail_serials,
+            segtypes=['protein', 'glycan'], mover_kind='tail')
+        if fixed_pdb is not None:
+            shutil.copy(fixed_pdb, f'{self.basename}.pdb')
+            self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf,
+                               xsc=getattr(state, 'xsc', None)),
+                          key='state', artifact_type=StateArtifacts)
+            logger.info(f'Resolved terminal-tail ring-piercing(s) -> {self.basename}.pdb')
+        if unresolved:
+            logger.warning(f'{len(unresolved)} terminal-tail ring-piercing(s) could not be cleared '
+                           f'by rotation; add a ring_check task or rebuild:')
+            for p in unresolved:
+                ee, er = p['piercee'], p['piercer']
+                logger.warning(f'  ring of {ee.get("resname", "?")} {ee["segname"]}-{ee["resid"]} '
+                               f'pierced by a bond in tail {er["segname"]}-{er["resid"]}')
 
     def resolve_glycan_piercings(self):
         """Detect ring piercings caused by grafted/model-built glycan bonds and clear each by

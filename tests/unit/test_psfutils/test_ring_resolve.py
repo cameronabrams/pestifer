@@ -110,5 +110,59 @@ class TestPsfgenGating(unittest.TestCase):
             m.assert_not_called()
 
 
+class TestPiercerWithin(unittest.TestCase):
+    """_piercer_within: a piercing is mover-caused iff its bond lies wholly in the mover set."""
+
+    def test_bond_within_movers(self):
+        self.assertTrue(ring_resolve._piercer_within({'piercer': {'bond_serials': [10, 11]}}, {10, 11, 12}))
+
+    def test_bond_partly_outside_movers(self):
+        self.assertFalse(ring_resolve._piercer_within({'piercer': {'bond_serials': [10, 99]}}, {10, 11}))
+
+    def test_no_bond_serials(self):
+        self.assertFalse(ring_resolve._piercer_within({'piercer': {}}, {1, 2}))
+
+
+class TestResolveModelBuiltPiercings(unittest.TestCase):
+
+    def test_no_piercings_returns_none(self):
+        with mock.patch.object(ring_resolve, 'ring_check', return_value=[]):
+            fixed, unresolved = ring_resolve.resolve_model_built_piercings(
+                'x.psf', 'x.pdb', None, 'out', {1, 2})
+        self.assertIsNone(fixed)
+        self.assertEqual(unresolved, [])
+
+    def test_non_mover_piercing_is_ignored(self):
+        # a piercing whose bond is NOT within the mover set is another pass's concern:
+        # it must NOT be rotated here and must NOT be reported as unresolved.
+        p = {'piercee': {'segtype': 'protein', 'segname': 'A', 'resid': 5},
+             'piercer': {'segtype': 'glycan', 'segname': 'G', 'resid': 3, 'bond_serials': [100, 101]}}
+        with mock.patch.object(ring_resolve, 'ring_check', return_value=[p]), \
+             mock.patch.object(ring_resolve, 'try_glycan_pendant') as rot:
+            fixed, unresolved = ring_resolve.resolve_model_built_piercings(
+                'x.psf', 'x.pdb', None, 'out', {10, 11})
+            rot.assert_not_called()
+        self.assertIsNone(fixed)
+        self.assertEqual(unresolved, [])
+
+    def test_mover_piercing_is_rotated(self):
+        # a tail backbone bond (serials within the mover set) spearing a proline ring is rotated
+        p = {'piercee': {'segtype': 'protein', 'segname': 'A', 'resid': 5, 'resname': 'PRO'},
+             'piercer': {'segtype': 'protein', 'segname': 'A', 'resid': 60, 'resname': 'GLY',
+                         'bond_serials': [10, 11]}}
+        with mock.patch.object(ring_resolve, 'ring_check', return_value=[p]), \
+             mock.patch.object(ring_resolve, 'RingChecker') as RC, \
+             mock.patch.object(ring_resolve, 'cell_from_xsc', return_value=(None, None)), \
+             mock.patch.object(ring_resolve, 'try_glycan_pendant', return_value='fixed.pdb') as rot:
+            RC.return_value.load_coords.return_value = mock.Mock()
+            fixed, unresolved = ring_resolve.resolve_model_built_piercings(
+                'x.psf', 'x.pdb', None, 'out', {10, 11}, mover_kind='tail')
+            rot.assert_called_once()
+            # the mover set is forwarded so only tail atoms may move
+            self.assertEqual(rot.call_args.kwargs.get('mover_serials'), {10, 11})
+        self.assertEqual(fixed, 'fixed.pdb')
+        self.assertEqual(unresolved, [])
+
+
 if __name__ == '__main__':
     unittest.main()

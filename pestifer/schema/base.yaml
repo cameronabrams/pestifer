@@ -596,6 +596,13 @@ attributes:
                             text: Number of Ramachandran-seeded candidates per terminal tail; the least-clashing is kept
                             type: int
                             default: 10
+                          - name: check_piercings
+                            text: >-
+                              After modeling terminal tails, detect and clear any ring piercing caused by a
+                              tail backbone bond (a threading has no atomic clash, so the declash cannot see
+                              it) by rotating the offending tail sub-branch out of the ring.
+                            type: bool
+                            default: True
                   - name: glycans
                     text: parameters controlling how model-built glycans are adjusted, if present
                     type: dict

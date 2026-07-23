@@ -46,21 +46,31 @@ def _is_glycan_pierce(p: dict) -> bool:
 
 def try_glycan_pendant(checker: RingChecker, working_pdb: str, base: np.ndarray, box,
                        piercer: dict, target: tuple, out_pdb: str, piercee_label: str = '',
-                       degrees=None):
-    """Rotate the glycan sub-branch carrying the piercing bond about an upstream rotatable bond.
+                       degrees=None, mover_serials=None, mover_kind: str = 'glycan'):
+    """Rotate the sub-branch carrying the piercing bond about an upstream rotatable bond.
 
     Hinge axes come from :meth:`RingChecker.pendant_axes` (smallest branch first); each is swept
     over ``degrees``.  Among the rotations that clear the ring, the one with the fewest new
     heavy-atom clashes wins and only that single pose is written to ``out_pdb``.  The rotation is
     done in memory (no per-candidate PDB).
 
+    Despite the name the rotation is chemistry-agnostic (it rigidly rotates a graph branch); pass
+    ``mover_serials`` to restrict the eligible hinges to those whose moving branch stays *within*
+    a given atom set -- e.g. a model-built terminal tail, so only the tail swings and the resolved
+    chain is never moved. ``mover_kind`` names the branch in the log message.
+
     Returns ``out_pdb`` on success or ``None`` if no rotation clears the piercing.
     """
     if degrees is None:
         degrees = _PENDANT_DEGREES
     axes = checker.pendant_axes(piercer['bond_serials'], piercer['segname'])
+    if mover_serials is not None:
+        mover_serials = set(int(s) for s in mover_serials)
+        serial_of_row = {r: s for s, r in checker._row_of_serial.items()}
+        axes = [ax for ax in axes
+                if all(serial_of_row[int(r)] in mover_serials for r in ax['prows'])]
     if not axes:
-        logger.debug(f'  no rotatable glycan hinge found for {_fmt(piercer)}')
+        logger.debug(f'  no rotatable {mover_kind} hinge found for {_fmt(piercer)}')
         return None
     best = None  # (clash, coords, i_ser, j_ser, deg)
     scratch = base.copy()
@@ -86,9 +96,57 @@ def try_glycan_pendant(checker: RingChecker, working_pdb: str, base: np.ndarray,
     clash, coords, i_ser, j_ser, deg = best
     pdb_replace_coords(working_pdb, out_pdb, coords, checker._row_of_serial)
     logger.info(f'  {piercee_label or _fmt({"segname": target[0], "resid": target[1]})}: '
-                f'rotating the {_fmt(piercer)} glycan branch {deg} deg about bond '
+                f'rotating the {_fmt(piercer)} {mover_kind} branch {deg} deg about bond '
                 f'{i_ser}-{j_ser} clears the piercing ({clash} new heavy-atom clash(es))')
     return out_pdb
+
+
+def _piercer_within(p: dict, mover_serials: set) -> bool:
+    """True if piercing ``p`` is caused by a bond whose atoms all lie in ``mover_serials`` -- i.e.
+    a model-built branch (loop/tail) we are free to rotate."""
+    bs = p['piercer'].get('bond_serials')
+    return bool(bs) and set(int(s) for s in bs) <= mover_serials
+
+
+def resolve_model_built_piercings(psf: str, pdb: str, xsc: str, out_prefix: str, mover_serials,
+                                  *, cutoff: float = 3.5, segtypes=('protein', 'glycan'),
+                                  max_ring_size: int = 7, mover_kind: str = 'tail'):
+    """Detect and clear ring piercings caused by a *model-built* backbone branch (a terminal tail
+    or loop), by rotating only that branch out of the ring.
+
+    Analogous to :func:`resolve_glycan_piercings`, but the resolvable set is defined by atom
+    membership (the piercing bond lies wholly within ``mover_serials``) rather than by segtype, and
+    the hinge is restricted so only those atoms move (the resolved structure is never touched). A
+    model-built tail has a free end, so swinging its distal portion about a backbone bridge is
+    unconstrained -- the natural fit. Piercings *not* caused by ``mover_serials`` are ignored here
+    (they are another pass's concern), so only mover-caused piercings appear in ``unresolved``.
+
+    Returns ``(fixed_pdb, unresolved)`` as :func:`resolve_glycan_piercings` does.
+    """
+    mover_serials = set(int(s) for s in mover_serials)
+    piercings = ring_check(psf, pdb, xsc, cutoff=cutoff, segtypes=list(segtypes),
+                           max_ring_size=max_ring_size)
+    resolvable = [p for p in piercings if _piercer_within(p, mover_serials)]
+    if not resolvable:
+        return None, []
+    checker = RingChecker(psf, cutoff=cutoff, segtypes=list(segtypes), max_ring_size=max_ring_size)
+    box = cell_from_xsc(xsc)[0] if xsc else None
+    working_pdb = pdb
+    unresolved = []
+    for p in resolvable:
+        piercee = p['piercee']
+        target = (piercee['segname'], piercee['resid'])
+        base = checker.load_coords(working_pdb)
+        out_pdb = f'{out_prefix}-{mover_kind}-{piercee["segname"]}-{piercee["resid"]}.pdb'
+        cand = try_glycan_pendant(checker, working_pdb, base, box, p['piercer'], target,
+                                  out_pdb, _fmt(piercee), mover_serials=mover_serials,
+                                  mover_kind=mover_kind)
+        if cand is None:
+            unresolved.append(p)
+        else:
+            working_pdb = cand
+    fixed_pdb = working_pdb if working_pdb != pdb else None
+    return fixed_pdb, unresolved
 
 
 def resolve_glycan_piercings(psf: str, pdb: str, xsc: str, out_prefix: str, *,
