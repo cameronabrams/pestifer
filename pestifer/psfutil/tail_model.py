@@ -31,6 +31,7 @@ from .loop_ccd import (
     backbone_from_pdb, loop_atoms_from_pdb, build_loop_problem, apply_backbone_dihedrals,
     sample_backbone_dihedrals, place_atom_nerf, anchor_closure_target,
     heavy_env_coords_from_pdb, loop_clash_report, _clash_score,
+    extract_backbone, loop_rotation_report,
 )
 
 # Standard trans-peptide internal coordinates for building a junction target.
@@ -208,5 +209,10 @@ def model_one_tail(src_pdb, segname, tail_resids, anchor_resid, end,
 
     _key, modeled, rep = best
     heavy_rows = [i for i, (_rr, nm) in enumerate(order) if not nm.startswith('H')]
+    # provenance: the internal backbone rotations from guesscoord (bb) to the modeled handoff.
+    # The anchored end supplies the junction reference; the free end has no phi/psi partner.
+    prev_C, next_N = (None, aN) if end == 'N' else (aC, None)
+    rotations = loop_rotation_report(bb, extract_backbone(order, modeled), tail_resids,
+                                     prev_C=prev_C, next_N=next_N)
     return dict(segname=segname, tail=list(tail_resids), serials=serials, order=order,
-                modeled=modeled, rep=rep, heavy=modeled[heavy_rows])
+                modeled=modeled, rep=rep, heavy=modeled[heavy_rows], rotations=rotations)

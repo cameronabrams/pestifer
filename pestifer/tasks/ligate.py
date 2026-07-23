@@ -238,10 +238,12 @@ class LigateTask(MDTask):
         # collect coordinates and emit per-loop steric diagnostics
         new_coords = {}
         broken = []
+        rotation_report = []      # (tag, segname, rotation rows) per loop, for the provenance file
         for i, g in enumerate(gaps):
             res = results[i]
             rep = res['rep']
             tag = f"{g['segname']}:{g['loop_resids'][0]}-{g['loop_resids'][-1]} (len {len(g['loop_resids'])})"
+            rotation_report.append((tag, g['segname'], res.get('rotations', [])))
             ndeep = rep['n_deep'] + rep['n_env_deep']
             if rep['min_ca'] < 3.0:     # a crossed backbone -- minimization cannot undo it
                 broken.append((tag, rep))
@@ -264,6 +266,8 @@ class LigateTask(MDTask):
         if broken and on_clash == 'error':
             logger.error(f'ligate/ccd: {len(broken)} loop(s) threaded; aborting (ccd.on_clash=error)')
             return 1
+
+        self.write_rotation_report(rotation_report, kind='loop closure')
 
         out_pdb = f'{self.basename}.pdb'
         serial_list = sorted(new_coords)

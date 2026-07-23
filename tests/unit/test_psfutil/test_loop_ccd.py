@@ -10,8 +10,79 @@ from pestifer.psfutil.loop_ccd import (
     ccd_close,
     dihedral_deg,
     set_dihedral,
+    place_atom_nerf,
+    build_loop_problem,
+    apply_backbone_dihedrals,
+    backbone_dihedrals,
+    extract_backbone,
+    loop_rotation_report,
+    format_rotation_lines,
 )
 from pestifer.util.coord import rotate_points_about_axis
+
+
+_IC = dict(C_N=1.33, N_CA=1.45, CA_C=1.52, C_O=1.23,
+           CA_C_N=116.6, C_N_CA=121.7, N_CA_C=111.0, N_C_O=122.7)
+
+
+def _peptide(nres, phi=-120.0, psi=140.0):
+    """(order, coords) for a synthetic all-backbone peptide grown by NeRF, resids 1..nres."""
+    atoms, pN, pCA, pC = [], None, None, None
+    for r in range(1, nres + 1):
+        if r == 1:
+            N = np.array([0.0, 0.0, 0.0]); CA = np.array([1.45, 0.0, 0.0])
+            C = place_atom_nerf(np.array([-1.0, 1.0, 0.0]), N, CA, _IC['CA_C'], _IC['N_CA_C'], phi)
+        else:
+            N = place_atom_nerf(pN, pCA, pC, _IC['C_N'], _IC['CA_C_N'], psi)
+            CA = place_atom_nerf(pCA, pC, N, _IC['N_CA'], _IC['C_N_CA'], 180.0)
+            C = place_atom_nerf(pC, N, CA, _IC['CA_C'], _IC['N_CA_C'], phi)
+        O = place_atom_nerf(N, CA, C, _IC['C_O'], _IC['N_C_O'], 0.0)
+        atoms += [(r, 'N', N), (r, 'CA', CA), (r, 'C', C), (r, 'O', O)]
+        pN, pCA, pC = N, CA, C
+    order = [(r, n) for (r, n, _x) in atoms]
+    coords = np.array([x for (_r, _n, x) in atoms])
+    return order, coords
+
+
+class TestRotationReport(unittest.TestCase):
+
+    def test_report_recovers_known_dihedral_change(self):
+        order, coords = _peptide(4)
+        resids = [1, 2, 3, 4]
+        prob = build_loop_problem(order, coords, resids)
+        prevC = np.array([-1.0, -1.0, 0.0]); nextN = np.array([10.0, 0.0, 0.0])
+        bb_start = extract_backbone(order, coords)
+        cur = backbone_dihedrals(bb_start, resids, prevC, nextN)
+        target = np.array([[c[1] or 0.0, c[2] or 0.0] for c in cur])
+        target[1, 0] += 30.0            # residue 2 phi += 30
+        target[2, 1] -= 45.0            # residue 3 psi -= 45
+        moved = apply_backbone_dihedrals(coords, prob, resids, target, prev_C=prevC, next_N=nextN)
+        rows = loop_rotation_report(bb_start, extract_backbone(order, moved), resids,
+                                    prev_C=prevC, next_N=nextN)
+        self.assertAlmostEqual(rows[1]['dphi'], 30.0, places=3)
+        self.assertAlmostEqual(rows[2]['dpsi'], -45.0, places=3)
+        self.assertAlmostEqual(rows[0]['dphi'], 0.0, places=3)
+
+    def test_free_terminus_dihedral_is_none(self):
+        order, coords = _peptide(3)
+        resids = [1, 2, 3]
+        bb = extract_backbone(order, coords)
+        # no prev_C (free N-terminus) and no next_N (free C-terminus)
+        rows = loop_rotation_report(bb, bb, resids, prev_C=None, next_N=None)
+        self.assertIsNone(rows[0]['dphi'])        # first residue phi undefined
+        self.assertIsNone(rows[-1]['dpsi'])       # last residue psi undefined
+        # a self-comparison is all-zero where defined
+        self.assertAlmostEqual(rows[1]['dphi'], 0.0, places=6)
+
+    def test_format_rotation_lines_skips_none(self):
+        order, coords = _peptide(2)
+        resids = [1, 2]
+        bb = extract_backbone(order, coords)
+        rows = loop_rotation_report(bb, bb, resids, prev_C=None, next_N=None)
+        lines = format_rotation_lines('A', rows)
+        # first residue phi and last residue psi are None -> not emitted
+        self.assertFalse(any(l.startswith('PHI,A,1,') for l in lines))
+        self.assertFalse(any(l.startswith('PSI,A,2,') for l in lines))
 
 
 class TestDihedral(unittest.TestCase):

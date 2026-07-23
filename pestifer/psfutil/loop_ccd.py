@@ -478,6 +478,88 @@ def ccd_close(coords, bonds, moving_masks, end_idx, target,
     return X, end_rmsd(X, end_idx, target), max_iters
 
 
+def _wrap180(a):
+    """Wrap an angle (degrees) into (-180, 180]."""
+    return (float(a) + 180.0) % 360.0 - 180.0
+
+
+def extract_backbone(order, coords):
+    """``{resid: {'N'/'CA'/'C': xyz}}`` from an ``(order, coords)`` pair (as built by
+    :func:`loop_atoms_from_pdb` / :func:`build_loop_problem`)."""
+    bb = {}
+    for i, (r, name) in enumerate(order):
+        if name in ('N', 'CA', 'C'):
+            bb.setdefault(r, {})[name] = np.asarray(coords[i], dtype=float)
+    return bb
+
+
+def backbone_dihedrals(bb, resids, prev_C=None, next_N=None):
+    """
+    Per-residue backbone (phi, psi) in degrees for ``resids`` from a backbone map
+    ``bb = {resid: {'N','CA','C': xyz}}``.
+
+    ``phi_i = C(i-1)-N-CA-C`` and ``psi_i = N-CA-C-N(i+1)``; the off-loop references for the
+    first residue's phi (``prev_C``) and the last residue's psi (``next_N``) are passed in. A
+    dihedral is ``None`` where its reference is absent (a free terminus). Returns
+    ``[(resid, phi_or_None, psi_or_None), ...]`` in ``resids`` order.
+    """
+    out = []
+    n = len(resids)
+    for k, r in enumerate(resids):
+        N, CA, C = bb[r]['N'], bb[r]['CA'], bb[r]['C']
+        pC = bb[resids[k - 1]]['C'] if k > 0 else prev_C
+        nN = bb[resids[k + 1]]['N'] if k < n - 1 else next_N
+        phi = dihedral_deg(pC, N, CA, C) if pC is not None else None
+        psi = dihedral_deg(N, CA, C, nN) if nN is not None else None
+        out.append((r, phi, psi))
+    return out
+
+
+def loop_rotation_report(bb_start, bb_final, resids, prev_C=None, next_N=None):
+    """
+    The sequence of internal backbone-bond rotations taking a model-built loop/tail from its raw
+    ``guesscoord`` conformation (``bb_start``) to the handoff conformation (``bb_final``).
+
+    For each residue (N->C) reports the net change in phi (about the N-CA bond) and psi (about
+    the CA-C bond) -- ``None`` where that dihedral is undefined (a free terminus). Deltas wrap to
+    (-180, 180]. Because backbone dihedrals are independent local coordinates, applying these
+    phi/psi rotations in N->C order to the guesscoord loop reproduces the handoff conformation, so
+    the report doubles as a deterministic replay recipe (the automated equivalent of the
+    hand-coded ``crotations`` once used to pre-position loops).
+
+    Returns ``[{'resid', 'dphi', 'dpsi', 'phi_final', 'psi_final'}, ...]``.
+    """
+    s = backbone_dihedrals(bb_start, resids, prev_C, next_N)
+    f = backbone_dihedrals(bb_final, resids, prev_C, next_N)
+    rows = []
+    for (r, ps, pss), (_r, pf, psf) in zip(s, f):
+        rows.append(dict(
+            resid=r,
+            dphi=_wrap180(pf - ps) if (ps is not None and pf is not None) else None,
+            dpsi=_wrap180(psf - pss) if (pss is not None and psf is not None) else None,
+            phi_final=pf, psi_final=psf))
+    return rows
+
+
+def format_rotation_lines(segname, rows):
+    """
+    Render a :func:`loop_rotation_report` as ``crotations``-style lines
+    (``PHI,<seg>,<resid>,<last>,<delta>`` / ``PSI,...``), N->C. Applying them in order to the
+    guesscoord loop reproduces the handoff -- a human-readable, replayable provenance record.
+    """
+    if not rows:
+        return []
+    last = rows[-1]['resid']
+    lines = []
+    for row in rows:
+        r = row['resid']
+        if row['dphi'] is not None:
+            lines.append(f"PHI,{segname},{r},{last},{row['dphi']:.1f}")
+        if row['dpsi'] is not None:
+            lines.append(f"PSI,{segname},{r},{last},{row['dpsi']:.1f}")
+    return lines
+
+
 def _heavy_mask(order):
     """Boolean mask (len == len(order)) of heavy (non-hydrogen) atoms."""
     return np.array([not name.startswith('H') for (_r, name) in order], dtype=bool)
@@ -804,5 +886,9 @@ def close_one_loop(src_pdb, segname, loop_resids, n_anchor_resid, c_anchor_resid
             break
     _key, closed, rep = best
     ca = closed[[i for i, (_rr, nm) in enumerate(order) if nm == 'CA']]
+    # provenance: the internal backbone rotations taking this loop from its raw guesscoord
+    # conformation (bb) to the closed handoff (closed).
+    rotations = loop_rotation_report(bb, extract_backbone(order, closed), loop_resids,
+                                     prev_C=bb[n_anchor_resid]['C'], next_N=bb[c_anchor_resid]['N'])
     return dict(segname=segname, loop=loop_resids, serials=serials, order=order,
-                closed=closed, rep=rep, heavy=closed[heavy_mask], ca=ca)
+                closed=closed, rep=rep, heavy=closed[heavy_mask], ca=ca, rotations=rotations)

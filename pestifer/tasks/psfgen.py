@@ -224,6 +224,7 @@ class PsfgenTask(VMDTask):
         all_modeled_serials = sorted(all_modeled_serials)
         new_coords = {}
         placed_tails = []      # heavy coords of tails already modeled this pass
+        rotation_report = []   # (tag, segname, rotation rows) per tail, for the provenance file
         for k, t in enumerate(tails):
             extra_env = np.vstack(placed_tails) if placed_tails else None
             res = model_one_tail(src_pdb, t['segname'], t['tail_resids'], t['anchor_resid'],
@@ -233,6 +234,7 @@ class PsfgenTask(VMDTask):
             rep = res['rep']
             tag = (f"{t['segname']}:{t['tail_resids'][0]}-{t['tail_resids'][-1]} "
                    f"({t['end']}-term, len {len(t['tail_resids'])})")
+            rotation_report.append((tag, t['segname'], res.get('rotations', [])))
             deep = rep['n_deep'] + rep['n_env_deep']
             soft = rep['n_soft'] + rep['n_env_soft']
             if deep:
@@ -249,6 +251,7 @@ class PsfgenTask(VMDTask):
         pdb_replace_coords(src_pdb, out_pdb, coords_arr, row_of_serial)
         self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf,
                            xsc=getattr(state, 'xsc', None)), key='state', artifact_type=StateArtifacts)
+        self.write_rotation_report(rotation_report, kind='terminal tail modeling')
         logger.info(f'psfgen: modeled {len(tails)} terminal tail(s) -> {self.basename}.pdb')
 
     def resolve_glycan_piercings(self):

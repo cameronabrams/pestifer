@@ -418,6 +418,38 @@ class BaseTask(ABC):
         """
         self.pipeline.import_artifacts(pipeline)
 
+    def write_rotation_report(self, entries, kind='loop closure'):
+        """
+        Write a provenance record of the internal backbone-bond rotations that carried each
+        model-built loop/tail from its raw ``guesscoord`` conformation to the handoff
+        conformation, and log a one-line summary per item.
+
+        ``entries`` is ``[(tag, segname, rows), ...]`` where ``rows`` is a
+        :func:`~pestifer.psfutil.loop_ccd.loop_rotation_report`. The written file
+        (``<basename>-rotations.dat``, ``crotations``-style) doubles as a deterministic replay
+        recipe -- applying the listed PHI/PSI rotations N->C to the guesscoord loop reproduces the
+        handoff conformation -- i.e. the automated equivalent of the hand-coded ``crotations`` once
+        used to pre-position loops for steered ligation. No-op if nothing was rotated.
+        """
+        from ..psfutil.loop_ccd import format_rotation_lines
+        entries = [(tag, seg, rows) for (tag, seg, rows) in entries if rows]
+        if not entries:
+            return
+        fn = f'{self.basename}-rotations.dat'
+        with open(fn, 'w') as f:
+            f.write(f'# internal backbone bond rotations: guesscoord -> handoff ({kind})\n')
+            f.write('# Applying these PHI/PSI rotations N->C to the guesscoord loop reproduces the\n')
+            f.write('# handoff conformation -- the automated equivalent of hand-coded crotations.\n')
+            for tag, segname, rows in entries:
+                f.write(f'# {tag}\n')
+                for line in format_rotation_lines(segname, rows):
+                    f.write(line + '\n')
+                maxphi = max((abs(r['dphi']) for r in rows if r['dphi'] is not None), default=0.0)
+                maxpsi = max((abs(r['dpsi']) for r in rows if r['dpsi'] is not None), default=0.0)
+                logger.info(f'{kind}: {tag} -- {len(rows)} residue(s) rotated '
+                            f'(max |Dphi|={maxphi:.0f}, max |Dpsi|={maxpsi:.0f} deg); sequence in {fn}')
+        self.register(f'{self.basename}-rotations', key='rotation_report', artifact_type=DataFileArtifact)
+
 class VMDTask(BaseTask, ABC):
     """
     A base class for tasks that require VMD scripting.
