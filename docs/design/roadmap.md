@@ -177,8 +177,12 @@ what appears here is refined and reprioritized as the project evolves.
           `make_prompter`) so it is testable without a TTY; blank input takes the shown default.
     - [x] **Chain identity + interior-loop options (Unreleased).** Chain identities carry the
           molecule name from the header (`COMPND` / mmCIF entity), and interior missing loops are
-          presented in the interactive walkthrough with a "build in full vs. short GGG stub"
-          (`substitutions`) choice.
+          presented in the interactive walkthrough with a "build in full vs. short stub"
+          (`substitutions`, user-chosen sequence) choice.
+    - [x] **Full pipeline builder + launch (Unreleased).** `--interactive` also walks the post-psfgen
+          pipeline (vacuum min, vacuum MD, solvate, solvated min, NVT/NPT equilibration, production,
+          mdplot, `terminate`) so the whole YAML is assembled interactively, then offers to launch
+          the build immediately (`interactive_pipeline`).
     - [ ] **P3 — canonical-sequence diff.** Align the modeled sequence against the canonical UniProt
           reference to surface substitutions not recorded in `SEQADV` (no reuseable primitive exists
           today beyond the AlphaFold *structure* fetch — needs a UniProt FASTA fetch + alignment).

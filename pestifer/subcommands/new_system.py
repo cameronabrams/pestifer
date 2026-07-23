@@ -33,16 +33,24 @@ class NewSystemSubcommand(Subcommand):
             raise PestiferError(f'Output file {outputfilename} already exists; please remove it or choose a different name')
         findings = None
         active_mods = None
-        if getattr(args, 'interactive', False) or getattr(args, 'inspect', False):
+        pipeline_tasks = None
+        interactive = getattr(args, 'interactive', False)
+        if interactive or getattr(args, 'inspect', False):
             findings = _inspect(args.id)
-        if getattr(args, 'interactive', False) and findings is not None:
-            if findings.is_empty():
-                logger.info('--interactive: no missing residues or SEQADV features detected; '
-                            'generating the config as-is.')
-            else:
-                from ..core.system_inspector import interactive_select
+        if interactive:
+            from ..core.system_inspector import interactive_select, interactive_pipeline
+            if findings is not None and not findings.is_empty():
                 active_mods = interactive_select(findings)
-        r.example_manager.new_example_yaml(db_id=args.id, build_type=build_type, outputfilename=outputfilename, title=title, findings=findings, active_mods=active_mods)
+            elif findings is not None:
+                logger.info('--interactive: no missing residues / SEQADV / multi-chain features to select.')
+            pipeline_tasks = interactive_pipeline(db_id=args.id)
+        r.example_manager.new_example_yaml(db_id=args.id, build_type=build_type, outputfilename=outputfilename, title=title, findings=findings, active_mods=active_mods, pipeline_tasks=pipeline_tasks)
+        if interactive:
+            from ..core.system_inspector import make_prompter
+            if make_prompter()('\nLaunch this build now?', False):
+                _launch_build(outputfilename)
+            else:
+                logger.info(f'Config written to {outputfilename}; run it later with `pestifer run {outputfilename}`.')
         return True
 
     def add_subparser(self, subparsers):
@@ -54,6 +62,20 @@ class NewSystemSubcommand(Subcommand):
         self.parser.add_argument('--output', type=str, default=None, help='output filename for the new system configuration (default: <id>.yaml)')
         self.parser.add_argument('--title', type=str, default=None, help='title for the new system configuration (default: none)')
         return self.parser
+
+
+def _launch_build(configname: str):
+    """Run the just-written config through the normal build pipeline (as `pestifer run` would)."""
+    from ..core.controller import Controller
+    from ..core.config import Config
+    logger.info(f'Launching build from {configname} ...')
+    try:
+        config = Config(userfile=configname).configure_new()
+        Controller().configure(config).do_tasks()
+        logger.info('Build complete.')
+    except Exception as e:
+        logger.error(f'Build failed: {e}. The config remains at {configname}; '
+                     f'fix and re-run with `pestifer run {configname}`.')
 
 
 def _inspect(db_id: str):

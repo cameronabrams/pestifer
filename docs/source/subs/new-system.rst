@@ -117,6 +117,30 @@ The resulting ``psfgen`` task then carries a real ``source:`` block (chosen ``bi
 
 Interior missing loops are built and closed by default; declining "in full" offers a short built **stub** in place of the full disordered sequence, and prompts for the stub's one-letter sequence (default ``GGG``, but you may enter any short sequence -- e.g. ``GSGSG``) -- emitted as ``substitutions: [G:400-410,GSGSG]``.  (Leaving a genuine capped chain break where a loop would go is not yet supported -- it needs a build-side chain-split-and-cap capability; it is on the roadmap.)
 
+After the structure choices, ``--interactive`` also walks through the **post-psfgen build pipeline**, so the whole YAML is assembled interactively rather than pulled from the ``--full`` template.  Each stage is an optional yes/no with a sensible default:
+
+.. code-block:: text
+
+     Post-psfgen build pipeline (each stage optional; edit nsteps in the YAML as needed):
+       Vacuum minimization? [Y/n] y
+       Vacuum MD (NVT) equilibration? [y/N] n
+       Solvate (water box + neutralizing ions)? [Y/n] y
+         Solvated minimization? [Y/n] y
+         Solvated MD equilibration (NVT then NPT)? [Y/n] y
+         Longer NPT production run? [y/N] n
+         Density plot (mdplot)? [y/N] n
+       Terminate task (package the built system)? [Y/n] y
+
+The chosen tasks are appended after ``fetch``/``psfgen``/``ligate`` (the solvated stages appear only if you solvate), and a standard ``terminate`` packages the result.  ``nsteps`` use conservative defaults you can edit in the emitted YAML.
+
+Finally, ``--interactive`` offers to **launch the build immediately**:
+
+.. code-block:: text
+
+       Launch this build now? [y/N] y
+
+Answering yes runs the just-written config through the normal build pipeline (equivalent to ``pestifer run <output>.yaml``); answering no leaves the config on disk to run later.
+
 ``--output <filename>``
 ++++++++++++++++++++++++
 

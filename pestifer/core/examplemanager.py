@@ -130,7 +130,7 @@ class ExampleManager:
         logger.info(f'Checked out example {example_id} from {self.path.name} to current working directory {os.getcwd()}')
         return example
 
-    def new_example_yaml(self, db_id: str = 'ABCD', build_type: str = 'minimal', outputfilename: str = None, title: str = '', findings=None, active_mods=None):
+    def new_example_yaml(self, db_id: str = 'ABCD', build_type: str = 'minimal', outputfilename: str = None, title: str = '', findings=None, active_mods=None, pipeline_tasks=None):
         """
         Generate a new example YAML file based on an existing example template.  The id can be a 4-letter PDB ID or an Alphafold/UNIPROT ID starting with "P".  The build_type can be either 'minimal' or 'full', which determines whether the generated YAML file contains only the psfgen task or all tasks including termination.
 
@@ -160,9 +160,11 @@ class ExampleManager:
             except yaml.YAMLError as e:
                 raise ValueError(f'Invalid YAML file {template_yaml_path}: {e}')
         example_config['title'] = title if title else f'New template pestifer config for id {db_id} ({idtype})'
-        if build_type == 'minimal':
+        # An interactively-built pipeline supplies its own downstream tasks, so scaffold from just
+        # fetch + psfgen (as for a minimal build) and append the chosen pipeline below.
+        if build_type == 'minimal' or pipeline_tasks is not None:
             fetch_task = example_config['tasks'][0]
-            example_config['tasks'] = [fetch_task, example_config['tasks'][1]]  # keep only the fetch task
+            example_config['tasks'] = [fetch_task, example_config['tasks'][1]]  # keep only fetch + psfgen
         if idtype == 'PDB' or idtype == 'Alphafold':
             example_config['tasks'][0]['fetch']['sourceID'] = db_id
         if build_type == 'full':
@@ -179,6 +181,8 @@ class ExampleManager:
             # active `ligate` task right after psfgen so the generated config actually closes them.
             pi = next(i for i, t in enumerate(example_config['tasks']) if 'psfgen' in t)
             example_config['tasks'].insert(pi + 1, {'ligate': {'method': 'ccd'}})
+        if pipeline_tasks is not None:
+            example_config['tasks'].extend(pipeline_tasks)
         if outputfilename:
             output_yaml = outputfilename
         else:

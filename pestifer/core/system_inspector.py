@@ -353,6 +353,40 @@ def interactive_select(findings: 'Findings', ask=None, say=None, prompt_text=Non
     return {'source': source, 'sequence': sequence, 'mods': mods, 'add_ligate': add_ligate}
 
 
+def interactive_pipeline(db_id: str = 'system', ask=None, say=None) -> list:
+    """
+    Walk the user through the post-psfgen build pipeline and return the chosen task dicts (to append
+    after ``fetch``/``psfgen``/``ligate``): vacuum minimization, vacuum MD, solvation and its
+    solvated minimization / equilibration / production, an optional density plot, and a standard
+    ``terminate`` (package) task. Each stage is a yes/no prompt with a sensible default; ``ask`` is
+    injectable for testing. nsteps are conservative defaults the user can edit in the YAML.
+    """
+    ask = ask or make_prompter()
+    say = say or (lambda m: print(m))
+    tasks = []
+    say('\nPost-psfgen build pipeline (each stage optional; edit nsteps in the YAML as needed):')
+    if ask('  Vacuum minimization?', True):
+        tasks.append({'md': {'ensemble': 'minimize'}})
+    if ask('  Vacuum MD (NVT) equilibration?', False):
+        tasks.append({'md': {'ensemble': 'NVT', 'nsteps': 1000}})
+    if ask('  Solvate (water box + neutralizing ions)?', True):
+        tasks.append({'solvate': None})
+        if ask('    Solvated minimization?', True):
+            tasks.append({'md': {'ensemble': 'minimize'}})
+        if ask('    Solvated MD equilibration (NVT then NPT)?', True):
+            tasks.append({'md': {'ensemble': 'NVT', 'nsteps': 1000}})
+            tasks.append({'md': {'ensemble': 'NPT', 'nsteps': 5000}})
+        if ask('    Longer NPT production run?', False):
+            tasks.append({'md': {'ensemble': 'NPT', 'nsteps': 100000}})
+        if ask('    Density plot (mdplot)?', False):
+            tasks.append({'mdplot': {'timeseries': ['density'], 'basename': 'solvated', 'grid': True}})
+    if ask('  Terminate task (package the built system)?', True):
+        tasks.append({'terminate': {'basename': f'my_{db_id.lower()}',
+                                    'package': {'basename': f'prod_{db_id.lower()}',
+                                                'namd': {'ensemble': 'NPT'}}}})
+    return tasks
+
+
 def _group_runs(resseqnums):
     """Yield ``(start, end)`` for each maximal run of consecutive integers in ``resseqnums``."""
     s = sorted(set(resseqnums))

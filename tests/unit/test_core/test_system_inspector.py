@@ -2,7 +2,7 @@ import unittest
 
 from pestifer.core.system_inspector import (
     build_findings, _group_runs, Findings, MissingRun, MutationFinding, ExcisionRun,
-    interactive_select, make_prompter, ChainIdentity, AssemblyInfo,
+    interactive_select, make_prompter, ChainIdentity, AssemblyInfo, interactive_pipeline,
 )
 
 
@@ -207,6 +207,29 @@ class TestChainAndAssembly(unittest.TestCase):
         self.assertIn('1: 3 copies of chain(s) [A, B]', text)
         self.assertIn('A: protein (100 residues)', text)
         self.assertIn('exclude:', text)
+
+
+class TestPipeline(unittest.TestCase):
+    def test_accept_defaults(self):
+        pt = interactive_pipeline('4zmj', ask=lambda q, d=False: d, say=lambda m: None)
+        kinds = [list(t)[0] for t in pt]
+        # vacuum-min, solvate, solvated-min, NVT, NPT, terminate (vacuum-MD/production/mdplot default off)
+        self.assertEqual(kinds, ['md', 'solvate', 'md', 'md', 'md', 'terminate'])
+        self.assertEqual(pt[0]['md']['ensemble'], 'minimize')
+        self.assertEqual(pt[-1]['terminate']['basename'], 'my_4zmj')
+        self.assertEqual(pt[-1]['terminate']['package']['basename'], 'prod_4zmj')
+
+    def test_only_terminate(self):
+        pt = interactive_pipeline('x', ask=lambda q, d=False: 'Terminate' in q, say=lambda m: None)
+        self.assertEqual([list(t)[0] for t in pt], ['terminate'])
+
+    def test_no_solvate_skips_solvated_stages(self):
+        ask = lambda q, d=False: d and 'Solvate' not in q   # take defaults except decline solvate
+        pt = interactive_pipeline('x', ask=ask, say=lambda m: None)
+        kinds = [list(t)[0] for t in pt]
+        self.assertNotIn('solvate', kinds)
+        self.assertIn('md', kinds)          # vacuum minimization still there
+        self.assertIn('terminate', kinds)
 
 
 if __name__ == '__main__':
