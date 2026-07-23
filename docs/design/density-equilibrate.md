@@ -17,17 +17,29 @@ Every solvated build today ends with a hand-written ladder of NPT runs of increa
 - md: {ensemble: NPT, nsteps: 13200}
 ```
 
-This is a **heuristic with magic numbers baked into every config**. It does not adapt to the
-system: a small soluble peptide box over-equilibrates on this schedule while a large glycoprotein
-trimer or a membrane patch under-equilibrates — both run the same fixed number of steps. It is also
-noise: the same five lines are copied into the template, the `new-system` pipeline, and every
-bundled example.
+**Why the ladder is *short runs*, not one long run — this is the load-bearing reason.** NPT on a
+freshly solvated box shrinks the cell (the water was placed at a lower-than-equilibrium density).
+NAMD fixes its **spatial decomposition (patch grid) and PME grid at the *start* of each `run`**; as
+the cell shrinks *within* a run the patches shrink with it, and once a patch dimension falls below
+the cutoff NAMD aborts ("periodic cell has become too small for the patch grid"). Each new `run`
+(a NAMD restart) **recomputes** the decomposition and PME grid for the current, smaller cell — so the
+ladder's staged short runs restart *before* the cell shrinks past the patch **`margin`** (pestifer
+runs with `margin: 4` Å and auto-sized PME via `pmegridspacing: 1.0`). The runs are *progressively
+longer* because the box shrinks fast early (frequent restarts needed) and barely at all once near
+equilibrium. So the chunking is **mandatory for numerical stability**, not merely a convergence
+convenience — and a single long NPT run does not just waste compute, it **crashes**.
+
+On top of that, the ladder is **a heuristic with magic numbers baked into every config** that does
+not adapt to system size, and it is copy-pasted into the template, the `new-system` pipeline, and
+every bundled example.
 
 ## Goal / non-goals
 
-- **Goal:** one `density_equilibrate` task that runs NPT and **stops itself** when the system's box
-  density has converged, or when a hard step ceiling is reached — replacing the ladder across the
-  board (template, `new-system` interactive pipeline, bundled examples).
+- **Goal:** one `density_equilibrate` task that runs NPT as a series of **stability-bounded short
+  restarts** (short enough that the shrinking cell never outruns NAMD's patch grid) and **stops
+  itself** when the box density has converged (or a step ceiling is hit) — replacing the ladder
+  across the board (template, `new-system` interactive pipeline, bundled examples). It automates
+  *both* jobs the ladder does by hand: staging the restarts, and deciding when enough is enough.
 - **Non-goals (v1):**
   - *Full-system* (conformational) equilibration — density is a **box/solvent** observable (see
     below); protein RMSD / potential-energy relaxation is out of scope.
@@ -46,24 +58,36 @@ conformational relaxation (backbone RMSD, side-chain repacking, slow H-bond netw
 named and documented for what it does — *equilibrate the box density* — not "the system is
 equilibrated." A production run still follows.
 
-## Approach — chunked NPT + convergence test
+## Approach — stability-bounded chunks, convergence-driven stop
 
-Run NPT in **chunks** of `chunk_steps`; after each chunk, extract the density time series so far and
-test for convergence; stop when converged or `max_steps` is reached.
+Two independent jobs, cleanly separated:
+
+- **Chunk length is a *stability* constraint** (not a free knob). Each chunk is one NAMD `run`
+  (restart), which recomputes the patch/PME grid. A chunk must be short enough that the cell does not
+  shrink past the patch `margin` *within* it — otherwise NAMD crashes. Since the shrink rate is
+  largest early and → 0 near equilibrium, chunk length is **adaptive**: short early, longer late
+  (exactly the ladder's shape, but derived rather than guessed).
+- **Stopping is a *convergence* decision**, checked at each chunk boundary (the criterion below).
 
 ```
-firsttimestep = 0
-series = []                              # (timestep, density) samples
+firsttimestep = 0; series = []
+chunk = chunk_min                                 # conservative first chunk (box shrinks fastest now)
 while total_steps < max_steps:
-    run NPT for chunk_steps (continuation from the running state; firsttimestep = total_steps)
+    run NPT for `chunk` steps (continuation; firsttimestep = total_steps)
     series += density_samples_from_xst(this chunk)
-    total_steps += chunk_steps
+    total_steps += chunk
+    # STABILITY: size the next chunk so the projected max per-dimension cell shrink stays below a
+    # safe fraction of `margin` (from the shrink rate just observed); clamp to [chunk_min, chunk_max]
+    chunk = clamp(safe_fraction * margin / max_recent_shrink_rate_per_step, chunk_min, chunk_max)
+    # STOP: density convergence (see criterion)
     if total_steps >= min_steps and converged(series):
         break
 register the final state; write a convergence report + density-vs-time plot
 ```
 
-This reuses the existing substrate directly:
+Sizing the next chunk from the *observed* shrink rate keeps every run safely inside the `margin` with
+no guessing, and naturally lengthens the chunks as the box settles. `margin` itself can be raised for
+extra slack (at a modest performance cost) if needed. This reuses the existing substrate directly:
 
 - **Continuation.** `MDTask.namdrun` already threads `firsttimestep` from the state artifact and
   each run emits the state fileset (`psf`/`pdb`/`coor`/`xsc`/`vel`) that the next chunk continues
@@ -177,21 +201,25 @@ on a small and a large system in validation — not re-calibrated.
 
 ## Parameters (task spec)
 
-| key            | meaning                                                          | default (calibrated) |
-|----------------|------------------------------------------------------------------|----------------------|
-| `chunk_steps`  | NPT steps per convergence check                                  | 2000                 |
-| `max_steps`    | hard ceiling; stop even if not converged                         | 100000               |
-| `min_steps`    | never declare convergence before this many steps                 | 4000                 |
-| `burn_in`      | leading steps discarded before assessing the trend               | 2000                 |
-| `window`       | trailing window; **grows adaptively** until the precision gate is met | ~10000 (start)  |
-| `n_blocks`     | blocks the window is averaged into                               | 6                    |
-| `precision_p`  | precision gate: require `SEM/mean < drift_tol / precision_p`      | 3                    |
-| `n_consecutive`| successive checks that must pass before stopping (hysteresis)    | 3                    |
-| `drift_tol`    | converge when fractional drift `< drift_tol` (adequacy choice)    | 1e-3 (~0.1 %)        |
-| `seed`         | NAMD RNG seed (reproducible stop on a fixed machine)             | fixed default        |
+| key             | meaning                                                          | default             |
+|-----------------|------------------------------------------------------------------|---------------------|
+| `chunk_min`     | shortest chunk (used for the fast-shrinking first runs)          | 500                 |
+| `chunk_max`     | longest chunk (once the box has settled)                         | 5000                |
+| `shrink_safety` | size each chunk so projected per-dim cell shrink < this·`margin` | 0.5                 |
+| `margin`        | NAMD patch margin (Å) — the shrink slack per run; from md specs  | 4                   |
+| `max_steps`     | hard ceiling; stop even if not converged                         | 100000              |
+| `min_steps`     | never declare convergence before this many steps                 | 4000                |
+| `burn_in`       | leading steps discarded before assessing the trend               | 2000                |
+| `window`        | trailing window; **grows adaptively** until the precision gate   | ~10000 (start)      |
+| `n_blocks`      | blocks the window is averaged into                               | 6                   |
+| `precision_p`   | precision gate: require `SEM/mean < drift_tol / precision_p`      | 3                   |
+| `n_consecutive` | successive passing checks before stopping (hysteresis)           | 3                   |
+| `drift_tol`     | converge when fractional drift `< drift_tol` (adequacy choice)   | 1e-3 (~0.1 %)       |
+| `seed`          | NAMD RNG seed (reproducible stop on a fixed machine)             | fixed default       |
 
-Plus the usual NPT knobs it forwards to `namdrun` (`temperature`, `pressure`, `timestep`, output
-frequencies). Defaults are starting points to be tuned during validation (see below).
+`chunk_min`/`chunk_max`/`shrink_safety`/`margin` govern the *stability*-bounded chunk length; the
+rest govern the *convergence* stop. Plus the usual NPT knobs forwarded to `namdrun` (`temperature`,
+`pressure`, `timestep`, output frequencies).
 
 ## Task integration
 
@@ -247,8 +275,11 @@ stop). Tune the default tolerances/window from these runs.
 
 ## Decisions
 
-- **Fixed:** chunked NPT with convergence-or-ceiling stopping; density from the `.xst` cell volume
-  (triple product) + PSF mass; convergence by a **practical fractional-drift tolerance made
+- **Fixed:** the chunking is **mandatory for numerical stability** (each chunk is a NAMD restart that
+  recomputes the patch/PME grid before the shrinking cell outruns `margin`), with chunk length
+  **stability-bounded and adaptive** (short early, longer late) from the observed shrink rate — *not*
+  merely a convergence convenience; convergence-or-ceiling stopping; density from the `.xst` cell
+  volume (triple product) + PSF mass; convergence by a **practical fractional-drift tolerance made
   size-independent by a precision gate that adapts the window/duration**, with `n_consecutive`
   hysteresis — *not* a fluctuation threshold and *not* a `trend/SEM` significance test (both
   prototyped and rejected: the fluctuation is intrinsic; trend/SEM has a `√12≈3.5` floor at plateau).
