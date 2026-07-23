@@ -216,6 +216,19 @@ what appears here is refined and reprioritized as the project evolves.
   - [ ] **Follow-up: missing terminal tails.** No downstream anchor, so no closure —
         sample + minimize free tails; separate from the internal-loop path. Still open.
 
+- [ ] **Regularize how missing residues are modeled across terminal and internal segments.**
+      Missing residues are handled by two divergent paths today: interior gaps are declared and
+      closed through the `ligate`/CCD machinery (build the run, close onto the downstream anchor,
+      `connect`, minimize), while missing N-/C-terminal tails have no unified path — they have no
+      downstream anchor, so the closure step does not apply, and they are modeled (if at all)
+      differently. Unify the two behind one consistent mechanism so a user declares "model these
+      missing residues" the same way regardless of where the gap falls, and the builder dispatches
+      to closed-loop CCD for anchored interior gaps vs. free-tail sample-and-minimize for terminal
+      segments — sharing discovery (`REMARK 465` / sequence alignment), the seeded RNG, the
+      declash/ring-piercing hygiene pass, and the downstream `minimize`. Subsumes the "missing
+      terminal tails" follow-up above and composes with the optionally-interactive `new-system`
+      item (which is where the gaps get *declared*) in Tooling.
+
 ## Ideas / unsorted
 
 - [x] **Persist chain IDs across PSF→PDB regeneration.** A PSF has no chain column, so
