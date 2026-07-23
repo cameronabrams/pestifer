@@ -155,22 +155,25 @@ what appears here is refined and reprioritized as the project evolves.
       `--from <task>`, and how it composes with the existing `continuation` task.
     - **Determinism.** Lean on the seeded-RNG work (declash, CCD closure) so a resumed build is
       reproducible — ideally identical to an uninterrupted run from the resume point onward.
-- [ ] **Optionally-interactive `new-system` for sequence modifications.** `new-system` generates a
-      build config from a PDB/UniProt ID off a fixed template today. Add an optional interactive
-      mode that inspects the source file for **missing residues** (chain gaps / `REMARK 465`) and
-      **engineered mutations** (`SEQADV`, or a diff against the canonical UniProt sequence) and
-      walks the user through declaring the corresponding mods in the emitted YAML — which gaps to
-      model and close (`ligate`), which point mutations to keep vs. revert to wild-type, which
-      cloning artifacts / expression tags to excise. Turns the "read the header, hand-write the
-      mods" step into a guided pass. Decisions to settle:
-    - **Discovery.** Parse `REMARK 465` / `SEQADV` (via pidibble) and/or align the modeled sequence
-      against the canonical reference, so gaps and substitutions are found without relying on
-      header curation being present or correct.
-    - **Prompt vs. annotate.** A `--interactive` TTY walkthrough that writes the chosen mods, vs. a
-      non-interactive pass that emits the detected items as commented-out mod stubs for the user to
-      uncomment — offer both.
-    - **Mod mapping.** Map each finding onto the right task/mod with sane defaults (missing interior
-      → loop build + `ligate`; missing terminus → tail; substitution → `mutations`).
+- [~] **Optionally-interactive `new-system` for sequence modifications.** `new-system` generated a
+      build config from a PDB/UniProt ID off a fixed template with no look at the structure. Now it
+      inspects the source for **missing residues** (chain gaps / `REMARK 465`) and **engineered
+      mutations / tags** (`SEQADV`) and annotates the emitted YAML with the corresponding mods.
+    - [x] **P1 — discovery + annotate (Unreleased).** `new-system <id> --inspect` fetches and parses
+          the structure (pidibble, no `Molecule`): missing residues are grouped into runs and
+          classified interior-gap vs N-/C-terminal tail (by each chain's resolved span); `SEQADV`
+          yields engineered mutations/conflicts and cloning/expression-tag runs. Interior gaps get an
+          active `ligate` task; every other finding is emitted as a **commented** mod stub under the
+          `psfgen` task with correct nesting (`sequence:` under `source:`, `mods:` a sibling) and
+          ready-to-uncomment shortcodes (`terminal_tails`, `mutations` to revert,
+          `deletions` to excise). Core in `core/system_inspector.py`; validated on 4zmj (SOSIP
+          mutations, tails, tag all correctly surfaced; uncommented stubs schema-validate).
+    - [ ] **P2 — interactive walkthrough.** A `--interactive` TTY pass that prompts per finding
+          (build this tail? revert this mutation? excise this tag?) and writes the chosen mods
+          *uncommented* — the guided alternative to the annotate default.
+    - [ ] **P3 — canonical-sequence diff.** Align the modeled sequence against the canonical UniProt
+          reference to surface substitutions not recorded in `SEQADV` (no reuseable primitive exists
+          today beyond the AlphaFold *structure* fetch — needs a UniProt FASTA fetch + alignment).
 
 ## Ring-piercing
 
