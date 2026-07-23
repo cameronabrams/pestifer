@@ -175,11 +175,81 @@ class PsfgenTask(VMDTask):
             if self.declash_counts[segtype]>0 and self.specs['source']['sequence'][speckey]['declash']['maxcycles']>0:
                 logger.debug(f'Declashing {self.declash_counts[segtype]} {segtype} segments')
                 self.declash_segtype(self.specs['source']['sequence'][speckey]['declash'], segtype=segtype)
+        # Model built terminal tails (opted in via build_zero_occupancy_*/include_terminal_loops)
+        # with the free-tail modeler, so a tail gets the same realistic, clash-filtered backbone the
+        # interior CCD closer gives a loop instead of guesscoord's extended arm.
+        self.model_terminal_tails()
         # A grafted glycan bond can thread through a protein/glycan ring with no atomic clash, so
         # the clash-count declash above cannot see it.  Detect such topological piercings and
         # rotate the glycan pendant out of the ring here, before the structure is written --
         # ideally making a downstream ring_check task unnecessary.
         self.resolve_glycan_piercings()
+
+    def model_terminal_tails(self):
+        """
+        Model built protein terminal tails with the free-tail modeler -- the terminal analogue
+        of the interior-loop CCD closer.
+
+        A tail opted in via ``build_zero_occupancy_[NC]_termini`` / ``include_terminal_loops`` is
+        emitted by psfgen as an arbitrary extended ``guesscoord`` arm. Here each such tail's
+        backbone is replaced by a Ramachandran-seeded, clash-filtered conformation (rigidly
+        anchored at its resolved junction; no closure, since a tail has a free end), so terminal
+        residues are modeled to the same standard as interior loops. Best-effort and
+        coordinate-only (the PSF is unchanged); a downstream ``minimize`` relaxes residual soft
+        overlaps, exactly as for interior loops. Toggle ``loops.declash.model_tails`` (default on).
+        """
+        specs = self.specs['source']['sequence']['loops']['declash']
+        if not specs.get('model_tails', True):
+            return
+        tails = self.base_molecule.protein_terminal_tails()
+        if not tails:
+            return
+        import numpy as np
+        from ..psfutil.tail_model import model_one_tail
+        from ..psfutil.loop_ccd import loop_atoms_from_pdb
+        from ..util.coord import pdb_replace_coords
+        self.next_basename('model-tails')
+        state: StateArtifacts = self.get_current_artifact('state')
+        src_pdb = state.pdb.name
+        ensemble = int(specs.get('tail_ensemble', 10))
+        # Every model-built residue (interior loops + all tails) holds throwaway guesscoord
+        # coords at this point, so exclude all of them from every tail's clash environment --
+        # only the resolved structure is a real steric backdrop.
+        modeled_specs = [(g['segname'], g['loop_resids']) for g in self.base_molecule.protein_loop_gaps()]
+        modeled_specs += [(t['segname'], t['tail_resids']) for t in tails]
+        all_modeled_serials = set()
+        for segname, resids in modeled_specs:
+            _o, _c, ser = loop_atoms_from_pdb(src_pdb, resids, segname=segname)
+            all_modeled_serials.update(ser)
+        all_modeled_serials = sorted(all_modeled_serials)
+        new_coords = {}
+        placed_tails = []      # heavy coords of tails already modeled this pass
+        for k, t in enumerate(tails):
+            extra_env = np.vstack(placed_tails) if placed_tails else None
+            res = model_one_tail(src_pdb, t['segname'], t['tail_resids'], t['anchor_resid'],
+                                 t['end'], all_modeled_serials,
+                                 seed=self._DECLASH_SEED + k, ensemble=ensemble, extra_env=extra_env)
+            placed_tails.append(res['heavy'])
+            rep = res['rep']
+            tag = (f"{t['segname']}:{t['tail_resids'][0]}-{t['tail_resids'][-1]} "
+                   f"({t['end']}-term, len {len(t['tail_resids'])})")
+            deep = rep['n_deep'] + rep['n_env_deep']
+            soft = rep['n_soft'] + rep['n_env_soft']
+            if deep:
+                logger.info(f'psfgen/model-tails: tail {tag} modeled with {deep} deep + {soft} soft '
+                            f'overlaps (worst {rep["worst"]:.2f} A) -- a downstream minimize relaxes these.')
+            else:
+                logger.debug(f'psfgen/model-tails: tail {tag} modeled clash-free ({soft} soft).')
+            for j, serial in enumerate(res['serials']):
+                new_coords[serial] = res['modeled'][j]
+        out_pdb = f'{self.basename}.pdb'
+        serial_list = sorted(new_coords)
+        coords_arr = np.array([new_coords[s] for s in serial_list])
+        row_of_serial = {s: i for i, s in enumerate(serial_list)}
+        pdb_replace_coords(src_pdb, out_pdb, coords_arr, row_of_serial)
+        self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf,
+                           xsc=getattr(state, 'xsc', None)), key='state', artifact_type=StateArtifacts)
+        logger.info(f'psfgen: modeled {len(tails)} terminal tail(s) -> {self.basename}.pdb')
 
     def resolve_glycan_piercings(self):
         """Detect ring piercings caused by grafted/model-built glycan bonds and clear each by
@@ -431,7 +501,10 @@ class PsfgenTask(VMDTask):
             return
         self.next_basename('declash-loops')
         state: StateArtifacts = self.get_current_artifact('state')
-        loops = self._enumerate_protein_loops(include_c_termini=specs['include_C_termini'])
+        # When the free-tail modeler is on it owns every terminal tail (N- and C-terminal), so the
+        # phi-wiggle handles interior loops only and does not also wiggle a C-terminal tail.
+        include_c = specs['include_C_termini'] and not specs.get('model_tails', True)
+        loops = self._enumerate_protein_loops(include_c_termini=include_c)
         logger.debug(f'Declashing {len(loops)} protein loops (image copies); maxcycles {cycles}')
         self._run_loop_declash(state, loops, cycles)
         self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf),

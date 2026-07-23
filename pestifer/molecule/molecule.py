@@ -526,6 +526,63 @@ class Molecule:
                         })
         return gaps
 
+    def protein_terminal_tails(self, min_length=1):
+        """
+        Enumerate model-built protein *terminal tails* for the free-tail modeler.
+
+        A terminal tail is a ``MISSING`` subsegment at a chain end (subsegment index 0 =
+        N-terminal, index ``len-1`` = C-terminal) that was actually built (``build`` set by
+        the psfgen scripter's ``declare_buildable``; unbuilt terminal missing runs are dropped
+        by the scripter, so only opted-in tails survive). Unlike an interior gap it has only a
+        *single* resolved anchor and no downstream closure target, so it is modeled by
+        sample-and-declash rather than CCD closure -- the terminal analogue of
+        :meth:`protein_loop_gaps`.
+
+        Must be called *after* the psfgen stanza has been written (that is when the scripter
+        sets ``build`` and pops unbuilt terminal runs); :meth:`~pestifer.tasks.psfgen.PsfgenTask.declash`
+        runs at that point.
+
+        Returns one dict per built tail copy (each biological-assembly transform):
+        ``{'segname', 'tail_resids': [int, ...] (N->C), 'anchor_resid', 'end': 'N'|'C'}`` where
+        ``segname`` is the transform-mapped (actual) segid, ``tail_resids`` are the model-built
+        residues in N->C order, ``anchor_resid`` is the adjoining *resolved* residue (the fixed
+        peptide junction), and ``end`` is which terminus the tail extends.
+        """
+        ba = self.active_biological_assembly
+        au = self.asymmetric_unit
+        tails = []
+        for S in au.segments:
+            if S.segtype != 'protein':
+                continue
+            asymm_segname = S.segname
+            n = len(S.subsegments)
+            if n < 2:
+                # a lone run has no resolved anchor to attach a tail to
+                continue
+            for i, b in enumerate(S.subsegments):
+                if b.state != 'MISSING' or not getattr(b, 'build', False):
+                    continue
+                if b.num_items() < min_length:
+                    continue
+                if i == 0:
+                    end = 'N'
+                    anchor = S.residues[S.subsegments[i + 1].bounds[0]]
+                elif i == n - 1:
+                    end = 'C'
+                    anchor = S.residues[S.subsegments[i - 1].bounds[1]]
+                else:
+                    continue  # interior -> handled by protein_loop_gaps
+                tail_res = S.residues[b.bounds[0]:b.bounds[1] + 1]
+                for transform in ba.transforms:
+                    act = transform.chainIDmap.get(asymm_segname, asymm_segname)
+                    tails.append({
+                        'segname': act,
+                        'tail_resids': [r.resid.resid for r in tail_res],
+                        'anchor_resid': anchor.resid.resid,
+                        'end': end,
+                    })
+        return tails
+
     def cleave_chains(self, clv_list: CleavageSiteList):
         """
         Cleave segments in the asymmetric unit based on a list of cleavage specifications.

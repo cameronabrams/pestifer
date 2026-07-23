@@ -561,6 +561,19 @@ attributes:
                             text: interatomic distance threshold for clashes in Angstroms
                             type: float
                             default: 1.5
+                          - name: model_tails
+                            text: >-
+                              Whether to model built terminal tails (opted in via
+                              build_zero_occupancy_N_termini/build_zero_occupancy_C_termini or
+                              include_terminal_loops) with the free-tail modeler -- a
+                              Ramachandran-seeded, clash-filtered backbone in place of guesscoord's
+                              extended arm, the terminal analogue of the interior-loop CCD closer.
+                            type: bool
+                            default: True
+                          - name: tail_ensemble
+                            text: Number of Ramachandran-seeded candidates per terminal tail; the least-clashing is kept
+                            type: int
+                            default: 10
                   - name: glycans
                     text: parameters controlling how model-built glycans are adjusted, if present
                     type: dict

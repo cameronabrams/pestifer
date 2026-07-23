@@ -357,3 +357,36 @@ followed by the `minimize` you already run.
 
 **Example 7** (4zmj SOSIP trimer) now uses `ligate method: ccd` (`refine: 500`, `ensemble: 4`)
 + `minimize`, dropping the hand-tuned HR1N crotations.
+
+## Terminal tails (2026-07-23) — regularized with interior loops
+
+An interior gap has two resolved anchors and must be *closed* onto the downstream one; a
+model-built **terminal tail** (a missing N-/C-terminal run opted in via
+`build_zero_occupancy_[NC]_termini` / `include_terminal_loops`) has only one anchor and a free
+end, so there is nothing to close. Previously a built tail kept psfgen's arbitrary extended
+`guesscoord` arm — none of the interior closer's quality machinery. The **free-tail modeler**
+(`psfutil/tail_model.py`, run in the psfgen declash step, toggle `loops.declash.model_tails`)
+regularizes this: per tail, per ensemble member,
+
+1. **Sample** each residue's (φ, ψ) from the same coil Ramachandran basins and apply them to the
+   built full-atom tail (sidechains carried) → a locally realistic *shape* in an arbitrary pose.
+2. **Place the junction** — Kabsch-superpose the three backbone atoms of the tail's anchored
+   residue onto an ideal trans-peptide target built off the resolved anchor (the mirror,
+   `downstream_anchor_target`, of `anchor_closure_target`), carrying the whole tail rigidly.
+   Closure is *replaced* by this rigid placement; the free end is correctly unconstrained.
+3. **Sample the emanation direction** — the junction torsion (the direction the tail leaves the
+   anchor) is itself sampled per member. This was the decisive fix: with it fixed, the base
+   residue is pinned and no internal-torsion move can pull it out of a clash (observed on the
+   crowded gp41 C-termini — 11 deep overlaps, worst 0.43 Å); sampling it dropped that to ≤2
+   relaxable overlaps (worst ~1.0 Å).
+4. **Iterative declash refinement** (perturb-and-replace simulated annealing, the free-tail
+   analogue of `refine_declash_ccd`) polishes each member; the least-clashing is kept. Converging
+   tails (a trimer's C-termini near the assembly axis) are modeled against one another (already-
+   placed tails join the environment), mirroring the interior closer's per-copy independence.
+
+Coordinate-only (the PSF's peptide bond to the anchor already exists — no `connect` patch); a
+downstream `minimize` relaxes residual soft overlaps, exactly as for interior loops. Validated on
+7txd (SOSIP trimer, gp41 C-termini B/D/F): proper ~1.33 Å peptide junctions, ideal intra-tail bond
+lengths, ≤2 relaxable overlaps, none threaded. Declaration stays split for now (terminal building
+is opt-in); unifying the *declaration surface* is the remaining half of the roadmap's
+"regularize missing-residue modeling" item.

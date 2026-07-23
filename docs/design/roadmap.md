@@ -213,21 +213,26 @@ what appears here is refined and reprioritized as the project evolves.
         **Retired** — KIC was prototyped then dropped in the scope correction; the `steer`
         fallback is deliberately kept (not removed) as the opt-in escape hatch. Revisit
         only alongside P2.
-  - [ ] **Follow-up: missing terminal tails.** No downstream anchor, so no closure —
-        sample + minimize free tails; separate from the internal-loop path. Still open.
+  - [x] **Follow-up: missing terminal tails.** No downstream anchor, so no closure — a built
+        terminal tail is now modeled by *sample + declash* (see the regularization item below):
+        the psfgen free-tail modeler replaces guesscoord's extended arm with a Ramachandran-seeded,
+        clash-filtered backbone, rigidly anchored at its resolved junction. (Unreleased.)
 
-- [ ] **Regularize how missing residues are modeled across terminal and internal segments.**
-      Missing residues are handled by two divergent paths today: interior gaps are declared and
-      closed through the `ligate`/CCD machinery (build the run, close onto the downstream anchor,
-      `connect`, minimize), while missing N-/C-terminal tails have no unified path — they have no
-      downstream anchor, so the closure step does not apply, and they are modeled (if at all)
-      differently. Unify the two behind one consistent mechanism so a user declares "model these
-      missing residues" the same way regardless of where the gap falls, and the builder dispatches
-      to closed-loop CCD for anchored interior gaps vs. free-tail sample-and-minimize for terminal
-      segments — sharing discovery (`REMARK 465` / sequence alignment), the seeded RNG, the
-      declash/ring-piercing hygiene pass, and the downstream `minimize`. Subsumes the "missing
-      terminal tails" follow-up above and composes with the optionally-interactive `new-system`
-      item (which is where the gaps get *declared*) in Tooling.
+- [~] **Regularize how missing residues are modeled across terminal and internal segments.**
+      Missing residues were handled by two divergent paths: interior gaps closed through the
+      `ligate`/CCD machinery (build the run, close onto the downstream anchor, `connect`, minimize),
+      while missing N-/C-terminal tails, when built at all, kept guesscoord's arbitrary extended arm
+      with none of that quality machinery. **Modeling parity shipped (Unreleased):** the interior
+      closer's conformation engine (Ramachandran seed + clash-filtered ensemble + iterative declash)
+      is now shared with a terminal **free-tail modeler** (`psfutil/tail_model.py`) that dispatches
+      by position — anchored interior gaps → CCD closure (`ligate`); terminal tails → sample +
+      rigid junction placement + declash (psfgen declash step, `loops.declash.model_tails`) — sharing
+      the seeded RNG, NeRF junction geometry, clash report, and the downstream `minimize`. Still open:
+      **unifying the declaration surface** so a user declares "model these missing residues" the same
+      way regardless of position (terminal building stays opt-in via `build_zero_occupancy_*` /
+      `include_terminal_loops` for now); that composes with the optionally-interactive `new-system`
+      item (where gaps get *declared*) in Tooling. Ring-piercing hygiene for tails is a possible
+      follow-up (interior loops get it via the graft-time scan).
 
 ## Ideas / unsorted
 
