@@ -73,12 +73,17 @@ Two independent jobs, cleanly separated:
 firsttimestep = 0; series = []
 chunk = chunk_min                                 # conservative first chunk (box shrinks fastest now)
 while total_steps < max_steps:
-    run NPT for `chunk` steps (continuation; firsttimestep = total_steps)
+    try:
+        run NPT for `chunk` steps (continuation; firsttimestep = total_steps)
+    except NAMD "cell too small for patch grid":  # REACTIVE net (see below)
+        chunk = max(min_retry_chunk, chunk // 2)   # roll back to last state, retry shorter
+        continue
     series += density_samples_from_xst(this chunk)
     total_steps += chunk
-    # STABILITY: size the next chunk so the projected max per-dimension cell shrink stays below a
-    # safe fraction of `margin` (from the shrink rate just observed); clamp to [chunk_min, chunk_max]
-    chunk = clamp(safe_fraction * margin / max_recent_shrink_rate_per_step, chunk_min, chunk_max)
+    # STABILITY: size the next chunk from the shrink rate just observed; clamp growth to
+    # chunk_growth x this chunk (AIMD-style re-growth after a halving) and cap at chunk_max
+    rate_sized = clamp(safe_fraction * margin / max_recent_shrink_rate_per_step, min_retry_chunk, chunk_max)
+    chunk = min(rate_sized, chunk_growth * chunk, chunk_max)
     # STOP: density convergence (see criterion)
     if total_steps >= min_steps and converged(series):
         break
@@ -101,6 +106,50 @@ extra slack (at a modest performance cost) if needed. This reuses the existing s
   `density(t) = M_total / (a_x·b_y·c_z)` per frame — a scalar density time series with no new
   machinery. (For a non-orthorhombic cell, volume is the scalar triple product of the three cell
   vectors.)
+
+### Reactive stability net — predictive sizing is backed by crash-catch-and-rollback
+
+The predictive chunk sizing above is a *conservative estimate*, and it deliberately does not try to
+model NAMD's exact abort threshold — which is genuinely hard to pin down. NAMD picks the patch grid at
+`run` startup from the cell, the cutoff/pairlist distance, and `margin`; the true shrink a process can
+absorb depends on all of these, and on **CPU the effective `margin` can differ from ours** (the
+GPU-resident block sets `margin: 4`, but a CPU run may see a much smaller effective slack). So instead
+of betting correctness on a formula, we make the predictor's job *safety-optional* and add a reactive
+net that turns the one failure we care about into a self-correcting loop:
+
+- **Detect.** After a `namdrun` raises, scan the NAMD log for the specific abort *"Periodic cell has
+  become too small for … patch grid"* (`is_patch_grid_crash`, matched on the stable `too small` +
+  `patch grid` fragments). Any *other* failure is re-raised unchanged — a shorter chunk does not fix a
+  RATTLE failure.
+- **Roll back — for free.** A crashed `namdrun` **registers no new `state` artifact**, so the pipeline's
+  current state still points at the *previous completed chunk* — a clean, pre-threshold checkpoint. We
+  do not touch NAMD's own `.restart` files or kill/rollback a live process: the last good chunk *is* the
+  rollback point, and the retry simply continues from it.
+- **Retry shorter.** Halve the chunk (down to a hard floor `min_retry_chunk`, independent of
+  `chunk_min`) and rerun. Fewer steps ⇒ less shrink ⇒ we stop before the cell outruns the grid. A retry
+  budget (`max_shrink_retries`) bounds this; if even `min_retry_chunk` steps still crash, the box is at
+  the grid limit and no shorter chunk helps — we surface a clear error telling the user to raise
+  `margin`.
+- **Carry the learned size forward (AIMD).** A halved chunk is not snapped back to `chunk_min`; the
+  floor for subsequent sizing is `min_retry_chunk`, and growth is capped at `chunk_growth ×` the chunk
+  just run. So the scheme *additively-increase / multiplicative-decrease*-es toward the largest safe
+  chunk and tracks it upward only as the box actually settles — crucial on a CPU run where the true
+  budget is small, so we don't re-crash every single restart.
+
+This is exactly the "monitor-and-preempt" idea, but using **NAMD's own abort as the just-in-time
+signal** and **the previous chunk's end-state as the rollback point** — no live `.xst` supervisor
+thread, no signal handling, no kill-race on a half-written restart file. The predictive sizing keeps
+crashes rare in the common (GPU, `margin: 4`) case; the net makes correctness robust when the estimate
+is wrong. (A separate `parse_patch_grid` reads the grid NAMD actually built and logs the approximate
+shrink headroom, purely for observability/tuning — nothing depends on that number.)
+
+Why not a live high-frequency `.xst` monitor that stops NAMD *before* the crash? Because a Tcl `run`
+loop inside one process does **not** re-decompose the patch grid (that is why `margin` exists), so any
+preemption still bottoms out at a process restart — the same boundary chunking already uses — and NAMD
+offers no clean checkpoint-and-exit-on-signal, so live preemption means kill + rollback to a
+`restartFreq` checkpoint (coarser than `xstFreq`, with a corrupt-file race). The reactive net gets the
+same safety with far less machinery, and the barostat shrink rate is *monotonically decreasing* (a
+relaxation), so the predictor's only blind spot — acceleration mid-chunk — essentially does not occur.
 
 ## The convergence criterion (the crux)
 
@@ -205,10 +254,12 @@ on a small and a large system in validation — not re-calibrated.
 
 | key             | meaning                                                          | default             |
 |-----------------|------------------------------------------------------------------|---------------------|
-| `chunk_min`     | shortest chunk (used for the fast-shrinking first runs)          | 500                 |
+| `chunk_min`     | nominal first-chunk length; crash recovery may go below it       | 500                 |
 | `chunk_max`     | longest chunk (once the box has settled)                         | 5000                |
 | `shrink_safety` | size each chunk so projected per-dim cell shrink < this·`margin` | 0.5                 |
 | `margin`        | NAMD patch margin (Å) — the shrink slack per run; from md specs  | 4                   |
+| `chunk_growth`  | max factor a chunk may grow over the previous (AIMD re-growth)   | 1.5                 |
+| `max_shrink_retries` | patch-grid crash retries per boundary before giving up      | 5                   |
 | `max_steps`     | hard ceiling; stop even if not converged                         | 100000              |
 | `min_steps`     | never declare convergence before this many steps                 | 4000                |
 | `burn_in`       | leading steps discarded before assessing the trend               | 2000                |
@@ -228,10 +279,13 @@ rest govern the *convergence* stop. Plus the usual NPT knobs forwarded to `namdr
 - New task, YAML header `density_equilibrate`, subclassing `MDTask` (it *is* an MD run, with a
   convergence loop around it). `pipeline_contract`: `requires=(STATE,)`, `provides=(STATE,)`.
 - `do()` implements the chunk loop above, calling the existing `namdrun(ensemble='NPT', ...)` per
-  chunk with the running `firsttimestep`, accumulating density from each chunk's `.xst`.
+  chunk with the running `firsttimestep`, accumulating density from each chunk's `.xst`, and wrapping
+  each `namdrun` in the reactive patch-grid crash-catch/rollback described above.
 - Registers the final `state` fileset (as any MD task does) and two artifacts: a **convergence
   report** (per-chunk drift/fluct, the stop reason) and a **density-vs-time plot** (reuse the
   `mdplot` density machinery).
+- All NAMD-free logic (density from `.xst`, chunk sizing, crash detection, patch-grid parsing, the
+  convergence monitor) lives in `util/density_convergence.py` and is unit-tested in isolation.
 - Schema: a `density_equilibrate` task entry mirroring `md`'s NPT options plus the table above.
 
 ## Reproducibility
@@ -292,8 +346,12 @@ these runs.
 - **Fixed:** the chunking is **mandatory for numerical stability** (each chunk is a NAMD restart that
   recomputes the patch/PME grid before the shrinking cell outruns `margin`), with chunk length
   **stability-bounded and adaptive** (short early, longer late) from the observed shrink rate — *not*
-  merely a convergence convenience; convergence-or-ceiling stopping; density from the `.xst` cell
-  volume (triple product) + PSF mass; convergence by a **practical fractional-drift tolerance made
+  merely a convergence convenience; **predictive sizing is a conservative estimate backed by a
+  reactive crash-catch-and-rollback** (detect NAMD's patch-grid abort, roll back to the previous
+  chunk's registered state — free, since a crashed run registers none — and retry shorter with
+  AIMD re-growth), so correctness does *not* depend on modeling NAMD's exact threshold and a live
+  `.xst`-monitor/kill supervisor is unnecessary; convergence-or-ceiling stopping; density from the
+  `.xst` cell volume (triple product) + PSF mass; convergence by a **practical fractional-drift tolerance made
   size-independent by a precision gate that adapts the window/duration**, with `n_consecutive`
   hysteresis — *not* a fluctuation threshold and *not* a `trend/SEM` significance test (both
   prototyped and rejected: the fluctuation is intrinsic; trend/SEM has a `√12≈3.5` floor at plateau).

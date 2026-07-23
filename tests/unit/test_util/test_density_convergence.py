@@ -8,7 +8,9 @@ import numpy as np
 from pestifer.util.density_convergence import (
     ConvergenceParams,
     DensityConvergenceMonitor,
+    is_patch_grid_crash,
     next_chunk_steps,
+    parse_patch_grid,
     total_mass_amu,
     volume_to_density,
     xst_cell_volumes,
@@ -151,6 +153,56 @@ class TestConvergenceMonitor(unittest.TestCase):
         r2 = mon.check()
         self.assertEqual(r2.passes, 0)
         self.assertFalse(r2.converged)
+
+
+class TestPatchGridCrash(unittest.TestCase):
+    _CRASH = ('Info: Entering startup phase 0\n'
+              'FATAL ERROR: Periodic cell has become too small for original patch grid!\n'
+              'Possible solutions are to restart from a recent checkpoint,\n'
+              'increase margin, or disable useFlexibleCell for liquid simulation.\n')
+
+    def test_detects_patch_grid_crash(self):
+        self.assertTrue(is_patch_grid_crash(self._CRASH))
+
+    def test_ignores_other_failures(self):
+        self.assertFalse(is_patch_grid_crash('FATAL ERROR: Constraint failure in RATTLE algorithm!'))
+        self.assertFalse(is_patch_grid_crash(''))
+        self.assertFalse(is_patch_grid_crash(None))
+
+    def test_case_insensitive(self):
+        self.assertTrue(is_patch_grid_crash('periodic cell too small for the PATCH GRID'))
+
+
+class TestParsePatchGrid(unittest.TestCase):
+    _LOG = (
+        'Info: CUTOFF                10\n'
+        'Info: PAIRLIST DISTANCE     11.5\n'
+        'Info: MARGIN                4\n'
+        'Info: PERIODIC CELL BASIS 1  62 0 0\n'
+        'Info: PERIODIC CELL BASIS 2  0 62 0\n'
+        'Info: PERIODIC CELL BASIS 3  0 0 124\n'
+        'Info: PATCH GRID IS 5 (PERIODIC) BY 5 (PERIODIC) BY 10 (PERIODIC)\n'
+    )
+
+    def test_parses_grid_and_derived(self):
+        info = parse_patch_grid(self._LOG)
+        self.assertEqual(info['patches'], (5, 5, 10))
+        self.assertEqual(info['cell_edges'], (62.0, 62.0, 124.0))
+        self.assertEqual(info['cutoff'], 10.0)
+        self.assertEqual(info['pairlistdist'], 11.5)
+        self.assertEqual(info['margin'], 4.0)
+        # min patch dim = 62/5 = 12.4 (both x and z give 12.4); headroom to pairlist = 12.4-11.5=0.9
+        self.assertAlmostEqual(info['min_patch_dim'], 12.4, places=3)
+        self.assertAlmostEqual(info['shrink_headroom'], 0.9, places=3)
+
+    def test_no_grid_returns_none(self):
+        self.assertIsNone(parse_patch_grid('Info: nothing useful here'))
+        self.assertIsNone(parse_patch_grid(''))
+
+    def test_grid_without_cell(self):
+        info = parse_patch_grid('Info: PATCH GRID IS 3 BY 4 BY 5\n')
+        self.assertEqual(info['patches'], (3, 4, 5))
+        self.assertNotIn('min_patch_dim', info)
 
 
 class TestTotalMass(unittest.TestCase):

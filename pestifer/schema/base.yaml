@@ -1649,7 +1649,7 @@ attributes:
             type: int
             default: 100
           - name: chunk_min
-            text: shortest NPT chunk (steps); used for the fast-shrinking first restarts
+            text: nominal first-chunk length (steps) for the fast-shrinking start; crash recovery may temporarily go below this
             type: int
             default: 500
           - name: chunk_max
@@ -1664,6 +1664,14 @@ attributes:
             text: NAMD patch margin (angstrom) -- the per-run cell-shrink slack used to bound chunk length
             type: float
             default: 4
+          - name: chunk_growth
+            text: max factor by which a chunk may grow over the previous one (AIMD-style gentle re-growth after a crash-triggered halving)
+            type: float
+            default: 1.5
+          - name: max_shrink_retries
+            text: consecutive patch-grid crash retries allowed at one boundary before giving up (each halves the chunk); the reactive stability net
+            type: int
+            default: 5
           - name: max_steps
             text: hard ceiling on total NPT steps; the task stops (with a warning) even if not converged
             type: int

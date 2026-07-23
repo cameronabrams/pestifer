@@ -15,7 +15,12 @@ isolation.  It provides three separable pieces, mirroring ``docs/design/density-
    fixes its patch/PME grid at the start of each ``run``, so a chunk must be short enough that the
    shrinking cell does not outrun the patch ``margin`` within it.  :func:`next_chunk_steps` sizes the
    next chunk from the shrink rate just observed, so chunks are short early (fast shrink) and longer
-   late (box settled) -- the ladder's shape, derived rather than guessed.
+   late (box settled) -- the ladder's shape, derived rather than guessed.  Because NAMD's *effective*
+   shrink budget is hard to model exactly (it depends on the patch grid it chose and, on CPU, on a
+   ``margin`` that may differ from ours), the predictive sizing is a conservative estimate backed by a
+   **reactive safety net**: :func:`is_patch_grid_crash` recognizes the specific NAMD abort so the task
+   can roll back and retry shorter, and :func:`parse_patch_grid` reads the grid NAMD actually built
+   for observability.
 
 3. **The convergence criterion.**  A *practical fractional-drift* tolerance made size-independent by
    a **precision gate** (grow the window/duration until the mean is resolved above noise) plus
@@ -25,6 +30,7 @@ isolation.  It provides three separable pieces, mirroring ``docs/design/density-
 from __future__ import annotations
 
 import logging
+import re
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -118,6 +124,68 @@ def next_chunk_steps(shrink_rate, margin, shrink_safety, chunk_min, chunk_max):
         return int(chunk_max)
     allowed = shrink_safety * margin / shrink_rate
     return int(max(chunk_min, min(chunk_max, allowed)))
+
+
+def is_patch_grid_crash(log_text):
+    """True if a NAMD log records the "cell too small for the patch grid" abort.
+
+    This is the specific failure the chunking exists to avoid: the barostat shrank the cell past what
+    the patch grid (fixed at ``run`` start) can represent.  NAMD's message is *"Periodic cell has
+    become too small for original patch grid! ..."*; we match on the stable ``too small`` +
+    ``patch grid`` fragments so a wording change does not silently defeat the reactive retry.  Any
+    *other* NAMD failure returns False (the caller re-raises it -- it is not something a shorter chunk
+    fixes)."""
+    low = (log_text or '').lower()
+    return 'too small' in low and 'patch grid' in low
+
+
+# NAMD startup log fragments (all "Info:" lines).  Kept lenient: PBC on/off wording varies by build.
+_PATCH_GRID_RE = re.compile(r'PATCH GRID IS\s+(\d+)[^\d]*?BY\s+(\d+)[^\d]*?BY\s+(\d+)', re.I)
+_CELL_BASIS_RE = re.compile(
+    r'PERIODIC CELL BASIS\s+([123])\s+([-\d.eE]+)\s+([-\d.eE]+)\s+([-\d.eE]+)', re.I)
+_CUTOFF_RE = re.compile(r'\bCUTOFF\s+([\d.eE+-]+)', re.I)
+_PAIRLIST_RE = re.compile(r'PAIRLIST DISTANCE\s+([\d.eE+-]+)', re.I)
+_MARGIN_RE = re.compile(r'\bMARGIN\s+([\d.eE+-]+)', re.I)
+
+
+def parse_patch_grid(log_text):
+    """Read the patch grid NAMD actually built, for observability (not correctness).
+
+    Returns a dict with whatever could be parsed from the startup log -- ``patches`` (nx, ny, nz),
+    ``cell_edges`` (lengths of the three periodic cell-basis vectors), ``cutoff``, ``pairlistdist``,
+    ``margin``, and, when both the grid and the cell are known, the minimum current patch dimension
+    ``min_patch_dim`` (= min edge / its patch count) and an *approximate* ``shrink_headroom`` before
+    that dimension reaches the pairlist distance.  Returns ``None`` if no patch grid line is present.
+
+    The headroom is explicitly approximate -- NAMD's exact abort threshold is internal -- and is for
+    logging/tuning only; the reactive crash-and-retry, not this number, is what guarantees stability."""
+    if not log_text:
+        return None
+    m = _PATCH_GRID_RE.search(log_text)
+    if not m:
+        return None
+    out = {'patches': (int(m.group(1)), int(m.group(2)), int(m.group(3)))}
+
+    edges = {}
+    for bm in _CELL_BASIS_RE.finditer(log_text):
+        idx = int(bm.group(1))
+        vec = np.array([float(bm.group(2)), float(bm.group(3)), float(bm.group(4))])
+        edges[idx] = float(np.linalg.norm(vec))
+    if len(edges) == 3:
+        out['cell_edges'] = (edges[1], edges[2], edges[3])
+
+    for key, rx in (('cutoff', _CUTOFF_RE), ('pairlistdist', _PAIRLIST_RE), ('margin', _MARGIN_RE)):
+        mm = rx.search(log_text)
+        if mm:
+            out[key] = float(mm.group(1))
+
+    if 'cell_edges' in out:
+        patch_dims = [e / n for e, n in zip(out['cell_edges'], out['patches'])]
+        out['min_patch_dim'] = min(patch_dims)
+        floor = out.get('pairlistdist', out.get('cutoff'))
+        if floor is not None:
+            out['shrink_headroom'] = out['min_patch_dim'] - floor
+    return out
 
 
 @dataclass

@@ -167,9 +167,15 @@ what appears here is refined and reprioritized as the project evolves.
     - [x] **P1 — the task (Unreleased).** `density_equilibrate` (subclasses `MDTask`) with the
           stability-bounded adaptive chunk sizing, the precision-gated fractional-drift criterion with
           `n_consecutive` hysteresis, `max_steps` guard and NaN abort, and a convergence-report +
-          density-vs-time-plot artifact. Convergence math lives in a NAMD-free, unit-tested
-          `util/density_convergence.py`. Wired into the `new-system` template and interactive pipeline
-          (replacing the NPT ladder there). **Still to do:** validate on a small and a large solvated
+          density-vs-time-plot artifact. **Reactive stability net:** each `namdrun` is wrapped in a
+          patch-grid crash-catch — detect NAMD's "cell too small for patch grid" abort, roll back to
+          the previous chunk's registered state (free — a crashed run registers none) and retry
+          shorter with AIMD re-growth (halve on crash, grow ≤`chunk_growth`× per success), so
+          correctness doesn't depend on modeling NAMD's exact threshold and CPU runs (smaller effective
+          `margin`) self-tune instead of re-crashing every restart. Convergence + crash-detection +
+          patch-grid parsing all live in a NAMD-free, unit-tested `util/density_convergence.py`. Wired
+          into the `new-system` template and interactive pipeline (replacing the NPT ladder there).
+          **Still to do:** validate on a small and a large solvated
           box against a long *staged* reference (the same task run with the stop disabled to
           `max_steps` — there is no monolithic long run to compare to; it crashes on the shrinking
           box), confirming the auto-stop lands at the reference plateau density in sane time.

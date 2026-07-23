@@ -23,7 +23,9 @@ from ..core.errors import PestiferBuildError
 from ..util.density_convergence import (
     ConvergenceParams,
     DensityConvergenceMonitor,
+    is_patch_grid_crash,
     next_chunk_steps,
+    parse_patch_grid,
     total_mass_amu,
     volume_to_density,
     xst_cell_volumes,
@@ -31,6 +33,11 @@ from ..util.density_convergence import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Hard floor for crash-recovery chunk shrinking: if even this many NPT steps outruns the patch grid,
+# the box is at the grid limit and no shorter chunk helps -- the fix is a larger `margin`, so we stop
+# retrying and surface that.  Independent of `chunk_min` (the nominal first-chunk length).
+_MIN_RETRY_CHUNK = 20
 
 
 class DensityEquilibrateTask(MDTask):
@@ -59,6 +66,8 @@ class DensityEquilibrateTask(MDTask):
         chunk_max = int(specs['chunk_max'])
         max_steps = int(specs['max_steps'])
         min_steps = int(specs['min_steps'])
+        chunk_growth = float(specs['chunk_growth'])
+        max_shrink_retries = int(specs['max_shrink_retries'])
 
         state = self.get_current_artifact('state')
         if not state or not state.psf:
@@ -80,22 +89,54 @@ class DensityEquilibrateTask(MDTask):
         chunk = chunk_min      # conservative first chunk: the box shrinks fastest now
         stop_reason = None
         n_chunk = 0
+        shrink_retries = 0     # consecutive patch-grid retries at the current boundary
+        grid_logged = False
 
         while total_steps < max_steps:
-            n_chunk += 1
             # Do not overshoot the ceiling.
             this_chunk = min(chunk, max_steps - total_steps)
             specs['nsteps'] = this_chunk
-            logger.info(f'{self.taskname}: NPT chunk {n_chunk} -- {this_chunk} steps '
-                        f'(firsttimestep {total_steps})')
-            rc = self.namdrun()
-            if rc != 0:
-                raise PestiferBuildError(f'{self.taskname}: NAMD chunk {n_chunk} failed (rc={rc})')
+            attempt = f' (retry {shrink_retries}/{max_shrink_retries})' if shrink_retries else ''
+            logger.info(f'{self.taskname}: NPT chunk {n_chunk + 1} -- {this_chunk} steps '
+                        f'(firsttimestep {total_steps}){attempt}')
+            try:
+                self.namdrun()
+            except PestiferBuildError:
+                # Reactive safety net.  If NAMD died because the shrinking cell outran its
+                # (start-of-run) patch grid, roll back and retry with a shorter chunk: a crashed
+                # namdrun registers no new `state`, so `get_current_artifact('state')` still points at
+                # the *previous* completed chunk -- the safe, pre-threshold rollback point -- and the
+                # next namdrun() continues from it.  We simply run fewer steps so we stop before the
+                # cell shrinks past the grid.  NAMD's own abort is the just-in-time trigger; the
+                # threshold need not be modeled exactly.  Any other failure is re-raised unchanged.
+                log_text = _read_text(f'{self.basename}.log')
+                if (is_patch_grid_crash(log_text) and shrink_retries < max_shrink_retries
+                        and this_chunk > _MIN_RETRY_CHUNK):
+                    shrink_retries += 1
+                    chunk = max(_MIN_RETRY_CHUNK, this_chunk // 2)
+                    logger.warning(
+                        f'{self.taskname}: NPT chunk {n_chunk + 1} outran the patch grid at '
+                        f'{this_chunk} steps; rolling back to the last completed state and retrying '
+                        f'with {chunk} steps (retry {shrink_retries}/{max_shrink_retries})')
+                    continue
+                if is_patch_grid_crash(log_text):
+                    raise PestiferBuildError(
+                        f'{self.taskname}: NAMD keeps outrunning the patch grid even at '
+                        f'{this_chunk} steps after {shrink_retries} retries. The freshly solvated '
+                        f'cell is shrinking faster than the patch margin allows; increase `margin` '
+                        f'(currently {margin:g} A) in this task or the `namd` config, or pre-shrink '
+                        f'the box.')
+                raise
+            shrink_retries = 0
+            n_chunk += 1
             total_steps += this_chunk
 
             xst = f'{self.basename}.xst'
             if not os.path.exists(xst):
                 raise PestiferBuildError(f'{self.taskname}: chunk {n_chunk} produced no .xst ({xst})')
+            if not grid_logged:
+                self._log_patch_grid(f'{self.basename}.log')
+                grid_logged = True
             ts, vols = xst_cell_volumes(xst)
             if ts.size == 0:
                 logger.warning(f'{self.taskname}: chunk {n_chunk} .xst had no frames; '
@@ -124,10 +165,17 @@ class DensityEquilibrateTask(MDTask):
                 break
 
             # STABILITY: size the next chunk from the shrink rate just observed so the projected
-            # per-dimension cell shrink stays below shrink_safety * margin within the next run.
+            # per-dimension cell shrink stays below shrink_safety * margin within the next run.  The
+            # floor is _MIN_RETRY_CHUNK, not chunk_min, so a size learned by crash-recovery is not
+            # yanked back up.  Growth is capped at chunk_growth x the chunk we just ran (AIMD-style:
+            # halve on a crash, re-grow gently) so we do not leap straight back to a size that just
+            # crashed -- important on CPU, where the true margin can be far below our estimate.
             rate = xst_max_shrink_rate(xst)
-            chunk = next_chunk_steps(rate, margin, shrink_safety, chunk_min, chunk_max)
-            logger.debug(f'{self.taskname}: observed shrink rate {rate:.3e} A/step -> next chunk {chunk} steps')
+            rate_sized = next_chunk_steps(rate, margin, shrink_safety, _MIN_RETRY_CHUNK, chunk_max)
+            grow_cap = max(_MIN_RETRY_CHUNK, int(this_chunk * chunk_growth))
+            chunk = min(rate_sized, grow_cap, chunk_max)
+            logger.debug(f'{self.taskname}: shrink rate {rate:.3e} A/step -> rate-sized {rate_sized}, '
+                         f'grow-cap {grow_cap} -> next chunk {chunk} steps')
         else:
             last = rows[-1][3] if rows else None
             resid = _fmt(last.drift) if last else 'n/a'
@@ -139,6 +187,24 @@ class DensityEquilibrateTask(MDTask):
         self._write_report(rows, mass_amu, stop_reason=stop_reason)
         self._write_plot(all_t, all_d, rows)
         return 0
+
+    def _log_patch_grid(self, log_path):
+        """Report the patch grid NAMD actually built (observability only; correctness is guaranteed
+        by the crash-and-retry, not by this estimate)."""
+        info = parse_patch_grid(_read_text(log_path))
+        if not info:
+            return
+        px, py, pz = info['patches']
+        msg = f'{self.taskname}: NAMD patch grid {px}x{py}x{pz}'
+        if 'cell_edges' in info:
+            ex, ey, ez = info['cell_edges']
+            msg += f'; cell {ex:.1f}x{ey:.1f}x{ez:.1f} A'
+        if 'min_patch_dim' in info:
+            msg += f'; min patch dim {info["min_patch_dim"]:.1f} A'
+        if 'shrink_headroom' in info:
+            msg += (f'; ~{info["shrink_headroom"]:.1f} A shrink headroom to pairlist '
+                    f'(approx; crash-and-retry is the real guard)')
+        logger.info(msg)
 
     def _write_report(self, rows, mass_amu, stop_reason):
         """Write a per-chunk convergence report (``<basename>-density.dat``) and register it."""
@@ -186,6 +252,15 @@ class DensityEquilibrateTask(MDTask):
         plt.close(fig)
         self.register(fn, key='density_plot', artifact_type=PNGImageFileArtifact, keep=True)
         logger.info(f'{self.taskname}: density plot -> {fn}')
+
+
+def _read_text(path):
+    """Read a text file, returning '' if it is missing/unreadable (e.g. a crash before any output)."""
+    try:
+        with open(path, errors='replace') as f:
+            return f.read()
+    except OSError:
+        return ''
 
 
 def _fmt(x):
