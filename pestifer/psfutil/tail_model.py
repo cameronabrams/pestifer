@@ -39,6 +39,20 @@ _PEP = dict(C_N=1.33, N_CA=1.45, CA_C=1.52,
             CA_C_N=116.6, C_N_CA=121.7, N_CA_C=111.0)
 
 
+def _selection_key(pdb_path, segname):
+    """Return ``{'segname': segname}`` if ``pdb_path`` carries that segid, else
+    ``{'chainID': segname}``.
+
+    Most pipeline PDBs write the CHARMM segid (cols 73-76), but a coordinate-only state PDB written
+    in the standard dialect (e.g. after a crotation) leaves it blank; there the chain column carries
+    the same label, so selecting by chain recovers the atoms."""
+    with open(pdb_path) as fh:
+        for line in fh:
+            if line.startswith(('ATOM', 'HETATM')) and line[72:76].strip() == segname:
+                return {'segname': segname}
+    return {'chainID': segname}
+
+
 def downstream_anchor_target(anchor_N, anchor_CA, anchor_C, psi_deg=150.0, phi_deg=-120.0):
     """
     Ideal target positions for a C-terminal tail's *first* residue backbone atoms ``(N, CA, C)``
@@ -155,14 +169,17 @@ def model_one_tail(src_pdb, segname, tail_resids, anchor_resid, end,
     ``rep`` (:func:`loop_clash_report`).
     """
     rng = np.random.default_rng(seed)
-    bb = backbone_from_pdb(src_pdb, segname=segname)
-    order, coords, serials = loop_atoms_from_pdb(src_pdb, tail_resids, segname=segname)
+    # Select this tail's atoms by segid, but fall back to the chain column when the source PDB
+    # has a blank segid column -- e.g. a post-crotation state PDB written in the standard dialect.
+    sel = _selection_key(src_pdb, segname)
+    bb = backbone_from_pdb(src_pdb, **sel)
+    order, coords, serials = loop_atoms_from_pdb(src_pdb, tail_resids, **sel)
     prob = build_loop_problem(order, coords, tail_resids)
     row = prob['row']
 
     # environment: everything heavy except all modeled loops/tails and this tail's anchor,
     # plus any already-modeled tails passed as extra_env.
-    _ao, _ac, anch_ser = loop_atoms_from_pdb(src_pdb, [anchor_resid], segname=segname)
+    _ao, _ac, anch_ser = loop_atoms_from_pdb(src_pdb, [anchor_resid], **sel)
     env = heavy_env_coords_from_pdb(src_pdb, exclude_serials=list(all_modeled_serials) + list(anch_ser))
     if extra_env is not None and len(extra_env):
         extra_env = np.asarray(extra_env, dtype=float)

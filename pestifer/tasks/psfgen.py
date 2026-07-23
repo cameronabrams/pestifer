@@ -33,6 +33,17 @@ from ..util.util import write_residue_map
 
 logger = logging.getLogger(__name__)
 
+
+def _resid_seqnum(r):
+    """Coerce a resid (int, or a ``'<seqnum><icode>'`` string) to its integer sequence number."""
+    try:
+        return int(r)
+    except (TypeError, ValueError):
+        import re
+        m = re.match(r'\s*(-?\d+)', str(r))
+        return int(m.group(1)) if m else None
+
+
 class PsfgenTask(VMDTask):
     """ 
     A class for handling invocations of psfgen which create a molecule from a base PDB/mmCIF file
@@ -204,6 +215,23 @@ class PsfgenTask(VMDTask):
         tails = self.base_molecule.protein_terminal_tails()
         if not tails:
             return
+        # A user who explicitly positions a tail (e.g. an `alpha` crotation folding it into a
+        # helix) must get that conformation: crotations run before this step, so skip remodeling
+        # any tail a crotation targets rather than silently overwriting it with a coil.
+        targeted = self._crotation_targeted_resids()
+        if targeted:
+            kept = []
+            for t in tails:
+                tset = targeted.get(t['segname'], set())
+                if tset and any(_resid_seqnum(r) in tset for r in t['tail_resids']):
+                    logger.info(f"psfgen/model-tails: tail {t['segname']}:{t['tail_resids'][0]}-"
+                                f"{t['tail_resids'][-1]} is positioned by a user crotation; leaving "
+                                f"its conformation as built.")
+                    continue
+                kept.append(t)
+            tails = kept
+        if not tails:
+            return
         import numpy as np
         from ..psfutil.tail_model import model_one_tail
         from ..psfutil.loop_ccd import loop_atoms_from_pdb
@@ -257,6 +285,40 @@ class PsfgenTask(VMDTask):
         logger.info(f'psfgen: modeled {len(tails)} terminal tail(s) -> {self.basename}.pdb')
         if specs.get('check_piercings', True):
             self.resolve_tail_piercings(sorted(tail_serials))
+
+    def _crotation_targeted_resids(self):
+        """
+        ``{segname: {resid_seqnum, ...}}`` that user backbone crotations explicitly position,
+        expanded over the biological-assembly images (``chainIDmap``).
+
+        Crotations run before the tail modeler, so a residue a user positioned (e.g. an ``ALPHA``
+        crotation folding a tail into a helix) must be left as built -- the modeler consults this to
+        skip such tails. Only chain/resid-range backbone rotations (PHI/PSI/OMEGA/ALPHA) contribute;
+        side-chain (CHI) and glycan-pendant rotations do not target tail backbones.
+        """
+        out = {}
+        objmgr = getattr(self, 'objmanager', None)
+        if objmgr is None:
+            return out
+        coormods = objmgr.get('coord', {}) or {}
+        crots = list(coormods.get('crotations', []) or []) + list(coormods.get('irotations', []) or [])
+        if not crots:
+            return out
+        ba = self.base_molecule.active_biological_assembly
+        for transform in ba.transforms:
+            cm = transform.chainIDmap
+            for crot in crots:
+                chain = getattr(crot, 'chainID', None)
+                r1 = getattr(crot, 'resid1', None)
+                if not chain or r1 is None:
+                    continue
+                seg = cm.get(chain, chain)
+                lo = r1.resseqnum
+                r2 = getattr(crot, 'resid2', None)
+                hi = r2.resseqnum if r2 is not None else lo
+                for r in range(min(lo, hi), max(lo, hi) + 1):
+                    out.setdefault(seg, set()).add(r)
+        return out
 
     def resolve_tail_piercings(self, tail_serials):
         """Detect and clear any ring piercing caused by a model-built terminal-tail backbone bond,

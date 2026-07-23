@@ -4,7 +4,7 @@ from types import SimpleNamespace as NS
 import numpy as np
 
 from pestifer.psfutil.loop_ccd import place_atom_nerf
-from pestifer.psfutil.tail_model import model_one_tail, downstream_anchor_target
+from pestifer.psfutil.tail_model import model_one_tail, downstream_anchor_target, _selection_key
 from pestifer.molecule.stateinterval import StateInterval, StateIntervalList
 from pestifer.molecule.molecule import Molecule
 
@@ -106,6 +106,27 @@ class TestModelOneTail(unittest.TestCase):
         for r in tail:
             self.assertAlmostEqual(float(np.linalg.norm(X[row[(r, 'N')]] - X[row[(r, 'CA')]])), 1.45, places=1)
             self.assertAlmostEqual(float(np.linalg.norm(X[row[(r, 'CA')]] - X[row[(r, 'C')]])), 1.52, places=1)
+
+
+class TestSelectionKey(unittest.TestCase):
+    """_selection_key selects by segid when present, else falls back to the chain column."""
+
+    def _write(self, path, segid):
+        with open(path, 'w') as f:
+            f.write(f"ATOM      1 N    ALA A   1    "
+                    f"{0.0:>8.3f}{0.0:>8.3f}{0.0:>8.3f}  1.00  0.00      {segid:<4s}\n")
+
+    def test_prefers_segid_when_present(self):
+        import tempfile, os
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 'a.pdb'); self._write(p, 'A')
+            self.assertEqual(_selection_key(p, 'A'), {'segname': 'A'})
+
+    def test_falls_back_to_chain_when_segid_blank(self):
+        import tempfile, os
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 'a.pdb'); self._write(p, '')     # blank segid (standard dialect)
+            self.assertEqual(_selection_key(p, 'A'), {'chainID': 'A'})
 
 
 class TestProteinTerminalTails(unittest.TestCase):

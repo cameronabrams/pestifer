@@ -95,7 +95,11 @@ class CoordManipulator:
 
     def write_pdb(self, path: str):
         """Write the (transformed) coordinates back to a PDB, standard columns (coords pinned at
-        31-54), matching what VMD's ``writepdb`` produced and what NAMD/psfgen read next."""
+        31-54), matching what VMD's ``writepdb`` produced and what NAMD/psfgen read next.
+
+        Note: the ``standard`` dialect leaves the segID column (73-76) blank, so a reader that
+        selects atoms by segment must be prepared to fall back to the chain column (see the
+        terminal-tail modeler's segid/chain fallback)."""
         self.atoms.write_pdb(path, dialect='standard')
 
     # ---- selection --------------------------------------------------------
