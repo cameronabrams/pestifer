@@ -27,7 +27,8 @@ tasks:
         exclude:
           - chainID in ['G', 'H', 'I', 'J', 'K', 'L']  # mmCIF
         sequence:
-          build_zero_occupancy_C_termini: [B, D, F]
+          terminal_tails:
+            c: [B, D, F]
       mods:
         mutations: # undo the SOSIP mutations on each protomer (cif resid)
           - A:CYS,469,ALA

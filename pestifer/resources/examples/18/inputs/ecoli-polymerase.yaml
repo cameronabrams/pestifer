@@ -15,7 +15,8 @@ tasks:
   - psfgen:
       source:
         sequence:
-          build_zero_occupancy_N_termini: [T]
+          terminal_tails:
+            n: [T]
           loops:
             min_loop_length: 2
             declash:

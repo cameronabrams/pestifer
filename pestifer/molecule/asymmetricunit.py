@@ -36,6 +36,42 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_terminal_tails_deprecation_warned = False
+
+
+def normalize_terminal_tails(sequence: dict) -> dict:
+    """
+    Fold the grouped ``terminal_tails: {n, c, all}`` declaration into the legacy flat keys
+    (``build_zero_occupancy_N_termini`` / ``build_zero_occupancy_C_termini`` /
+    ``include_terminal_loops``) that the segment/scripter build path consumes.
+
+    The grouped block is the current user-facing surface for opting terminal tails into building;
+    the flat keys are still accepted (with a one-time deprecation warning) and are *unioned* with
+    the grouped block, so either form -- or both -- produces an identical build. Mutating in place
+    also guarantees both list keys physically exist afterward, which the daughter-chain
+    propagation in :meth:`SegmentList.generate_from_residues` relies on. Returns ``sequence``.
+    """
+    global _terminal_tails_deprecation_warned
+    tt = sequence.get('terminal_tails', {}) or {}
+    grouped_n = list(tt.get('n', []) or [])
+    grouped_c = list(tt.get('c', []) or [])
+    grouped_all = bool(tt.get('all', False))
+    legacy_n = list(sequence.get('build_zero_occupancy_N_termini', []) or [])
+    legacy_c = list(sequence.get('build_zero_occupancy_C_termini', []) or [])
+    legacy_all = bool(sequence.get('include_terminal_loops', False))
+    if (legacy_n or legacy_c or legacy_all) and not _terminal_tails_deprecation_warned:
+        logger.warning(
+            "sequence keys 'build_zero_occupancy_N_termini' / 'build_zero_occupancy_C_termini' / "
+            "'include_terminal_loops' are deprecated; use the grouped "
+            "'terminal_tails: {n: [...], c: [...], all: <bool>}' block instead. The legacy keys "
+            "still work for now and are folded into terminal_tails.")
+        _terminal_tails_deprecation_warned = True
+    sequence['build_zero_occupancy_N_termini'] = sorted(set(grouped_n) | set(legacy_n))
+    sequence['build_zero_occupancy_C_termini'] = sorted(set(grouped_c) | set(legacy_c))
+    sequence['include_terminal_loops'] = grouped_all or legacy_all
+    return sequence
+
+
 class AsymmetricUnit:
     """
     A class for building the asymmetric unit from a PDB/mmCIF file.
@@ -318,6 +354,9 @@ class AsymmetricUnit:
         # provide specifications of how to handle sequence issues
         # implied by PDB input
         seq_specs = sourcespecs.get('sequence', {})
+        # Fold the grouped terminal_tails block (and any legacy build_zero_occupancy_* keys) into
+        # the flat keys the segment/scripter build path reads, so both declaration forms compose.
+        normalize_terminal_tails(seq_specs)
         # Insertions that land beyond the last resolved residue of their chain extend
         # the C-terminus — they must be built regardless of include_C_termini.
         if 'insertions' in seqmods and len(seqmods['insertions']) > 0:

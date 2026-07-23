@@ -218,21 +218,25 @@ what appears here is refined and reprioritized as the project evolves.
         the psfgen free-tail modeler replaces guesscoord's extended arm with a Ramachandran-seeded,
         clash-filtered backbone, rigidly anchored at its resolved junction. (Unreleased.)
 
-- [~] **Regularize how missing residues are modeled across terminal and internal segments.**
+- [x] **Regularize how missing residues are modeled across terminal and internal segments.**
       Missing residues were handled by two divergent paths: interior gaps closed through the
       `ligate`/CCD machinery (build the run, close onto the downstream anchor, `connect`, minimize),
       while missing N-/C-terminal tails, when built at all, kept guesscoord's arbitrary extended arm
-      with none of that quality machinery. **Modeling parity shipped (Unreleased):** the interior
-      closer's conformation engine (Ramachandran seed + clash-filtered ensemble + iterative declash)
-      is now shared with a terminal **free-tail modeler** (`psfutil/tail_model.py`) that dispatches
-      by position — anchored interior gaps → CCD closure (`ligate`); terminal tails → sample +
-      rigid junction placement + declash (psfgen declash step, `loops.declash.model_tails`) — sharing
-      the seeded RNG, NeRF junction geometry, clash report, and the downstream `minimize`. Still open:
-      **unifying the declaration surface** so a user declares "model these missing residues" the same
-      way regardless of position (terminal building stays opt-in via `build_zero_occupancy_*` /
-      `include_terminal_loops` for now); that composes with the optionally-interactive `new-system`
-      item (where gaps get *declared*) in Tooling. Ring-piercing hygiene for tails is a possible
-      follow-up (interior loops get it via the graft-time scan).
+      with none of that quality machinery. Both halves now shipped (Unreleased):
+    - **Modeling parity.** The interior closer's conformation engine (Ramachandran seed +
+      clash-filtered ensemble + iterative declash) is shared with a terminal **free-tail modeler**
+      (`psfutil/tail_model.py`) that dispatches by position — anchored interior gaps → CCD closure
+      (`ligate`); terminal tails → sample + rigid junction placement + declash (psfgen declash step,
+      `loops.declash.model_tails`) — sharing the seeded RNG, NeRF junction geometry, clash report,
+      and the downstream `minimize`.
+    - **Declaration parity.** The three flat opt-in keys are consolidated into one grouped
+      `terminal_tails: {n, c, all}` block (`normalize_terminal_tails`), with the legacy keys folded
+      in behind a one-time deprecation warning. Interior gaps stay always-built — the intended
+      asymmetry (terminal tails are often disordered ends / expression tags to drop), so "declare
+      the same way" means one grouped terminal surface, not forcing interior/terminal identical.
+    - Composes with the optionally-interactive `new-system` item (which can emit detected missing
+      residues straight into a `terminal_tails` block). Possible follow-up: ring-piercing hygiene
+      for tails (interior loops get it via the graft-time scan).
 
 ## Ideas / unsorted
 

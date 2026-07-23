@@ -387,6 +387,11 @@ regularizes this: per tail, per ensemble member,
 Coordinate-only (the PSF's peptide bond to the anchor already exists — no `connect` patch); a
 downstream `minimize` relaxes residual soft overlaps, exactly as for interior loops. Validated on
 7txd (SOSIP trimer, gp41 C-termini B/D/F): proper ~1.33 Å peptide junctions, ideal intra-tail bond
-lengths, ≤2 relaxable overlaps, none threaded. Declaration stays split for now (terminal building
-is opt-in); unifying the *declaration surface* is the remaining half of the roadmap's
-"regularize missing-residue modeling" item.
+lengths, ≤2 relaxable overlaps, none threaded.
+
+**Declaration.** Terminal building is opted into via one grouped `terminal_tails: {n, c, all}` block
+under `source.sequence` (`normalize_terminal_tails`); the legacy flat keys
+(`build_zero_occupancy_[NC]_termini`, `include_terminal_loops`) are folded in behind a one-time
+deprecation warning. Interior gaps stay always-built (the intended asymmetry — terminal tails are
+often disordered ends / expression tags one wants to drop), so the regularized declaration is *one
+grouped terminal surface*, not interior/terminal made identical.

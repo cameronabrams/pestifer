@@ -433,12 +433,14 @@ class SegmentList(BaseObjList[Segment]):
                     c_res.set_chainIDs(this_chainID)
                     self.segtype_of_segname[this_chainID] = stype
                     if stype == 'protein':
-                        if chainID in self.seq_spec['build_zero_occupancy_C_termini']:
-                            logger.debug(f'-> appending new chainID {this_chainID} to build_zero_occupancy_C_termini due to member {chainID}')
-                            self.seq_spec['build_zero_occupancy_C_termini'].insert(self.seq_spec['build_zero_occupancy_C_termini'].index(chainID), this_chainID)
-                        if chainID in self.seq_spec['build_zero_occupancy_N_termini']:
-                            logger.debug(f'-> appending new chainID {this_chainID} to build_zero_occupancy_N_termini due to member {chainID}')
-                            self.seq_spec['build_zero_occupancy_N_termini'].insert(self.seq_spec['build_zero_occupancy_N_termini'].index(chainID), this_chainID)
+                        # A daughter (image/duplicate) chain inherits its parent's terminal-tail
+                        # build membership. .get() tolerates a hand-built spec dict that omits these
+                        # keys (normalize_terminal_tails guarantees them on the real build path).
+                        for key in ('build_zero_occupancy_C_termini', 'build_zero_occupancy_N_termini'):
+                            members = self.seq_spec.get(key)
+                            if members and chainID in members:
+                                logger.debug(f'-> appending new chainID {this_chainID} to {key} due to member {chainID}')
+                                members.insert(members.index(chainID), this_chainID)
                 num_mis = sum([1 for x in c_res if len(x.atoms) == 0])
                 thisSeg = Segment(c_res, segname=this_chainID, specs=self.seq_spec)
                 logger.debug(f'Made segment: stype {stype} chainID {this_chainID} segname {thisSeg.segname} ({num_mis} missing)')

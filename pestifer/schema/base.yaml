@@ -513,16 +513,38 @@ attributes:
                 text: Parameters controlling sequence modifications based on specifications in the PDB source
                 type: dict
                 attributes:
+                  - name: terminal_tails
+                    text: >-
+                      Grouped control for building unresolved N-/C-terminal residue runs ("tails").
+                      Interior gaps are always built and closed (see the loops block); terminal
+                      tails are opt-in here and, when built, modeled by the free-tail modeler
+                      (loops.declash.model_tails). Replaces the flat build_zero_occupancy_N_termini /
+                      build_zero_occupancy_C_termini / include_terminal_loops keys below, which are
+                      still accepted (with a one-time deprecation warning) and folded into this block.
+                    type: dict
+                    attributes:
+                      - name: n
+                        text: Chain identifiers whose unresolved N-terminal run should be built and modeled
+                        type: list
+                        default: []
+                      - name: c
+                        text: Chain identifiers whose unresolved C-terminal run should be built and modeled
+                        type: list
+                        default: []
+                      - name: all
+                        text: Build both N- and C-terminal unresolved runs on every chain (equivalent to the legacy include_terminal_loops)
+                        type: bool
+                        default: False
                   - name: include_terminal_loops
-                    text: Specifies whether or not N- and C- terminal loops (if unresolved) are built in
+                    text: "Deprecated: use terminal_tails.all. Build all N- and C-terminal unresolved runs (all chains)."
                     type: bool
                     default: False
                   - name: build_zero_occupancy_C_termini
-                    text: List of chain identifiers for which you would like zero-occupancy residues at the C-terminus built in
+                    text: "Deprecated: use terminal_tails.c. Chain identifiers whose unresolved C-terminal run is built in."
                     type: list
                     default: []
                   - name: build_zero_occupancy_N_termini
-                    text: List of chain identifiers for which you would like zero-occupancy residues at the N-terminus built in
+                    text: "Deprecated: use terminal_tails.n. Chain identifiers whose unresolved N-terminal run is built in."
                     type: list
                     default: []
                   - name: fix_engineered_mutations
