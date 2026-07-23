@@ -35,6 +35,38 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
+
+def restore_chain_ids_from_reference(target_pdb: str, reference_pdb: str) -> None:
+    """
+    Overwrite the chainID column of ``target_pdb`` in place with the chain each atom held
+    in ``reference_pdb``, matched by ``(segid, resid)``.
+
+    A PSF has no chain column, so ``catdcd`` (and VMD generally) re-derives chainID from
+    segid on every PSF->PDB regeneration, silently collapsing any chain that differs from
+    its segid -- e.g. merged copies deliberately given distinct chains. Restoring from a
+    reference PDB that still carries the intended chains keeps arbitrary chain IDs alive
+    across the round trip. Atoms with no ``(segid, resid)`` match in the reference keep
+    whatever chain catdcd assigned.
+    """
+    ref: dict[tuple[str, str], str] = {}
+    with open(reference_pdb) as f:
+        for line in f:
+            if line.startswith(('ATOM', 'HETATM')):
+                ref[(line[72:76].strip(), line[22:26].strip())] = line[21]
+    if not ref:
+        return
+    out = []
+    with open(target_pdb) as f:
+        for line in f:
+            if line.startswith(('ATOM', 'HETATM')):
+                chain = ref.get((line[72:76].strip(), line[22:26].strip()))
+                if chain is not None:
+                    line = line[:21] + chain + line[22:]
+            out.append(line)
+    with open(target_pdb, 'w') as f:
+        f.writelines(out)
+
+
 class BaseTask(ABC):
     """ 
     A base class for Tasks. This class is intended to be subclassed by specific task types.
@@ -393,9 +425,16 @@ class VMDTask(BaseTask, ABC):
     It includes methods for converting coordinate files to PDB files, converting PDB files to coordinate files, and creating constraint PDB files. The VMDTask class is intended to be subclassed.
     """
 
-    def coor_to_pdb(self, coorfilename: str, psffilename: str) -> str:
+    def coor_to_pdb(self, coorfilename: str, psffilename: str, reference_pdb: str = None) -> str:
         """
         Converts a namdbin coordinate file to a PDB file using catdcd.
+
+        A PSF carries no chain column, so catdcd re-derives every atom's chainID from its
+        segid (leading character) on each regeneration -- collapsing any chain assignment
+        that differs from the segid, e.g. merged copies given distinct chains. When
+        ``reference_pdb`` is supplied (typically the pre-regeneration state PDB), the
+        chainID column of the output is restored from it, matched by (segid, resid), so
+        arbitrary chain IDs survive the PSF->PDB round trip.
         """
         if not Path(coorfilename).exists():
             raise PestiferBuildError(f'Coordinate file {coorfilename} not found')
@@ -407,6 +446,8 @@ class VMDTask(BaseTask, ABC):
             for line in pdb_lines:
                 if not line.startswith('REMARK') and not line.startswith('CRYST'):
                     f.write(line)
+        if reference_pdb and Path(reference_pdb).exists():
+            restore_chain_ids_from_reference(f'{self.basename}.pdb', reference_pdb)
         return f'{self.basename}.pdb'
 
     def pdb_to_coor(self, pdbfilename: str) -> str:

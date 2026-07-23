@@ -126,6 +126,56 @@ class TestConfig(unittest.TestCase):
             with self.assertNoLogs('pestifer.core.config', level='WARNING'):
                 c._warn_gpu_not_elected('namd3', 'namd3')
 
+    # --- explicit processor-type election (_resolve_namd_type) -------------------
+    # These pin the CPU/GPU decision without a real toolchain; shutil.which is mocked.
+
+    def test_resolve_gpu_forces_single_binary(self):
+        # The key fix: processor-type 'gpu' must elect GPU in the single-binary case
+        # (no separate namd3gpu), which 'auto' can never do on its own.
+        c = Config.__new__(Config)
+        which = self._which({'namd3': '/usr/local/bin/namd3'})  # no separate namd3gpu
+        with mock.patch('pestifer.core.config.shutil.which', side_effect=which):
+            self.assertEqual(c._resolve_namd_type('gpu', 'namd3', 'namd3'),
+                             ('gpu', 'namd3', False))
+
+    def test_resolve_gpu_prefers_separate_binary(self):
+        c = Config.__new__(Config)
+        which = self._which({'namd3': '/usr/local/bin/namd3',
+                             'namd3gpu': '/usr/local/bin/namd3gpu'})
+        with mock.patch('pestifer.core.config.shutil.which', side_effect=which):
+            self.assertEqual(c._resolve_namd_type('gpu', 'namd3', 'namd3gpu'),
+                             ('gpu', 'namd3gpu', False))
+
+    def test_resolve_cpu_forces_cpu_ignoring_gpu_binary(self):
+        c = Config.__new__(Config)
+        which = self._which({'namd3': '/usr/local/bin/namd3',
+                             'namd3gpu': '/usr/local/bin/namd3gpu'})
+        with mock.patch('pestifer.core.config.shutil.which', side_effect=which):
+            self.assertEqual(c._resolve_namd_type('cpu', 'namd3', 'namd3gpu'),
+                             ('cpu', 'namd3', False))
+
+    def test_resolve_auto_elects_gpu_when_separate_binary(self):
+        c = Config.__new__(Config)
+        which = self._which({'namd3': '/usr/local/bin/namd3',
+                             'namd3gpu': '/usr/local/bin/namd3gpu'})
+        with mock.patch('pestifer.core.config.shutil.which', side_effect=which):
+            self.assertEqual(c._resolve_namd_type('auto', 'namd3', 'namd3gpu'),
+                             ('gpu', 'namd3gpu', False))
+
+    def test_resolve_auto_single_binary_is_cpu_and_flags_warning(self):
+        c = Config.__new__(Config)
+        which = self._which({'namd3': '/usr/local/bin/namd3'})
+        with mock.patch('pestifer.core.config.shutil.which', side_effect=which):
+            self.assertEqual(c._resolve_namd_type('auto', 'namd3', 'namd3'),
+                             ('cpu', 'namd3', True))
+
+    def test_resolve_auto_missing_gpu_binary_falls_back_to_cpu(self):
+        c = Config.__new__(Config)
+        which = self._which({'namd3': '/usr/local/bin/namd3'})  # /opt/namd3gpu unresolved
+        with mock.patch('pestifer.core.config.shutil.which', side_effect=which):
+            self.assertEqual(c._resolve_namd_type('auto', 'namd3', '/opt/namd3gpu'),
+                             ('cpu', 'namd3', False))
+
     def test_taskless_subconfig_inherits_user_namd(self):
         # A subcontroller config (e.g. for make_membrane_system relaxation MD) must
         # inherit the parent's NAMD settings, not fall back to schema defaults.

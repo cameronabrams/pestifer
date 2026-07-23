@@ -9,7 +9,7 @@ Single-valued attributes:
 
   * ``namd-version``: version of NAMD to run (default: 3)
 
-  * ``processor-type``: Deprecated and ignored: GPU mode is now auto-detected by comparing paths.namd3 and paths.namd3gpu. This entry is accepted for backward compatibility but has no effect. (default: cpu)
+  * ``processor-type``: Explicit control over whether NAMD runs on CPU or GPU. 'auto' (the default) elects GPU only when paths.namd3gpu names a separate binary that resolves on PATH, and otherwise runs CPU (the historical auto-detect behavior); 'gpu' forces GPU mode even when a single binary serves both CPU and GPU builds (paths.namd3gpu == paths.namd3), which 'auto' can never elect; 'cpu' forces CPU and ignores any GPU binary. The 'run --gpu' CLI flag is equivalent to setting this to 'gpu'. (default: auto)
 
   * ``ncpus``: number of processing elements (PEs) for NAMD; 0 means auto-detect from SLURM environment or local CPU count (default: 0)
 

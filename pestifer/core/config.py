@@ -279,21 +279,53 @@ class Config(Yclept):
                 assert os.access(rq_resolved, os.X_OK), f'You do not have permission to execute {rq_resolved}'
         namd3_path = self.shell_commands['namd3']
         namd3gpu_path = self['user']['paths']['namd3gpu']
-        self.shell_commands['namd3gpu'] = namd3gpu_path
-        if namd3gpu_path != namd3_path:
-            namd3gpu_resolved = shutil.which(namd3gpu_path)
+        processor_type = self['user']['namd'].get('processor-type', 'auto')
+        if processor_type not in ('auto', 'cpu', 'gpu'):
+            logger.warning(f'namd.processor-type {processor_type!r} not recognized; using \'auto\'.')
+            processor_type = 'auto'
+        self.namd_type, self.shell_commands['namd3gpu'], warn_gpu_not_elected = \
+            self._resolve_namd_type(processor_type, namd3_path, namd3gpu_path)
+        if self.namd_type == 'gpu' and verify_access:
+            namd3gpu_resolved = shutil.which(self.shell_commands['namd3gpu'])
             if namd3gpu_resolved:
-                if verify_access:
-                    assert os.access(namd3gpu_resolved, os.X_OK), f'You do not have permission to execute {namd3gpu_resolved}'
-                self.namd_type = 'gpu'
-            else:
-                logger.warning(f'namd3gpu {namd3gpu_path!r} not found; falling back to CPU mode')
-                self.shell_commands['namd3gpu'] = namd3_path
-                self.namd_type = 'cpu'
-        else:
-            self.namd_type = 'cpu'
+                assert os.access(namd3gpu_resolved, os.X_OK), f'You do not have permission to execute {namd3gpu_resolved}'
+        if warn_gpu_not_elected:
             self._warn_gpu_not_elected(namd3_path, namd3gpu_path)
         self.namd_deprecates = self['user']['namd']['deprecated3']
+
+    def _resolve_namd_type(self, processor_type: str, namd3_path: str, namd3gpu_path: str):
+        """
+        Decide CPU vs GPU mode and the effective ``namd3gpu`` command from the explicit
+        ``namd.processor-type`` control and the resolved binaries.
+
+        - ``'cpu'`` -- force CPU; ignore any GPU binary.
+        - ``'gpu'`` -- force GPU; use a separate ``namd3gpu`` binary if one resolves on
+          PATH, else the same binary as ``namd3`` (the single-binary build that ``'auto'``
+          can never elect on its own -- the case this control exists to express).
+        - ``'auto'`` -- elect GPU only when ``paths.namd3gpu`` names a *separate* binary
+          that resolves; otherwise CPU. This is the historical path-inequality behavior.
+
+        Returns ``(namd_type, namd3gpu_command, warn_gpu_not_elected)``, where the last is
+        True only in the auto single-binary case that :meth:`_warn_gpu_not_elected` covers.
+        Logs at most one warning; performs no assertions and mutates no state.
+        """
+        if processor_type == 'cpu':
+            return 'cpu', namd3_path, False
+        if processor_type == 'gpu':
+            if shutil.which(namd3gpu_path):
+                return 'gpu', namd3gpu_path, False
+            # No separate GPU binary resolves -- run GPU mode with the namd3 binary. This is
+            # the single-binary build (paths equal), or a misconfigured distinct path (warn).
+            if namd3gpu_path != namd3_path:
+                logger.warning(f'namd3gpu {namd3gpu_path!r} not found; running GPU mode with {namd3_path!r}.')
+            return 'gpu', namd3_path, False
+        # auto
+        if namd3gpu_path != namd3_path:
+            if shutil.which(namd3gpu_path):
+                return 'gpu', namd3gpu_path, False
+            logger.warning(f'namd3gpu {namd3gpu_path!r} not found; falling back to CPU mode')
+            return 'cpu', namd3_path, False
+        return 'cpu', namd3_path, True
 
     def _warn_gpu_not_elected(self, namd3_path: str, namd3gpu_path: str):
         """

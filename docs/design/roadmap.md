@@ -110,22 +110,15 @@ what appears here is refined and reprioritized as the project evolves.
 
 ## Tooling / packaging
 
-- [ ] **GPU mode detection shouldn't hinge on path inequality.** `Config._set_shell_commands`
-      sets `namd_type='gpu'` only when `paths.namd3gpu != paths.namd3`; otherwise it silently
-      falls back to `'cpu'`. But the schema documents the shared default as *"correct when a
-      single module-loaded binary handles both CPU and GPU modes"* — and in exactly that case
-      the two paths are equal, so GPU mode can **never** be elected. The only workaround is to
-      give `namd3gpu` a different path *string* that resolves to the same binary (e.g. `namd3`
-      vs `/usr/local/bin/namd3`), which is fragile and undocumented. Give GPU mode an explicit
-      control (the `cpu|gpu` schema entry exists but is deprecated-and-ignored), and/or probe
-      the binary's CUDA capability, instead of inferring intent from two path strings. Symptom
-      worth noting: on a workstation whose GPU-resident build is a *separate* binary, the
-      default leaves the GPU idle and membrane examples run ~4 h CPU-only — pestifer now warns
-      about that case (`Config._warn_gpu_not_elected`, c1837aba), but warning is a stopgap for
-      a detection model that can't express the single-binary case at all. A `--gpu` flag on the
-      `run` subcommand (`build.py`) force-elects GPU mode at runtime, but it is a per-invocation
-      escape hatch, not the config-level control this item asks for — the underlying
-      path-inequality detection is unchanged.
+- [x] **GPU mode detection shouldn't hinge on path inequality.** The `namd.processor-type`
+      schema entry (formerly deprecated-and-ignored) is now a functional `auto|cpu|gpu` control
+      (default `auto`). `auto` keeps the historical path-inequality detection (+ the
+      `_warn_gpu_not_elected` warning); `gpu` **forces GPU mode even in the single-binary case**
+      (`paths.namd3gpu == paths.namd3`), which the auto path could never elect — so a
+      GPU-capable host with one binary serving both modes can now elect GPU via config instead
+      of the fragile distinct-path-string workaround; `cpu` forces CPU. The decision is factored
+      into a pure, unit-tested `Config._resolve_namd_type`. The `run --gpu` CLI flag remains as
+      an equivalent per-invocation override. (Unreleased.)
 - [x] **Offload all mmCIF parsing to pidibble.** mmCIF is now parsed by pidibble **≥1.7.1**
       (`PDBParser(input_format='mmCIF')`, which normalizes mmCIF into the PDB-record namespace);
       pestifer's raw-CIF layer (`util/cifutil.py` `CIFdict`/`CIFload`) is deleted and the direct
@@ -225,11 +218,14 @@ what appears here is refined and reprioritized as the project evolves.
 
 ## Ideas / unsorted
 
-- [ ] **Persist chain IDs across PSF→PDB regeneration.** A PSF has no chain column, so
-      every `coor`→`pdb`/`solvate` regeneration re-derives each atom's chain from its
-      segid's leading character. This is why merged copies collapsed onto one chain
-      (v3.7.0 worked around it by forcing single-character segids in `merge`). A general
-      fix would carry chain IDs as a first-class persistent attribute — e.g. restore them
-      from a reference PDB by (segid, resid, name) after each regeneration — so arbitrary
-      chain IDs survive a full build, not just segid-derived ones.
+- [x] **Persist chain IDs across PSF→PDB regeneration.** A PSF has no chain column, so
+      every `coor`→`pdb` regeneration re-derived each atom's chain from its segid's leading
+      character — why merged copies collapsed onto one chain (v3.7.0 worked around it by
+      forcing single-character segids in `merge`). `coor_to_pdb` now accepts a reference PDB
+      and restores the chainID column from it by `(segid, resid)`
+      (`restore_chain_ids_from_reference`); the MD task passes the pre-MD state PDB, so
+      arbitrary chain IDs survive every MD regeneration of a build. The `merge`
+      single-character-segid workaround is left in place (still the mechanism that *assigns*
+      the distinct chains this restore then preserves); relaxing it is a possible follow-up.
+      (Unreleased.)
 - [ ] _(add items here)_

@@ -267,7 +267,10 @@ class MDTask(VMDTask):
         cvtraj = NAMDColvarsTrajectoryArtifact(self.basename)
         cvstate = NAMDColvarsStateArtifact(self.basename)
         
-        self.coor_to_pdb(f'{self.basename}.coor', state.psf.name)
+        # Restore chain IDs from the pre-MD state PDB: catdcd re-derives them from segid,
+        # which would collapse any chain assignment that differs from the segid (e.g. merged
+        # copies given distinct chains). state.pdb is guaranteed present (asserted above).
+        self.coor_to_pdb(f'{self.basename}.coor', state.psf.name, reference_pdb=state.pdb.name)
         pdb = PDBFileArtifact(f'{self.basename}.pdb', pytestable=True)
         psf = state.psf
         if not pdb.exists():
