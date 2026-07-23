@@ -81,6 +81,7 @@ class ChainIdentity:
     resnames: list = field(default_factory=list)
     auth: str = None          # mmCIF author chain id (label chain is `chain`); None for PDB
     molecule: str = None      # molecule name from COMPND / mmCIF entity description, if available
+    attached_to: str = None   # for a glycan chain: the protein chain it is glycosidically linked to
 
     def describe(self) -> str:
         sample = ', '.join(self.resnames[:4]) + ('...' if len(self.resnames) > 4 else '')
@@ -163,8 +164,10 @@ class Findings:
             c('Chains present (reference these ids in `exclude:`; label ids for mmCIF):')
             for ch in self.chains:
                 auth = f' (author {ch.auth})' if ch.auth and ch.auth != ch.chain else ''
-                c(f'  {ch.chain}{auth}: {ch.describe()}')
-            c('To OMIT chains, add under `source:` -')
+                att = f' [glycan on chain {ch.attached_to}]' if ch.attached_to else ''
+                c(f'  {ch.chain}{auth}: {ch.describe()}{att}')
+            c('To OMIT chains, add under `source:` (also exclude any glycan chain attached to an')
+            c('omitted protein chain) -')
             c('  exclude:')
             c(f"    - chainID in ['X', 'Y']")
 
@@ -287,19 +290,32 @@ def interactive_select(findings: 'Findings', ask=None, say=None, prompt_text=Non
     else:
         source['biological_assembly'] = 0        # no assemblies defined -> asymmetric unit
 
-    # chain omission
-    if len(findings.chains) > 1:
+    # chain inclusion (default INCLUDE). A glycan chain glycosidically attached to a protein chain
+    # follows it: it is not queried separately, and is omitted iff its protein chain is omitted --
+    # and when a chain is omitted, its missing loops/tails and mutations are not queried either.
+    included = {c.chain for c in findings.chains} if findings.chains else None   # None = all
+    if included is not None and len(findings.chains) > 1:
         say('\nChains present:')
-        omit = []
+        attached = {c.chain: c.attached_to for c in findings.chains if c.attached_to}
         for ch in findings.chains:
+            if ch.attached_to:                       # glycan chain -> follows its protein chain
+                continue
             auth = f' (author {ch.auth})' if ch.auth and ch.auth != ch.chain else ''
-            if ask(f'  Omit chain {ch.chain}{auth} [{ch.describe()}]?', False):
-                omit.append(ch.chain)
-        if omit:
-            source['exclude'] = [f"chainID in [{', '.join(repr(c) for c in omit)}]"]
+            glys = [g for g, prot in attached.items() if prot == ch.chain]
+            extra = f' (+ attached glycan chain(s) {", ".join(glys)})' if glys else ''
+            if not ask(f'  Include chain {ch.chain}{auth} [{ch.describe()}]{extra}?', True):
+                included.discard(ch.chain)
+                for g in glys:
+                    included.discard(g)
+        omitted = sorted({c.chain for c in findings.chains} - included)
+        if omitted:
+            source['exclude'] = [f"chainID in [{', '.join(repr(c) for c in omitted)}]"]
+
+    def _keep(ch):
+        return included is None or ch in included
 
     tails = {'n': [], 'c': []}
-    term_runs = [r for r in findings.missing_runs if r.kind in ('N', 'C')]
+    term_runs = [r for r in findings.missing_runs if r.kind in ('N', 'C') and _keep(r.chain)]
     if term_runs:
         say('\nMissing terminal residues (unresolved; dropped unless you build them):')
         for r in term_runs:
@@ -313,7 +329,7 @@ def interactive_select(findings: 'Findings', ask=None, say=None, prompt_text=Non
     if tt:
         sequence['terminal_tails'] = tt
 
-    gaps = findings.interior_gaps()
+    gaps = [r for r in findings.interior_gaps() if _keep(r.chain)]
     add_ligate = False
     if gaps:
         say('\nInterior missing loops (built and closed automatically; a `ligate` task is added):')
@@ -330,7 +346,7 @@ def interactive_select(findings: 'Findings', ask=None, say=None, prompt_text=Non
             mods.setdefault('substitutions', []).extend(stubs)
         add_ligate = True     # interior loops (full or stubbed) are built and need closing
 
-    revertible = [m for m in findings.mutations if m.dbres]
+    revertible = [m for m in findings.mutations if m.dbres and _keep(m.chain)]
     if revertible:
         say('\nEngineered mutations / conflicts (structure differs from the sequence database):')
         muts = []
@@ -340,10 +356,11 @@ def interactive_select(findings: 'Findings', ask=None, say=None, prompt_text=Non
         if muts:
             mods['mutations'] = muts
 
-    if findings.excisions:
+    excisions = [e for e in findings.excisions if _keep(e.chain)]
+    if excisions:
         say('\nCloning artifacts / expression tags (extra residues not in the native protein):')
         dels = []
-        for e in findings.excisions:
+        for e in excisions:
             span = f'{e.start}' if e.start == e.end else f'{e.start}-{e.end}'
             if ask(f'  Excise {e.typekey} in chain {e.chain} ({span})?', False):
                 dels.append(e.delete_shortcode)
@@ -439,6 +456,36 @@ def _chain_molecule_names(parsed) -> dict:
     return out
 
 
+def _glycan_attachment(parsed) -> dict:
+    """``{glycan-chain: protein-chain}`` from cross-chain protein<->glycan ``LINK`` records -- so a
+    separate glycan chain can follow the protein chain it is glycosidically attached to."""
+    from .labels import Labels
+    out = {}
+    link = parsed.get('LINK')
+    if link is None:
+        return out
+    recs = getattr(link, 'data', link)
+    recs = recs if isinstance(recs, list) else [recs]
+
+    def seg(rn):
+        return Labels.segtype_of_resname.get(rn, 'other')
+
+    for r in recs:
+        try:
+            c1, rn1 = r.residue1.chainID, r.residue1.resName
+            c2, rn2 = r.residue2.chainID, r.residue2.resName
+        except AttributeError:
+            continue
+        if c1 == c2:
+            continue
+        s1, s2 = seg(rn1), seg(rn2)
+        if s1 == 'protein' and s2 == 'glycan':
+            out.setdefault(c2, c1)
+        elif s2 == 'protein' and s1 == 'glycan':
+            out.setdefault(c1, c2)
+    return out
+
+
 def inspect_structure(db_id: str, source_format: str = 'pdb', source_db: str = 'rcsb') -> Findings:
     """
     Fetch and inspect a structure, returning the discovered :class:`Findings`.
@@ -480,12 +527,13 @@ def inspect_structure(db_id: str, source_format: str = 'pdb', source_db: str = '
         if a.resname not in d['resnames']:
             d['resnames'].append(a.resname)
     molnames = _chain_molecule_names(parsed)
+    attach = _glycan_attachment(parsed)
     chains = []
     for ch, d in chain_data.items():
         segs = Counter(Labels.segtype_of_resname.get(rn, 'other') for rn in d['resnames'])
         mol = molnames.get(ch) or (molnames.get(d['auth']) if d['auth'] else None)
         chains.append(ChainIdentity(ch, segs.most_common(1)[0][0], len(d['residues']),
-                                    d['resnames'], d['auth'], mol))
+                                    d['resnames'], d['auth'], mol, attach.get(ch)))
     chains.sort(key=lambda c: c.chain)
 
     # biological assemblies

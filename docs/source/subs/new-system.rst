@@ -102,9 +102,9 @@ The inspection is header-based; it does not (yet) align against a canonical UniP
 
    $ pestifer new-system 4zmj --interactive
      Build biological assembly 1 (3 copies)? (No = asymmetric unit only) [Y/n] y
-     Omit chain A [glycan (NAG, BMA, MAN)]? [y/N] y
-     Omit chain G [protein (462 residues) — Envelope glycoprotein gp160]? [y/N] n
-     Build interior loop G 400-410 (11 res) in full? [Y/n] n
+     Include chain B [protein (126 residues) — Envelope glycoprotein gp160]? [Y/n] y
+     Include chain G [protein (462 residues) — Envelope glycoprotein gp160] (+ attached glycan chain(s) A, C, D)? [Y/n] y
+     Build interior loop B 548-568 (21 res) in full? [Y/n] n
        Replace it with a short built stub sequence instead? (No = keep full) [Y/n] y
          Stub sequence (one-letter codes)? [GGG] GSGSG
      Build a modeled tail for chain B N-terminus (512-520, 9 res)? [y/N] y
@@ -112,6 +112,8 @@ The inspection is header-based; it does not (yet) align against a canonical UniP
      Revert B:PRO559 -> db ILE [engineered mutation]? [y/N] y
      ...
      Excise expression tag in chain G (508-513)? [y/N] y
+
+Chains default to **included**.  Declining a chain adds it to ``exclude:`` and *branches*: a glycan chain glycosidically attached to a protein chain (detected from ``LINK`` records) follows that chain -- it is not asked about separately, and is omitted automatically when its protein chain is -- and once a chain is omitted its missing loops, tails, and mutations are not asked about either.
 
 The resulting ``psfgen`` task then carries a real ``source:`` block (chosen ``biological_assembly:`` and an ``exclude:`` list of omitted chains), a ``sequence:`` block (built tails), a ``mods:`` block (chosen mutation reverts, loop stub ``substitutions``, and deletions), and an active ``ligate`` task -- ready to run, with no manual editing.  Pressing Enter accepts the shown default (upper-cased in the ``[y/N]`` / ``[Y/n]`` prompt).
 

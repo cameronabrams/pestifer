@@ -182,10 +182,34 @@ class TestChainAndAssembly(unittest.TestCase):
         f = Findings('X', 'pdb',
                      chains=[ChainIdentity('A', 'protein', 100), ChainIdentity('W', 'water', 20, ['HOH'])],
                      assemblies=[AssemblyInfo(1, 3, ['A', 'W'])])
-        ask = lambda q, d=False: ('biological assembly' in q) or ('Omit chain W' in q)
+        # default is INCLUDE; decline "Include chain W" to omit the water
+        def ask(q, d=False):
+            if 'Include chain W' in q:
+                return False
+            return True
         sel = interactive_select(f, ask=ask, say=lambda m: None)
         self.assertEqual(sel['source']['biological_assembly'], 1)
         self.assertEqual(sel['source']['exclude'], ["chainID in ['W']"])
+
+    def test_omitting_protein_chain_omits_attached_glycan_and_skips_its_loops(self):
+        # glycan chain G1 is attached to protein chain P; omitting P must also omit G1, and P's
+        # interior loop and mutation must not be queried
+        f = Findings('X', 'pdb',
+                     chains=[ChainIdentity('P', 'protein', 200),
+                             ChainIdentity('G1', 'glycan', 3, ['NAG'], attached_to='P')],
+                     missing_runs=[MissingRun('P', 50, 60, 'interior')],
+                     mutations=[MutationFinding('P', 52, 'ASN', 'THR', 'engineered mutation')])
+        asked = []
+        def ask(q, d=False):
+            asked.append(q)
+            return False if 'Include chain P' in q else d
+        sel = interactive_select(f, ask=ask, say=lambda m: None)
+        self.assertEqual(sel['source']['exclude'], ["chainID in ['G1', 'P']"])   # glycan follows P
+        self.assertFalse(any('Include chain G1' in q for q in asked))            # glycan not queried
+        self.assertFalse(any('interior loop P' in q for q in asked))             # P's loop skipped
+        self.assertFalse(any('Revert P' in q for q in asked))                    # P's mutation skipped
+        self.assertNotIn('substitutions', sel['mods'])
+        self.assertFalse(sel['add_ligate'])                                      # no included loops
 
     def test_interactive_declining_assembly_gives_asymmetric_unit(self):
         f = Findings('X', 'pdb', chains=[ChainIdentity('A', 'protein', 100)],
