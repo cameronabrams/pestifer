@@ -55,7 +55,7 @@ By default ``new-system`` never looks at the actual structure -- it just fills i
 It discovers:
 
 - **Biological assemblies** (``REMARK 350`` / mmCIF assembly definitions) -- each one's index, how many copies it generates, and which chains it covers -- so you can pick which to build (``biological_assembly: N``; ``0`` = asymmetric unit only);
-- **Chain identities** -- every chain with its dominant segment type and size (e.g. ``protein (462 residues)``, ``glycan (NAG, BMA, MAN)``, ``water``, ``ion (ZN)``) -- so you can omit any via ``exclude:`` (for mmCIF the label chain ids are shown, with the author id in parentheses, since those are the ids ``exclude`` and the assembly definitions use);
+- **Chain identities** -- every chain with its dominant segment type, size, and molecule name from the header (e.g. ``protein (462 residues) — Envelope glycoprotein gp160``, ``nucleic acid (12 residues) — Primer-template duplex DNA``, ``glycan (NAG, BMA, MAN)``, ``water``, ``ion (ZN)``) -- so you can tell chains apart and omit any via ``exclude:`` (for mmCIF the label chain ids are shown, with the author id in parentheses, since those are the ids ``exclude`` and the assembly definitions use);
 - **Missing residues** (``REMARK 465`` / mmCIF ``pdbx_unobs_or_zero_occ_residues``), grouped into contiguous runs and classified as an *interior* gap (both anchors resolved) or an *N-/C-terminal tail* (a free end);
 - **Engineered mutations / conflicts** (``SEQADV`` / mmCIF ``struct_ref_seq_dif``) -- residues that differ from the sequence database;
 - **Cloning artifacts / expression tags** (``SEQADV`` typed *cloning* / *expression tag*).
@@ -103,14 +103,18 @@ The inspection is header-based; it does not (yet) align against a canonical UniP
    $ pestifer new-system 4zmj --interactive
      Build biological assembly 1 (3 copies)? (No = asymmetric unit only) [Y/n] y
      Omit chain A [glycan (NAG, BMA, MAN)]? [y/N] y
-     Omit chain G [protein (462 residues)]? [y/N] n
+     Omit chain G [protein (462 residues) — Envelope glycoprotein gp160]? [y/N] n
+     Build interior loop G 400-410 (11 res) in full? [Y/n] n
+       Replace it with a short GGG stub sequence instead? (No = keep full) [Y/n] y
      Build a modeled tail for chain B N-terminus (512-520, 9 res)? [y/N] y
      Add a `ligate` task to close them? [Y/n] y
      Revert B:PRO559 -> db ILE [engineered mutation]? [y/N] y
      ...
      Excise expression tag in chain G (508-513)? [y/N] y
 
-The resulting ``psfgen`` task then carries a real ``source:`` block (chosen ``biological_assembly:`` and an ``exclude:`` list of omitted chains), a ``sequence:`` block (built tails), a ``mods:`` block (chosen mutation reverts and deletions), and an active ``ligate`` task -- ready to run, with no manual editing.  Pressing Enter accepts the shown default (upper-cased in the ``[y/N]`` / ``[Y/n]`` prompt).
+The resulting ``psfgen`` task then carries a real ``source:`` block (chosen ``biological_assembly:`` and an ``exclude:`` list of omitted chains), a ``sequence:`` block (built tails), a ``mods:`` block (chosen mutation reverts, loop stub ``substitutions``, and deletions), and an active ``ligate`` task -- ready to run, with no manual editing.  Pressing Enter accepts the shown default (upper-cased in the ``[y/N]`` / ``[Y/n]`` prompt).
+
+Interior missing loops are built and closed by default; declining "in full" offers a short built **stub** (``substitutions: [G:400-410,GGG]``) in place of the full disordered sequence.  (Leaving a genuine capped chain break where a loop would go is not yet supported -- it needs a build-side chain-split-and-cap capability; it is on the roadmap.)
 
 ``--output <filename>``
 ++++++++++++++++++++++++

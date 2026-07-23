@@ -175,9 +175,25 @@ what appears here is refined and reprioritized as the project evolves.
           `source:` block (`biological_assembly` + `exclude`), a `sequence:` block, a `mods:` block,
           and a `ligate` task, ready to run. Prompt logic factored (`interactive_select` +
           `make_prompter`) so it is testable without a TTY; blank input takes the shown default.
+    - [x] **Chain identity + interior-loop options (Unreleased).** Chain identities carry the
+          molecule name from the header (`COMPND` / mmCIF entity), and interior missing loops are
+          presented in the interactive walkthrough with a "build in full vs. short GGG stub"
+          (`substitutions`) choice.
     - [ ] **P3 — canonical-sequence diff.** Align the modeled sequence against the canonical UniProt
           reference to surface substitutions not recorded in `SEQADV` (no reuseable primitive exists
           today beyond the AlphaFold *structure* fetch — needs a UniProt FASTA fetch + alignment).
+
+- [ ] **Leave a capped chain break in place of an unbuilt interior loop.** Today an interior
+      missing loop is *always* built (then closed by `ligate`); the only alternative is a shorter
+      built stub (`substitutions`). A user may instead want the loop *not* built and the two
+      flanking runs left as **separate, properly-terminated segments** (a genuine chain break, each
+      end capped with `CTER`/`NTER`). Validated that the obvious config-only route does **not** work:
+      `exclude`/`deletions` drop the loop residues but *fuse* the anchors into one segment (an
+      unphysical long bond), and a `cleave` task does not split at the resulting numbering gap
+      (`ResID` is also not int-comparable, so a resid-range `exclude` fails outright). This needs a
+      dedicated build-engine capability — split a chain at an unbuilt interior gap into two segments
+      and apply default terminal patches — after which `new-system --interactive` can offer it as
+      the third interior-loop option (build / stub / cap-and-break).
 
 ## Ring-piercing
 

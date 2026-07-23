@@ -99,7 +99,23 @@ class TestInteractiveSelect(unittest.TestCase):
         sel = interactive_select(self._findings(), ask=lambda q, d=False: False, say=lambda m: None)
         self.assertEqual(sel['sequence'], {})
         self.assertEqual(sel['mods'], {})
-        self.assertFalse(sel['add_ligate'])
+        # declining the interior loop's full build AND its stub still builds it (interior loops
+        # cannot be left unbuilt), so a ligate task is still needed
+        self.assertTrue(sel['add_ligate'])
+
+    def test_interior_loop_stub(self):
+        # decline building the interior loop in full, accept the GGG stub -> a substitution
+        f = Findings('X', 'pdb', missing_runs=[MissingRun('A', 50, 60, 'interior')])
+        ask = lambda q, d=False: 'stub' in q          # No to "in full?", Yes to "stub?"
+        sel = interactive_select(f, ask=ask, say=lambda m: None)
+        self.assertEqual(sel['mods']['substitutions'], ['A:50-60,GGG'])
+        self.assertTrue(sel['add_ligate'])
+
+    def test_interior_loop_full_build_no_stub(self):
+        f = Findings('X', 'pdb', missing_runs=[MissingRun('A', 50, 60, 'interior')])
+        sel = interactive_select(f, ask=lambda q, d=False: 'in full' in q, say=lambda m: None)
+        self.assertNotIn('substitutions', sel['mods'])
+        self.assertTrue(sel['add_ligate'])
 
     def test_selective(self):
         # accept only tail and ligate prompts
@@ -136,6 +152,12 @@ class TestChainAndAssembly(unittest.TestCase):
         self.assertEqual(ChainIdentity('A', 'protein', 187, ['ALA', 'GLY']).describe(),
                          'protein (187 residues)')
         self.assertEqual(ChainIdentity('W', 'water', 50, ['HOH']).describe(), 'water')
+
+    def test_chain_describe_with_molecule_name(self):
+        d = ChainIdentity('G', 'protein', 462, ['LEU'], molecule='ENVELOPE GLYCOPROTEIN GP160').describe()
+        self.assertEqual(d, 'protein (462 residues) — ENVELOPE GLYCOPROTEIN GP160')
+        # molecule name not appended for a glycan chain (segtype-gated)
+        self.assertEqual(ChainIdentity('A', 'glycan', 3, ['NAG'], molecule='X').describe(), 'glycan (NAG)')
         self.assertTrue(ChainIdentity('A', 'glycan', 3, ['NAG', 'BMA']).describe().startswith('glycan (NAG'))
         self.assertTrue(ChainIdentity('I', 'ion', 1, ['ZN']).describe().startswith('ion (ZN'))
         self.assertIn('nucleic acid', ChainIdentity('T', 'nucleicacid', 12, ['DA']).describe())

@@ -74,25 +74,30 @@ class ExcisionRun:
 
 @dataclass
 class ChainIdentity:
-    """What a single chain is: its dominant segment type, size, and a resname sample."""
+    """What a single chain is: its dominant segment type, size, molecule name, and resname sample."""
     chain: str
     segtype: str
     n_residues: int
     resnames: list = field(default_factory=list)
     auth: str = None          # mmCIF author chain id (label chain is `chain`); None for PDB
+    molecule: str = None      # molecule name from COMPND / mmCIF entity description, if available
 
     def describe(self) -> str:
         sample = ', '.join(self.resnames[:4]) + ('...' if len(self.resnames) > 4 else '')
         if self.segtype == 'water':
-            return 'water'
-        if self.segtype == 'ion':
-            return f'ion ({sample})'
-        if self.segtype == 'glycan':
-            return f'glycan ({sample})'
-        if self.segtype in ('protein', 'nucleicacid'):
+            base = 'water'
+        elif self.segtype == 'ion':
+            base = f'ion ({sample})'
+        elif self.segtype == 'glycan':
+            base = f'glycan ({sample})'
+        elif self.segtype in ('protein', 'nucleicacid'):
             name = 'protein' if self.segtype == 'protein' else 'nucleic acid'
-            return f'{name} ({self.n_residues} residues)'
-        return f'{self.segtype} ({sample})'
+            base = f'{name} ({self.n_residues} residues)'
+        else:
+            base = f'{self.segtype} ({sample})'
+        if self.molecule and self.segtype in ('protein', 'nucleicacid', 'other'):
+            return f'{base} — {self.molecule}'
+        return base
 
 
 @dataclass
@@ -185,6 +190,10 @@ class Findings:
             for r in gaps:
                 c(f'  {r}')
             c('Short gaps are skipped unless >= `source.sequence.loops.min_loop_length` (default 4).')
+            c('To replace a long/disordered loop with a short built stub (not the full sequence),')
+            c('add a `mods:` block (a SIBLING of `source:`) -')
+            c('  mods:')
+            c(f'    substitutions: [{gaps[0].chain}:{gaps[0].start}-{gaps[0].end},GGG]')
 
         revertible = [m for m in self.mutations if m.dbres]
         if self.mutations:
@@ -295,10 +304,18 @@ def interactive_select(findings: 'Findings', ask=None, say=None) -> dict:
     gaps = findings.interior_gaps()
     add_ligate = False
     if gaps:
-        say(f'\n{len(gaps)} interior missing loop(s) will be built and closed:')
+        say('\nInterior missing loops (built and closed automatically; a `ligate` task is added):')
+        stubs = []
         for r in gaps:
-            say(f'  {r}')
-        add_ligate = ask('  Add a `ligate` task to close them?', True)
+            if ask(f'  Build interior loop {r.chain} {r.start}-{r.end} ({r.length} res) in full?', True):
+                continue
+            # An interior loop cannot currently be left genuinely unbuilt (no capped-break path);
+            # the supported alternative is a short built stub in its place.
+            if ask(f'    Replace it with a short GGG stub sequence instead? (No = keep full)', True):
+                stubs.append(f'{r.chain}:{r.start}-{r.end},GGG')
+        if stubs:
+            mods.setdefault('substitutions', []).extend(stubs)
+        add_ligate = True     # interior loops (full or stubbed) are built and need closing
 
     revertible = [m for m in findings.mutations if m.dbres]
     if revertible:
@@ -336,6 +353,43 @@ def _group_runs(resseqnums):
             yield (start, prev)
             start = prev = n
     yield (start, prev)
+
+
+def _chain_molecule_names(parsed) -> dict:
+    """
+    ``{author-chain-id: molecule name}`` from the ``COMPND`` record.
+
+    pidibble normalizes both PDB ``COMPND`` (``MOLECULE``/``CHAIN`` tokens) and mmCIF entity data
+    (``_entity.pdbx_description`` joined to ``_entity_poly.pdbx_strand_id``) into this record, so one
+    reader handles both. The chain ids here are *author* ids; the caller maps them onto its label
+    ids for mmCIF via each chain's ``auth``.
+    """
+    out = {}
+    comp = parsed.get('COMPND')
+    if comp is None:
+        return out
+    compound = getattr(comp, 'compound', None)
+    if isinstance(compound, list):                      # PDB: 'KEY: VALUE' tokens grouped by MOL_ID
+        cur = None
+        for tok in compound:
+            if ':' not in tok:
+                continue
+            key, val = tok.split(':', 1)
+            key = key.strip().upper()
+            val = val.strip().rstrip(';')
+            if key == 'MOLECULE':
+                cur = val
+            elif key == 'CHAIN' and cur:
+                for ch in val.split(','):
+                    out.setdefault(ch.strip(), cur)
+        return out
+    for r in (comp if isinstance(comp, list) else [comp]):   # mmCIF: per-entity records
+        mol = getattr(r, 'molName', None)
+        chs = getattr(r, 'chains', None)
+        if mol and chs:
+            for ch in (chs if isinstance(chs, list) else [chs]):
+                out.setdefault(str(ch), mol)
+    return out
 
 
 def inspect_structure(db_id: str, source_format: str = 'pdb', source_db: str = 'rcsb') -> Findings:
@@ -378,11 +432,13 @@ def inspect_structure(db_id: str, source_format: str = 'pdb', source_db: str = '
         d['residues'].add((a.resid.resseqnum, getattr(a.resid, 'insertion', '')))
         if a.resname not in d['resnames']:
             d['resnames'].append(a.resname)
+    molnames = _chain_molecule_names(parsed)
     chains = []
     for ch, d in chain_data.items():
         segs = Counter(Labels.segtype_of_resname.get(rn, 'other') for rn in d['resnames'])
+        mol = molnames.get(ch) or (molnames.get(d['auth']) if d['auth'] else None)
         chains.append(ChainIdentity(ch, segs.most_common(1)[0][0], len(d['residues']),
-                                    d['resnames'], d['auth']))
+                                    d['resnames'], d['auth'], mol))
     chains.sort(key=lambda c: c.chain)
 
     # biological assemblies

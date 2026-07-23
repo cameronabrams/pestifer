@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: **`new-system --inspect`/`--interactive` identify chains by molecule name and let you handle interior loops.** Chain identities now include the molecule name from the header (PDB `COMPND` / mmCIF `_entity.pdbx_description`) -- e.g. `protein (462 residues) — Envelope glycoprotein gp160`, `nucleic acid — Primer-template duplex DNA` -- so chains are distinguishable beyond just segment type. Interior missing loops (built and closed automatically) are now presented in the interactive walkthrough: declining "build in full" offers a short built **stub** (`substitutions: [G:400-410,GGG]`) in place of the full disordered sequence, and the annotate mode documents the same. (Leaving a genuine capped chain break in place of a loop is not yet supported -- validated that `exclude`/`deletions` + `cleave` does not split at an unbuilt gap; it needs a dedicated chain-split-and-cap build feature, now on the roadmap.)
+
 ## [3.12.0] - 2026-07-23
 
 - feat: **`new-system --interactive` walks through the detected features and writes the chosen mods.** The guided counterpart to `--inspect`: it discovers the same features but prompts per item (build this assembly or the asymmetric unit? omit this chain? build this tail? revert this mutation? excise this tag? add a ligate task?) and injects the choices as *active* (uncommented) config — a real `source:` block (chosen `biological_assembly` + `exclude` list), a `sequence:` block (built tails), a `mods:` block (chosen reverts/deletions), and a `ligate` task — ready to run with no manual editing. The prompt logic is factored so the walkthrough is testable without a TTY; blank input takes the shown default.

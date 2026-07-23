@@ -199,6 +199,8 @@ class ExampleManager:
                      f'{n_tail} tail chain(s)' if n_tail else None,
                      f'{len(active_mods.get("mods", {}).get("mutations", []))} mutation(s)'
                      if active_mods.get('mods', {}).get('mutations') else None,
+                     f'{len(active_mods.get("mods", {}).get("substitutions", []))} stub(s)'
+                     if active_mods.get('mods', {}).get('substitutions') else None,
                      f'{len(active_mods.get("mods", {}).get("deletions", []))} deletion(s)'
                      if active_mods.get('mods', {}).get('deletions') else None,
                      'ligate task' if active_mods.get('add_ligate') else None]
