@@ -90,35 +90,46 @@ smaller than the uncertainty in the mean.
 to fall below a threshold — validated wrong against real `.xst` runs: an equilibrated soluble box
 never satisfies it, because its fluctuations are intrinsic. See "Empirical calibration" below.)*
 
-**Fractional-plateau test with hysteresis.** (A `trend < k·SEM` *significance* test was prototyped
-and **rejected** — see "Empirical calibration": the trend/SEM ratio is noisy, sampling-dependent,
-and reads ~5–6 for every equilibrated run, so no universal `k` exists. Use a **scale-independent
-fractional tolerance**, which clusters tightly across box sizes.)
+The design must contend with two facts, both confirmed against real runs (see "Empirical
+calibration"):
 
-1. **Burn-in.** Discard the first `burn_in` steps (the initial barostat transient).
-2. **Window.** Consider the trailing `window` steps (or all post-burn-in samples if shorter).
-3. **Block-average** into `n_blocks` contiguous blocks → block means `d̄_k` at `t_k`.
-4. **Fractional drift.** `drift = |slope| · (t_last − t_first) / mean` from a line fit to
-   `(t_k, d̄_k)` — the fractional change of the mean density across the window. (Equivalently, a
-   two-window Δ: `|mean(2nd half) − mean(1st half)| / mean`; both track together.)
-5. **Converged** when `drift < drift_tol` for **`n_consecutive` successive checks** (hysteresis),
-   provided `total_steps ≥ min_steps`.
+- The density **fluctuation amplitude is size-dependent**: `σ_ρ/mean ∝ 1/√N_atoms`, measured from
+  ~2.4e-3 (a ~10k-water box) down to ~6.5e-4 (a ~180k-water box).
+- For a *stationary* (equilibrated) signal, the windowed slope estimate has `trend/SEM ≈ √12 ≈ 3.5`
+  **independent of window length** — so a `trend < k·SEM` significance test has a hard floor at
+  `k ≈ 3.5` and can never fire for `k ≈ 2`. (This is the mathematical reason every run read
+  trend/SEM ~5–6; the significance form is **rejected**.)
 
-The **hysteresis is essential**: the drift metric is noisy and non-monotonic — even a still-creeping
-box shows the occasional low-drift window (2bgj dips to `6.6e-4` at one check, then back to
-`4.5e-3`), so a single passing check false-triggers. Requiring several consecutive passes stops on a
-sustained plateau, not a lucky window.
+Together these mean a **fixed** `(window, drift_tol)` cannot be size-portable: the noise floor of any
+drift metric over a fixed window scales as `1/√N_atoms`, so a tolerance tuned on one box is too tight
+for a smaller one and too loose for a larger one. The fix is to **make the tolerance a
+size-independent practical choice and let the *duration* adapt to the system's noise.**
 
-If `max_steps` is reached without convergence, the task **stops anyway** with a loud warning
-reporting the residual `drift` (a large residual flags a system that never settled), rather than
-running forever. A NaN / box-blowup in the NAMD output aborts immediately.
+**Criterion — practical fractional-drift tolerance with an adaptive, precision-targeted window.**
 
-**Tolerance is not yet pinned — it needs a proper reference run (open).** The archived `.xst` files
-are all too short to establish it: they are 16k-step equilibrations whose density is *still creeping
-~0.3–0.4 %* at their end (2bgj rises 1.002 → 1.005 from step 10k to 16k), or drifting membranes.
-Before fixing `drift_tol`, generate one **long** NPT reference run on a small box (e.g. 100–200k
-steps) so the density visibly plateaus, and read off the residual drift *at plateau* — that sets the
-tolerance floor. Until then `drift_tol` is a placeholder.
+1. **Burn-in.** Discard the first `burn_in` steps (the barostat transient).
+2. **Precision gate (this is what makes it size-independent).** Grow the trailing window (by running
+   more chunks) until the standard error of the windowed mean density is well below the tolerance:
+   `SEM/mean < drift_tol / p` (e.g. `p = 3`). `SEM = std(d̄_k)/√n_blocks` from `n_blocks`
+   block means `d̄_k`. A small/noisy box simply accumulates a **longer** window automatically; a big
+   quiet box reaches the precision gate quickly. Required independent samples scale as
+   `n ≳ 12·(σ_ρ/mean)² / drift_tol²`, i.e. `∝ 1/N_atoms` — the duration carries the size dependence,
+   not the tolerance.
+3. **Drift.** Once the mean is precise enough to *resolve* it, compute the fractional drift
+   `drift = |slope|·(t_last − t_first)/mean` from the line fit to `(t_k, d̄_k)`.
+4. **Converged** when `drift < drift_tol` for **`n_consecutive` successive checks** (hysteresis),
+   with `total_steps ≥ min_steps`.
+
+`drift_tol` is now a **pure adequacy choice** — "the box density has stopped changing by more than X%
+over the averaging window," X chosen for the purpose (a starting point for production MD; ~0.1 % is a
+sensible target), *not* a measured noise floor. The precision gate guarantees the tolerance is
+resolvable above noise for any system size; the hysteresis defends against the noisy, non-monotonic
+drift metric (2bgj dips to 6.6e-4 then back to 4.5e-3 near the plateau, so a single passing check
+false-triggers — the k~2 failure).
+
+If `max_steps` is reached first, the task **stops anyway** with a loud warning reporting the residual
+`drift` and whether the precision gate was even met (a large residual, or an unmet gate, flags a
+system that never settled). A NaN / box-blowup aborts immediately.
 
 ## Empirical calibration (prototype on real `.xst` runs)
 
@@ -141,17 +152,28 @@ The criterion was prototyped against archived pestifer NPT `.xst` files (density
 - **The metric is noisy → hysteresis needed.** Tracing 2bgj's trailing-window `drift` over the run:
   it is 4.5e-2 → 2.7e-2 (equilibrating) then jumps 6.6e-4 → 3.8e-3 → 4.5e-3 around the plateau. A
   single-window threshold fires on the 6.6e-4 dip prematurely; `n_consecutive` passes fix this.
-- **The archived runs are too short to set the tolerance.** They are 16k-step equilibrations still
-  creeping ~0.3–0.4 % at their end (2bgj mean density 1.002 → 1.005 from step 10k → 16k) — not a true
-  plateau. A dedicated long reference run is required before `drift_tol` is fixed (see criterion).
+- **Density fluctuation is size-dependent (measured).** Detrended `σ_ρ/mean` over an 8k-step tail:
+  2bgj (~10.5k waters) 2.4e-3, ex20 (~32k) 1.3e-3, 6cm3 (~126k) 7.8e-4, GroEL/1aon (~180k) 6.5e-4 —
+  a clean `1/√N_atoms` (2bgj/GroEL ratio 3.7 vs √17 = 4.1). This is *why* no fixed-window tolerance is
+  size-portable, and why the criterion uses a **precision gate** so the duration (not the tolerance)
+  carries the size dependence.
+- **A single long run does not "pin" a universal tolerance.** At a true plateau the mean is constant,
+  so any measured windowed drift is *noise* whose floor scales as `1/√N_atoms` (and with window) —
+  one system's plateau residual is not a transferable number. The tolerance is therefore an
+  **engineering adequacy choice** (~0.1 % density stability), and a reference run's job is to
+  *validate the behavior* — that the adaptive scheme fires at the equilibrium density and terminates
+  in reasonable time — not to measure the tolerance. The `1/√N` characterization above already tells
+  us how the required duration scales, so one or two runs at different sizes suffice to confirm the
+  precision gate does its job; more are not needed.
 - **Scope note.** The membrane npat run drifts ~6 % monotonically over 256k steps and never
   plateaus — anisotropic membrane equilibration is **out of scope** (keep the npat/npgt protocol);
   the `max_steps` ceiling + residual-drift report are the backstop for a system that never settles.
 
-Provisional defaults (form settled, tolerance pending calibration): `window ≈ 10000`,
-`n_blocks ≈ 6`, `burn_in ≈ 2000`, `min_steps ≈ 4000`, `chunk_steps ≈ 2000`, `n_consecutive ≈ 3`;
-`drift_tol` **TBD** from a long reference run (provisionally ~1–2e-3, i.e. hold the mean density
-to ≲0.1–0.2 % across the window for several checks).
+Defaults (form settled; `drift_tol` an adequacy choice, not a measured floor): `drift_tol ≈ 1e-3`
+(≈0.1 % density stability), precision-gate `p ≈ 3`, `n_blocks ≈ 6`, `burn_in ≈ 2000`,
+`min_steps ≈ 4000`, `chunk_steps ≈ 2000`, `n_consecutive ≈ 3`, `window` grows adaptively via the
+precision gate (starting ~10000). To be sanity-checked (fires at equilibrium density, sane runtime)
+on a small and a large system in validation — not re-calibrated.
 
 ## Parameters (task spec)
 
@@ -161,10 +183,11 @@ to ≲0.1–0.2 % across the window for several checks).
 | `max_steps`    | hard ceiling; stop even if not converged                         | 100000               |
 | `min_steps`    | never declare convergence before this many steps                 | 4000                 |
 | `burn_in`      | leading steps discarded before assessing the trend               | 2000                 |
-| `window`       | trailing steps the trend/noise test is computed over             | 10000                |
+| `window`       | trailing window; **grows adaptively** until the precision gate is met | ~10000 (start)  |
 | `n_blocks`     | blocks the window is averaged into                               | 6                    |
+| `precision_p`  | precision gate: require `SEM/mean < drift_tol / precision_p`      | 3                    |
 | `n_consecutive`| successive checks that must pass before stopping (hysteresis)    | 3                    |
-| `drift_tol`    | converge when the fractional drift `trend/mean < drift_tol`      | **TBD** (~1–2e-3)    |
+| `drift_tol`    | converge when fractional drift `< drift_tol` (adequacy choice)    | 1e-3 (~0.1 %)        |
 | `seed`         | NAMD RNG seed (reproducible stop on a fixed machine)             | fixed default        |
 
 Plus the usual NPT knobs it forwards to `namdrun` (`temperature`, `pressure`, `timestep`, output
@@ -192,12 +215,14 @@ bit-reproducible, by nature of wrapping NAMD. Documented as such.
 
 ## Validation (first-class deliverable)
 
-**Prerequisite — calibrate the tolerance.** First run *one* long NPT reference (100–200k steps) on a
-small solvated box until the density visibly plateaus; measure the residual `drift`/two-window Δ at
-plateau; set `drift_tol` just above that floor. This is a hard prerequisite — the criterion form is
-settled but the tolerance is not, and it cannot be read off the (too-short) archived runs.
-
-Then, run on systems spanning the size range and compare against a long fixed NPT run:
+**Validate the *behavior*, don't "calibrate the tolerance."** `drift_tol` is an adequacy choice
+(~0.1 %), not a number to be measured (the plateau noise floor is size-dependent — a single run
+can't pin it; the precision gate makes the tolerance resolvable regardless). What a reference run
+*must* confirm — on a **small** and a **large** solvated box (the two ends of the `1/√N` fluctuation
+range) — is that the adaptive scheme (i) stops at a density equal to a long fixed run's plateau
+(not premature), (ii) reaches the precision gate and terminates in a sane number of steps for both
+sizes, and (iii) small boxes correctly run longer than large ones. Compare against a long fixed NPT
+run:
 
 - a small soluble protein (fast box, should stop early),
 - a large glycoprotein trimer (e.g. an HIV-Env example),
@@ -223,12 +248,14 @@ stop). Tune the default tolerances/window from these runs.
 ## Decisions
 
 - **Fixed:** chunked NPT with convergence-or-ceiling stopping; density from the `.xst` cell volume
-  (triple product) + PSF mass; convergence by a **scale-independent fractional-drift tolerance with
-  `n_consecutive`-check hysteresis** — *not* a fluctuation threshold and *not* a `trend/SEM`
-  significance test (both prototyped and rejected against real runs); density-only for v1; a distinct
-  task (not an `md` `until:` mode); seeded / deterministic-per-machine; isotropic **soluble-box**
-  scope (membranes keep npat/npgt); replace the ladder across template + `new-system` + examples;
-  keep plain `md` for fixed schedules.
-- **Open:** `drift_tol` itself — **must be calibrated from a long reference run** (prerequisite in
-  Validation), not from the too-short archived runs; final `window`/`n_consecutive`; the
+  (triple product) + PSF mass; convergence by a **practical fractional-drift tolerance made
+  size-independent by a precision gate that adapts the window/duration**, with `n_consecutive`
+  hysteresis — *not* a fluctuation threshold and *not* a `trend/SEM` significance test (both
+  prototyped and rejected: the fluctuation is intrinsic; trend/SEM has a `√12≈3.5` floor at plateau).
+  `drift_tol` is an adequacy choice (~0.1 %), not a measured noise floor. Density-only for v1; a
+  distinct task; seeded / deterministic-per-machine; isotropic **soluble-box** scope (membranes keep
+  npat/npgt); replace the ladder across template + `new-system` + examples; keep plain `md` for fixed
+  schedules.
+- **Open:** the exact adequacy value for `drift_tol` (~0.1 % is the proposal) and `precision_p`;
+  validation that the precision gate fires at the equilibrium density on a small and a large box; the
   convergence-report/plot artifact format.
