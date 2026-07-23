@@ -181,12 +181,14 @@ The criterion was prototyped against archived pestifer NPT `.xst` files (density
   a clean `1/√N_atoms` (2bgj/GroEL ratio 3.7 vs √17 = 4.1). This is *why* no fixed-window tolerance is
   size-portable, and why the criterion uses a **precision gate** so the duration (not the tolerance)
   carries the size dependence.
-- **A single long run does not "pin" a universal tolerance.** At a true plateau the mean is constant,
-  so any measured windowed drift is *noise* whose floor scales as `1/√N_atoms` (and with window) —
-  one system's plateau residual is not a transferable number. The tolerance is therefore an
-  **engineering adequacy choice** (~0.1 % density stability), and a reference run's job is to
-  *validate the behavior* — that the adaptive scheme fires at the equilibrium density and terminates
-  in reasonable time — not to measure the tolerance. The `1/√N` characterization above already tells
+- **A single long (staged) run does not "pin" a universal tolerance.** At a true plateau the mean is
+  constant, so any measured windowed drift is *noise* whose floor scales as `1/√N_atoms` (and with
+  window) — one system's plateau residual is not a transferable number. (And there is no *non*-staged
+  long run to appeal to anyway — a monolithic NPT `run` crashes on the shrinking box; the reference is
+  always a chunked run, see Validation.) The tolerance is therefore an **engineering adequacy choice**
+  (~0.1 % density stability), and a reference run's job is to *validate the behavior* — that the
+  adaptive scheme fires at the equilibrium density and terminates in reasonable time — not to measure
+  the tolerance. The `1/√N` characterization above already tells
   us how the required duration scales, so one or two runs at different sizes suffice to confirm the
   precision gate does its job; more are not needed.
 - **Scope note.** The membrane npat run drifts ~6 % monotonically over 256k steps and never
@@ -243,23 +245,35 @@ bit-reproducible, by nature of wrapping NAMD. Documented as such.
 
 ## Validation (first-class deliverable)
 
+**The reference plateau must itself come from a *chunked* run — there is no "long fixed NPT run" to
+compare against.** The very premise of this task (see Problem) is that a single monolithic `run` on a
+freshly solvated, shrinking box **crashes** once the cell outruns the patch grid. So the reference
+density is *not* a long fixed run; it is a **long *staged* run** — either the old hand-written ladder
+carried out to a large step count, or `density_equilibrate` itself with the stop disabled (set
+`drift_tol: 0` or an unreachable tolerance so it runs to `max_steps`). Both restart between chunks and
+are numerically stable; only the *stopping* differs. The plateau is read off the tail of that staged
+reference.
+
 **Validate the *behavior*, don't "calibrate the tolerance."** `drift_tol` is an adequacy choice
 (~0.1 %), not a number to be measured (the plateau noise floor is size-dependent — a single run
-can't pin it; the precision gate makes the tolerance resolvable regardless). What a reference run
+can't pin it; the precision gate makes the tolerance resolvable regardless). What the validation
 *must* confirm — on a **small** and a **large** solvated box (the two ends of the `1/√N` fluctuation
-range) — is that the adaptive scheme (i) stops at a density equal to a long fixed run's plateau
+range) — is that the adaptive scheme (i) stops at a density equal to the staged reference's plateau
 (not premature), (ii) reaches the precision gate and terminates in a sane number of steps for both
-sizes, and (iii) small boxes correctly run longer than large ones. Compare against a long fixed NPT
-run:
+sizes, and (iii) small boxes correctly run longer than large ones. Systems to run:
 
 - a small soluble protein (fast box, should stop early),
 - a large glycoprotein trimer (e.g. an HIV-Env example),
 - a membrane patch (anisotropic box; confirm the orthorhombic-volume density is sensible, or use
   the full triple-product volume).
 
-Confirm: (a) the final density matches a long reference run within tolerance, (b) the stop step is
-sensible (not premature, not the ceiling), (c) determinism on a fixed machine (same seed → same
-stop). Tune the default tolerances/window from these runs.
+Concretely: for each system, run `density_equilibrate` with the stop **disabled** (unreachable
+`drift_tol`) to `max_steps` to establish the staged-reference plateau; then run it again with the
+production defaults and confirm (a) the auto-stop density matches the reference plateau within
+tolerance, (b) the stop step is sensible (not premature, not the ceiling), (c) determinism on a fixed
+machine (same seed → same stop). The two runs share the identical chunked trajectory up to the stop
+step, so this is a clean A/B on the *stopping rule alone*. Tune the default tolerances/window from
+these runs.
 
 ## Phasing (each shippable)
 

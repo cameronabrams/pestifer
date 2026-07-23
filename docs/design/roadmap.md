@@ -170,7 +170,9 @@ what appears here is refined and reprioritized as the project evolves.
           density-vs-time-plot artifact. Convergence math lives in a NAMD-free, unit-tested
           `util/density_convergence.py`. Wired into the `new-system` template and interactive pipeline
           (replacing the NPT ladder there). **Still to do:** validate on a small and a large solvated
-          box against a long fixed reference run (confirm it stops at the plateau density in sane time).
+          box against a long *staged* reference (the same task run with the stop disabled to
+          `max_steps` — there is no monolithic long run to compare to; it crashes on the shrinking
+          box), confirming the auto-stop lands at the reference plateau density in sane time.
     - [ ] **P2 — migrate the bundled examples** off the NPT ladder onto `density_equilibrate`.
     - [ ] **P3 (optional) — generalize** to an `equilibrate` task with a selectable observable.
 - [~] **Optionally-interactive `new-system` for sequence modifications.** `new-system` generated a
