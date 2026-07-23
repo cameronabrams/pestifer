@@ -346,7 +346,17 @@ def interactive_select(findings: 'Findings', ask=None, say=None, prompt_text=Non
             mods.setdefault('substitutions', []).extend(stubs)
         add_ligate = True     # interior loops (full or stubbed) are built and need closing
 
-    revertible = [m for m in findings.mutations if m.dbres and _keep(m.chain)]
+    def _built(chain, resid):
+        # a mutation must target a residue that will exist in the built structure: a resolved
+        # residue, an interior loop (always built), or a terminal tail the user chose to build.
+        for r in findings.missing_runs:
+            if r.chain == chain and r.start <= resid <= r.end:
+                if r.kind == 'interior':
+                    return True
+                return chain in (tails['n'] if r.kind == 'N' else tails['c'])
+        return True   # not in any missing run -> resolved
+
+    revertible = [m for m in findings.mutations if m.dbres and _keep(m.chain) and _built(m.chain, m.resid)]
     if revertible:
         say('\nEngineered mutations / conflicts (structure differs from the sequence database):')
         muts = []
@@ -510,9 +520,14 @@ def inspect_structure(db_id: str, source_format: str = 'pdb', source_db: str = '
 
     from ..core.labels import Labels
 
+    # Resolved *polymer* residues per chain (protein/nucleic only). A missing residue is a polymer
+    # residue, so its interior/terminal classification must be against the polymer span -- NOT the
+    # whole chain, whose range can be inflated by in-chain glycans/ions at high resids (e.g. a
+    # C-terminal protein gap would otherwise look interior because NAGs sit past it in the same chain).
     resolved = defaultdict(set)
     for a in atoms.data:
-        resolved[a.chainID].add(a.resid.resseqnum)
+        if Labels.segtype_of_resname.get(a.resname, 'other') in ('protein', 'nucleicacid'):
+            resolved[a.chainID].add(a.resid.resseqnum)
     missing_pairs = [(m.chainID, m.resid.resseqnum) for m in missings.data]
     seqadv_tuples = [(s.chainID, getattr(s.resid, 'resseqnum', None), s.resname, s.dbRes or '',
                       (s.typekey or '').strip()) for s in seqadvs.data]

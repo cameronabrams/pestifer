@@ -103,6 +103,34 @@ class TestInteractiveSelect(unittest.TestCase):
         # cannot be left unbuilt), so a ligate task is still needed
         self.assertTrue(sel['add_ligate'])
 
+    def test_mutation_not_offered_when_residue_in_unbuilt_terminal(self):
+        # a SEQADV mutation on a residue in a C-terminal missing run must not be offered unless the
+        # tail is built (else it would target a non-existent residue -- the 6cm3 failure)
+        f = Findings('X', 'pdb',
+                     missing_runs=[MissingRun('D', 502, 513, 'C')],
+                     mutations=[MutationFinding('D', 510, 'ARG', 'LYS', 'conflict'),
+                                MutationFinding('D', 300, 'ASN', 'THR', 'conflict')])
+        asked = []
+        def ask(q, d=False):
+            asked.append(q)
+            return True if 'Revert' in q else False    # accept reverts; do NOT build the C-tail
+        sel = interactive_select(f, ask=ask, say=lambda m: None)
+        muts = sel['mods'].get('mutations', [])
+        self.assertIn('D:ASN,300,THR', muts)           # resolved residue -> offered
+        self.assertNotIn('D:ARG,510,LYS', muts)        # in the unbuilt C-tail -> not offered
+        self.assertFalse(any('D:ARG510' in q for q in asked))
+
+    def test_mutation_offered_when_terminal_tail_built(self):
+        f = Findings('X', 'pdb',
+                     missing_runs=[MissingRun('D', 502, 513, 'C')],
+                     mutations=[MutationFinding('D', 510, 'ARG', 'LYS', 'conflict')])
+        def ask(q, d=False):
+            if 'C-terminus' in q or 'Revert' in q:
+                return True                            # build D's C-tail, then revert
+            return d
+        sel = interactive_select(f, ask=ask, say=lambda m: None)
+        self.assertIn('D:ARG,510,LYS', sel['mods'].get('mutations', []))
+
     def test_interior_loop_stub_default(self):
         # decline "in full", accept the stub, take the default stub sequence (blank -> GGG)
         f = Findings('X', 'pdb', missing_runs=[MissingRun('A', 50, 60, 'interior')])
