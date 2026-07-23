@@ -17,6 +17,8 @@ Because the closure is geometric, a few *soft* (non-threaded) steric overlaps ma
 
 Two optional knobs tune the closure: ``ccd.ensemble`` (number of independent Ramachandran-seeded starts per loop) and ``ccd.refine`` (iterations of iterative declash).  A ``ccd.guard: true`` option keeps the surrounding structure present *during* the CCD closure and rejects any rotation that increases the clash count, reaching fewer residual overlaps at the cost of a much slower closure; it is off by default because the downstream ``minimize`` does the same job.  ``ccd.thread_ca`` is the CA-displacement threshold (in Angstrom) that triggers a sequential re-close of any pair of loops whose backbones come closer than this after the parallel independent closures (default **0**, which is off).
 
+Because the CCD closer seeds and closes each loop itself, the hand-coded ``crotations`` that older configs used to *pre-position* a model-built loop for the steered closer are **no longer needed** — the closer arrives at a closed, realistic backbone automatically.  For provenance, ``ligate`` writes a ``<basename>-rotations.dat`` file recording, per loop, the net internal backbone-bond rotations (:math:`\phi`/:math:`\psi`, N→C) that carried the residues from their raw ``guesscoord`` conformation to the closed handoff, in ``crotations`` syntax; applying those rotations reproduces the closure, so the file is the automated equivalent of the crotations one used to write by hand.
+
 The legacy ``method: steer`` performs a steered MD run that drags each loop's C-terminus onto its downstream anchor before the ``LINK`` patch is applied; it remains available as a fallback.  For insertions of two or fewer residues no closure is needed.
 
 This is illustrated in :ref:`example env 4zmj`.

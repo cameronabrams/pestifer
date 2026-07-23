@@ -13,9 +13,11 @@ Single-valued attributes:
 
   * ``clashdist``: interatomic distance threshold for clashes in Angstroms (default: 1.5)
 
-  * ``model_tails``: Whether to model built terminal tails (opted in via build_zero_occupancy_N_termini/build_zero_occupancy_C_termini or include_terminal_loops) with the free-tail modeler -- a Ramachandran-seeded, clash-filtered backbone in place of guesscoord's extended arm, the terminal analogue of the interior-loop CCD closer. (default: True)
+  * ``model_tails``: Whether to model built terminal tails (opted in via the terminal_tails block) with the free-tail modeler -- a Ramachandran-seeded, clash-filtered backbone in place of guesscoord's extended arm, the terminal analogue of the interior-loop CCD closer. (default: True)
 
   * ``tail_ensemble``: Number of Ramachandran-seeded candidates per terminal tail; the least-clashing is kept (default: 10)
+
+  * ``check_piercings``: After modeling terminal tails, detect and clear any ring piercing caused by a tail backbone bond (a threading has no atomic clash, so the declash cannot see it) by rotating the offending tail sub-branch out of the ring. (default: True)
 
 
 

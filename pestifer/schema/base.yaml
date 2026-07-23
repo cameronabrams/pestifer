@@ -585,11 +585,10 @@ attributes:
                             default: 1.5
                           - name: model_tails
                             text: >-
-                              Whether to model built terminal tails (opted in via
-                              build_zero_occupancy_N_termini/build_zero_occupancy_C_termini or
-                              include_terminal_loops) with the free-tail modeler -- a
-                              Ramachandran-seeded, clash-filtered backbone in place of guesscoord's
-                              extended arm, the terminal analogue of the interior-loop CCD closer.
+                              Whether to model built terminal tails (opted in via the terminal_tails
+                              block) with the free-tail modeler -- a Ramachandran-seeded,
+                              clash-filtered backbone in place of guesscoord's extended arm, the
+                              terminal analogue of the interior-loop CCD closer.
                             type: bool
                             default: True
                           - name: tail_ensemble

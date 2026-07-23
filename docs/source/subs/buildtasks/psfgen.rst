@@ -61,9 +61,7 @@ Under ``source``, there are several useful directives:
 8. ``exclude``: A list of strings representing **pythonic** logic for excluding atoms from the structure file in the final build.
 9. ``sequence``: A dictionary with special keyword-value pairs for handling certain sequence modifications to the base molecule. These are:
 
-     a. ``include_terminal_loops``: A boolean.  If true, any unresolved residues in the N and C termini of **all** chains in the input strucutre file will be grown in. Default is **false**.
-     b. ``build_zero_occupancy_C_termini``: A list of chainIDs for which you would specifically like to build in any unresolved C-terminal residues.  Default is **empty**.
-     c. ``build_zero_occupancy_N_termini``: A list of chainIDs for which you would specifically like to build in any unresolved N-terminal residues.  Default is **empty**.
+     a. ``terminal_tails``: A dictionary declaring which unresolved N-/C-terminal residue runs ("tails") to build in.  Interior gaps are always built and closed; terminal tails are opt-in here because they are frequently disordered ends or expression tags one wants to drop.  Its keys are ``n`` (a list of chainIDs whose unresolved N-terminal run should be built), ``c`` (likewise for C-terminal runs), and ``all`` (a boolean: build both termini on **all** chains).  A built tail is modeled by the **free-tail modeler** (see ``loops.declash.model_tails`` below).  *(The flat keys* ``include_terminal_loops`` *,* ``build_zero_occupancy_C_termini`` *, and* ``build_zero_occupancy_N_termini`` *are deprecated aliases of* ``all`` *,* ``c`` *, and* ``n`` *respectively; they still work but emit a one-time deprecation warning.)*
      d. ``fix_engineered_mutations``: A boolean.  If true, any engineered mutations specified in the input structure file will be reverted back to wild-type in the output structure file.  Default is **false**.
      e. ``fix_conflicts``: A boolean.  If true, any sequence conflicts listed in the input structure file are resolved in favor of the database values.  Default is **false**.
      f. ``loops``: A dictionary with parameters governing how missing loops are grown in.
@@ -81,6 +79,19 @@ Under the ``loops`` directive under ``source.sequence``, one can specify three m
     a. ``maxcycles``: maximum number of declash cycles; a cycle is a random torsion angle displacment per residue of the loop.  Default is **0**, which turns off declashing.
     b. ``include_C_termini``: A boolean.  If true, any C-terminal loops are subject to declashing (provided that ``maxcycles`` is greater than 0.)  Default is **true**.
     c. ``clashdist``: The minimum distance in Angstrom between any two atoms in the loop during the declashing procedure.  Default is **1.5**.
+    d. ``model_tails`` *(default* ``true`` *)*: Model each built terminal tail (declared via ``terminal_tails`` above) with the **free-tail modeler** — the terminal analogue of the interior-loop CCD closer.  A terminal tail has only one resolved anchor and a free end, so there is nothing to *close*; instead of leaving ``guesscoord``'s arbitrary extended arm, each residue's :math:`(\phi,\psi)` is re-seeded from the coil Ramachandran basins and the tail's anchored junction is rigidly placed onto an ideal trans-peptide target, keeping the least-clashing of an ensemble.  A downstream ``minimize`` relaxes residual soft overlaps, exactly as for interior loops.
+    e. ``tail_ensemble`` *(default* **10** *)*: Number of Ramachandran-seeded candidates generated per terminal tail; the least-clashing is kept.
+    f. ``check_piercings`` *(default* ``true`` *)*: After modeling terminal tails, detect and clear any **ring piercing** caused by a tail backbone bond (a threading has no atomic clash, so the declash cannot see it) by rotating the offending tail sub-branch out of the ring.  Best-effort and non-fatal, analogous to the glycan ``check_piercings`` below.
+
+.. note::
+
+   For each model-built interior loop (``ligate``) and terminal tail, pestifer writes a
+   ``<basename>-rotations.dat`` provenance file recording the sequence of internal backbone-bond
+   rotations (:math:`\phi`/:math:`\psi`, N→C) that carried the residues from their raw
+   ``guesscoord`` conformation to the closed/placed handoff, in ``crotations`` syntax.  Applying
+   those rotations reproduces the handoff — i.e. it is the automated equivalent of the hand-coded
+   ``crotations`` once used to pre-position loops for steered ligation, which are **no longer
+   needed** for that purpose.
 
 
 source.sequence.glycans
