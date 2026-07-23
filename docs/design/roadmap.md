@@ -142,6 +142,23 @@ what appears here is refined and reprioritized as the project evolves.
       (committed alongside the change). `ledger show` lists them; `ledger revert <id>`
       git-reverts a recorded modification on a fresh branch and curates the ledger.
       (v3.2.0.)
+- [ ] **Restart / resume an interrupted build.** A long multi-task build that dies partway —
+      Ctrl-C, a crash, a killed job, a wall-clock timeout — currently has to start over from
+      scratch. Add a restart path that resumes from the last completed task instead of re-running
+      the whole pipeline. Much of the substrate exists: each task already emits a state fileset
+      (`psf`/`pdb`/`coor`/`xsc`/`vel`) as an artifact, the `continuation` task already knows how to
+      begin from such a fileset, and the SIGINT/SIGTERM handler now tears children down cleanly on
+      interrupt (v3.11.1) — the partial files it warns about are exactly what a restart would key
+      off. Decisions to settle:
+    - **Checkpoint granularity.** Per-task (resume at the first task whose outputs are missing or
+      stale) vs. within-task (finer, but not every task is idempotent) — start per-task.
+    - **Completion detection.** How to know a task finished cleanly and its outputs are current —
+      e.g. a per-task completion manifest keyed by a hash of the task's resolved specs, so a config
+      edit upstream of the resume point correctly invalidates and re-runs the tail.
+    - **Invocation.** `pestifer run --restart` (auto-detect the resume point) vs. an explicit
+      `--from <task>`, and how it composes with the existing `continuation` task.
+    - **Determinism.** Lean on the seeded-RNG work (declash, CCD closure) so a resumed build is
+      reproducible — ideally identical to an uninterrupted run from the resume point onward.
 
 ## Ring-piercing
 
