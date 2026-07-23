@@ -82,9 +82,9 @@ atexit.register(_cleanup_children_atexit)
 def _signal_handler(signum, frame):
     name = signal.Signals(signum).name
     with _active_child_lock:
-        n = len(_active_child_pgids)
+        n = len(_active_children)
     logger.warning(f'Received {name}: shutting down and terminating '
-                   f'{n} running child process group(s)...')
+                   f'{n} running child process(es)...')
     _terminate_children(signal.SIGTERM)
     time.sleep(0.5)
     _terminate_children(signal.SIGKILL)

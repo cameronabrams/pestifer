@@ -197,7 +197,7 @@ class MDPlotTask(BaseTask):
         logger.debug(f'Timeseries to plot: {timeseries}')
         for trace in timeseries:
             unitspecs = []
-            figsize = self.specs.get('figsize', (9, 6))
+            figsize = self.specs.get('figsize') or (9, 6)
             fig, ax = plt.subplots(1, 1, figsize=figsize)
             if type(trace) != list:
                 tracelist = [trace]
@@ -326,7 +326,7 @@ class MDPlotTask(BaseTask):
                         else:
                             logger.debug(f'Unitspec "{unitspec}" not recognized.')
                             units = 1.0
-                    figsize = self.specs.get('figsize', (21, 6))
+                    figsize = self.specs.get('figsize') or (21, 6)
                     fig, ax = plt.subplots(1, 3, figsize=figsize, sharey=True)
                     ax[0].set_xlabel(r'$\frac{1}{2}$($P_{xx} + P_{yy}$) '+f'({unitspec})')
                     ax[0].set_ylabel('z (Å)')

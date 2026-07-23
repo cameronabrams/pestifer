@@ -716,7 +716,7 @@ def ccd_close_guarded(coords, bonds, moving_masks, end_idx, target, clash_fn,
 
 def close_one_loop(src_pdb, segname, loop_resids, n_anchor_resid, c_anchor_resid,
                    all_loop_serials, seed, ensemble=10, refine=250, guard=False,
-                   max_iters=2000, tol=0.1, extra_env=None):
+                   max_iters=2000, tol=0.1, extra_env=None, progress_queue=None):
     """
     Close one interior loop against the resolved structure and (optionally) a set of
     already-closed loops -- the standalone, picklable unit the ligate task runs in parallel
@@ -729,6 +729,10 @@ def close_one_loop(src_pdb, segname, loop_resids, n_anchor_resid, c_anchor_resid
     closes onto the anchor by CCD (guarded if ``guard``), polishes by iterative declash
     (``refine`` iterations), and keeps the least-clashing of ``ensemble`` seeds. Deterministic
     for a fixed ``seed``.
+
+    ``progress_queue`` (optional) is a picklable queue -- a ``multiprocessing.Manager().Queue`` when
+    called across a process pool -- onto which one item is pushed per ensemble candidate actually
+    run, so the ligate driver can render a determinate progress bar with a time-remaining estimate.
 
     Returns a dict: ``segname``, ``loop`` (resids), ``serials``, ``order``, ``closed`` (M,3),
     ``rep`` (:func:`loop_clash_report`), ``heavy`` (heavy-atom coords), ``ca`` (Ca coords).
@@ -789,6 +793,13 @@ def close_one_loop(src_pdb, segname, loop_resids, n_anchor_resid, c_anchor_resid
                end_rmsd(closed, end_idx, target))
         if best is None or key < best[0]:
             best = (key, closed, rep)
+        if progress_queue is not None:
+            # one tick per candidate actually run; the driver trues-up on loop completion
+            # since an early break (below) means fewer than `ensemble` ticks are emitted.
+            try:
+                progress_queue.put_nowait(1)
+            except Exception:
+                pass
         if key[0] == 0 and key[1] == 0:
             break
     _key, closed, rep = best

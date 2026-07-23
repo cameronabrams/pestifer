@@ -96,11 +96,14 @@ class LigateTask(MDTask):
         minimization (if enabled) relaxes residual strain.
         """
         import os
+        import sys
         import numpy as np
-        from concurrent.futures import ProcessPoolExecutor
+        import multiprocessing as mp
+        from concurrent.futures import ProcessPoolExecutor, wait, FIRST_COMPLETED
         from scipy.spatial.distance import cdist
         from ..psfutil.loop_ccd import loop_atoms_from_pdb, close_one_loop
         from ..util.coord import pdb_replace_coords
+        from ..util.progress import PestiferProgress
 
         self.next_basename('ccd')
         state: StateArtifacts = self.get_current_artifact('state')
@@ -143,14 +146,59 @@ class LigateTask(MDTask):
         n = len(gaps)
         results = [None] * n
         nworkers = max(1, min(n, (os.cpu_count() or 2)))
+
+        # Determinate progress bar with a time-remaining estimate. The total work is a known
+        # count -- n loops x `ensemble` candidate closures -- so `PestiferProgress(max_value=...)`
+        # gives a real ETA rather than a spinner. Each worker pushes one tick per candidate onto
+        # `q`; the driver drains it and, when a loop finishes, trues-up progress to that loop's full
+        # ensemble share (a loop can break early after fewer than `ensemble` candidates). Only shown
+        # on an interactive terminal so batch logs stay clean.
+        total = n * max(1, ensemble)
+        prog = {'done': 0, 'loops': 0}
+        show = sys.stdout.isatty()
+        bar = None
+        if show:
+            bar = PestiferProgress(name='ligate/ccd', color='fuchsia', max_value=total)
+            bar.register_update_function(lambda: min(1.0, prog['done'] / total) if total else 1.0)
+
+        def _drain(q):
+            while True:
+                try:
+                    q.get_nowait()
+                except Exception:
+                    break
+                prog['done'] += 1
+
         if n == 1 or nworkers == 1:
+            # serial path: no mid-call draining is possible, so progress advances per loop
             for i in range(n):
                 results[i] = close_one_loop(**_args(i))
+                prog['loops'] += 1
+                prog['done'] = prog['loops'] * ensemble
+                if bar:
+                    bar.go()
         else:
-            with ProcessPoolExecutor(max_workers=nworkers) as ex:
-                futs = {ex.submit(close_one_loop, **_args(i)): i for i in range(n)}
-                for fut in futs:
-                    results[futs[fut]] = fut.result()
+            with mp.Manager() as mgr:
+                q = mgr.Queue()
+                with ProcessPoolExecutor(max_workers=nworkers) as ex:
+                    futs = {ex.submit(close_one_loop, progress_queue=q, **_args(i)): i
+                            for i in range(n)}
+                    pending = set(futs)
+                    while pending:
+                        completed, pending = wait(pending, timeout=0.25,
+                                                  return_when=FIRST_COMPLETED)
+                        _drain(q)
+                        for fut in completed:
+                            results[futs[fut]] = fut.result()
+                            prog['loops'] += 1
+                        # true-up: a finished loop always counts its full ensemble share
+                        prog['done'] = max(prog['done'], prog['loops'] * ensemble)
+                        if bar:
+                            bar.go()
+                    _drain(q)
+        if bar:
+            prog['done'] = total
+            bar.finish()
         logger.debug(f'ligate/ccd: closed {n} loop(s) in parallel across {nworkers} worker(s)')
 
         # Optional threading repair (OFF by default). Closing all loops at once lets copies

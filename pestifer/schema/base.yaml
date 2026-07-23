@@ -874,9 +874,9 @@ attributes:
             text: list of existing namd logs, in chronological order, from which data to be plotted is to be extracted
             default: []
           - name: figsize
-            type: float
-            text: size of matplotlib figure
-            default: [9.,6.]
+            type: list
+            text: size of matplotlib figure (width, height in inches); empty uses a per-plot default
+            default: []
           - name: timeseries
             type: list
             text: List of (possibly sublists of) quantities to plot vs timestep
