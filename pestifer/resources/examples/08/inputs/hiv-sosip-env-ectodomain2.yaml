@@ -31,10 +31,6 @@ tasks:
           - A:CYS,469,ALA
           - B:CYS,94,THR
           - B:PRO,48,ILE
-        crotations: # reporient the modeled-in chain to avoid clashes
-          - psi,B,35,57,-180
-          - phi,B,35,57,-60
-          - phi,B,39,57,-30
   - validate:
       tests:
         - attribute_test:
@@ -62,9 +58,10 @@ tasks:
       ensemble: NVT
       nsteps: 2000
   - ligate:
-      steer:
-        force_constant: 10
-        nsteps: 6000
+      method: ccd
+      ccd:
+        refine: 500
+        ensemble: 4
   - validate:
       tests:
         - connection_test:

@@ -20,10 +20,6 @@ tasks:
       sourceID: 8fad
       source_format: cif
   - psfgen:
-      mods:
-        crotations:
-          - phi,F,29,43,-90.0
-          - psi,F,29,43,-120.0
   - validate:
       tests:
         - residue_test:
@@ -34,8 +30,10 @@ tasks:
   - md:
       ensemble: minimize
   - ligate:
-      steer:
-        nsteps: 4000
+      method: ccd
+      ccd:
+        refine: 500
+        ensemble: 4
   - validate:
       tests:
         - connection_test:

@@ -40,19 +40,11 @@ tasks:
           - B:CYS,94,THR
           - D:CYS,94,THR
           - F:CYS,94,THR
-        crotations:
-          - alpha,B,33,52
+        crotations:  # fold each gp41 C-terminal tail into its alpha-helix (structural intent;
+                     # respected by the terminal-tail modeler, which leaves these tails as built)
           - alpha,B,144,153
-          - alpha,D,32,52
           - alpha,D,144,153
-          - phi,D,34,52,-30
-          - phi,D,33,52,15
-          - psi,D,29,52,-5
-          - alpha,F,33,50
           - alpha,F,144,153
-          - phi,F,32,50,30
-          - phi,F,31,50,45
-          - psi,C,368,378,180
         substitutions:
           - A:100-162,GGG
           - C:100-162,GGG
@@ -92,9 +84,10 @@ tasks:
       cpu-override: True
       ensemble: minimize
   - ligate:
-      steer:
-        temperature: 600
-        nsteps: 3000
+      method: ccd
+      ccd:
+        refine: 500
+        ensemble: 4
   - validate:
       tests:
 

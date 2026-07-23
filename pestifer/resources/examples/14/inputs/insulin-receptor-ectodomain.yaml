@@ -19,17 +19,15 @@ tasks:
       source:
         biological_assembly: 1
         exclude:
-          - chainID in ['A', 'B', 'C', 'D'] 
-      mods:
-        crotations: # some fine-tuning to ease ligation
-          - phi,E,657,693,120
+          - chainID in ['A', 'B', 'C', 'D']
   - md:
       cpu-override: True
       ensemble: minimize
   - ligate:
-      steer:
-        nsteps: 12000
-        temperature: 500
+      method: ccd
+      ccd:
+        refine: 500
+        ensemble: 4
   - validate:
       tests:
         - connection_test:

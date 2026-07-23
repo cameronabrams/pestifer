@@ -36,10 +36,6 @@ tasks:
           - G:131A-133T,GGG
           - I:131A-133T,GGG
           - J:131A-133T,GGG
-        crotations:
-          - phi,G,309,324,-60
-          - phi,I,309,324,-60
-          - phi,J,309,324,-60
   - validate:
       tests:
         - attribute_test:
@@ -70,8 +66,10 @@ tasks:
       cpu-override: True
       ensemble: minimize
   - ligate:
-      steer:
-        nsteps: 3000
+      method: ccd
+      ccd:
+        refine: 500
+        ensemble: 4
   - validate:
       tests:
         - connection_test:

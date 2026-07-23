@@ -21,14 +21,13 @@ tasks:
             min_loop_length: 2
             declash:
               maxcycles: 40
-      mods:
-        crotations:
-          - PHI,D,187,207,90.0
   - md:
       ensemble: minimize
   - ligate:
-      steer:
-        nsteps: 3600
+      method: ccd
+      ccd:
+        refine: 500
+        ensemble: 4
   - md:
       ensemble: minimize
   - validate:
