@@ -49,7 +49,7 @@ class NewSystemSubcommand(Subcommand):
         super().add_subparser(subparsers)
         self.parser.add_argument('id', type=str, default=None, help='PDB/UniProt ID  of the new system to create')
         self.parser.add_argument('--full', default=False, action=ap.BooleanOptionalAction, help='enable/disable full set of tasks in the new system configuration (default: %(default)s)')
-        self.parser.add_argument('--inspect', default=False, action='store_true', help='fetch and inspect the structure for missing residues (REMARK 465) and engineered mutations/tags (SEQADV), and annotate the generated config with the corresponding mod stubs')
+        self.parser.add_argument('--inspect', default=False, action='store_true', help='fetch and inspect the structure (biological assemblies, chain identities, missing residues via REMARK 465, engineered mutations/tags via SEQADV) and annotate the generated config with the corresponding mod stubs')
         self.parser.add_argument('--interactive', default=False, action='store_true', help='like --inspect, but walk through each detected feature interactively and write the chosen mods as active (uncommented) config')
         self.parser.add_argument('--output', type=str, default=None, help='output filename for the new system configuration (default: <id>.yaml)')
         self.parser.add_argument('--title', type=str, default=None, help='title for the new system configuration (default: none)')

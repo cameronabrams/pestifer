@@ -17,15 +17,18 @@ This will create a new file named ``1abc.yaml`` in the current directory, contai
 
 .. code-block:: yaml
 
-    title: New template pestifer input configuration for PDB ID 1abc
+    title: New template pestifer config for id 1abc (PDB)
     tasks:
-      - fetch:
-          sourceID: 1abc
-      - psfgen:
-           
+    - fetch:
+        sourceID: 1abc
+        source_format: pdb
+    - psfgen:
+        source:
+          biological_assembly: 1
+
 Using this config is helpful in getting over the first hurdle of a new system, which is making sure pestifer can write a good, albeit minimal, ``psfgen`` script.
 
-The ``new-system`` subcommand bases its output on the example file for example 1, the simple :ref:`BPTI system <example bpti1>` .
+The ``new-system`` subcommand scaffolds its output from a dedicated, structure-neutral template (``pestifer/resources/templates/new_system.yaml``), deliberately free of any structure-specific directives so a generated config never inherits settings from an unrelated system.
 
 There are several options to ``new-system``:
 
@@ -64,8 +67,17 @@ Interior missing loops are built and closed automatically, so when any are prese
    - psfgen:
        source:
          biological_assembly: 1
-       # === pestifer new-system --inspect: detected sequence features ===
-       # ...
+       # === pestifer new-system --inspect: detected structure features ===
+       # Biological assemblies (set `biological_assembly:` under `source:`; 0 = asymmetric unit):
+       #   1: 3 copies of chain(s) [G, B, A, C, D]
+       # Chains present (reference these ids in `exclude:`; label ids for mmCIF):
+       #   A: glycan (NAG, BMA, MAN)
+       #   B: protein (126 residues)
+       #   G: protein (462 residues)
+       # To OMIT chains, add under `source:` -
+       #   exclude:
+       #     - chainID in ['X', 'Y']
+       # ... (missing terminal residues, interior loops, mutations, tags follow) ...
        # To BUILD any as a modeled tail (dropped by default), add under `source:` -
        #   sequence:
        #     terminal_tails:
