@@ -1,7 +1,11 @@
 # Design: physics-based loop modeling for missing internal segments
 
-Status: **planned** — direction fixed (fully offline, in-house, physics-based; no
-structure predictor and no network). This doc is the plan; nothing built yet.
+Status: **P1 shipped (v3.9.0)** — the CCD closer is the default `ligate method: ccd`;
+`steer` is an opt-in fallback. A mid-project scope correction (see "Scope correction"
+below) reframed P2/P3 as unnecessary for the real workload (floppy surface loops), so
+they are dropped/retired rather than pending. Direction remains fully offline, in-house,
+physics-based; no structure predictor and no network. This doc is both the original plan
+and the record of what was built and why the later stages were dropped.
 
 ## Problem
 

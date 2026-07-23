@@ -122,7 +122,10 @@ what appears here is refined and reprioritized as the project evolves.
       worth noting: on a workstation whose GPU-resident build is a *separate* binary, the
       default leaves the GPU idle and membrane examples run ~4 h CPU-only — pestifer now warns
       about that case (`Config._warn_gpu_not_elected`, c1837aba), but warning is a stopgap for
-      a detection model that can't express the single-binary case at all.
+      a detection model that can't express the single-binary case at all. A `--gpu` flag on the
+      `run` subcommand (`build.py`) force-elects GPU mode at runtime, but it is a per-invocation
+      escape hatch, not the config-level control this item asks for — the underlying
+      path-inequality detection is unchanged.
 - [x] **Offload all mmCIF parsing to pidibble.** mmCIF is now parsed by pidibble **≥1.7.1**
       (`PDBParser(input_format='mmCIF')`, which normalizes mmCIF into the PDB-record namespace);
       pestifer's raw-CIF layer (`util/cifutil.py` `CIFdict`/`CIFload`) is deleted and the direct
@@ -192,24 +195,33 @@ what appears here is refined and reprioritized as the project evolves.
 
 ## Loop modeling
 
-- [ ] **Physics-based loop modeling for missing internal segments.** Replace the
-      `guesscoord` + steered-MD (`ligate`) closure — which yields topologically-correct
+- [x] **Physics-based loop modeling for missing internal segments.** Replaced the
+      `guesscoord` + steered-MD (`ligate`) closure — which yielded topologically-correct
       but stretched, unrealistic loops — with an offline, in-house **sample → CCD-close →
       score → minimize** pipeline. Fully self-contained: no structure predictor, no
-      network. New builder absorbs `ligate`'s `connect` patch; `steer` demoted to an
-      opt-in fallback for one release, then removed. Validated by delete-and-rebuild
-      loop-RMSD-to-native benchmarks. Full plan in `docs/design/loop-modeling.md`.
-  - [ ] **P1 — CCD closer replaces steering.** Analytic Ramachandran basins for the
+      network. Shipped in v3.9.0 as the default `ligate method: ccd`; the `connect`
+      peptide-bond patch is applied after closure and relaxation is deferred to a
+      downstream `minimize`. `steer` demoted to an opt-in fallback (`method: steer`).
+      A mid-project **scope correction** (see `docs/design/loop-modeling.md`) concluded
+      the real workload is floppy, solvent-exposed surface loops that need only "no new
+      clashes" rather than native reconstruction — so P2/P3 below were reframed as
+      unnecessary for that goal. Full plan and history in `docs/design/loop-modeling.md`.
+  - [x] **P1 — CCD closer replaces steering.** Analytic Ramachandran basins for the
         initial φ/ψ, cyclic-coordinate-descent closure onto the downstream anchor,
-        minimize, `connect`. Deterministic (seeded). `steer` → opt-in fallback.
-  - [ ] **P2 — derived coil torsion library + ensemble ranking.** Ship a
-        pestifer-generated `general/Gly/Pro/pre-Pro` coil φ/ψ library (derived offline
-        from high-res PDB, versioned in the wheel); sample seeded candidates, close,
-        clash-filter, score, keep best-K, minimize.
-  - [ ] **P3 — KIC + neighbor-dependent library + optional restrained-MD refine.**
-        Analytic kinematic closure with pivot resampling; remove the `steer` fallback.
+        `connect`, minimize downstream. Deterministic (seeded). `steer` → opt-in
+        fallback. Shipped as-default in v3.9.0, and already does per-loop clash-filtered
+        ensembles + iterative declash refinement (beyond the minimal P1). Engine in
+        `psfutil/loop_ccd.py`; delete-and-rebuild BPTI benchmarks in the unit suite.
+  - [ ] ~~**P2 — derived coil torsion library + ensemble ranking.**~~ **Dropped** per the
+        scope correction: the analytic `RAMACHANDRAN_BASINS` in P1 suffice for surface
+        loops, so a pestifer-generated coil φ/ψ library was not needed. Revisit only if a
+        genuinely buried long loop demands native-quality reconstruction.
+  - [ ] ~~**P3 — KIC + neighbor-dependent library + optional restrained-MD refine.**~~
+        **Retired** — KIC was prototyped then dropped in the scope correction; the `steer`
+        fallback is deliberately kept (not removed) as the opt-in escape hatch. Revisit
+        only alongside P2.
   - [ ] **Follow-up: missing terminal tails.** No downstream anchor, so no closure —
-        sample + minimize free tails; separate from the internal-loop path.
+        sample + minimize free tails; separate from the internal-loop path. Still open.
 
 ## Ideas / unsorted
 
