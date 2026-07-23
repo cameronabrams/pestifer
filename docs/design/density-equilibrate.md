@@ -90,28 +90,35 @@ smaller than the uncertainty in the mean.
 to fall below a threshold — validated wrong against real `.xst` runs: an equilibrated soluble box
 never satisfies it, because its fluctuations are intrinsic. See "Empirical calibration" below.)*
 
-**Trend-vs-noise test.**
+**Fractional-plateau test with hysteresis.** (A `trend < k·SEM` *significance* test was prototyped
+and **rejected** — see "Empirical calibration": the trend/SEM ratio is noisy, sampling-dependent,
+and reads ~5–6 for every equilibrated run, so no universal `k` exists. Use a **scale-independent
+fractional tolerance**, which clusters tightly across box sizes.)
 
 1. **Burn-in.** Discard the first `burn_in` steps (the initial barostat transient).
 2. **Window.** Consider the trailing `window` steps (or all post-burn-in samples if shorter).
-3. **Block-average.** Split the window into `n_blocks` contiguous blocks; take each block's mean
-   density `d̄_k` at its mid-time `t_k`. Blocks larger than the density autocorrelation time make
-   the `d̄_k` ~independent, so their spread estimates the sampling error of the mean.
-4. **Trend.** Least-squares-fit a line to `(t_k, d̄_k)`; the systematic change across the window is
-   `trend = |slope| · (t_last − t_first)`.
-5. **Noise.** The standard error of the mean is `SEM = std(d̄_k) / √n_blocks`.
-6. **Converged** when `trend < k · SEM` (the trend is not significant against the sampling noise),
-   provided `total_steps ≥ min_steps`. A secondary absolute ceiling `trend / mean < drift_tol`
-   guards the degenerate case of a window too noisy to resolve any trend.
+3. **Block-average** into `n_blocks` contiguous blocks → block means `d̄_k` at `t_k`.
+4. **Fractional drift.** `drift = |slope| · (t_last − t_first) / mean` from a line fit to
+   `(t_k, d̄_k)` — the fractional change of the mean density across the window. (Equivalently, a
+   two-window Δ: `|mean(2nd half) − mean(1st half)| / mean`; both track together.)
+5. **Converged** when `drift < drift_tol` for **`n_consecutive` successive checks** (hysteresis),
+   provided `total_steps ≥ min_steps`.
 
-Testing the trend *relative to the noise* is what lets an equilibrated-but-fluctuating box converge
-(2bgj: `trend ≈ 1.5·SEM` at ~7–9k steps) while a genuinely creeping system does not (a membrane
-npat run drifting ~6 % monotonically stays `trend ≫ SEM` far longer).
+The **hysteresis is essential**: the drift metric is noisy and non-monotonic — even a still-creeping
+box shows the occasional low-drift window (2bgj dips to `6.6e-4` at one check, then back to
+`4.5e-3`), so a single passing check false-triggers. Requiring several consecutive passes stops on a
+sustained plateau, not a lucky window.
 
-If `max_steps` is reached without convergence, the task **stops anyway** with a loud warning that
-reports the residual `trend`/`SEM` (a large residual flags a system that never settled — worth the
-user's attention), rather than running forever. A NaN / box-blowup in the NAMD output aborts
-immediately.
+If `max_steps` is reached without convergence, the task **stops anyway** with a loud warning
+reporting the residual `drift` (a large residual flags a system that never settled), rather than
+running forever. A NaN / box-blowup in the NAMD output aborts immediately.
+
+**Tolerance is not yet pinned — it needs a proper reference run (open).** The archived `.xst` files
+are all too short to establish it: they are 16k-step equilibrations whose density is *still creeping
+~0.3–0.4 %* at their end (2bgj rises 1.002 → 1.005 from step 10k to 16k), or drifting membranes.
+Before fixing `drift_tol`, generate one **long** NPT reference run on a small box (e.g. 100–200k
+steps) so the density visibly plateaus, and read off the residual drift *at plateau* — that sets the
+tolerance floor. Until then `drift_tol` is a placeholder.
 
 ## Empirical calibration (prototype on real `.xst` runs)
 
@@ -123,18 +130,28 @@ The criterion was prototyped against archived pestifer NPT `.xst` files (density
   remaining ~17 000 steps of the old ladder — i.e. it is equilibrated by ~step 3 000, and the ladder
   wastes the rest. This is the premise, confirmed. The trend-vs-noise test stops it at **~7–9k
   steps** — versus the ladder's ~20k — a real ~60 % saving, with the mean well-established.
-- **Failure modes it exposed.** (a) `fluct_tol` never lets 2bgj converge (intrinsic fluctuations) —
-  removed. (b) A pure drift-threshold stops *both* 2bgj and a still-drifting membrane at ~5k, because
-  a short window looks locally flat in both — insufficiently discriminating. The trend-vs-noise test
-  separates them (membrane pushed to ~22–25k).
-- **Scope note.** The membrane npat run drifts ~6 % monotonically over 256k steps and never truly
-  plateaus — anisotropic membrane equilibration is **out of scope** for this task (keep the
-  npat/npgt protocol). Even trend-vs-noise will eventually declare such a run "converged" over a
-  finite window; the `max_steps` ceiling and the residual-drift report are the backstop.
+- **Failure modes it exposed, in order.** (a) `fluct_tol` never lets 2bgj converge (intrinsic
+  fluctuations) — removed. (b) A `trend < k·SEM` significance test looked promising on 2bgj alone
+  (converged at `~1.5·SEM`, ~7–9k steps) but **does not generalize**: across five systems (2bgj,
+  GroEL/1aon, 6cm3, an AlphaFold model, ex20) the trend/SEM ratio at *end-of-run* is a consistent
+  **~5–6**, not ~2 — 2bgj's earlier "convergence" was a noise dip (back to 5.68 by step 16k). SEM is
+  sampling-dependent, so no universal `k` exists — rejected. (c) The **scale-independent fractional**
+  metrics, by contrast, cluster tightly across those same very-different box sizes:
+  `trend/mean ≈ 2–4.5e-3`, two-window `Δ ≈ 1–3.5e-3`. That is the criterion to use.
+- **The metric is noisy → hysteresis needed.** Tracing 2bgj's trailing-window `drift` over the run:
+  it is 4.5e-2 → 2.7e-2 (equilibrating) then jumps 6.6e-4 → 3.8e-3 → 4.5e-3 around the plateau. A
+  single-window threshold fires on the 6.6e-4 dip prematurely; `n_consecutive` passes fix this.
+- **The archived runs are too short to set the tolerance.** They are 16k-step equilibrations still
+  creeping ~0.3–0.4 % at their end (2bgj mean density 1.002 → 1.005 from step 10k → 16k) — not a true
+  plateau. A dedicated long reference run is required before `drift_tol` is fixed (see criterion).
+- **Scope note.** The membrane npat run drifts ~6 % monotonically over 256k steps and never
+  plateaus — anisotropic membrane equilibration is **out of scope** (keep the npat/npgt protocol);
+  the `max_steps` ceiling + residual-drift report are the backstop for a system that never settles.
 
-Working defaults from this calibration: `window ≈ 10000`, `n_blocks ≈ 6`, `k ≈ 1.5–2`,
-`burn_in ≈ 2000`, `min_steps ≈ 4000`, `chunk_steps ≈ 1000–2000`, `drift_tol ≈ 2e-3` (secondary
-ceiling). To be re-confirmed across more systems in validation.
+Provisional defaults (form settled, tolerance pending calibration): `window ≈ 10000`,
+`n_blocks ≈ 6`, `burn_in ≈ 2000`, `min_steps ≈ 4000`, `chunk_steps ≈ 2000`, `n_consecutive ≈ 3`;
+`drift_tol` **TBD** from a long reference run (provisionally ~1–2e-3, i.e. hold the mean density
+to ≲0.1–0.2 % across the window for several checks).
 
 ## Parameters (task spec)
 
@@ -145,9 +162,9 @@ ceiling). To be re-confirmed across more systems in validation.
 | `min_steps`    | never declare convergence before this many steps                 | 4000                 |
 | `burn_in`      | leading steps discarded before assessing the trend               | 2000                 |
 | `window`       | trailing steps the trend/noise test is computed over             | 10000                |
-| `n_blocks`     | blocks the window is averaged into (for the SEM)                 | 6                    |
-| `k`            | converge when `trend < k · SEM` (trend insignificant vs noise)   | 2.0                  |
-| `drift_tol`    | secondary ceiling: also require `trend/mean < drift_tol`         | 2e-3                 |
+| `n_blocks`     | blocks the window is averaged into                               | 6                    |
+| `n_consecutive`| successive checks that must pass before stopping (hysteresis)    | 3                    |
+| `drift_tol`    | converge when the fractional drift `trend/mean < drift_tol`      | **TBD** (~1–2e-3)    |
 | `seed`         | NAMD RNG seed (reproducible stop on a fixed machine)             | fixed default        |
 
 Plus the usual NPT knobs it forwards to `namdrun` (`temperature`, `pressure`, `timestep`, output
@@ -175,7 +192,12 @@ bit-reproducible, by nature of wrapping NAMD. Documented as such.
 
 ## Validation (first-class deliverable)
 
-Run on systems spanning the size range and compare against a long fixed NPT run:
+**Prerequisite — calibrate the tolerance.** First run *one* long NPT reference (100–200k steps) on a
+small solvated box until the density visibly plateaus; measure the residual `drift`/two-window Δ at
+plateau; set `drift_tol` just above that floor. This is a hard prerequisite — the criterion form is
+settled but the tolerance is not, and it cannot be read off the (too-short) archived runs.
+
+Then, run on systems spanning the size range and compare against a long fixed NPT run:
 
 - a small soluble protein (fast box, should stop early),
 - a large glycoprotein trimer (e.g. an HIV-Env example),
@@ -201,11 +223,12 @@ stop). Tune the default tolerances/window from these runs.
 ## Decisions
 
 - **Fixed:** chunked NPT with convergence-or-ceiling stopping; density from the `.xst` cell volume
-  (triple product) + PSF mass; **trend-vs-noise** convergence (`trend < k·SEM`), *not* a fluctuation
-  threshold (validated wrong); density-only for v1; a distinct task (not an `md` `until:` mode) for
-  discoverability; seeded / deterministic-per-machine; isotropic **soluble-box** scope (membranes
-  keep their npat/npgt protocol); replace the ladder across template + `new-system` + examples; keep
-  plain `md` for fixed schedules.
-- **Open:** final `k`/`drift_tol`/`window` defaults (calibrated on 2bgj; re-confirm across more
-  systems); the convergence-report/plot artifact format; whether very large systems want a
-  larger `window`/`n_blocks` (better SEM) automatically.
+  (triple product) + PSF mass; convergence by a **scale-independent fractional-drift tolerance with
+  `n_consecutive`-check hysteresis** — *not* a fluctuation threshold and *not* a `trend/SEM`
+  significance test (both prototyped and rejected against real runs); density-only for v1; a distinct
+  task (not an `md` `until:` mode); seeded / deterministic-per-machine; isotropic **soluble-box**
+  scope (membranes keep npat/npgt); replace the ladder across template + `new-system` + examples;
+  keep plain `md` for fixed schedules.
+- **Open:** `drift_tol` itself — **must be calibrated from a long reference run** (prerequisite in
+  Validation), not from the too-short archived runs; final `window`/`n_consecutive`; the
+  convergence-report/plot artifact format.
