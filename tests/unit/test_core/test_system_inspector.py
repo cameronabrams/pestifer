@@ -2,7 +2,7 @@ import unittest
 
 from pestifer.core.system_inspector import (
     build_findings, _group_runs, Findings, MissingRun, MutationFinding, ExcisionRun,
-    interactive_select, make_prompter,
+    interactive_select, make_prompter, ChainIdentity, AssemblyInfo,
 )
 
 
@@ -129,6 +129,53 @@ class TestInteractiveSelect(unittest.TestCase):
             self.assertTrue(make_prompter()('q?', False))
         finally:
             builtins.input = orig
+
+
+class TestChainAndAssembly(unittest.TestCase):
+    def test_chain_describe(self):
+        self.assertEqual(ChainIdentity('A', 'protein', 187, ['ALA', 'GLY']).describe(),
+                         'protein (187 residues)')
+        self.assertEqual(ChainIdentity('W', 'water', 50, ['HOH']).describe(), 'water')
+        self.assertTrue(ChainIdentity('A', 'glycan', 3, ['NAG', 'BMA']).describe().startswith('glycan (NAG'))
+        self.assertTrue(ChainIdentity('I', 'ion', 1, ['ZN']).describe().startswith('ion (ZN'))
+        self.assertIn('nucleic acid', ChainIdentity('T', 'nucleicacid', 12, ['DA']).describe())
+
+    def test_is_empty_accounts_for_multichain(self):
+        two = Findings('X', 'pdb', chains=[ChainIdentity('A', 'protein', 10),
+                                           ChainIdentity('B', 'protein', 10)])
+        self.assertFalse(two.is_empty())
+        one = Findings('X', 'pdb', chains=[ChainIdentity('A', 'protein', 10)])
+        self.assertTrue(one.is_empty())
+
+    def test_interactive_assembly_and_chain_omit(self):
+        f = Findings('X', 'pdb',
+                     chains=[ChainIdentity('A', 'protein', 100), ChainIdentity('W', 'water', 20, ['HOH'])],
+                     assemblies=[AssemblyInfo(1, 3, ['A', 'W'])])
+        ask = lambda q, d=False: ('biological assembly' in q) or ('Omit chain W' in q)
+        sel = interactive_select(f, ask=ask, say=lambda m: None)
+        self.assertEqual(sel['source']['biological_assembly'], 1)
+        self.assertEqual(sel['source']['exclude'], ["chainID in ['W']"])
+
+    def test_interactive_declining_assembly_gives_asymmetric_unit(self):
+        f = Findings('X', 'pdb', chains=[ChainIdentity('A', 'protein', 100)],
+                     assemblies=[AssemblyInfo(1, 3, ['A'])])
+        sel = interactive_select(f, ask=lambda q, d=False: False, say=lambda m: None)
+        self.assertEqual(sel['source']['biological_assembly'], 0)
+
+    def test_interactive_no_assemblies_is_asymmetric_unit(self):
+        f = Findings('X', 'pdb', chains=[ChainIdentity('A', 'protein', 100)])
+        sel = interactive_select(f, ask=lambda q, d=False: True, say=lambda m: None)
+        self.assertEqual(sel['source']['biological_assembly'], 0)
+
+    def test_annotation_lists_assemblies_and_chains(self):
+        f = Findings('X', 'pdb',
+                     chains=[ChainIdentity('A', 'protein', 100), ChainIdentity('B', 'glycan', 3, ['NAG'])],
+                     assemblies=[AssemblyInfo(1, 3, ['A', 'B'])])
+        text = '\n'.join(f.annotation_lines())
+        self.assertIn('Biological assemblies', text)
+        self.assertIn('1: 3 copies of chain(s) [A, B]', text)
+        self.assertIn('A: protein (100 residues)', text)
+        self.assertIn('exclude:', text)
 
 
 if __name__ == '__main__':

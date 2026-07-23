@@ -160,19 +160,21 @@ what appears here is refined and reprioritized as the project evolves.
       inspects the source for **missing residues** (chain gaps / `REMARK 465`) and **engineered
       mutations / tags** (`SEQADV`) and annotates the emitted YAML with the corresponding mods.
     - [x] **P1 — discovery + annotate (Unreleased).** `new-system <id> --inspect` fetches and parses
-          the structure (pidibble, no `Molecule`): missing residues are grouped into runs and
-          classified interior-gap vs N-/C-terminal tail (by each chain's resolved span); `SEQADV`
-          yields engineered mutations/conflicts and cloning/expression-tag runs. Interior gaps get an
-          active `ligate` task; every other finding is emitted as a **commented** mod stub under the
-          `psfgen` task with correct nesting (`sequence:` under `source:`, `mods:` a sibling) and
-          ready-to-uncomment shortcodes (`terminal_tails`, `mutations` to revert,
-          `deletions` to excise). Core in `core/system_inspector.py`; validated on 4zmj (SOSIP
-          mutations, tails, tag all correctly surfaced; uncommented stubs schema-validate).
+          the structure (pidibble, no `Molecule`) and surfaces: **biological assemblies** (index,
+          copy count, chains — pick with `biological_assembly: N`, `0` = A.U.); **chain identities**
+          (segtype + size, omit via `exclude:`); **missing residues** grouped into runs and
+          classified interior-gap vs N-/C-terminal tail; and `SEQADV` engineered mutations/conflicts
+          and cloning/expression-tag runs. Interior gaps get an active `ligate` task; every other
+          finding is a **commented** stub under the `psfgen` task with correct nesting and
+          ready-to-uncomment shortcodes (`biological_assembly`, `exclude`, `terminal_tails`,
+          `mutations` to revert, `deletions` to excise). Core in `core/system_inspector.py`;
+          validated on 4zmj.
     - [x] **P2 — interactive walkthrough (Unreleased).** `new-system <id> --interactive` prompts per
-          finding (build this tail? revert this mutation? excise this tag? add a `ligate` task?) and
-          injects the choices as *active* config — a real `sequence:` block, a `mods:` block, and a
-          `ligate` task, ready to run. Prompt logic factored (`interactive_select` + `make_prompter`)
-          so it is testable without a TTY; blank input takes the shown default.
+          finding (which assembly / A.U.? omit this chain? build this tail? revert this mutation?
+          excise this tag? add a `ligate` task?) and injects the choices as *active* config — a
+          `source:` block (`biological_assembly` + `exclude`), a `sequence:` block, a `mods:` block,
+          and a `ligate` task, ready to run. Prompt logic factored (`interactive_select` +
+          `make_prompter`) so it is testable without a TTY; blank input takes the shown default.
     - [ ] **P3 — canonical-sequence diff.** Align the modeled sequence against the canonical UniProt
           reference to surface substitutions not recorded in `SEQADV` (no reuseable primitive exists
           today beyond the AlphaFold *structure* fetch — needs a UniProt FASTA fetch + alignment).

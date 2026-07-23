@@ -190,12 +190,19 @@ class ExampleManager:
             f.write(text)
         logger.info(f'Generated new example YAML file {output_yaml} for id {db_id} ({idtype})')
         if active_mods is not None:
+            src = active_mods.get('source', {})
             tt = active_mods.get('sequence', {}).get('terminal_tails', {})
             n_tail = len(tt.get('n', [])) + len(tt.get('c', []))
-            logger.info(f'--interactive: applied {n_tail} tail chain(s), '
-                        f'{len(active_mods.get("mods", {}).get("mutations", []))} mutation(s), '
-                        f'{len(active_mods.get("mods", {}).get("deletions", []))} deletion(s)'
-                        f'{" + ligate task" if active_mods.get("add_ligate") else ""} in {output_yaml}')
+            ba = src.get('biological_assembly')
+            parts = [f'biological_assembly {ba}' if ba is not None else None,
+                     f'{len(src.get("exclude", []))} exclude rule(s)' if src.get('exclude') else None,
+                     f'{n_tail} tail chain(s)' if n_tail else None,
+                     f'{len(active_mods.get("mods", {}).get("mutations", []))} mutation(s)'
+                     if active_mods.get('mods', {}).get('mutations') else None,
+                     f'{len(active_mods.get("mods", {}).get("deletions", []))} deletion(s)'
+                     if active_mods.get('mods', {}).get('deletions') else None,
+                     'ligate task' if active_mods.get('add_ligate') else None]
+            logger.info(f'--interactive: applied {", ".join(p for p in parts if p)} in {output_yaml}')
         elif findings is not None:
             n_gap = len(findings.interior_gaps())
             n_tail = sum(1 for r in findings.missing_runs if r.kind in ('N', 'C'))
@@ -213,6 +220,9 @@ class ExampleManager:
         if psfgen is None:
             psfgen = {}
             tasks[pi]['psfgen'] = psfgen
+        if active_mods.get('source'):
+            # direct source keys (biological_assembly, exclude); overwrite the template default
+            psfgen.setdefault('source', {}).update(active_mods['source'])
         if active_mods.get('sequence'):
             src = psfgen.setdefault('source', {})
             src.setdefault('sequence', {}).update(active_mods['sequence'])

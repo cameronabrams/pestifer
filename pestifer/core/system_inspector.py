@@ -73,15 +73,49 @@ class ExcisionRun:
 
 
 @dataclass
+class ChainIdentity:
+    """What a single chain is: its dominant segment type, size, and a resname sample."""
+    chain: str
+    segtype: str
+    n_residues: int
+    resnames: list = field(default_factory=list)
+    auth: str = None          # mmCIF author chain id (label chain is `chain`); None for PDB
+
+    def describe(self) -> str:
+        sample = ', '.join(self.resnames[:4]) + ('...' if len(self.resnames) > 4 else '')
+        if self.segtype == 'water':
+            return 'water'
+        if self.segtype == 'ion':
+            return f'ion ({sample})'
+        if self.segtype == 'glycan':
+            return f'glycan ({sample})'
+        if self.segtype in ('protein', 'nucleicacid'):
+            name = 'protein' if self.segtype == 'protein' else 'nucleic acid'
+            return f'{name} ({self.n_residues} residues)'
+        return f'{self.segtype} ({sample})'
+
+
+@dataclass
+class AssemblyInfo:
+    """A biological assembly: its 1-based index, how many copies it generates, and its chains."""
+    index: int
+    n_copies: int
+    chains: list = field(default_factory=list)
+
+
+@dataclass
 class Findings:
     db_id: str
     source_format: str = 'pdb'
     missing_runs: list = field(default_factory=list)
     mutations: list = field(default_factory=list)
     excisions: list = field(default_factory=list)
+    chains: list = field(default_factory=list)
+    assemblies: list = field(default_factory=list)
 
     def is_empty(self) -> bool:
-        return not (self.missing_runs or self.mutations or self.excisions)
+        return not (self.missing_runs or self.mutations or self.excisions
+                    or len(self.chains) > 1 or len(self.assemblies) > 1)
 
     def interior_gaps(self) -> list:
         return [r for r in self.missing_runs if r.kind == 'interior']
@@ -108,8 +142,26 @@ class Findings:
         def c(text=''):
             L.append(f'{indent}#{" " + text if text else ""}')
 
-        c('=== pestifer new-system --inspect: detected sequence features ===')
+        c('=== pestifer new-system --inspect: detected structure features ===')
         c('Uncomment/paste the block(s) you want; nesting is shown relative to the psfgen task.')
+
+        if self.assemblies:
+            c()
+            c('Biological assemblies (set `biological_assembly:` under `source:`; 0 = asymmetric unit):')
+            for a in self.assemblies:
+                c(f'  {a.index}: {a.n_copies} cop{"y" if a.n_copies == 1 else "ies"} of '
+                  f'chain(s) [{", ".join(a.chains)}]')
+            c(f'The template uses `biological_assembly: 1`; change it to another index or to 0.')
+
+        if self.chains:
+            c()
+            c('Chains present (reference these ids in `exclude:`; label ids for mmCIF):')
+            for ch in self.chains:
+                auth = f' (author {ch.auth})' if ch.auth and ch.auth != ch.chain else ''
+                c(f'  {ch.chain}{auth}: {ch.describe()}')
+            c('To OMIT chains, add under `source:` -')
+            c('  exclude:')
+            c(f"    - chainID in ['X', 'Y']")
 
         tails = self.terminal_tail_chains()
         term_runs = [r for r in self.missing_runs if r.kind in ('N', 'C')]
@@ -188,7 +240,42 @@ def interactive_select(findings: 'Findings', ask=None, say=None) -> dict:
     """
     ask = ask or make_prompter()
     say = say or (lambda m: print(m))
-    sequence, mods = {}, {}
+    sequence, mods, source = {}, {}, {}
+
+    # biological assembly
+    if findings.assemblies:
+        say('\nBiological assemblies:')
+        for a in findings.assemblies:
+            say(f'  {a.index}: {a.n_copies} cop{"y" if a.n_copies == 1 else "ies"} of '
+                f'chain(s) [{", ".join(a.chains)}]')
+        if len(findings.assemblies) == 1:
+            a = findings.assemblies[0]
+            if a.n_copies > 1 and not ask(f'  Build biological assembly {a.index} '
+                                          f'({a.n_copies} copies)? (No = asymmetric unit only)', True):
+                source['biological_assembly'] = 0
+            else:
+                source['biological_assembly'] = a.index
+        else:
+            chosen = 0
+            for a in findings.assemblies:
+                if ask(f'  Build biological assembly {a.index} '
+                       f'({a.n_copies} copies of [{", ".join(a.chains)}])?', False):
+                    chosen = a.index
+                    break
+            source['biological_assembly'] = chosen
+    else:
+        source['biological_assembly'] = 0        # no assemblies defined -> asymmetric unit
+
+    # chain omission
+    if len(findings.chains) > 1:
+        say('\nChains present:')
+        omit = []
+        for ch in findings.chains:
+            auth = f' (author {ch.auth})' if ch.auth and ch.auth != ch.chain else ''
+            if ask(f'  Omit chain {ch.chain}{auth} [{ch.describe()}]?', False):
+                omit.append(ch.chain)
+        if omit:
+            source['exclude'] = [f"chainID in [{', '.join(repr(c) for c in omit)}]"]
 
     tails = {'n': [], 'c': []}
     term_runs = [r for r in findings.missing_runs if r.kind in ('N', 'C')]
@@ -233,7 +320,7 @@ def interactive_select(findings: 'Findings', ask=None, say=None) -> dict:
         if dels:
             mods['deletions'] = dels
 
-    return {'sequence': sequence, 'mods': mods, 'add_ligate': add_ligate}
+    return {'source': source, 'sequence': sequence, 'mods': mods, 'add_ligate': add_ligate}
 
 
 def _group_runs(resseqnums):
@@ -273,17 +360,50 @@ def inspect_structure(db_id: str, source_format: str = 'pdb', source_db: str = '
     seqadvs = SeqadvList.from_cif(parsed) if is_cif else SeqadvList.from_pdb(parsed)
     atoms = AtomList.from_cif(parsed) if is_cif else AtomList.from_pdb(parsed)
 
+    from ..core.labels import Labels
+
     resolved = defaultdict(set)
     for a in atoms.data:
         resolved[a.chainID].add(a.resid.resseqnum)
     missing_pairs = [(m.chainID, m.resid.resseqnum) for m in missings.data]
     seqadv_tuples = [(s.chainID, getattr(s.resid, 'resseqnum', None), s.resname, s.dbRes or '',
                       (s.typekey or '').strip()) for s in seqadvs.data]
+
+    # chain identities (segtype by resname; chainID is the label id for mmCIF, author for PDB)
+    from collections import Counter
+    chain_data = {}
+    for a in atoms.data:
+        d = chain_data.setdefault(a.chainID, {'residues': set(), 'resnames': [],
+                                              'auth': getattr(a, 'auth_asym_id', None)})
+        d['residues'].add((a.resid.resseqnum, getattr(a.resid, 'insertion', '')))
+        if a.resname not in d['resnames']:
+            d['resnames'].append(a.resname)
+    chains = []
+    for ch, d in chain_data.items():
+        segs = Counter(Labels.segtype_of_resname.get(rn, 'other') for rn in d['resnames'])
+        chains.append(ChainIdentity(ch, segs.most_common(1)[0][0], len(d['residues']),
+                                    d['resnames'], d['auth']))
+    chains.sort(key=lambda c: c.chain)
+
+    # biological assemblies
+    assemblies = []
+    try:
+        from ..molecule.bioassemb import BioAssembList
+        for ba in BioAssembList(parsed):
+            tr = getattr(ba, 'transforms', None)
+            chs = list(tr.data[0].applies_chainIDs) if tr and len(tr.data) else []
+            assemblies.append(AssemblyInfo(ba.index, len(tr.data) if tr else 0, chs))
+    except Exception as e:                        # never let assembly parsing break inspection
+        logger.debug(f'--inspect: biological-assembly enumeration failed: {e}')
+    assemblies.sort(key=lambda a: a.index)
+
     return build_findings(db_id, source_format, missing_pairs, seqadv_tuples,
-                          {c: (min(v), max(v)) for c, v in resolved.items()})
+                          {c: (min(v), max(v)) for c, v in resolved.items()},
+                          chains=chains, assemblies=assemblies)
 
 
-def build_findings(db_id, source_format, missing_pairs, seqadv_tuples, resolved_ranges) -> Findings:
+def build_findings(db_id, source_format, missing_pairs, seqadv_tuples, resolved_ranges,
+                   chains=(), assemblies=()) -> Findings:
     """
     Assemble :class:`Findings` from already-extracted primitives -- the pure, network-free core of
     :func:`inspect_structure`.
@@ -297,7 +417,8 @@ def build_findings(db_id, source_format, missing_pairs, seqadv_tuples, resolved_
     resolved_ranges : dict[chain, (lo, hi)]
         The min/max resolved sequence number per chain (empty/absent -> a run is treated interior).
     """
-    findings = Findings(db_id=db_id, source_format=source_format)
+    findings = Findings(db_id=db_id, source_format=source_format,
+                        chains=list(chains), assemblies=list(assemblies))
 
     by_chain = defaultdict(list)
     for chain, num in missing_pairs:
