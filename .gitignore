@@ -159,6 +159,7 @@ tests/unit/test_core/bpti1.yaml
 # test-run residue: charmmff files copied into fixture dirs at runtime
 tests/unit/test_tasks/test_continuation/par_*.prm
 tests/unit/test_tasks/test_continuation/toppar_all36_carb_imlab.str
+tests/unit/test_tasks/test_continuation/toppar_pestifer_dihedral_fills.prm
 # bilayer test working dir (created by tests/unit/test_molecule/test_bilayer.py)
 tests/unit/test_molecule/test_bilayer/
 # single-residue PDBs extracted by tests/unit/test_molecule tests
@@ -166,3 +167,5 @@ tests/unit/test_molecule/POPC-01.pdb
 tests/unit/test_molecule/TIP3.pdb
 # charmmff parameter files copied into the cleave fixture dir at runtime
 tests/unit/test_tasks/test_cleave/par_*.prm
+tests/unit/test_tasks/test_cleave/toppar_pestifer_dihedral_fills.prm
+tests/unit/test_tasks/test_cleave/my_system-artifacts.tar.gz
