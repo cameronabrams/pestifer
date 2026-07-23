@@ -105,7 +105,8 @@ The inspection is header-based; it does not (yet) align against a canonical UniP
      Omit chain A [glycan (NAG, BMA, MAN)]? [y/N] y
      Omit chain G [protein (462 residues) — Envelope glycoprotein gp160]? [y/N] n
      Build interior loop G 400-410 (11 res) in full? [Y/n] n
-       Replace it with a short GGG stub sequence instead? (No = keep full) [Y/n] y
+       Replace it with a short built stub sequence instead? (No = keep full) [Y/n] y
+         Stub sequence (one-letter codes)? [GGG] GSGSG
      Build a modeled tail for chain B N-terminus (512-520, 9 res)? [y/N] y
      Add a `ligate` task to close them? [Y/n] y
      Revert B:PRO559 -> db ILE [engineered mutation]? [y/N] y
@@ -114,7 +115,7 @@ The inspection is header-based; it does not (yet) align against a canonical UniP
 
 The resulting ``psfgen`` task then carries a real ``source:`` block (chosen ``biological_assembly:`` and an ``exclude:`` list of omitted chains), a ``sequence:`` block (built tails), a ``mods:`` block (chosen mutation reverts, loop stub ``substitutions``, and deletions), and an active ``ligate`` task -- ready to run, with no manual editing.  Pressing Enter accepts the shown default (upper-cased in the ``[y/N]`` / ``[Y/n]`` prompt).
 
-Interior missing loops are built and closed by default; declining "in full" offers a short built **stub** (``substitutions: [G:400-410,GGG]``) in place of the full disordered sequence.  (Leaving a genuine capped chain break where a loop would go is not yet supported -- it needs a build-side chain-split-and-cap capability; it is on the roadmap.)
+Interior missing loops are built and closed by default; declining "in full" offers a short built **stub** in place of the full disordered sequence, and prompts for the stub's one-letter sequence (default ``GGG``, but you may enter any short sequence -- e.g. ``GSGSG``) -- emitted as ``substitutions: [G:400-410,GSGSG]``.  (Leaving a genuine capped chain break where a loop would go is not yet supported -- it needs a build-side chain-split-and-cap capability; it is on the roadmap.)
 
 ``--output <filename>``
 ++++++++++++++++++++++++

@@ -103,13 +103,22 @@ class TestInteractiveSelect(unittest.TestCase):
         # cannot be left unbuilt), so a ligate task is still needed
         self.assertTrue(sel['add_ligate'])
 
-    def test_interior_loop_stub(self):
-        # decline building the interior loop in full, accept the GGG stub -> a substitution
+    def test_interior_loop_stub_default(self):
+        # decline "in full", accept the stub, take the default stub sequence (blank -> GGG)
         f = Findings('X', 'pdb', missing_runs=[MissingRun('A', 50, 60, 'interior')])
-        ask = lambda q, d=False: 'stub' in q          # No to "in full?", Yes to "stub?"
-        sel = interactive_select(f, ask=ask, say=lambda m: None)
+        ask = lambda q, d=False: 'stub' in q
+        sel = interactive_select(f, ask=ask, say=lambda m: None,
+                                 prompt_text=lambda q, default='': default)
         self.assertEqual(sel['mods']['substitutions'], ['A:50-60,GGG'])
         self.assertTrue(sel['add_ligate'])
+
+    def test_interior_loop_stub_custom_sequence(self):
+        # a user-supplied (non-GGG) stub sequence is normalized (uppercased, whitespace stripped)
+        f = Findings('X', 'pdb', missing_runs=[MissingRun('A', 50, 60, 'interior')])
+        ask = lambda q, d=False: 'stub' in q
+        sel = interactive_select(f, ask=ask, say=lambda m: None,
+                                 prompt_text=lambda q, default='': ' gsg s ')
+        self.assertEqual(sel['mods']['substitutions'], ['A:50-60,GSGS'])
 
     def test_interior_loop_full_build_no_stub(self):
         f = Findings('X', 'pdb', missing_runs=[MissingRun('A', 50, 60, 'interior')])

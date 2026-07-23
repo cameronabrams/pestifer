@@ -237,17 +237,29 @@ def make_prompter():
     return ask
 
 
-def interactive_select(findings: 'Findings', ask=None, say=None) -> dict:
+def make_text_prompter():
+    """A default free-text prompter reading from stdin; EOF/blank returns the shown default."""
+    def prompt_text(question, default=''):
+        try:
+            resp = input(f'{question} [{default}] ').strip()
+        except EOFError:
+            return default
+        return resp or default
+    return prompt_text
+
+
+def interactive_select(findings: 'Findings', ask=None, say=None, prompt_text=None) -> dict:
     """
     Walk the user through the findings, prompting per item, and return the chosen mods as
-    ``{'sequence': {...}, 'mods': {...}, 'add_ligate': bool}`` -- the *active* (uncommented) blocks
-    to inject into the generated psfgen task.
+    ``{'source', 'sequence', 'mods', 'add_ligate'}`` -- the *active* (uncommented) blocks to inject
+    into the generated psfgen task.
 
-    ``ask(question, default) -> bool`` and ``say(message)`` are injectable (default: stdin prompter
-    and ``print``) so the walkthrough is testable without a TTY. Declining everything yields empty
-    ``sequence``/``mods`` and ``add_ligate`` False.
+    ``ask(question, default) -> bool``, ``prompt_text(question, default) -> str``, and
+    ``say(message)`` are injectable (defaults: stdin prompters and ``print``) so the walkthrough is
+    testable without a TTY.
     """
     ask = ask or make_prompter()
+    prompt_text = prompt_text or make_text_prompter()
     say = say or (lambda m: print(m))
     sequence, mods, source = {}, {}, {}
 
@@ -311,8 +323,9 @@ def interactive_select(findings: 'Findings', ask=None, say=None) -> dict:
                 continue
             # An interior loop cannot currently be left genuinely unbuilt (no capped-break path);
             # the supported alternative is a short built stub in its place.
-            if ask(f'    Replace it with a short GGG stub sequence instead? (No = keep full)', True):
-                stubs.append(f'{r.chain}:{r.start}-{r.end},GGG')
+            if ask(f'    Replace it with a short built stub sequence instead? (No = keep full)', True):
+                seq = ''.join(prompt_text(f'      Stub sequence (one-letter codes)?', 'GGG').split()).upper()
+                stubs.append(f'{r.chain}:{r.start}-{r.end},{seq or "GGG"}')
         if stubs:
             mods.setdefault('substitutions', []).extend(stubs)
         add_ligate = True     # interior loops (full or stubbed) are built and need closing
