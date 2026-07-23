@@ -79,6 +79,23 @@ Interior missing loops are built and closed automatically, so when any are prese
 
 The inspection is header-based; it does not (yet) align against a canonical UniProt sequence, so a substitution not recorded in ``SEQADV`` will not be flagged.
 
+``--interactive``
++++++++++++++++++
+
+``--interactive`` is the guided counterpart to ``--inspect``: it discovers the same features but, instead of writing commented stubs, walks through them one at a time and writes the choices you make as **active** (uncommented) config.
+
+.. code-block:: bash
+
+   $ pestifer new-system 4zmj --interactive
+     Build a modeled tail for chain B N-terminus (512-520, 9 res)? [y/N] y
+     Build a modeled tail for chain G N-terminus (31-33, 3 res)? [y/N] n
+     Add a `ligate` task to close them? [Y/n] y
+     Revert B:PRO559 -> db ILE [engineered mutation]? [y/N] y
+     ...
+     Excise expression tag in chain G (508-513)? [y/N] y
+
+The resulting ``psfgen`` task then carries a real ``sequence:`` block (built tails), a ``mods:`` block (chosen mutation reverts and deletions), and an active ``ligate`` task -- ready to run, with no manual editing.  Pressing Enter accepts the shown default (upper-cased in the ``[y/N]`` / ``[Y/n]`` prompt).
+
 ``--output <filename>``
 ++++++++++++++++++++++++
 

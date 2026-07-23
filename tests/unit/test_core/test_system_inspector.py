@@ -2,6 +2,7 @@ import unittest
 
 from pestifer.core.system_inspector import (
     build_findings, _group_runs, Findings, MissingRun, MutationFinding, ExcisionRun,
+    interactive_select, make_prompter,
 )
 
 
@@ -76,6 +77,58 @@ class TestAnnotation(unittest.TestCase):
     def test_empty_findings(self):
         f = Findings('XXXX', 'pdb')
         self.assertTrue(f.is_empty())
+
+
+class TestInteractiveSelect(unittest.TestCase):
+    def _findings(self):
+        return Findings('X', 'pdb',
+                        missing_runs=[MissingRun('A', 1, 3, 'N'), MissingRun('B', 5, 5, 'C'),
+                                      MissingRun('A', 50, 60, 'interior')],
+                        mutations=[MutationFinding('A', 52, 'ASN', 'THR', 'engineered mutation'),
+                                   MutationFinding('A', 90, 'CYS', '', 'conflict')],  # no dbres
+                        excisions=[ExcisionRun('A', 200, 202, 'expression tag')])
+
+    def test_accept_all(self):
+        sel = interactive_select(self._findings(), ask=lambda q, d=False: True, say=lambda m: None)
+        self.assertEqual(sel['sequence']['terminal_tails'], {'n': ['A'], 'c': ['B']})
+        self.assertTrue(sel['add_ligate'])
+        self.assertEqual(sel['mods']['mutations'], ['A:ASN,52,THR'])   # only the revertible one
+        self.assertEqual(sel['mods']['deletions'], ['A:200-202'])
+
+    def test_decline_all(self):
+        sel = interactive_select(self._findings(), ask=lambda q, d=False: False, say=lambda m: None)
+        self.assertEqual(sel['sequence'], {})
+        self.assertEqual(sel['mods'], {})
+        self.assertFalse(sel['add_ligate'])
+
+    def test_selective(self):
+        # accept only tail and ligate prompts
+        ask = lambda q, d=False: ('tail' in q) or ('ligate' in q)
+        sel = interactive_select(self._findings(), ask=ask, say=lambda m: None)
+        self.assertIn('terminal_tails', sel['sequence'])
+        self.assertTrue(sel['add_ligate'])
+        self.assertNotIn('mutations', sel['mods'])
+        self.assertNotIn('deletions', sel['mods'])
+
+    def test_prompter_default_on_blank(self):
+        import builtins
+        orig = builtins.input
+        builtins.input = lambda prompt='': ''
+        try:
+            ask = make_prompter()
+            self.assertTrue(ask('q?', True))
+            self.assertFalse(ask('q?', False))
+        finally:
+            builtins.input = orig
+
+    def test_prompter_yes(self):
+        import builtins
+        orig = builtins.input
+        builtins.input = lambda prompt='': 'yes'
+        try:
+            self.assertTrue(make_prompter()('q?', False))
+        finally:
+            builtins.input = orig
 
 
 if __name__ == '__main__':

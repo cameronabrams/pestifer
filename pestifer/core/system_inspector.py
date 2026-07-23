@@ -162,6 +162,80 @@ class Findings:
         return L
 
 
+def make_prompter():
+    """A default yes/no prompter reading from stdin; EOF/blank returns the question's default."""
+    def ask(question, default=False):
+        suffix = '[Y/n]' if default else '[y/N]'
+        try:
+            resp = input(f'{question} {suffix} ').strip().lower()
+        except EOFError:
+            return default
+        if not resp:
+            return default
+        return resp in ('y', 'yes')
+    return ask
+
+
+def interactive_select(findings: 'Findings', ask=None, say=None) -> dict:
+    """
+    Walk the user through the findings, prompting per item, and return the chosen mods as
+    ``{'sequence': {...}, 'mods': {...}, 'add_ligate': bool}`` -- the *active* (uncommented) blocks
+    to inject into the generated psfgen task.
+
+    ``ask(question, default) -> bool`` and ``say(message)`` are injectable (default: stdin prompter
+    and ``print``) so the walkthrough is testable without a TTY. Declining everything yields empty
+    ``sequence``/``mods`` and ``add_ligate`` False.
+    """
+    ask = ask or make_prompter()
+    say = say or (lambda m: print(m))
+    sequence, mods = {}, {}
+
+    tails = {'n': [], 'c': []}
+    term_runs = [r for r in findings.missing_runs if r.kind in ('N', 'C')]
+    if term_runs:
+        say('\nMissing terminal residues (unresolved; dropped unless you build them):')
+        for r in term_runs:
+            end = 'N' if r.kind == 'N' else 'C'
+            if ask(f'  Build a modeled tail for chain {r.chain} {end}-terminus '
+                   f'({r.start}-{r.end}, {r.length} res)?', False):
+                key = 'n' if r.kind == 'N' else 'c'
+                if r.chain not in tails[key]:
+                    tails[key].append(r.chain)
+    tt = {k: v for k, v in tails.items() if v}
+    if tt:
+        sequence['terminal_tails'] = tt
+
+    gaps = findings.interior_gaps()
+    add_ligate = False
+    if gaps:
+        say(f'\n{len(gaps)} interior missing loop(s) will be built and closed:')
+        for r in gaps:
+            say(f'  {r}')
+        add_ligate = ask('  Add a `ligate` task to close them?', True)
+
+    revertible = [m for m in findings.mutations if m.dbres]
+    if revertible:
+        say('\nEngineered mutations / conflicts (structure differs from the sequence database):')
+        muts = []
+        for m in revertible:
+            if ask(f'  Revert {m.chain}:{m.resname}{m.resid} -> db {m.dbres} [{m.typekey}]?', False):
+                muts.append(m.revert_shortcode)
+        if muts:
+            mods['mutations'] = muts
+
+    if findings.excisions:
+        say('\nCloning artifacts / expression tags (extra residues not in the native protein):')
+        dels = []
+        for e in findings.excisions:
+            span = f'{e.start}' if e.start == e.end else f'{e.start}-{e.end}'
+            if ask(f'  Excise {e.typekey} in chain {e.chain} ({span})?', False):
+                dels.append(e.delete_shortcode)
+        if dels:
+            mods['deletions'] = dels
+
+    return {'sequence': sequence, 'mods': mods, 'add_ligate': add_ligate}
+
+
 def _group_runs(resseqnums):
     """Yield ``(start, end)`` for each maximal run of consecutive integers in ``resseqnums``."""
     s = sorted(set(resseqnums))

@@ -168,9 +168,11 @@ what appears here is refined and reprioritized as the project evolves.
           ready-to-uncomment shortcodes (`terminal_tails`, `mutations` to revert,
           `deletions` to excise). Core in `core/system_inspector.py`; validated on 4zmj (SOSIP
           mutations, tails, tag all correctly surfaced; uncommented stubs schema-validate).
-    - [ ] **P2 — interactive walkthrough.** A `--interactive` TTY pass that prompts per finding
-          (build this tail? revert this mutation? excise this tag?) and writes the chosen mods
-          *uncommented* — the guided alternative to the annotate default.
+    - [x] **P2 — interactive walkthrough (Unreleased).** `new-system <id> --interactive` prompts per
+          finding (build this tail? revert this mutation? excise this tag? add a `ligate` task?) and
+          injects the choices as *active* config — a real `sequence:` block, a `mods:` block, and a
+          `ligate` task, ready to run. Prompt logic factored (`interactive_select` + `make_prompter`)
+          so it is testable without a TTY; blank input takes the shown default.
     - [ ] **P3 — canonical-sequence diff.** Align the modeled sequence against the canonical UniProt
           reference to surface substitutions not recorded in `SEQADV` (no reuseable primitive exists
           today beyond the AlphaFold *structure* fetch — needs a UniProt FASTA fetch + alignment).

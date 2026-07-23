@@ -32,9 +32,17 @@ class NewSystemSubcommand(Subcommand):
         if os.path.exists(outputfilename):
             raise PestiferError(f'Output file {outputfilename} already exists; please remove it or choose a different name')
         findings = None
-        if getattr(args, 'inspect', False):
+        active_mods = None
+        if getattr(args, 'interactive', False) or getattr(args, 'inspect', False):
             findings = _inspect(args.id)
-        r.example_manager.new_example_yaml(db_id=args.id, build_type=build_type, outputfilename=outputfilename, title=title, findings=findings)
+        if getattr(args, 'interactive', False) and findings is not None:
+            if findings.is_empty():
+                logger.info('--interactive: no missing residues or SEQADV features detected; '
+                            'generating the config as-is.')
+            else:
+                from ..core.system_inspector import interactive_select
+                active_mods = interactive_select(findings)
+        r.example_manager.new_example_yaml(db_id=args.id, build_type=build_type, outputfilename=outputfilename, title=title, findings=findings, active_mods=active_mods)
         return True
 
     def add_subparser(self, subparsers):
@@ -42,6 +50,7 @@ class NewSystemSubcommand(Subcommand):
         self.parser.add_argument('id', type=str, default=None, help='PDB/UniProt ID  of the new system to create')
         self.parser.add_argument('--full', default=False, action=ap.BooleanOptionalAction, help='enable/disable full set of tasks in the new system configuration (default: %(default)s)')
         self.parser.add_argument('--inspect', default=False, action='store_true', help='fetch and inspect the structure for missing residues (REMARK 465) and engineered mutations/tags (SEQADV), and annotate the generated config with the corresponding mod stubs')
+        self.parser.add_argument('--interactive', default=False, action='store_true', help='like --inspect, but walk through each detected feature interactively and write the chosen mods as active (uncommented) config')
         self.parser.add_argument('--output', type=str, default=None, help='output filename for the new system configuration (default: <id>.yaml)')
         self.parser.add_argument('--title', type=str, default=None, help='title for the new system configuration (default: none)')
         return self.parser

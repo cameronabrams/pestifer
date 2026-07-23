@@ -130,7 +130,7 @@ class ExampleManager:
         logger.info(f'Checked out example {example_id} from {self.path.name} to current working directory {os.getcwd()}')
         return example
 
-    def new_example_yaml(self, db_id: str = 'ABCD', build_type: str = 'minimal', outputfilename: str = None, title: str = '', findings=None):
+    def new_example_yaml(self, db_id: str = 'ABCD', build_type: str = 'minimal', outputfilename: str = None, title: str = '', findings=None, active_mods=None):
         """
         Generate a new example YAML file based on an existing example template.  The id can be a 4-letter PDB ID or an Alphafold/UNIPROT ID starting with "P".  The build_type can be either 'minimal' or 'full', which determines whether the generated YAML file contains only the psfgen task or all tasks including termination.
 
@@ -168,31 +168,58 @@ class ExampleManager:
         if build_type == 'full':
             example_config['tasks'][-1]['terminate']['basename'] = f'my_{db_id.lower()}'
             example_config['tasks'][-1]['terminate']['package']['basename'] = f'my_{db_id.lower()}'
-        if findings is not None:
+        if findings is not None and findings.source_format == 'cif':
             # match the fetch format to what was actually inspected (a CIF-only structure)
-            if findings.source_format == 'cif':
-                example_config['tasks'][0]['fetch']['source_format'] = 'cif'
-            # interior missing loops are built and closed automatically -- add an active `ligate`
-            # task right after psfgen so the generated config actually closes them.
-            if findings.interior_gaps():
-                pi = next(i for i, t in enumerate(example_config['tasks']) if 'psfgen' in t)
-                example_config['tasks'].insert(pi + 1, {'ligate': {'method': 'ccd'}})
+            example_config['tasks'][0]['fetch']['source_format'] = 'cif'
+        if active_mods is not None:
+            # interactive walkthrough: inject the user's chosen mods as ACTIVE config
+            self._apply_active_mods(example_config['tasks'], active_mods)
+        elif findings is not None and findings.interior_gaps():
+            # annotate mode: interior missing loops are built and closed automatically -- add an
+            # active `ligate` task right after psfgen so the generated config actually closes them.
+            pi = next(i for i, t in enumerate(example_config['tasks']) if 'psfgen' in t)
+            example_config['tasks'].insert(pi + 1, {'ligate': {'method': 'ccd'}})
         if outputfilename:
             output_yaml = outputfilename
         else:
             output_yaml = f'{db_id.lower()}.yaml'
         text = yaml.dump(example_config, default_flow_style=False, sort_keys=False)
-        if findings is not None and not findings.is_empty():
+        if active_mods is None and findings is not None and not findings.is_empty():
             text = self._inject_inspection_annotation(text, findings)
         with open(output_yaml, 'w') as f:
             f.write(text)
         logger.info(f'Generated new example YAML file {output_yaml} for id {db_id} ({idtype})')
-        if findings is not None:
+        if active_mods is not None:
+            tt = active_mods.get('sequence', {}).get('terminal_tails', {})
+            n_tail = len(tt.get('n', [])) + len(tt.get('c', []))
+            logger.info(f'--interactive: applied {n_tail} tail chain(s), '
+                        f'{len(active_mods.get("mods", {}).get("mutations", []))} mutation(s), '
+                        f'{len(active_mods.get("mods", {}).get("deletions", []))} deletion(s)'
+                        f'{" + ligate task" if active_mods.get("add_ligate") else ""} in {output_yaml}')
+        elif findings is not None:
             n_gap = len(findings.interior_gaps())
             n_tail = sum(1 for r in findings.missing_runs if r.kind in ('N', 'C'))
             logger.info(f'--inspect: {n_gap} interior gap(s), {n_tail} terminal tail run(s), '
                         f'{len(findings.mutations)} engineered mutation(s), '
                         f'{len(findings.excisions)} cloning/tag run(s) annotated in {output_yaml}')
+
+    @staticmethod
+    def _apply_active_mods(tasks: list, active_mods: dict) -> None:
+        """Inject the interactively-chosen mods as active config: a ``sequence:`` block under the
+        psfgen ``source:``, a ``mods:`` block as a sibling of ``source:``, and (optionally) a
+        ``ligate`` task right after psfgen."""
+        pi = next(i for i, t in enumerate(tasks) if 'psfgen' in t)
+        psfgen = tasks[pi].get('psfgen')
+        if psfgen is None:
+            psfgen = {}
+            tasks[pi]['psfgen'] = psfgen
+        if active_mods.get('sequence'):
+            src = psfgen.setdefault('source', {})
+            src.setdefault('sequence', {}).update(active_mods['sequence'])
+        if active_mods.get('mods'):
+            psfgen.setdefault('mods', {}).update(active_mods['mods'])
+        if active_mods.get('add_ligate'):
+            tasks.insert(pi + 1, {'ligate': {'method': 'ccd'}})
 
     @staticmethod
     def _inject_inspection_annotation(text: str, findings) -> str:
