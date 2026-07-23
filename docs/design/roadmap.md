@@ -155,6 +155,16 @@ what appears here is refined and reprioritized as the project evolves.
       `--from <task>`, and how it composes with the existing `continuation` task.
     - **Determinism.** Lean on the seeded-RNG work (declash, CCD closure) so a resumed build is
       reproducible — ideally identical to an uninterrupted run from the resume point onward.
+- [ ] **`density_equilibrate` task — convergence-based post-solvation equilibration.** Replace the
+      hand-written ladder of progressively longer NPT runs (`nsteps: 200 → 400 → … → 13200`) with a
+      single task that runs NPT in chunks and stops itself when the **box density has converged**
+      (block-averaged drift + fluctuation test) or a `max_steps` ceiling is hit. De-magic-numbers the
+      workflow and adapts to system size (small boxes stop early, large ones run longer) instead of a
+      fixed schedule. Reuses the existing MD continuation substrate (`firsttimestep` + state fileset)
+      and reads density from the NAMD `.xst` cell volume + PSF mass; composes with the restart/resume
+      item above. Seeded → reproducible stop on a fixed machine (not bit-identical cross-platform, by
+      nature of wrapping NAMD). Roll out across the template, the `new-system` interactive pipeline,
+      and the bundled examples. Full plan in `docs/design/density-equilibrate.md`.
 - [~] **Optionally-interactive `new-system` for sequence modifications.** `new-system` generated a
       build config from a PDB/UniProt ID off a fixed template with no look at the structure. Now it
       inspects the source for **missing residues** (chain gaps / `REMARK 465`) and **engineered
