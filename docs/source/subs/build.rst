@@ -64,6 +64,7 @@ Detailed explanation of some *selected* common tasks you can use is below.
    buildtasks/validate
    buildtasks/pdb2pqr
    md <buildtasks/mdtask>
+   buildtasks/density_equilibrate
    buildtasks/manipulate
    buildtasks/ligate
    buildtasks/cleave

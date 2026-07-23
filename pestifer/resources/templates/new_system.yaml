@@ -21,26 +21,11 @@ tasks:
 - md:
     ensemble: NVT
     nsteps: 400
-- md:
-    ensemble: NPT
-    nsteps: 200
-- md:
-    ensemble: NPT
-    nsteps: 400
-- md:
-    ensemble: NPT
-    nsteps: 800
-- md:
-    ensemble: NPT
-    nsteps: 1600
-- md:
-    ensemble: NPT
-    nsteps: 13200
-- mdplot:
-    timeseries:
-    - density
-    basename: solvated
-    grid: True
+# Self-terminating NPT box-density equilibration: replaces the old ladder of
+# progressively longer NPT runs.  Runs stability-bounded short restarts and stops
+# when the density has converged (or max_steps is hit), writing its own convergence
+# report + density-vs-time plot.  Tune drift_tol/max_steps in the YAML if needed.
+- density_equilibrate:
 - terminate:
     basename: my_system
     package:

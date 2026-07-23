@@ -265,8 +265,9 @@ class TestPipeline(unittest.TestCase):
     def test_accept_defaults(self):
         pt = interactive_pipeline('4zmj', ask=lambda q, d=False: d, say=lambda m: None)
         kinds = [list(t)[0] for t in pt]
-        # vacuum-min, solvate, solvated-min, NVT, NPT, terminate (vacuum-MD/production/mdplot default off)
-        self.assertEqual(kinds, ['md', 'solvate', 'md', 'md', 'md', 'terminate'])
+        # vacuum-min, solvate, solvated-min, NVT warm-up, density_equilibrate, terminate
+        # (vacuum-MD/production default off)
+        self.assertEqual(kinds, ['md', 'solvate', 'md', 'md', 'density_equilibrate', 'terminate'])
         self.assertEqual(pt[0]['md']['ensemble'], 'minimize')
         self.assertEqual(pt[-1]['terminate']['basename'], 'my_4zmj')
         self.assertEqual(pt[-1]['terminate']['package']['basename'], 'prod_4zmj')

@@ -384,9 +384,10 @@ def interactive_pipeline(db_id: str = 'system', ask=None, say=None) -> list:
     """
     Walk the user through the post-psfgen build pipeline and return the chosen task dicts (to append
     after ``fetch``/``psfgen``/``ligate``): vacuum minimization, vacuum MD, solvation and its
-    solvated minimization / equilibration / production, an optional density plot, and a standard
-    ``terminate`` (package) task. Each stage is a yes/no prompt with a sensible default; ``ask`` is
-    injectable for testing. nsteps are conservative defaults the user can edit in the YAML.
+    solvated minimization / NVT warm-up / self-terminating NPT density equilibration / optional
+    production, and a standard ``terminate`` (package) task. Each stage is a yes/no prompt with a
+    sensible default; ``ask`` is injectable for testing. nsteps are conservative defaults the user
+    can edit in the YAML.
     """
     ask = ask or make_prompter()
     say = say or (lambda m: print(m))
@@ -400,13 +401,15 @@ def interactive_pipeline(db_id: str = 'system', ask=None, say=None) -> list:
         tasks.append({'solvate': None})
         if ask('    Solvated minimization?', True):
             tasks.append({'md': {'ensemble': 'minimize'}})
-        if ask('    Solvated MD equilibration (NVT then NPT)?', True):
+        if ask('    NVT warm-up before density equilibration?', True):
             tasks.append({'md': {'ensemble': 'NVT', 'nsteps': 1000}})
-            tasks.append({'md': {'ensemble': 'NPT', 'nsteps': 5000}})
+        # Self-terminating NPT density equilibration (replaces the fixed NPT ladder): runs
+        # stability-bounded short restarts and stops when the box density has converged. Writes
+        # its own convergence report + density-vs-time plot, so no separate mdplot stage is needed.
+        if ask('    NPT density equilibration (self-terminating)?', True):
+            tasks.append({'density_equilibrate': None})
         if ask('    Longer NPT production run?', False):
             tasks.append({'md': {'ensemble': 'NPT', 'nsteps': 100000}})
-        if ask('    Density plot (mdplot)?', False):
-            tasks.append({'mdplot': {'timeseries': ['density'], 'basename': 'solvated', 'grid': True}})
     if ask('  Terminate task (package the built system)?', True):
         tasks.append({'terminate': {'basename': f'my_{db_id.lower()}',
                                     'package': {'basename': f'prod_{db_id.lower()}',

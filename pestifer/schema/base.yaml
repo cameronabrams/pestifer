@@ -1622,6 +1622,104 @@ attributes:
           - name: colvar_specs
             type: dict
             text: colvar specifications; dict with keys 'groups', 'distances', and 'harmonics'
+      - name: density_equilibrate
+        text: >-
+          Self-terminating replacement for the hand-written ladder of progressively longer NPT runs.
+          Runs NPT as a series of stability-bounded short restarts (each recomputes NAMD's patch/PME
+          grid before the shrinking cell outruns the patch margin) and stops itself when the box
+          density has converged (fractional-drift tolerance made size-independent by a precision gate,
+          with n_consecutive hysteresis) or a step ceiling is reached. Solvated (isotropic) boxes only;
+          membranes keep the NPgT protocol. See docs/design/density-equilibrate.md.
+        type: dict
+        attributes:
+          - name: temperature
+            text: Temperature (K)
+            type: float
+            default: 300
+          - name: pressure
+            text: Pressure (bar); NPT requires a solvated (periodic) system
+            type: float
+            default: 1
+          - name: dcdfreq
+            text: number of time steps between configuration output to DCD file
+            type: int
+            default: 100
+          - name: xstfreq
+            text: number of time steps between cell-size (extended-system) output; sets the density-sampling resolution
+            type: int
+            default: 100
+          - name: chunk_min
+            text: shortest NPT chunk (steps); used for the fast-shrinking first restarts
+            type: int
+            default: 500
+          - name: chunk_max
+            text: longest NPT chunk (steps); used once the box has settled
+            type: int
+            default: 5000
+          - name: shrink_safety
+            text: size each chunk so the projected per-dimension cell shrink stays below this fraction of margin
+            type: float
+            default: 0.5
+          - name: margin
+            text: NAMD patch margin (angstrom) -- the per-run cell-shrink slack used to bound chunk length
+            type: float
+            default: 4
+          - name: max_steps
+            text: hard ceiling on total NPT steps; the task stops (with a warning) even if not converged
+            type: int
+            default: 100000
+          - name: min_steps
+            text: never declare convergence before this many total steps
+            type: int
+            default: 4000
+          - name: burn_in
+            text: leading steps discarded (barostat transient) before assessing the density trend
+            type: int
+            default: 2000
+          - name: drift_tol
+            text: converged when the fractional density drift over the window falls below this (adequacy choice, ~0.1%)
+            type: float
+            default: 0.001
+          - name: precision_p
+            text: precision gate -- require SEM/mean of the windowed density below drift_tol/precision_p before testing drift
+            type: float
+            default: 3
+          - name: n_blocks
+            text: number of contiguous blocks the trailing window is averaged into for the SEM/slope estimate
+            type: int
+            default: 6
+          - name: n_consecutive
+            text: successive passing checks required before stopping (hysteresis against the noisy drift metric)
+            type: int
+            default: 3
+          - name: addl_paramfiles
+            type: list
+            text: list of additional parameter files to be included in the NAMD run
+            default: []
+          - name: other_parameters
+            text: key:value pairs for other namd configuration file statements
+            type: dict
+          - name: single-core
+            text: whether or not to run namd on a single core
+            type: bool
+            default: False
+          - name: cpu-override
+            text: revert to cpu version of namd3
+            type: bool
+            default: False
+          - name: constraints
+            text: Parameters controlling position constraints
+            type: dict
+            attributes:
+              - name: atoms
+                text: Atoms to be position-constrained expressed as a VMD atomselection
+                type: string
+              - name: k
+                text: Restraint spring constant in kcal/mol/A^2
+                type: float
+              - name: consfile
+                text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                type: string
       - name: manipulate
         text: Direct manipulation of atom positions
         type: dict

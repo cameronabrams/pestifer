@@ -7,6 +7,7 @@ Each module defines a specific task class that inherits from the base :class:`Ba
 """
 from .cleave import CleaveTask
 from .continuation import ContinuationTask
+from .density_equilibrate import DensityEquilibrateTask
 from .desolvate import DesolvateTask
 from .domainswap import DomainSwapTask  # retired: kept importable to preserve the code, but not registered below (not user-invocable)
 from .fetch import FetchTask
@@ -26,6 +27,7 @@ from .validate import ValidateTask
 task_classes: dict[str, type] = {
     'cleave': CleaveTask,
     'continuation': ContinuationTask,
+    'density_equilibrate': DensityEquilibrateTask,
     'desolvate': DesolvateTask,
     # 'domainswap' retired — DomainSwapTask remains in the tree but is intentionally
     # not registered here, so a config using it fails validation / dispatch.
