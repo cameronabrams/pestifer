@@ -287,6 +287,13 @@ back into the code above:
   still an excellent basis for starting production MD. BPTI is the stress case (smallest, noisiest); a
   large box's `SEM/mean` falls as `1/√N`, so it passes the gate *earlier*. Tuned from the runs, exactly
   as the plan intended.
+- **Confirmed live with the shipped default.** A third, fresh BPTI run with `drift_tol = 2e-3`
+  end-to-end on NAMD **self-terminated at step 71530** (ρ = 1.0300 g/cc, the plateau; three consecutive
+  passing checks; before the 80 k ceiling) — no ceiling fallback, no premature stop. Across all three
+  independent trajectories the task converges at the plateau (~52 k / ~57 k / ~72 k); the spread is
+  trajectory noise, and the noisiest still stops with margin below the ceiling. Self-termination on the
+  small-box stress case is validated; larger systems have more margin. The `max_steps` ceiling +
+  residual-drift warning remain the backstop for anything that never settles.
 
 ## Parameters (task spec)
 

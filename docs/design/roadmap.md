@@ -175,10 +175,15 @@ what appears here is refined and reprioritized as the project evolves.
           `margin`) self-tune instead of re-crashing every restart. Convergence + crash-detection +
           patch-grid parsing all live in a NAMD-free, unit-tested `util/density_convergence.py`. Wired
           into the `new-system` template and interactive pipeline (replacing the NPT ladder there).
-          **Still to do:** validate on a small and a large solvated
-          box against a long *staged* reference (the same task run with the stop disabled to
-          `max_steps` — there is no monolithic long run to compare to; it crashes on the shrinking
-          box), confirming the auto-stop lands at the reference plateau density in sane time.
+          **Validated on real NAMD (BPTI, small-box stress case):** running the task end-to-end found
+          three things unit tests could not — a non-`stepsPerCycle` chunk length (NAMD aborts; fixed
+          with whole-cycle quantization), a full-history convergence window that never converges on a
+          plateaued box (fixed with a trailing `window_frac`), and a `drift_tol` gate too tight for a
+          15k-atom box (relaxed 0.1%→0.2%, calibrated over three independent trajectories via offline
+          replay of the real monitor). The shipped defaults self-terminate at the plateau density (live
+          run stopped at step 71530, before the ceiling). **Still to do (nice-to-have):** confirm on a
+          large solvated box (expected to converge *earlier* — `SEM/mean`∝1/√N) and a membrane (keeps
+          the NPgT protocol; verify the orthorhombic-volume density is sane).
     - [ ] **P2 — migrate the bundled examples** off the NPT ladder onto `density_equilibrate`.
     - [ ] **P3 (optional) — generalize** to an `equilibrate` task with a selectable observable.
 - [~] **Optionally-interactive `new-system` for sequence modifications.** `new-system` generated a
