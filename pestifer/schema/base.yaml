@@ -1684,6 +1684,10 @@ attributes:
             text: leading steps discarded (barostat transient) before assessing the density trend
             type: int
             default: 2000
+          - name: window_frac
+            text: assess only the trailing this-fraction of post-burn-in samples, so the early densification ramp ages out of the window as the run lengthens (a full-history window never converges on a box that has plateaued)
+            type: float
+            default: 0.5
           - name: drift_tol
             text: converged when the fractional density drift over the window falls below this (adequacy choice, ~0.1%)
             type: float

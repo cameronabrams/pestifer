@@ -82,6 +82,7 @@ class DensityEquilibrateTask(MDTask):
             precision_p=float(specs['precision_p']),
             n_blocks=int(specs['n_blocks']),
             burn_in=int(specs['burn_in']),
+            window_frac=float(specs['window_frac']),
             min_steps=min_steps,
             n_consecutive=int(specs['n_consecutive']),
         ))

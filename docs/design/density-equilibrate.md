@@ -180,7 +180,14 @@ size-independent practical choice and let the *duration* adapt to the system's n
 
 **Criterion — practical fractional-drift tolerance with an adaptive, precision-targeted window.**
 
-1. **Burn-in.** Discard the first `burn_in` steps (the barostat transient).
+1. **Burn-in + trailing window.** Discard the first `burn_in` steps, then assess only the **trailing
+   `window_frac`** (default 0.5) of what remains. *This trailing part is load-bearing and was
+   confirmed necessary against a real run* (validation below): a **full-history** window keeps the
+   early densification ramp in view forever, so its slope and its block-mean spread never fall — a
+   BPTI box that had plateaued by ~30 k steps still read `drift ≈ 5e-3`, `SEM/mean ≈ 8e-4` at 80 k and
+   **never converged**. A trailing window lets the ramp age out (once the run exceeds
+   `~1/window_frac ×` the transient, the window is all plateau) while still *growing in absolute
+   length* as the run lengthens — so the precision gate below keeps tightening.
 2. **Precision gate (this is what makes it size-independent).** Grow the trailing window (by running
    more chunks) until the standard error of the windowed mean density is well below the tolerance:
    `SEM/mean < drift_tol / p` (e.g. `p = 3`). `SEM = std(d̄_k)/√n_blocks` from `n_blocks`
@@ -246,9 +253,29 @@ The criterion was prototyped against archived pestifer NPT `.xst` files (density
 
 Defaults (form settled; `drift_tol` an adequacy choice, not a measured floor): `drift_tol ≈ 1e-3`
 (≈0.1 % density stability), precision-gate `p ≈ 3`, `n_blocks ≈ 6`, `burn_in ≈ 2000`,
-`min_steps ≈ 4000`, `chunk_steps ≈ 2000`, `n_consecutive ≈ 3`, `window` grows adaptively via the
-precision gate (starting ~10000). To be sanity-checked (fires at equilibrium density, sane runtime)
-on a small and a large system in validation — not re-calibrated.
+`min_steps ≈ 4000`, `n_consecutive ≈ 3`, `window_frac ≈ 0.5` (trailing half). To be sanity-checked
+(fires at equilibrium density, sane runtime) on a small and a large system in validation — not
+re-calibrated.
+
+### Validation run — BPTI, done (implementation P1)
+
+The task was run end-to-end on real NAMD (BPTI in a ~15 k-atom TIP3 box, CPU). Findings, all folded
+back into the code above:
+
+- **The machinery works.** Adaptive chunking `500→700→1050→1570→2350→3520→5000` (grown ≤`chunk_growth`×
+  per step, capped at `chunk_max`), no crashes, density from the `.xst` physically sensible
+  (`0.98 → 1.03 g/cc`, plateau by ~30 k steps), report + plot artifacts written, continuation
+  (`firsttimestep`) threaded across all chunks.
+- **Caught a real bug unit tests could not:** NAMD aborts on a `run` whose length is not a whole
+  number of `stepsPerCycle`; the AIMD sizing produced 675. The reactive net *correctly declined* it
+  (not a patch-grid crash) and surfaced it. Fixed by `quantize_steps` (all chunk lengths → whole
+  cycles). *This is why you validate on the real engine.*
+- **Caught the full-history-window flaw:** with a full-history window the plateaued box **never
+  converged** (ran to the ceiling); the trailing-`window_frac` window (added above) converges with the
+  **default** `drift_tol`/`precision_p` at ~step 62 k (density = the plateau value, no premature stop).
+  The stop is conservative for so small/noisy a box (its `SEM/mean` bottoms out near the `drift_tol/p`
+  gate) — exactly the intended "small boxes run longer"; a large, quiet box will pass the gate far
+  sooner. Defaults were *confirmed*, not re-tuned.
 
 ## Parameters (task spec)
 
@@ -263,7 +290,7 @@ on a small and a large system in validation — not re-calibrated.
 | `max_steps`     | hard ceiling; stop even if not converged                         | 100000              |
 | `min_steps`     | never declare convergence before this many steps                 | 4000                |
 | `burn_in`       | leading steps discarded before assessing the trend               | 2000                |
-| `window`        | trailing window; **grows adaptively** until the precision gate   | ~10000 (start)      |
+| `window_frac`   | assess the trailing this-fraction of post-burn-in samples (ages out the ramp) | 0.5    |
 | `n_blocks`      | blocks the window is averaged into                               | 6                   |
 | `precision_p`   | precision gate: require `SEM/mean < drift_tol / precision_p`      | 3                   |
 | `n_consecutive` | successive passing checks before stopping (hysteresis)           | 3                   |

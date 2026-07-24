@@ -211,6 +211,7 @@ class ConvergenceParams:
     precision_p: float = 3.0     #: precision gate: require SEM/mean < drift_tol / precision_p
     n_blocks: int = 6            #: blocks the trailing window is averaged into
     burn_in: int = 2000          #: leading steps discarded before assessing the trend
+    window_frac: float = 0.5     #: assess only the trailing this-fraction of post-burn-in samples
     min_steps: int = 4000        #: never declare convergence before this many steps
     n_consecutive: int = 3       #: successive passing checks required before stopping (hysteresis)
 
@@ -273,11 +274,19 @@ class DensityConvergenceMonitor:
             return ConvergenceReport(blowup=True, last_step=last_step,
                                      reason='non-finite density (box blowup)')
 
-        # Burn-in: keep only samples strictly after the barostat transient.
+        # Burn-in: drop samples during the barostat transient.  Then assess only the *trailing*
+        # `window_frac` of what remains, so the early densification ramp ages out of the window as the
+        # run lengthens -- otherwise the ancient transient keeps inflating the drift/SEM forever and a
+        # plateaued box never converges (observed: a full-history window on a BPTI box that plateaued
+        # by ~30k steps still read drift ~5e-3 at 80k).  The window still *grows* in absolute length as
+        # the run grows (a fraction of a longer run is longer), so the precision gate keeps tightening.
         keep = t > p.burn_in
         tw, dw = t[keep], d[keep]
+        if 0.0 < p.window_frac < 1.0 and tw.size:
+            start = int(tw.size * (1.0 - p.window_frac))
+            tw, dw = tw[start:], dw[start:]
 
-        # Need enough post-burn-in samples to populate the blocks.
+        # Need enough windowed samples to populate the blocks.
         if tw.size < p.n_blocks:
             self._passes = 0
             return ConvergenceReport(passes=0, n_window=int(tw.size), last_step=last_step,

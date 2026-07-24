@@ -141,6 +141,37 @@ class TestConvergenceMonitor(unittest.TestCase):
         self.assertFalse(rep.converged)
         self.assertGreater(rep.drift, p.drift_tol)
 
+    def test_trailing_window_ages_out_transient(self):
+        # A ramp-then-plateau series: a full-history window (window_frac=1) keeps seeing the ramp and
+        # never converges; a trailing window (0.5) lets it age out and converges once the trailing
+        # half is all plateau.  Mirrors the BPTI validation finding.
+        rng_t = np.arange(100, 40100, 100)
+        # ramp 0.95 -> 1.03 over the first 10000 steps, then flat 1.03 with tiny ripple
+        plateau = 1.03
+        d = np.where(rng_t < 10000,
+                     0.95 + (plateau - 0.95) * (rng_t / 10000.0),
+                     plateau + 1e-5 * np.sin(rng_t))
+
+        def run(window_frac):
+            mon = DensityConvergenceMonitor(self._params(min_steps=200, n_consecutive=2,
+                                                         burn_in=1000))
+            mon.params.window_frac = window_frac
+            converged_at = None
+            # feed in 2000-step chunks, checking at each boundary
+            for lo in range(0, rng_t.size, 20):
+                sl = slice(lo, lo + 20)
+                if not len(rng_t[sl]):
+                    break
+                mon.add_samples(rng_t[sl], d[sl])
+                r = mon.check()
+                if r.converged and converged_at is None:
+                    converged_at = r.last_step
+            return converged_at
+
+        self.assertIsNone(run(1.0))          # full history: transient never leaves -> never converges
+        self.assertIsNotNone(run(0.5))       # trailing half: converges once past the ramp
+        self.assertGreater(run(0.5), 15000)  # ...but only after the trailing window clears the 10k ramp
+
     def test_nan_triggers_blowup(self):
         mon = DensityConvergenceMonitor(self._params())
         t = np.arange(100, 3000, 100)
