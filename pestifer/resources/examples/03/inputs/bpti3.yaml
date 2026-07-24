@@ -10,7 +10,7 @@
 #   - Some selected mutations are performed, showcasing two 
 #     shortcode formats
 #   - A disulfide is reduced
-#   - A five-phase NPT equilibration is used to settle the density
+#   - A self-terminating density_equilibrate task settles the box density
 #   - A production tarball is generated: prod_6pti.tgz
 #
 title: BPTI, no phosphate, some random mutations plus deletion of one disulfide
@@ -59,29 +59,10 @@ tasks:
       ensemble: minimize
   - md:
       ensemble: NVT
-  - md:
-      ensemble: NPT
-      nsteps: 200
-  - md:
-      ensemble: NPT
-      nsteps: 400
-  - md:
-      ensemble: NPT
-      nsteps: 800
-  - md:
-      ensemble: NPT
-      nsteps: 1600
-  - md:
-      ensemble: NPT
-      nsteps: 13200
-  - mdplot:
-      timeseries:
-        - density
-        - - a_x
-          - b_y
-          - c_z
-      basename: solvated
-      grid: True
+  # Self-terminating NPT density equilibration (replaces the old NPT ladder): runs
+  # stability-bounded short restarts and stops when the box density has converged.
+  # Writes its own convergence report + density-vs-time plot.
+  - density_equilibrate:
   - terminate:
       basename: my_6pti
       package:

@@ -36,17 +36,10 @@ tasks:
 - md:
     ensemble: nvt
     nsteps: 1000
-- md:
-    ensemble: npt
-    nsteps: 1000
-- md:
-    ensemble: npt
-    nsteps: 10000
-- mdplot:
-    basename: solvated
-    timeseries:
-      - density
-    grid: True
+# Self-terminating NPT density equilibration (replaces the old NPT ladder): runs
+# stability-bounded short restarts and stops when the box density has converged.
+# Writes its own convergence report + density-vs-time plot.
+- density_equilibrate:
 - terminate:
     basename: my_mcm
     package:

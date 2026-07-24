@@ -8,7 +8,7 @@
 #   - Missing protein is built-in
 #   - Fab and sCD4 chains excluded
 #   - Missing V1/2 residues in each gp120 replaced with GGG
-#   - A five-phase NPT equilibration is used to settle the density
+#   - A self-terminating density_equilibrate task settles the box density
 #   - A production tarball is generated: prod_5vn3.tgz
 #
 title: HIV-1 Env Trimer 5vn3, excluding sCD4 and Fab chains, with Gly3 stubs replacing missing v1/2
@@ -94,26 +94,10 @@ tasks:
       ensemble: minimize
   - md:
       ensemble: NVT
-  - md:
-      ensemble: NPT
-      nsteps: 200
-  - md:
-      ensemble: NPT
-      nsteps: 400
-  - md:
-      ensemble: NPT
-      nsteps: 800
-  - md:
-      ensemble: NPT
-      nsteps: 1600
-  - md:
-      ensemble: NPT
-      nsteps: 13200
-  - mdplot:
-      timeseries:
-        - density
-      basename: solvated
-      grid: True
+  # Self-terminating NPT density equilibration (replaces the old NPT ladder): runs
+  # stability-bounded short restarts and stops when the box density has converged.
+  # Writes its own convergence report + density-vs-time plot.
+  - density_equilibrate:
   - terminate:
       basename: my_5vn3
       package:

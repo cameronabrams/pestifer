@@ -8,7 +8,7 @@
 #   - Missing protein is built-in
 #   - Fab chains are excluded
 #   - Declashing is turned off
-#   - A five-phase NPT equilibration is used to settle the density
+#   - A self-terminating density_equilibrate task settles the box density
 #   - A production tarball is generated: prod_4zxb.tgz
 #
 title: insulin receptor ectodomain, Fabs removed
@@ -47,26 +47,10 @@ tasks:
       ensemble: minimize
   - md:
       ensemble: NVT
-  - md:
-      ensemble: NPT
-      nsteps: 200
-  - md:
-      ensemble: NPT
-      nsteps: 400
-  - md:
-      ensemble: NPT
-      nsteps: 800
-  - md:
-      ensemble: NPT
-      nsteps: 1600
-  - md:
-      ensemble: NPT
-      nsteps: 13200
-  - mdplot:
-      timeseries:
-        - density
-      basename: solvated
-      grid: True
+  # Self-terminating NPT density equilibration (replaces the old NPT ladder): runs
+  # stability-bounded short restarts and stops when the box density has converged.
+  # Writes its own convergence report + density-vs-time plot.
+  - density_equilibrate:
   - terminate:
       basename: my_4zxb
       package:
