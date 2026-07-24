@@ -126,6 +126,22 @@ def next_chunk_steps(shrink_rate, margin, shrink_safety, chunk_min, chunk_max):
     return int(max(chunk_min, min(chunk_max, allowed)))
 
 
+def quantize_steps(n, steps_per_cycle, minimum=None):
+    """Round ``n`` down to a positive multiple of ``steps_per_cycle``.
+
+    NAMD aborts (``FATAL ERROR: number of steps must be a multiple of stepsPerCycle``) if a ``run``
+    count is not a whole number of cycles, so every chunk length must be quantized before use.  Rounds
+    *down* (never overshoot a shrink budget) but floors at one cycle -- or, if ``minimum`` is given, at
+    ``minimum`` rounded *up* to a whole number of cycles.  Returns an int."""
+    spc = max(1, int(steps_per_cycle))
+    q = (int(n) // spc) * spc
+    if minimum is None:
+        floor = spc
+    else:
+        floor = ((int(minimum) + spc - 1) // spc) * spc
+    return max(floor, q)
+
+
 def is_patch_grid_crash(log_text):
     """True if a NAMD log records the "cell too small for the patch grid" abort.
 

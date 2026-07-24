@@ -26,6 +26,7 @@ from ..util.density_convergence import (
     is_patch_grid_crash,
     next_chunk_steps,
     parse_patch_grid,
+    quantize_steps,
     total_mass_amu,
     volume_to_density,
     xst_cell_volumes,
@@ -68,6 +69,8 @@ class DensityEquilibrateTask(MDTask):
         min_steps = int(specs['min_steps'])
         chunk_growth = float(specs['chunk_growth'])
         max_shrink_retries = int(specs['max_shrink_retries'])
+        # NAMD requires every `run` to be a whole number of cycles; quantize all chunk lengths to it.
+        steps_per_cycle = int(self.namd_global_config.get('solvated', {}).get('stepspercycle', 10))
 
         state = self.get_current_artifact('state')
         if not state or not state.psf:
@@ -93,8 +96,12 @@ class DensityEquilibrateTask(MDTask):
         grid_logged = False
 
         while total_steps < max_steps:
-            # Do not overshoot the ceiling.
-            this_chunk = min(chunk, max_steps - total_steps)
+            # Do not overshoot the ceiling; quantize to a whole number of NAMD cycles.  If less than
+            # one cycle remains to max_steps, we cannot run a valid chunk -- stop here.
+            if max_steps - total_steps < steps_per_cycle:
+                break
+            this_chunk = quantize_steps(min(chunk, max_steps - total_steps), steps_per_cycle,
+                                        minimum=_MIN_RETRY_CHUNK)
             specs['nsteps'] = this_chunk
             attempt = f' (retry {shrink_retries}/{max_shrink_retries})' if shrink_retries else ''
             logger.info(f'{self.taskname}: NPT chunk {n_chunk + 1} -- {this_chunk} steps '
@@ -176,7 +183,10 @@ class DensityEquilibrateTask(MDTask):
             chunk = min(rate_sized, grow_cap, chunk_max)
             logger.debug(f'{self.taskname}: shrink rate {rate:.3e} A/step -> rate-sized {rate_sized}, '
                          f'grow-cap {grow_cap} -> next chunk {chunk} steps')
-        else:
+
+        # No convergence/blowup break -> we reached the step ceiling (either total_steps >= max_steps
+        # or too few steps remained for a whole cycle).
+        if stop_reason is None:
             last = rows[-1][3] if rows else None
             resid = _fmt(last.drift) if last else 'n/a'
             gate = 'met' if (last and last.precision_met) else 'UNMET'

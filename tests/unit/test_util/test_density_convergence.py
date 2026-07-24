@@ -11,6 +11,7 @@ from pestifer.util.density_convergence import (
     is_patch_grid_crash,
     next_chunk_steps,
     parse_patch_grid,
+    quantize_steps,
     total_mass_amu,
     volume_to_density,
     xst_cell_volumes,
@@ -72,6 +73,17 @@ class TestShrinkRateAndChunk(unittest.TestCase):
             p = os.path.join(d, 't.xst')
             _write_xst(p, [(0, 50.0, 50.0, 50.0)])
             self.assertEqual(xst_max_shrink_rate(p), 0.0)
+
+    def test_quantize_steps(self):
+        # NAMD `run` counts must be whole cycles: round DOWN to a multiple of steps_per_cycle
+        self.assertEqual(quantize_steps(675, 10), 670)
+        self.assertEqual(quantize_steps(200, 10), 200)
+        self.assertEqual(quantize_steps(7, 10), 10)        # floors at one cycle
+        self.assertEqual(quantize_steps(675, 50), 650)
+        # minimum is rounded UP to a whole number of cycles, then used as the floor
+        self.assertEqual(quantize_steps(5, 10, minimum=20), 20)
+        self.assertEqual(quantize_steps(5, 10, minimum=15), 20)
+        self.assertEqual(quantize_steps(1000, 10, minimum=20), 1000)
 
     def test_next_chunk_clamps(self):
         # settled box -> chunk_max
