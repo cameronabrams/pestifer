@@ -294,6 +294,13 @@ back into the code above:
   trajectory noise, and the noisiest still stops with margin below the ceiling. Self-termination on the
   small-box stress case is validated; larger systems have more margin. The `max_steps` ceiling +
   residual-drift warning remain the backstop for anything that never settles.
+- **A bigger box, on GPU (P2 migration).** The migrated insulin-hexamer example (13, ~2× BPTI) built
+  end-to-end on a GPU-resident NAMD (`margin: 4`): clean, no patch-grid crashes (6.7 Å shrink headroom
+  vs BPTI's 3.0 Å — a bigger box has more slack), **converged at step 50640** (< the 100 k ceiling) at
+  the box plateau. Its density climbed higher and slower (1.028 → 1.06 g/cc); the trailing-window
+  criterion correctly *waited out* that longer densification rather than stopping on the ramp — no
+  premature stop, no ceiling overrun. Confirms the task on the GPU path and on a slower-equilibrating
+  box; a truly large (100k+-atom) box remains a nice-to-have (expected to converge earlier).
 
 ## Parameters (task spec)
 

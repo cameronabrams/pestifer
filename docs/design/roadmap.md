@@ -184,7 +184,15 @@ what appears here is refined and reprioritized as the project evolves.
           run stopped at step 71530, before the ceiling). **Still to do (nice-to-have):** confirm on a
           large solvated box (expected to converge *earlier* — `SEM/mean`∝1/√N) and a membrane (keeps
           the NPgT protocol; verify the orthorhombic-volume density is sane).
-    - [ ] **P2 — migrate the bundled examples** off the NPT ladder onto `density_equilibrate`.
+    - [x] **P2 — migrate the bundled examples (Unreleased).** All 25 soluble examples replace their
+          NPT ladder + `mdplot` with a single `density_equilibrate`; the 2 membrane examples (16, 17)
+          stay on `NPgT` (out of scope). Comment-preserving text-level migration; all 27 configs still
+          schema-validate. Validated end-to-end on **GPU** by building the insulin hexamer (example 13,
+          ~2× BPTI, GPU-resident NAMD `margin: 4`): clean build, no patch-grid crashes, converged at
+          step 50640 (< the 100k ceiling) at the box plateau — the criterion correctly waited out a
+          higher/slower densification (→1.06 g/cc) without a premature stop. A truly large box
+          (GroEL/HIV-Env, 100k+ atoms) is the remaining nice-to-have confirmation (expected to converge
+          *earlier*, `SEM/mean`∝1/√N) but needs more GPU memory than the local 4 GB card.
     - [ ] **P3 (optional) — generalize** to an `equilibrate` task with a selectable observable.
 - [~] **Optionally-interactive `new-system` for sequence modifications.** `new-system` generated a
       build config from a PDB/UniProt ID off a fixed template with no look at the structure. Now it
