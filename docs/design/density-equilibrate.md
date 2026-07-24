@@ -301,6 +301,17 @@ back into the code above:
   criterion correctly *waited out* that longer densification rather than stopping on the ramp — no
   premature stop, no ceiling overrun. Confirms the task on the GPU path and on a slower-equilibrating
   box; a truly large (100k+-atom) box remains a nice-to-have (expected to converge earlier).
+- **All-examples migration sweep (P2), on GPU.** Building every migrated soluble example surfaced two
+  things, both *observability/harness* issues rather than task bugs: (1) on **GPU-resident NAMD a small
+  box is tiled into few patches**, so `min_patch_dim` can sit below the pairlist distance while NAMD
+  runs fine — the `parse_patch_grid` headroom heuristic (which assumes the cutoff-limited *multi-patch*
+  CPU decomposition) then printed a nonsense *negative* headroom; it now reports headroom only when
+  positive. (2) The big glycoprotein examples (HIV-Env SOSIP) carry `cpu-override` on their delicate
+  early vacuum-MD steps because GPU-resident integration blows up ("atoms moving too fast") on a
+  freshly-modeled structure with residual clashes — forcing `--gpu` globally defeats that and crashes
+  *before* density_equilibrate, i.e. unrelated to this task. Sixteen diverse systems (small proteins,
+  two ~250k-atom giants, three non-aqueous solvents, a GFP fusion) all converged cleanly, reproducing
+  the 1/√N trend (bigger boxes converge earlier).
 
 ## Parameters (task spec)
 

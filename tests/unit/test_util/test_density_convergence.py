@@ -247,6 +247,24 @@ class TestParsePatchGrid(unittest.TestCase):
         self.assertEqual(info['patches'], (3, 4, 5))
         self.assertNotIn('min_patch_dim', info)
 
+    def test_gpu_few_patch_omits_negative_headroom(self):
+        # GPU-resident NAMD tiles a small box into few patches, so a patch dimension can be BELOW the
+        # pairlist distance while NAMD runs fine.  min_patch_dim is still reported (a real fact), but
+        # the derived "headroom" must be omitted rather than reported negative/misleading.
+        gpu_log = (
+            'Info: CUTOFF                10\n'
+            'Info: PAIRLIST DISTANCE     11.5\n'
+            'Info: PERIODIC CELL BASIS 1  58 0 0\n'
+            'Info: PERIODIC CELL BASIS 2  0 51 0\n'
+            'Info: PERIODIC CELL BASIS 3  0 0 52\n'
+            'Info: PATCH GRID IS 6 (PERIODIC) BY 2 (PERIODIC) BY 2 (PERIODIC)\n'
+        )
+        info = parse_patch_grid(gpu_log)
+        self.assertEqual(info['patches'], (6, 2, 2))
+        # x: 58/6 = 9.67 < pairlistdist 11.5 -> non-positive headroom
+        self.assertAlmostEqual(info['min_patch_dim'], 58 / 6, places=3)
+        self.assertNotIn('shrink_headroom', info)
+
 
 class TestTotalMass(unittest.TestCase):
     def test_total_mass_amu(self):

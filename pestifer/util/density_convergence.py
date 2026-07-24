@@ -170,8 +170,9 @@ def parse_patch_grid(log_text):
     Returns a dict with whatever could be parsed from the startup log -- ``patches`` (nx, ny, nz),
     ``cell_edges`` (lengths of the three periodic cell-basis vectors), ``cutoff``, ``pairlistdist``,
     ``margin``, and, when both the grid and the cell are known, the minimum current patch dimension
-    ``min_patch_dim`` (= min edge / its patch count) and an *approximate* ``shrink_headroom`` before
-    that dimension reaches the pairlist distance.  Returns ``None`` if no patch grid line is present.
+    ``min_patch_dim`` (= min edge / its patch count) and -- *only when it is positive* -- an
+    *approximate* ``shrink_headroom`` before that dimension reaches the pairlist distance.  Returns
+    ``None`` if no patch grid line is present.
 
     The headroom is explicitly approximate -- NAMD's exact abort threshold is internal -- and is for
     logging/tuning only; the reactive crash-and-retry, not this number, is what guarantees stability."""
@@ -199,7 +200,14 @@ def parse_patch_grid(log_text):
         patch_dims = [e / n for e, n in zip(out['cell_edges'], out['patches'])]
         out['min_patch_dim'] = min(patch_dims)
         floor = out.get('pairlistdist', out.get('cutoff'))
-        if floor is not None:
+        # Report headroom only when it is meaningfully positive.  The "shrink until a patch reaches
+        # the pairlist distance" heuristic assumes the cutoff-limited multi-patch decomposition NAMD
+        # builds on CPU/multi-node.  GPU-resident NAMD tiles the whole system into *few* patches
+        # (its single-device scheme), so a small box can already have min_patch_dim < pairlistdist
+        # while running perfectly fine -- a negative "headroom" there is nonsense, not a warning.  In
+        # that case we omit the number rather than print a misleading one (stability is guaranteed by
+        # the reactive crash-and-retry regardless).
+        if floor is not None and out['min_patch_dim'] - floor > 0:
             out['shrink_headroom'] = out['min_patch_dim'] - floor
     return out
 
