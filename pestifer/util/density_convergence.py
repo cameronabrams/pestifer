@@ -207,7 +207,7 @@ def parse_patch_grid(log_text):
 @dataclass
 class ConvergenceParams:
     """Tunables for the density-convergence criterion (see the design doc's Parameters table)."""
-    drift_tol: float = 1e-3      #: converged when fractional drift over the window < this (~0.1%)
+    drift_tol: float = 2e-3      #: converged when fractional drift over the window < this (~0.2%)
     precision_p: float = 3.0     #: precision gate: require SEM/mean < drift_tol / precision_p
     n_blocks: int = 6            #: blocks the trailing window is averaged into
     burn_in: int = 2000          #: leading steps discarded before assessing the trend

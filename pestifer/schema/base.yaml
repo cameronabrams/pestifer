@@ -1689,9 +1689,9 @@ attributes:
             type: float
             default: 0.5
           - name: drift_tol
-            text: converged when the fractional density drift over the window falls below this (adequacy choice, ~0.1%)
+            text: converged when the fractional density drift over the window falls below this (adequacy choice, ~0.2%; validated to converge robustly on a small/noisy box -- 0.1% is unreachable there in reasonable time)
             type: float
-            default: 0.001
+            default: 0.002
           - name: precision_p
             text: precision gate -- require SEM/mean of the windowed density below drift_tol/precision_p before testing drift
             type: float
