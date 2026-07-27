@@ -1,9 +1,11 @@
 # Design: `density_equilibrate` task
 
-Status: **planned** — this doc is the plan; nothing built yet. Direction: a single post-solvation
-task that runs NPT until the box density has converged (or a step ceiling is hit), replacing the
-fixed ladder of progressively longer NPT runs. Fully offline, reuses pestifer's existing MD /
-continuation substrate.
+Status: **shipped (P1 + P2), validated** — a single post-solvation task that runs NPT until the box
+density has converged (or a step ceiling is hit), replacing the fixed ladder of progressively longer
+NPT runs. Fully offline, reuses pestifer's existing MD / continuation substrate. Implemented, wired
+into the `new-system` template + interactive pipeline, and validated by a full 27-example build sweep
+(see Validation). P2.5 (solvent-/size-aware precision gate) and P3 (selectable observable) remain
+open; see the roadmap.
 
 ## Problem
 
@@ -312,6 +314,24 @@ back into the code above:
   *before* density_equilibrate, i.e. unrelated to this task. Sixteen diverse systems (small proteins,
   two ~250k-atom giants, three non-aqueous solvents, a GFP fusion) all converged cleanly, reproducing
   the 1/√N trend (bigger boxes converge earlier).
+- **Full 27-example CPU reference sweep (P2), definitive.** Every bundled example was then rebuilt
+  end-to-end on **CPU** (the reference, multi-patch decomposition) in a single sweep: **27/27 completed
+  with zero failures** — no patch-grid crash (the reactive net was never invoked), no NaN abort, no
+  pipeline error. The 23 `density_equilibrate` protein boxes span BPTI (~15 k atoms) to GroEL/GroES and
+  the SARS-CoV-2 spike (~1 M atoms); the two membranes (16, 17) completed on their NPgT path. Converged
+  step scales sensibly with box size, and the reactive net's design guarantee held (no run *depended* on
+  the predictive chunk sizing being right). **The one systematic finding is the organic-solvent tail:**
+  the three subtilisin non-aqueous boxes are the entire slow-converging set — DMSO converged comfortably
+  (@64470), **acetonitrile** only barely (@94540, 95 % of the ceiling), and **acetone** hit the ceiling
+  *precision-gate-bound* (SEM/mean floored ~1.1e-3 vs the 6.67e-4 gate) even though its mean density was
+  flat to the fourth digit (0.8563→0.8560→0.8557). Same root cause as the small-box BPTI-disulfide graze
+  (4, drift-bound with the gate met): a small box with a **high per-block noise floor** — worse for
+  organic solvents (bigger molecules, fewer of them, larger intrinsic density fluctuations), where the
+  *precision gate* rather than drift becomes the binding constraint. All four grazing cases terminated OK
+  with stable densities — none is a failure — but they show the water-tuned defaults (`drift_tol` 0.2 %,
+  `precision_p` 3) are slightly too strict for small non-aqueous boxes. Follow-up (roadmap): a
+  solvent-/size-aware precision gate (relax the gate as `N_solvent` shrinks, or scale it by an estimated
+  noise floor); defaults left unchanged for now.
 
 ## Parameters (task spec)
 

@@ -193,6 +193,18 @@ what appears here is refined and reprioritized as the project evolves.
           higher/slower densification (→1.06 g/cc) without a premature stop. A truly large box
           (GroEL/HIV-Env, 100k+ atoms) is the remaining nice-to-have confirmation (expected to converge
           *earlier*, `SEM/mean`∝1/√N) but needs more GPU memory than the local 4 GB card.
+          **Full 27-example CPU reference sweep: 27/27 pass, 0 failures** (large boxes up to ~1M atoms
+          confirm the 1/√N trend on CPU; reactive net never needed). See P2.5 below for the one finding.
+    - [ ] **P2.5 — solvent-/size-aware precision gate.** The full CPU sweep showed the water-tuned
+          convergence defaults (`drift_tol` 0.2%, `precision_p` 3) are slightly too strict for small
+          **non-aqueous** boxes: the three subtilisin organic-solvent examples are the entire
+          slow-converging tail — DMSO converged comfortably (@64470), acetonitrile only barely (@94540,
+          95% of the ceiling), and acetone hit the ceiling *precision-gate-bound* (SEM/mean floored
+          ~1.1e-3 vs the 6.67e-4 gate) despite a mean density flat to the 4th digit; same high-per-block-
+          noise-floor cause as the small-box BPTI-disulfide graze (example 4). All benign (terminated OK,
+          stable density), but the `precision_p` gate should adapt: relax it as `N_solvent` shrinks, or
+          scale by an estimated per-block noise floor (organic solvents = bigger molecules, fewer of
+          them, larger intrinsic fluctuations). Defaults unchanged pending this. Cheap, low-risk.
     - [ ] **P3 (optional) — generalize** to an `equilibrate` task with a selectable observable.
 - [~] **Optionally-interactive `new-system` for sequence modifications.** `new-system` generated a
       build config from a PDB/UniProt ID off a fixed template with no look at the structure. Now it
