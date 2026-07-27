@@ -195,16 +195,33 @@ what appears here is refined and reprioritized as the project evolves.
           *earlier*, `SEM/mean`∝1/√N) but needs more GPU memory than the local 4 GB card.
           **Full 27-example CPU reference sweep: 27/27 pass, 0 failures** (large boxes up to ~1M atoms
           confirm the 1/√N trend on CPU; reactive net never needed). See P2.5 below for the one finding.
-    - [ ] **P2.5 — solvent-/size-aware precision gate.** The full CPU sweep showed the water-tuned
-          convergence defaults (`drift_tol` 0.2%, `precision_p` 3) are slightly too strict for small
-          **non-aqueous** boxes: the three subtilisin organic-solvent examples are the entire
-          slow-converging tail — DMSO converged comfortably (@64470), acetonitrile only barely (@94540,
-          95% of the ceiling), and acetone hit the ceiling *precision-gate-bound* (SEM/mean floored
-          ~1.1e-3 vs the 6.67e-4 gate) despite a mean density flat to the 4th digit; same high-per-block-
-          noise-floor cause as the small-box BPTI-disulfide graze (example 4). All benign (terminated OK,
-          stable density), but the `precision_p` gate should adapt: relax it as `N_solvent` shrinks, or
-          scale by an estimated per-block noise floor (organic solvents = bigger molecules, fewer of
-          them, larger intrinsic fluctuations). Defaults unchanged pending this. Cheap, low-risk.
+    - [ ] **P2.5 — size-aware precision gate (small boxes over-run).** The water-tuned convergence
+          defaults (`drift_tol` 0.2%, `precision_p` 3 → precision gate `SEM/mean < 6.67e-4`) are too
+          strict for **small boxes generally**, not just non-aqueous ones — the over-conservatism is a
+          size effect. Replaying the recorded per-chunk `(drift, SEM/mean)` series from the full sweep
+          (10 examples, 14k–550k atoms; prototype in `scratchpad/gate_proto/`) shows the stop step
+          overshoots the physical density plateau by **~5–9× for the smallest aqueous boxes** (BPTI
+          example 1: flat by step ~6.5k, ran to 57750) but only **~1.2–1.8× for the ≥250k-atom giants**.
+          Root cause, measured: the plateau noise floor of `SEM/mean` scales as ~`N^-0.26` (≈6.5e-4 at
+          14k atoms → ≈2.5e-4 at 500k), so the fixed 6.67e-4 gate sits *right on* the small-box floor
+          (flickers, repeatedly resetting the `n_consecutive` counter) while big boxes clear it 2–3×. The
+          drift metric grazes its tol the same way (plateau drift floor ≈ `√n_blocks·SEM/mean`).
+          **Prototype result — recommended fix:** a size-aware precision gate
+          `SEM/mean < (drift_tol/precision_p)·max(1, (N_ref/N)^0.5)` with `N_ref≈150–250k`. It is
+          backward-compatible (boxes ≥`N_ref` unchanged), **safe** (no example stops before its physical
+          settle; no new ceilings), and cuts BPTI-class boxes ~40% (BPTI 57750→32750) — worthwhile since
+          BPTI-class is the most-run case. Two things that *don't* help and were ruled out: a
+          noise-aware drift band (`drift < max(tol, C·SEM)`) — the real drift excursions on a plateaued
+          small box exceed the `√n_blocks·SEM` prediction, so it changes nothing; and dropping
+          `n_consecutive` 3→2 — it produces an *unsafe* pre-settle stop (myoglobin). **Organic solvents
+          are a separate, harder case:** acetone/acetonitrile have a genuinely high noise floor
+          (~1e-3, fewer molecules) and slow real equilibration, so they need a looser *physical*
+          `drift_tol`, not just a looser gate — best handled by a per-solvent override, not a global
+          change. **Limitation before finalizing defaults:** the `.dat` replay only faithfully tests
+          *threshold* changes; the other lever — the averaging window (`window_frac`, `n_blocks`,
+          `burn_in`) — needs a raw-per-sample `.xst` replay, not yet done. Defaults unchanged pending
+          that. Cheap, low-risk (the gate change is a one-line size factor in
+          `util/density_convergence.py`).
     - [ ] **P3 (optional) — generalize** to an `equilibrate` task with a selectable observable.
 - [~] **Optionally-interactive `new-system` for sequence modifications.** `new-system` generated a
       build config from a PDB/UniProt ID off a fixed template with no look at the structure. Now it
