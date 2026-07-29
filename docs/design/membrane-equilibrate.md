@@ -100,8 +100,13 @@ answered the same way we answered it for density, not a guess:
 
 ## Phasing (each shippable)
 
-- **M1 — engine.** `xst_cell_areas` + `JointConvergence` + base-class refactor of `density_equilibrate`
-  (no behavior change to the shipped task). NAMD-free, unit-tested.
+- **M1 — engine primitives (done).** `xst_cell_areas` (lateral area `|a×b|` from the `.xst`) and
+  `JointConvergence` (converge only when all named observables are jointly stationary for
+  `n_consecutive` checks; each sub-monitor keeps its own tolerances/τ) landed in
+  `util/density_convergence.py`, NAMD-free and unit-tested. The **base-class refactor of
+  `density_equilibrate` is deferred to M2**, where `MembraneEquilibrateTask` provides a concrete second
+  consumer to design the shared base against — cleaner and lower-risk than a speculative refactor of the
+  freshly-released task.
 - **M2 — `membrane_equilibrate` task.** NPgT, density+area, two-panel report/plot + APL. Measure
   area's autocorrelation (fine-sampling experiment) and calibrate area tolerances. Validate on one
   embedded membrane.

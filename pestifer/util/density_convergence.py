@@ -75,6 +75,23 @@ def xst_cell_volumes(path):
     return np.array(ts, dtype=float), np.array(vol, dtype=float)
 
 
+def xst_cell_areas(path):
+    """Return ``(timesteps, lateral_areas)`` from a NAMD ``.xst`` file.
+
+    The membrane normal is taken along **z**, so the lateral area is ``|a x b|`` of the two in-plane
+    cell vectors (``= a_x * b_y`` for an orthorhombic cell).  This is the physically meaningful membrane
+    observable (area-per-lipid = area / lipids-per-leaflet).  Returns two 1-D numpy arrays; empty arrays
+    if the file has no data lines yet.  Companion to :func:`xst_cell_volumes` for the membrane-aware
+    (density + area) equilibration."""
+    ts, area = [], []
+    for v in _xst_data_rows(path):
+        a = np.array(v[1:4])
+        b = np.array(v[4:7])
+        ts.append(v[0])
+        area.append(float(np.linalg.norm(np.cross(a, b))))
+    return np.array(ts, dtype=float), np.array(area, dtype=float)
+
+
 def total_mass_amu(psf_path):
     """Sum the per-atom masses (amu) from the ``!NATOM`` block of an XPLOR/CHARMM PSF."""
     with open(psf_path) as f:
@@ -439,3 +456,68 @@ class DensityConvergenceMonitor:
                                  precision_met=precision_met, mean_density=mean,
                                  n_window=int(tw.size), tau_int=tau_int, n_eff=n_eff,
                                  last_step=last_step, reason=reason)
+
+
+@dataclass
+class JointConvergenceReport:
+    """Verdict from one :meth:`JointConvergence.check` -- the per-observable reports plus the joint
+    decision (both observables must be stationary together for ``n_consecutive`` checks)."""
+    converged: bool = False
+    passes: int = 0
+    blowup: bool = False
+    reports: dict = field(default_factory=dict)  #: name -> ConvergenceReport
+    last_step: float | None = None
+    reason: str = ''
+
+
+class JointConvergence:
+    """Track several named observables (e.g. ``density`` and ``area``) and converge only when **all**
+    of them are stationary *simultaneously* for ``n_consecutive`` successive checks.
+
+    Each observable gets its own :class:`DensityConvergenceMonitor` (so it may have its own tolerances,
+    tau, and window), configured with ``n_consecutive = 1`` so that a monitor's ``check().converged``
+    reports whether *this* check passed; this class owns the joint hysteresis counter.  A non-finite
+    value in any observable is a blow-up.  Usage mirrors the single monitor::
+
+        jc = JointConvergence({'density': mon_d, 'area': mon_a}, n_consecutive=3)
+        for chunk:
+            jc.add_samples('density', t, dens); jc.add_samples('area', t, area)
+            rep = jc.check()
+            if rep.blowup: abort
+            if rep.converged: break
+    """
+
+    def __init__(self, monitors: dict, n_consecutive: int = 3):
+        if not monitors:
+            raise ValueError('JointConvergence needs at least one observable monitor')
+        self.monitors = monitors
+        for m in self.monitors.values():
+            m.params.n_consecutive = 1   # this class owns the joint hysteresis
+        self.n_consecutive = int(n_consecutive)
+        self._passes = 0
+
+    def add_samples(self, name, times, values):
+        """Append one chunk's samples for observable ``name``."""
+        self.monitors[name].add_samples(times, values)
+
+    def check(self) -> JointConvergenceReport:
+        """Assess all observables; advance/reset the joint hysteresis counter."""
+        reports = {name: m.check() for name, m in self.monitors.items()}
+        last_step = next((r.last_step for r in reports.values() if r.last_step is not None), None)
+        if any(r.blowup for r in reports.values()):
+            self._passes = 0
+            blown = [n for n, r in reports.items() if r.blowup]
+            return JointConvergenceReport(blowup=True, reports=reports, last_step=last_step,
+                                          reason=f'non-finite {"/".join(blown)} (blowup)')
+        joint_pass = all(r.converged for r in reports.values())   # each monitor n_consecutive == 1
+        self._passes = self._passes + 1 if joint_pass else 0
+        converged = self._passes >= self.n_consecutive
+        if converged:
+            reason = f'all observables converged for {self._passes} consecutive checks'
+        elif joint_pass:
+            reason = f'all passing ({self._passes}/{self.n_consecutive})'
+        else:
+            waiting = [n for n, r in reports.items() if not r.converged]
+            reason = f'waiting on {", ".join(waiting)}'
+        return JointConvergenceReport(converged=converged, passes=self._passes, reports=reports,
+                                      last_step=last_step, reason=reason)

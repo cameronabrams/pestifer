@@ -8,6 +8,7 @@ import numpy as np
 from pestifer.util.density_convergence import (
     ConvergenceParams,
     DensityConvergenceMonitor,
+    JointConvergence,
     is_patch_grid_crash,
     next_chunk_steps,
     integrated_autocorr_time,
@@ -16,6 +17,7 @@ from pestifer.util.density_convergence import (
     total_atoms,
     total_mass_amu,
     volume_to_density,
+    xst_cell_areas,
     xst_cell_volumes,
     xst_max_shrink_rate,
 )
@@ -39,6 +41,14 @@ class TestXstParsing(unittest.TestCase):
             np.testing.assert_allclose(ts, [0, 100])
             np.testing.assert_allclose(vol, [10 * 20 * 30, 9 * 18 * 27])
 
+    def test_lateral_area_cross_product(self):
+        with tempfile.TemporaryDirectory() as d:
+            p = os.path.join(d, 't.xst')
+            _write_xst(p, [(0, 10.0, 20.0, 30.0), (100, 9.0, 18.0, 27.0)])
+            ts, area = xst_cell_areas(p)
+            np.testing.assert_allclose(ts, [0, 100])
+            np.testing.assert_allclose(area, [10 * 20, 9 * 18])  # |a x b| = a_x*b_y (orthorhombic)
+
     def test_empty_xst(self):
         with tempfile.TemporaryDirectory() as d:
             p = os.path.join(d, 't.xst')
@@ -46,6 +56,7 @@ class TestXstParsing(unittest.TestCase):
             ts, vol = xst_cell_volumes(p)
             self.assertEqual(ts.size, 0)
             self.assertEqual(vol.size, 0)
+            self.assertEqual(xst_cell_areas(p)[1].size, 0)
 
     def test_density_conversion(self):
         # 1 amu in 1 A^3 -> 1.6605 g/cc
@@ -370,6 +381,70 @@ class TestTotalMass(unittest.TestCase):
                 f.write(psf)
             self.assertAlmostEqual(total_mass_amu(p), 15.9994 + 1.008, places=4)
             self.assertEqual(total_atoms(p), 2)
+
+
+class TestJointConvergence(unittest.TestCase):
+    def _mon(self, **kw):
+        base = dict(drift_tol=1e-3, precision_p=3.0, burn_in=100, min_steps=200)
+        base.update(kw)
+        m = DensityConvergenceMonitor(ConvergenceParams(**base))
+        m.params.window_frac = 1.0
+        return m
+
+    def _flat(self, mon, seed):
+        rng = np.random.default_rng(seed)
+        for lo in range(80):
+            t = np.arange(lo * 2000 + 100, lo * 2000 + 2100, 100)
+            mon.add_samples(t, 1.0 + 1e-5 * rng.standard_normal(t.size))
+
+    def test_both_must_converge_jointly(self):
+        # density flat (would converge alone) but area still ramping -> joint does NOT converge.
+        d = self._mon(); a = self._mon()
+        jc = JointConvergence({'density': d, 'area': a}, n_consecutive=2)
+        rng = np.random.default_rng(0)
+        conv = False
+        for lo in range(60):
+            t = np.arange(lo * 2000 + 100, lo * 2000 + 2100, 100)
+            jc.add_samples('density', t, 1.0 + 1e-5 * rng.standard_normal(t.size))       # flat
+            jc.add_samples('area', t, 100.0 + 5e-3 * t)                                   # steady ramp
+            if jc.check().converged:
+                conv = True; break
+        self.assertFalse(conv)
+        # the joint report names the lagging observable
+        self.assertIn('area', jc.check().reason)
+
+    def test_converges_when_all_flat(self):
+        d = self._mon(); a = self._mon()
+        jc = JointConvergence({'density': d, 'area': a}, n_consecutive=2)
+        rd = np.random.default_rng(1); ra = np.random.default_rng(2)
+        conv_step = None
+        for lo in range(80):
+            t = np.arange(lo * 2000 + 100, lo * 2000 + 2100, 100)
+            jc.add_samples('density', t, 1.0 + 1e-5 * rd.standard_normal(t.size))
+            jc.add_samples('area', t, 100.0 + 1e-3 * ra.standard_normal(t.size))
+            r = jc.check()
+            if r.converged:
+                conv_step = r.last_step; break
+        self.assertIsNotNone(conv_step)
+        self.assertGreaterEqual(jc._passes, 2)
+
+    def test_blowup_in_one_observable(self):
+        d = self._mon(); a = self._mon()
+        jc = JointConvergence({'density': d, 'area': a}, n_consecutive=2)
+        t = np.arange(100, 3000, 100)
+        jc.add_samples('density', t, np.full(t.size, 1.0))
+        av = np.full(t.size, 100.0); av[-1] = np.inf
+        jc.add_samples('area', t, av)
+        r = jc.check()
+        self.assertTrue(r.blowup)
+        self.assertFalse(r.converged)
+        self.assertIn('area', r.reason)
+
+    def test_sub_monitors_forced_single_check_hysteresis(self):
+        # JointConvergence owns the hysteresis: it sets each monitor's n_consecutive to 1.
+        d = self._mon(n_consecutive=3)
+        JointConvergence({'density': d}, n_consecutive=4)
+        self.assertEqual(d.params.n_consecutive, 1)
 
 
 if __name__ == '__main__':
