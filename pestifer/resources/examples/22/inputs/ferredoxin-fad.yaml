@@ -30,6 +30,11 @@ tasks:
 # stability-bounded short restarts and stops when the box density has converged.
 # Writes its own convergence report + density-vs-time plot.
 - density_equilibrate:
+- mdplot:
+    basename: solvated
+    grid: true
+    timeseries:
+    - density
 - terminate:
     basename: my_2bgj
     package:

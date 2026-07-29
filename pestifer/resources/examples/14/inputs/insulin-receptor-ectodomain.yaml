@@ -51,6 +51,11 @@ tasks:
   # stability-bounded short restarts and stops when the box density has converged.
   # Writes its own convergence report + density-vs-time plot.
   - density_equilibrate:
+  - mdplot:
+      timeseries:
+        - density
+      basename: solvated
+      grid: True
   - terminate:
       basename: my_4zxb
       package:
