@@ -14,6 +14,7 @@ from .fetch import FetchTask
 from .ligate import LigateTask
 from .make_membrane_system import MakeMembraneSystemTask
 from .manipulate import ManipulateTask
+from .membrane_equilibrate import MembraneEquilibrateTask
 from .merge import MergeTask
 from .mdtask import MDTask
 from .mdplot import MDPlotTask
@@ -35,6 +36,7 @@ task_classes: dict[str, type] = {
     'ligate': LigateTask,
     'make_membrane_system': MakeMembraneSystemTask,
     'md': MDTask,
+    'membrane_equilibrate': MembraneEquilibrateTask,
     'merge': MergeTask,
     'manipulate': ManipulateTask,
     'mdplot': MDPlotTask,

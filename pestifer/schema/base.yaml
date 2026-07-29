@@ -1736,6 +1736,143 @@ attributes:
               - name: consfile
                 text: Name of constraints PDB file (defaults to basename-constraints.pdb)
                 type: string
+      - name: membrane_equilibrate
+        text: >-
+          Self-terminating NPgT membrane equilibration -- the anisotropic sibling of
+          density_equilibrate. Runs NPgT (useFlexibleCell + useConstantRatio, tensionless by default) in
+          the same stability-bounded chunks and stops when BOTH the box density AND the membrane lateral
+          area (A = a_x*b_y) have converged (density + area fully pin the anisotropic cell since
+          V = A*c_z). Convergence uses the same autocorrelation-corrected criterion per observable; area
+          reuses the density tolerances unless area_* overrides are given. See
+          docs/design/membrane-equilibrate.md.
+        type: dict
+        attributes:
+          - name: temperature
+            text: Temperature (K)
+            type: float
+            default: 300
+          - name: pressure
+            text: Pressure (bar); NPT requires a solvated (periodic) system
+            type: float
+            default: 1
+          - name: dcdfreq
+            text: number of time steps between configuration output to DCD file
+            type: int
+            default: 100
+          - name: xstfreq
+            text: number of time steps between cell-size (extended-system) output; sets the density-sampling resolution
+            type: int
+            default: 100
+          - name: chunk_min
+            text: nominal first-chunk length (steps) for the fast-shrinking start; crash recovery may temporarily go below this
+            type: int
+            default: 500
+          - name: chunk_max
+            text: longest NPT chunk (steps); used once the box has settled
+            type: int
+            default: 5000
+          - name: shrink_safety
+            text: size each chunk so the projected per-dimension cell shrink stays below this fraction of margin
+            type: float
+            default: 0.5
+          - name: margin
+            text: NAMD patch margin (angstrom) -- the per-run cell-shrink slack used to bound chunk length
+            type: float
+            default: 4
+          - name: chunk_growth
+            text: max factor by which a chunk may grow over the previous one (AIMD-style gentle re-growth after a crash-triggered halving)
+            type: float
+            default: 1.5
+          - name: max_shrink_retries
+            text: consecutive patch-grid crash retries allowed at one boundary before giving up (each halves the chunk); the reactive stability net
+            type: int
+            default: 5
+          - name: max_steps
+            text: hard ceiling on total NPT steps; the task stops (with a warning) even if not converged
+            type: int
+            default: 100000
+          - name: min_steps
+            text: never declare convergence before this many total steps
+            type: int
+            default: 4000
+          - name: burn_in
+            text: leading steps discarded (barostat transient) before assessing the density trend, measured relative to this task's first sample (not an absolute timestep)
+            type: int
+            default: 2000
+          - name: window_frac
+            text: assess only the trailing this-fraction of post-burn-in samples, so the early densification ramp ages out of the window as the run lengthens (a full-history window never converges on a box that has plateaued)
+            type: float
+            default: 0.5
+          - name: drift_tol
+            text: converged when the fractional DENSITY drift over the window falls below this (adequacy choice, ~0.2%; validated to converge robustly on a small/noisy box -- 0.1% is unreachable there in reasonable time)
+            type: float
+            default: 0.002
+          - name: precision_p
+            text: precision gate -- require the (autocorrelation-corrected) SEM/mean of the windowed density below drift_tol/precision_p before testing drift
+            type: float
+            default: 3
+          - name: autocorr_reliability
+            text: require the trailing window to span at least this many integrated autocorrelation times before its SEM is trusted (the density is autocorrelated over hundreds of steps, so a short window cannot resolve the mean no matter how flat it looks); the honest SEM = sigma/sqrt(N_eff), N_eff = N_window/tau_int, is size-aware for free since sigma/mean ~ 1/sqrt(N_atoms)
+            type: float
+            default: 6
+          - name: drift_conf
+            text: sigmas added to the drift point estimate to form its upper confidence bound; convergence requires that bound to fall below drift_tol. Default 0 uses the point estimate -- the autocorrelation-corrected precision gate already prevents premature/spurious passes (a small point-drift cannot converge until the mean is resolved), so the bound is redundant and, because the trend is intrinsically ~sqrt(12) harder to bound than the mean, raising it sharply lengthens (or ceilings) small-box runs. Raise to ~1-2 only for an explicit statistical trend certificate. The slope SE is autocorrelation-inflated by sqrt(tau_int)
+            type: float
+            default: 0.0
+          - name: n_consecutive
+            text: successive passing checks required before stopping (hysteresis against the noisy drift metric)
+            type: int
+            default: 3
+          - name: lipids_per_leaflet
+            text: lipids per leaflet, used only to report area-per-lipid (APL = area / lipids_per_leaflet) in the report/plot; 0 = unknown (report raw area only)
+            type: int
+            default: 0
+          - name: area_drift_tol
+            text: optional per-observable override of drift_tol for the lateral AREA (defaults to the density drift_tol); area is a soft mode that may want its own tolerance once its autocorrelation is measured
+            type: float
+          - name: area_precision_p
+            text: optional per-observable override of precision_p for the lateral area (defaults to the density value)
+            type: float
+          - name: area_drift_conf
+            text: optional per-observable override of drift_conf for the lateral area (defaults to the density value)
+            type: float
+          - name: area_burn_in
+            text: optional per-observable override of burn_in for the lateral area (defaults to the density value)
+            type: int
+          - name: area_window_frac
+            text: optional per-observable override of window_frac for the lateral area (defaults to the density value)
+            type: float
+          - name: area_autocorr_reliability
+            text: optional per-observable override of autocorr_reliability for the lateral area (defaults to the density value)
+            type: float
+          - name: addl_paramfiles
+            type: list
+            text: list of additional parameter files to be included in the NAMD run
+            default: []
+          - name: other_parameters
+            text: key:value pairs for other namd configuration file statements
+            type: dict
+          - name: single-core
+            text: whether or not to run namd on a single core
+            type: bool
+            default: False
+          - name: cpu-override
+            text: revert to cpu version of namd3
+            type: bool
+            default: False
+          - name: constraints
+            text: Parameters controlling position constraints
+            type: dict
+            attributes:
+              - name: atoms
+                text: Atoms to be position-constrained expressed as a VMD atomselection
+                type: string
+              - name: k
+                text: Restraint spring constant in kcal/mol/A^2
+                type: float
+              - name: consfile
+                text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                type: string
       - name: manipulate
         text: Direct manipulation of atom positions
         type: dict
