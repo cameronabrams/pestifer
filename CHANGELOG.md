@@ -4,13 +4,25 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
-- feat (internal): **membrane-equilibration engine primitives (M1).** Toward the planned
-  `membrane_equilibrate` task, `util/density_convergence.py` gains `xst_cell_areas` (lateral membrane
-  area `|a×b|` from the `.xst`, mirroring `xst_cell_volumes`) and `JointConvergence` (track several
-  named observables — e.g. density + area — and converge only when **all** are jointly stationary for
-  `n_consecutive` checks; each observable keeps its own tolerances, τ, and window). NAMD-free and
-  unit-tested (32 tests). Not yet wired to any task; the base-class refactor + `MembraneEquilibrateTask`
-  are M2. See `docs/design/membrane-equilibrate.md`.
+- feat: **new `membrane_equilibrate` task — self-terminating NPgT membrane equilibration on density +
+  lateral area (M1 + M2).** The anisotropic sibling of `density_equilibrate`: it runs NPgT
+  (`useFlexibleCell` + `useConstantRatio`, tensionless by default) in the same stability-bounded chunks
+  and stops when **both** the box density **and** the membrane lateral area (`A = a_x·b_y`) have
+  converged — density + area fully pin the anisotropic cell since `V = A·c_z`. Built on new NAMD-free
+  primitives in `util/density_convergence.py`: `xst_cell_areas` (lateral area `|a×b|` from the `.xst`)
+  and `JointConvergence` (track several named observables, each with its own autocorrelation-corrected
+  monitor/tolerances/τ, and converge only when all are jointly stationary for `n_consecutive` checks).
+  The chunk loop, patch-grid crash-and-retry, and shrink-rate sizing were extracted from
+  `density_equilibrate` into a shared base `ChunkedEquilibrateTask` (`equilibrate_base.py`), of which
+  both tasks are now thin subclasses — `density_equilibrate`'s behavior is unchanged (verified by an
+  end-to-end bpti1 build). Area tolerances default to the density tolerances — a fine-sampling
+  (`xstfreq=1`) NPgT probe on a real DMPC membrane measured area's integrated autocorrelation time at
+  ≈921 steps vs. the membrane density's ≈822 (same order of magnitude), so area is simply the *binding*
+  observable rather than a different regime; optional `area_*` specs override per-observable — and
+  `lipids_per_leaflet` enables area-per-lipid (APL) in the report/plot. Writes a
+  two-observable `.dat` report and a two-panel density+area (+APL) plot. Registered and schema-validated;
+  36 unit tests. Not yet wired into the bundled membrane examples (M3) or `make_membrane_system`'s
+  pre-embed relaxation (M4). See `docs/design/membrane-equilibrate.md`.
 
 ## [3.14.0] - 2026-07-29
 

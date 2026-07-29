@@ -74,11 +74,14 @@ answered the same way we answered it for density, not a guess:
 
 - Make `drift_tol`, `precision_p`, `drift_conf`, `autocorr_reliability`, and `burn_in`
   **per-observable** (area may override density's); default area's to density's values.
-- During M2, run the **fine-sampling (`xstfreq=1`) autocorrelation experiment** — the one that
-  measured BPTI density's τ≈559 steps — on a bare-bilayer **area** series. Measure area's integrated
-  autocorrelation time and per-frame σ/mean directly, then set area's `drift_tol`/`precision_p` from
-  what is *achievable* (exactly the calibration logic behind the density defaults). See
-  [`density-equilibrate.md`](density-equilibrate.md) "Validation".
+- **Measured (M2).** A fine-sampling (`xstfreq=1`) NPgT probe on the equilibrated 109k-atom DMPC
+  membrane (example 16's final state) gives, on the plateau: **area** σ/mean ≈ 1.9e-3, **τ_int ≈ 921
+  steps**; membrane **density** σ/mean ≈ 1.4e-3, τ_int ≈ 822 steps (cf. BPTI water density τ ≈ 559).
+  So area *is* the slower, noisier mode — but only ~1.1–1.6× density's, the same order of magnitude.
+  **Conclusion:** the density-defaulted tolerances are appropriate; area is simply the *binding*
+  observable (it converges last), which is physically correct — the lateral area is the membrane's slow
+  mode. No distinct area default is warranted; the `area_*` overrides remain available for a membrane
+  that wants a deliberately looser area settling.
 
 ## Reporting / plotting
 
@@ -107,9 +110,14 @@ answered the same way we answered it for density, not a guess:
   `density_equilibrate` is deferred to M2**, where `MembraneEquilibrateTask` provides a concrete second
   consumer to design the shared base against — cleaner and lower-risk than a speculative refactor of the
   freshly-released task.
-- **M2 — `membrane_equilibrate` task.** NPgT, density+area, two-panel report/plot + APL. Measure
-  area's autocorrelation (fine-sampling experiment) and calibrate area tolerances. Validate on one
-  embedded membrane.
+- **M2 — `membrane_equilibrate` task (done).** NPgT, density+area via `JointConvergence`, two-panel
+  report/plot + APL (`lipids_per_leaflet`). The shared chunk loop was extracted into
+  `ChunkedEquilibrateTask` (`equilibrate_base.py`); `density_equilibrate` and `membrane_equilibrate`
+  are thin subclasses (density behavior verified unchanged by an end-to-end bpti1 build). Area
+  tolerances default to the density values, with optional `area_*` per-observable overrides. Registered
+  + schema-validated; 36 unit tests. **Area-autocorrelation calibration** (a fine-sampling `xstfreq=1`
+  NPgT probe on a real DMPC membrane) measures whether area needs its own tolerances; end-to-end
+  validation of the task in a full membrane build comes with M3.
 - **M3 — migrate examples 16/17 post-embed ladders** to `membrane_equilibrate`.
 - **M4 — wire the engine into `make_membrane_system` pre-embed** (quilt + calibration patch); retire
   the fixed NPgT tail of `_autostage_protocol` and `_area_convergence`.
