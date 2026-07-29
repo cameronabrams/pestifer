@@ -1681,7 +1681,7 @@ attributes:
             type: int
             default: 4000
           - name: burn_in
-            text: leading steps discarded (barostat transient) before assessing the density trend
+            text: leading steps discarded (barostat transient) before assessing the density trend, measured relative to this task's first sample (not an absolute timestep)
             type: int
             default: 2000
           - name: window_frac
@@ -1693,13 +1693,17 @@ attributes:
             type: float
             default: 0.002
           - name: precision_p
-            text: precision gate -- require SEM/mean of the windowed density below drift_tol/precision_p before testing drift
+            text: precision gate -- require the (autocorrelation-corrected) SEM/mean of the windowed density below drift_tol/precision_p before testing drift
             type: float
             default: 3
-          - name: n_blocks
-            text: number of contiguous blocks the trailing window is averaged into for the SEM/slope estimate
-            type: int
+          - name: autocorr_reliability
+            text: require the trailing window to span at least this many integrated autocorrelation times before its SEM is trusted (the density is autocorrelated over hundreds of steps, so a short window cannot resolve the mean no matter how flat it looks); the honest SEM = sigma/sqrt(N_eff), N_eff = N_window/tau_int, is size-aware for free since sigma/mean ~ 1/sqrt(N_atoms)
+            type: float
             default: 6
+          - name: drift_conf
+            text: sigmas added to the drift point estimate to form its upper confidence bound; convergence requires that bound to fall below drift_tol. Default 0 uses the point estimate -- the autocorrelation-corrected precision gate already prevents premature/spurious passes (a small point-drift cannot converge until the mean is resolved), so the bound is redundant and, because the trend is intrinsically ~sqrt(12) harder to bound than the mean, raising it sharply lengthens (or ceilings) small-box runs. Raise to ~1-2 only for an explicit statistical trend certificate. The slope SE is autocorrelation-inflated by sqrt(tau_int)
+            type: float
+            default: 0.0
           - name: n_consecutive
             text: successive passing checks required before stopping (hysteresis against the noisy drift metric)
             type: int

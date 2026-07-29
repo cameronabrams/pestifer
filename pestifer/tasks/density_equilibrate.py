@@ -27,6 +27,7 @@ from ..util.density_convergence import (
     next_chunk_steps,
     parse_patch_grid,
     quantize_steps,
+    total_atoms,
     total_mass_amu,
     volume_to_density,
     xst_cell_volumes,
@@ -76,16 +77,20 @@ class DensityEquilibrateTask(MDTask):
         if not state or not state.psf:
             raise PestiferBuildError(f'{self.taskname}: no state PSF to compute density from')
         mass_amu = total_mass_amu(state.psf.path)
+        n_atoms = total_atoms(state.psf.path)
 
         monitor = DensityConvergenceMonitor(ConvergenceParams(
             drift_tol=float(specs['drift_tol']),
             precision_p=float(specs['precision_p']),
-            n_blocks=int(specs['n_blocks']),
+            drift_conf=float(specs['drift_conf']),
             burn_in=int(specs['burn_in']),
             window_frac=float(specs['window_frac']),
             min_steps=min_steps,
             n_consecutive=int(specs['n_consecutive']),
+            autocorr_reliability=float(specs['autocorr_reliability']),
         ))
+        logger.info(f'{self.taskname}: {n_atoms} atoms; precision gate SEM/mean < '
+                    f'{monitor.precision_gate():.2e} (autocorrelation-corrected)')
 
         rows = []             # per-chunk diagnostics for the convergence report
         all_t, all_d = [], []  # full density-vs-time series for the plot
@@ -196,7 +201,7 @@ class DensityEquilibrateTask(MDTask):
             logger.warning(f'{self.taskname}: {stop_reason}')
 
         self._write_report(rows, mass_amu, stop_reason=stop_reason)
-        self._write_plot(all_t, all_d, rows)
+        self._write_plot(all_t, all_d, rows, stop_reason=stop_reason)
         return 0
 
     def _log_patch_grid(self, log_path):
@@ -224,16 +229,23 @@ class DensityEquilibrateTask(MDTask):
             f.write(f'# density_equilibrate convergence report -- {self.taskname}\n')
             f.write(f'# total system mass: {mass_amu:.1f} amu\n')
             f.write(f'# stop: {stop_reason}\n')
-            f.write('# chunk  step  nsteps  rho[g/cc]  drift  SEM/mean  precision  passes  reason\n')
+            f.write('# chunk  step  nsteps  rho[g/cc]  drift  drift_hi  SEM/mean  tau[fr]  N_eff  '
+                    'precision  passes  reason\n')
             for n, step, nsteps, r in rows:
                 f.write(f'{n:6d}  {step:8d}  {nsteps:6d}  {_fmt(r.mean_density):>9}  '
-                        f'{_fmt(r.drift):>9}  {_fmt(r.sem_over_mean):>9}  '
+                        f'{_fmt(r.drift):>9}  {_fmt(r.drift_hi):>9}  {_fmt(r.sem_over_mean):>9}  '
+                        f'{_fmt(r.tau_int):>7}  {_fmt(r.n_eff):>6}  '
                         f'{"yes" if r.precision_met else "no":>9}  {r.passes:6d}  {r.reason}\n')
         self.register(f'{self.basename}-density', key='density_report', artifact_type=DataFileArtifact)
         logger.info(f'{self.taskname}: convergence report -> {fn}')
 
-    def _write_plot(self, times, densities, rows):
-        """Write a density-vs-time PNG (``<basename>-density.png``) and register it."""
+    def _write_plot(self, times, densities, rows, stop_reason=''):
+        """Write a density-vs-time PNG (``<basename>-density.png``) and register it.
+
+        Shows the whole NPT densification from the task's first sample (not padded back to timestep 0,
+        where no data exists -- the minimize/NVT warm-up are separate tasks), shades the burn-in
+        transient that is discarded and the trailing window that is actually assessed, overlays the
+        per-chunk window-mean density, and marks the convergence step when reached."""
         if not times:
             return
         try:
@@ -243,20 +255,46 @@ class DensityEquilibrateTask(MDTask):
         except Exception as e:  # pragma: no cover - plotting is best-effort
             logger.warning(f'{self.taskname}: could not import matplotlib for density plot ({e})')
             return
-        fig, ax = plt.subplots(figsize=(7, 4))
-        ax.plot(times, densities, lw=0.8, color='#3366aa')
-        # burn-in marker and per-chunk running mean
+        import numpy as np
+        t = np.asarray(times, dtype=float)
+        d = np.asarray(densities, dtype=float)
+        t0, t1 = float(t.min()), float(t.max())
+
+        fig, ax = plt.subplots(figsize=(8, 4.5))
+        ax.plot(t, d, lw=0.8, color='#3366aa', label='density (per frame)')
+
+        # Burn-in region: discarded transient at the *start of this task's NPT* (relative to the first
+        # sample), matching the monitor's `t > origin + burn_in`.
         burn = float(self.specs['burn_in'])
-        if burn > 0 and burn < max(times):
-            ax.axvline(burn, ls=':', color='0.6', label=f'burn-in ({burn:g})')
+        window_frac = float(self.specs['window_frac'])
+        if burn > 0 and t0 + burn < t1:
+            ax.axvspan(t0, t0 + burn, color='0.85', label=f'burn-in ({burn:g} steps, discarded)')
+
+        # Trailing window actually assessed at the final check: the last `window_frac` of the
+        # post-burn-in samples.  Shade it so the discarded-ramp vs. assessed-plateau split is visible.
+        post = t[t > t0 + burn]
+        if window_frac and 0.0 < window_frac < 1.0 and post.size:
+            win_start = float(post[int(post.size * (1.0 - window_frac))])
+            ax.axvspan(win_start, t1, color='#ddeecc', alpha=0.6,
+                       label=f'final window (trailing {window_frac:g})')
+
         means = [(step, r.mean_density) for (_n, step, _ns, r) in rows if r.mean_density is not None]
         if means:
             mx, my = zip(*means)
             ax.plot(mx, my, 'o-', color='#cc3333', ms=3, lw=1, label='window mean')
+            ax.axhline(my[-1], ls='--', color='#cc3333', lw=0.8, alpha=0.7,
+                       label=f'final rho = {my[-1]:.4f} g/cc')
+
+        # Convergence marker.
+        if stop_reason.startswith('CONVERGED'):
+            conv_step = rows[-1][1] if rows else t1
+            ax.axvline(conv_step, ls='-', color='#118811', lw=1.2, label=f'converged @ {conv_step:.0f}')
+
+        ax.set_xlim(t0, t1)
         ax.set_xlabel('timestep')
         ax.set_ylabel('density (g/cc)')
         ax.set_title(f'{self.taskname}: box density vs. time')
-        ax.legend(fontsize=8, loc='best')
+        ax.legend(fontsize=7, loc='lower right', framealpha=0.9)
         fig.tight_layout()
         fn = f'{self.basename}-density.png'
         fig.savefig(fn, dpi=120)

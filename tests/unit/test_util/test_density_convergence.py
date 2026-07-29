@@ -10,8 +10,10 @@ from pestifer.util.density_convergence import (
     DensityConvergenceMonitor,
     is_patch_grid_crash,
     next_chunk_steps,
+    integrated_autocorr_time,
     parse_patch_grid,
     quantize_steps,
+    total_atoms,
     total_mass_amu,
     volume_to_density,
     xst_cell_volumes,
@@ -97,7 +99,7 @@ class TestShrinkRateAndChunk(unittest.TestCase):
 
 class TestConvergenceMonitor(unittest.TestCase):
     def _params(self, **kw):
-        base = dict(drift_tol=1e-3, precision_p=3.0, n_blocks=6, burn_in=100,
+        base = dict(drift_tol=1e-3, precision_p=3.0, burn_in=100,
                     min_steps=200, n_consecutive=3)
         base.update(kw)
         return ConvergenceParams(**base)
@@ -185,17 +187,108 @@ class TestConvergenceMonitor(unittest.TestCase):
     def test_hysteresis_resets_on_failure(self):
         # a passing check followed by a fail must reset the consecutive counter
         p = self._params(min_steps=200, n_consecutive=2)
+        p.window_frac = 1.0
         mon = DensityConvergenceMonitor(p)
-        t1 = np.arange(100, 2100, 100)
+        t1 = np.arange(300, 300 + 100 * 60, 100)  # 60 flat samples -> a legitimate reliable pass
         mon.add_samples(t1, 1.0 + 1e-6 * np.sin(t1))
         r1 = mon.check()
         self.assertEqual(r1.passes, 1)
-        # inject a drifting chunk -> should fail and reset
-        t2 = np.arange(2100, 4100, 100)
+        # inject a strongly drifting chunk -> should fail on drift and reset
+        t2 = np.arange(t1[-1] + 100, t1[-1] + 100 + 100 * 30, 100)
         mon.add_samples(t2, 1.0 + 5e-3 * (t2 / 1000.0))
         r2 = mon.check()
         self.assertEqual(r2.passes, 0)
         self.assertFalse(r2.converged)
+
+    def test_burn_in_is_relative_to_first_sample(self):
+        # The burn-in must be measured from the first sample, not as an absolute timestep: a run that
+        # continues from a high `firsttimestep` (e.g. 8000, after NVT warm-up) must still discard its
+        # own leading transient.  Two identical ramp-then-plateau series that differ only by an absolute
+        # time offset must therefore give the same verdict at every step.
+        def verdicts(offset):
+            p = self._params(min_steps=200, n_consecutive=2, burn_in=1000)
+            p.window_frac = 0.5
+            mon = DensityConvergenceMonitor(p)
+            rel = np.arange(100, 20100, 100)
+            d = np.where(rel < 5000, 0.95 + (1.03 - 0.95) * (rel / 5000.0),
+                         1.03 + 1e-5 * np.sin(rel))
+            out = []
+            for lo in range(0, rel.size, 20):
+                sl = slice(lo, lo + 20)
+                if not len(rel[sl]):
+                    break
+                mon.add_samples(rel[sl] + offset, d[sl])
+                out.append(mon.check().converged)
+            return out
+        # absolute offset of 8000 must not change the convergence trajectory
+        self.assertEqual(verdicts(0), verdicts(8000))
+        self.assertTrue(any(verdicts(8000)))  # and it does converge
+
+    def test_autocorr_corrected_sem_exceeds_naive(self):
+        # For a correlated (but flat) series the honest SEM (sigma/sqrt(N_eff), N_eff=N/tau) must be
+        # LARGER than the naive sigma/sqrt(N), because tau>1 shrinks the effective sample count.
+        rng = np.random.default_rng(7)
+        # AR(1) with phi=0.8 -> tau_int = (1+phi)/(1-phi) = 9
+        n = 4000
+        x = np.zeros(n)
+        for i in range(1, n):
+            x[i] = 0.8 * x[i - 1] + rng.standard_normal()
+        tau = integrated_autocorr_time(x)
+        self.assertGreater(tau, 4.0)        # clearly correlated (true tau_int = 9)
+        sigma = x.std(ddof=1)
+        naive_sem = sigma / np.sqrt(n)
+        honest_sem = sigma / np.sqrt(n / tau)
+        self.assertGreater(honest_sem, 2 * naive_sem)   # ~3x for tau=9
+
+    def test_integrated_autocorr_time_white_vs_correlated(self):
+        rng = np.random.default_rng(11)
+        white = rng.standard_normal(5000)
+        self.assertLess(integrated_autocorr_time(white), 2.0)   # ~1 for independent samples
+        # smooth (integrated white noise, then differenced lightly) -> strongly correlated
+        phi = 0.9
+        x = np.zeros(5000)
+        for i in range(1, x.size):
+            x[i] = phi * x[i - 1] + rng.standard_normal()
+        self.assertGreater(integrated_autocorr_time(x), 8.0)    # true tau_int = 19
+        self.assertEqual(integrated_autocorr_time(np.full(50, 3.0)), 1.0)  # zero variance -> 1
+
+    def test_short_window_not_trusted_until_several_taus(self):
+        # A correlated series must NOT be declared converged while the window spans too few
+        # autocorrelation times, even if it happens to look flat -- tau is not estimable there.
+        p = self._params(min_steps=200, n_consecutive=1, autocorr_reliability=6.0)
+        p.window_frac = 1.0
+        mon = DensityConvergenceMonitor(p)
+        rng = np.random.default_rng(5)
+        # strongly correlated flat series
+        x = np.zeros(400)
+        for i in range(1, x.size):
+            x[i] = 0.85 * x[i - 1] + rng.standard_normal()
+        t = np.arange(100, 100 + 100 * x.size, 100)
+        d = 1.0 + 1e-4 * x
+        # feed the first few samples only: window too short vs tau -> must not converge / not reliable
+        mon.add_samples(t[:20], d[:20])
+        r = mon.check()
+        self.assertFalse(r.converged)
+        self.assertIn('autocorrelation', r.reason)
+        self.assertIsNotNone(r.tau_int)
+
+    def test_drift_uses_upper_confidence_bound(self):
+        # Convergence gates on the UPPER confidence bound of |drift|, not the point estimate.  On the
+        # same flat data, a modest drift_conf certifies while an absurd one refuses -- proving the bound
+        # (not the raw slope) is what's tested.  And drift_hi >= drift always.
+        t = np.arange(300, 300 + 100 * 40, 100)
+        rng = np.random.default_rng(9)
+        d = 1.0 + 5e-4 * rng.standard_normal(t.size)   # flat, small noise
+        p1 = self._params(min_steps=200, n_consecutive=1, drift_tol=3e-3, drift_conf=2.0)
+        p1.window_frac = 1.0
+        m1 = DensityConvergenceMonitor(p1); m1.add_samples(t, d); r1 = m1.check()
+        self.assertGreaterEqual(r1.drift_hi, r1.drift)
+        self.assertTrue(r1.converged)
+        p2 = self._params(min_steps=200, n_consecutive=1, drift_tol=3e-3, drift_conf=1000.0)
+        p2.window_frac = 1.0
+        m2 = DensityConvergenceMonitor(p2); m2.add_samples(t, d); r2 = m2.check()
+        self.assertFalse(r2.converged)
+        self.assertIn('confidently', r2.reason)
 
 
 class TestPatchGridCrash(unittest.TestCase):
@@ -276,6 +369,7 @@ class TestTotalMass(unittest.TestCase):
             with open(p, 'w') as f:
                 f.write(psf)
             self.assertAlmostEqual(total_mass_amu(p), 15.9994 + 1.008, places=4)
+            self.assertEqual(total_atoms(p), 2)
 
 
 if __name__ == '__main__':

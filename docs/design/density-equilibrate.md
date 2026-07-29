@@ -1,11 +1,59 @@
 # Design: `density_equilibrate` task
 
-Status: **shipped (P1 + P2), validated** — a single post-solvation task that runs NPT until the box
-density has converged (or a step ceiling is hit), replacing the fixed ladder of progressively longer
-NPT runs. Fully offline, reuses pestifer's existing MD / continuation substrate. Implemented, wired
-into the `new-system` template + interactive pipeline, and validated by a full 27-example build sweep
-(see Validation). P2.5 (solvent-/size-aware precision gate) and P3 (selectable observable) remain
-open; see the roadmap.
+Status: **shipped (P1 + P2), validated; criterion upgraded to autocorrelation-corrected statistics** —
+a single post-solvation task that runs NPT until the box density has converged (or a step ceiling is
+hit), replacing the fixed ladder of progressively longer NPT runs. Fully offline, reuses pestifer's
+existing MD / continuation substrate. Wired into the `new-system` template + interactive pipeline, and
+validated by two full 27-example build sweeps. **The convergence criterion below (block-means SEM +
+raw-drift threshold) was the initial design; it has since been replaced by an honest,
+autocorrelation-corrected criterion — see "Honest autocorrelation-corrected criterion" immediately
+below, which is authoritative.** P3 (membrane density+area, `membrane_equilibrate`) is planned; see the
+roadmap and `membrane-equilibrate.md`.
+
+## Honest autocorrelation-corrected criterion (authoritative)
+
+The initial criterion (documented in the following sections) computed the standard error of the mean
+from `n_blocks` block means treated as **independent**. A fine-sampling experiment showed they are not:
+restarting an equilibrated BPTI box under NPT with `xstfreq = 1` (cell written **every step**) and
+computing the density autocorrelation gives an **integrated autocorrelation time τ_int ≈ 559 steps**
+(1/e decay ~216 steps) — the cell density decorrelates over hundreds of steps because the Langevin
+piston (period 200 fs, decay 100 fs) is overdamped, not fast noise. Sampling at the production
+`xstfreq = 100` (≈ one piston period) faithfully traces that slow decay (the 100-step subsamples land
+on the every-step autocorrelation curve), so it is *not* aliasing — but it means consecutive `.xst`
+frames are **strongly correlated** and the block-means SEM under-reports the true uncertainty by ~1.5×.
+
+Consequences, and the resulting criterion (all per-observable, so it generalizes to membrane area):
+
+1. **Honest SEM.** `SEM = σ / √N_eff` with `N_eff = N_window / τ_int`, τ_int estimated per window by
+   the standard `1 + 2·Σ ρ_k` (truncated at the first non-positive lag). The precision gate is
+   `SEM/mean < drift_tol / precision_p`, unchanged in form but now honest. This is **size-aware for
+   free**: `σ/mean ∝ 1/√N_atoms` while τ_int is ~size-independent (a barostat property), so a large box
+   has a smaller honest SEM at equal duration and converges in far fewer chunks — no ad-hoc size factor
+   (a size-scaled gate was prototyped and dropped as redundant).
+2. **Reliability guard.** τ_int is *under*-estimated from a short series, so a too-short window can
+   look spuriously precise. Convergence is refused until the window spans `autocorr_reliability` (≈6)
+   correlation times **and** an absolute floor of samples.
+3. **Drift as an equivalence test.** Instead of thresholding the raw slope (which flickers ±√12·SEM on
+   a plateau — the noise the initial "trend/SEM significance" note below correctly identified), require
+   the **upper confidence bound** on |drift| to be below tolerance: `|drift| + drift_conf·SE(drift) <
+   drift_tol`, with `SE(drift)` autocorrelation-inflated by `√τ_int`. A noisy slope raises its own
+   uncertainty and fails to certify rather than tripping the counter. `drift_conf = 0` (point estimate)
+   is the shipped default — the honest precision gate already blocks premature passes, and because the
+   trend is intrinsically ~√12 harder to bound than the mean, `drift_conf ≥ 1` sharply lengthens (or
+   ceilings) small boxes; raise it only for an explicit statistical trend certificate.
+4. **Hysteresis** (`n_consecutive`) and the **trailing window** (`window_frac`) are retained; `burn_in`
+   is measured **relative to the first sample** (the start of this task's NPT), since NPT continues
+   from a `firsttimestep` already past the old absolute `burn_in` (which therefore dropped nothing).
+
+Parameters: `autocorr_reliability` (default 6), `drift_conf` (default 0) replace the removed `n_blocks`
+and the prototyped `precision_ref_atoms`/`precision_size_exp`. The report gains `drift_hi`/`tau`/`N_eff`
+columns. **Validated by a second full 27-example CPU sweep on this criterion: 24/25 converge cleanly +
+2 NPgT membranes OK, 0 errors.** The size prediction holds on real runs (664k-atom env-cd4 and 259k
+receptor converge in the *fewest* chunks; small boxes are fluctuation-limited and run longest); the
+reliability guard correctly waited out GroEL's slow densification (τ≈40 while still rising); the hard
+organic-solvent boxes improved (acetonitrile 49,850 vs. old near-ceiling 94,540; DMSO 53,740 vs.
+64,470); only **acetone** remains a benign `max_steps` ceiling (precision met, residual drift 4e-4,
+density flat) — a per-solvent tolerance is the residual follow-up (roadmap).
 
 ## Problem
 

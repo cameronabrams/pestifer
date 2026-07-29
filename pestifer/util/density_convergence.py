@@ -22,10 +22,15 @@ isolation.  It provides three separable pieces, mirroring ``docs/design/density-
    can roll back and retry shorter, and :func:`parse_patch_grid` reads the grid NAMD actually built
    for observability.
 
-3. **The convergence criterion.**  A *practical fractional-drift* tolerance made size-independent by
-   a **precision gate** (grow the window/duration until the mean is resolved above noise) plus
-   ``n_consecutive`` hysteresis.  See the design doc for why the rejected alternatives (fluctuation
-   threshold, ``trend/SEM`` significance) do not generalize.
+3. **The convergence criterion.**  A *practical fractional-drift* tolerance plus a **precision gate**
+   that grows the window until the mean is genuinely resolved above noise, with ``n_consecutive``
+   hysteresis.  The gate uses an **autocorrelation-corrected SEM**: NPT cell density is autocorrelated
+   over hundreds of steps (an overdamped Langevin piston -- measured integrated autocorrelation time
+   ~560 steps for a small TIP3 box), so consecutive ``.xst`` frames are not independent and the honest
+   standard error of the mean is ``sigma/sqrt(N_eff)`` with ``N_eff = N/tau_int``.  This also makes the
+   gate size-aware for free (``sigma/mean ~ 1/sqrt(N_atoms)``, ``tau`` ~size-independent).  See the
+   design doc for the rejected alternatives (fluctuation threshold, ``trend/SEM`` significance) and for
+   the fine-sampling (``xstfreq=1``) experiment that measured the autocorrelation.
 """
 from __future__ import annotations
 
@@ -38,6 +43,10 @@ import numpy as np
 from .densityprofile import AMU_PER_A3_TO_G_PER_CC
 
 logger = logging.getLogger(__name__)
+
+#: Absolute minimum windowed samples before an autocorrelation time (and hence the SEM) is trusted --
+#: guards against tau_int being under-estimated from a too-short series (see ``check``).
+_MIN_WINDOW_SAMPLES = 24
 
 
 def _xst_data_rows(path):
@@ -80,6 +89,40 @@ def total_mass_amu(psf_path):
     for line in lines[i + 1:i + 1 + natom]:
         m += float(line.split()[7])
     return m
+
+
+def integrated_autocorr_time(x):
+    """Integrated autocorrelation time ``tau_int`` (in samples) of a 1-D series, via the standard
+    ``tau = 1 + 2 * sum_k rho_k`` with the sum truncated at the first non-positive lag (a robust,
+    slightly-conservative automatic window).  The effective number of independent samples is then
+    ``N / tau_int`` and the standard error of the mean is ``sigma / sqrt(N / tau_int)``.
+
+    Returns ``1.0`` (i.e. samples treated as independent) for a series too short or with zero variance.
+    Cost is O(N * tau) in practice because the sum stops at the first zero crossing."""
+    x = np.asarray(x, dtype=float)
+    n = x.size
+    if n < 4:
+        return 1.0
+    x = x - x.mean()
+    var = float(np.dot(x, x) / n)
+    if var <= 0.0:
+        return 1.0
+    tau = 1.0
+    for k in range(1, n):
+        rho = float(np.dot(x[:n - k], x[k:]) / ((n - k) * var))
+        if rho <= 0.0:
+            break
+        tau += 2.0 * rho
+    return tau
+
+
+def total_atoms(psf_path):
+    """Return the atom count from the ``!NATOM`` record of an XPLOR/CHARMM PSF (for the size gate)."""
+    with open(psf_path) as f:
+        for line in f:
+            if '!NATOM' in line:
+                return int(line.split()[0])
+    raise ValueError(f'{psf_path}: no !NATOM record found; not a PSF?')
 
 
 def volume_to_density(volume_a3, mass_amu):
@@ -215,13 +258,25 @@ def parse_patch_grid(log_text):
 @dataclass
 class ConvergenceParams:
     """Tunables for the density-convergence criterion (see the design doc's Parameters table)."""
-    drift_tol: float = 2e-3      #: converged when fractional drift over the window < this (~0.2%)
+    drift_tol: float = 2e-3      #: converged when the *upper confidence bound* on |drift| < this (~0.2%)
     precision_p: float = 3.0     #: precision gate: require SEM/mean < drift_tol / precision_p
-    n_blocks: int = 6            #: blocks the trailing window is averaged into
+    drift_conf: float = 0.0      #: sigmas added to |drift| for its upper bound; 0 = point estimate
+                                 #: (the honest precision gate already guards against premature passes,
+                                 #: so the bound is redundant; raise it only for extra trend rigor)
     burn_in: int = 2000          #: leading steps discarded before assessing the trend
     window_frac: float = 0.5     #: assess only the trailing this-fraction of post-burn-in samples
     min_steps: int = 4000        #: never declare convergence before this many steps
     n_consecutive: int = 3       #: successive passing checks required before stopping (hysteresis)
+    # Honest, autocorrelation-corrected SEM.  The NPT cell density is autocorrelated over ~hundreds of
+    # steps (measured integrated autocorr time ~560 steps for a small TIP3 box -- an overdamped Langevin
+    # piston, not fast noise), so consecutive .xst frames are NOT independent.  The SEM of the mean is
+    # therefore sigma/sqrt(N_eff) with N_eff = N_window / tau_int, not sigma/sqrt(N) -- which is why a
+    # naive block-means SEM (blocks treated as independent) is optimistic by ~1.5x.  This also makes the
+    # gate size-aware *for free*: sigma/mean ~ 1/sqrt(N_atoms) while tau is ~size-independent, so a large
+    # box has a smaller honest SEM at equal duration and clears a fixed gate sooner -- no ad-hoc size
+    # factor needed.  We refuse to trust the SEM (and so cannot converge) until the window is at least
+    # `autocorr_reliability` correlation times long, since tau_int is not estimable from a short series.
+    autocorr_reliability: float = 6.0  #: require window length >= this * tau_int before trusting the SEM
 
 
 @dataclass
@@ -230,10 +285,13 @@ class ConvergenceReport:
     converged: bool = False
     passes: int = 0              #: consecutive passing checks accumulated so far
     drift: float | None = None   #: fractional drift over the window (|slope|*span/mean)
+    drift_hi: float | None = None  #: upper confidence bound on |drift| (|drift| + drift_conf*SE)
     sem_over_mean: float | None = None
     precision_met: bool = False
     mean_density: float | None = None
     n_window: int = 0            #: samples in the post-burn-in window
+    tau_int: float | None = None #: integrated autocorrelation time (in frames) over the window
+    n_eff: float | None = None   #: effective independent samples = n_window / tau_int
     last_step: float | None = None
     blowup: bool = False         #: a non-finite density was seen -> caller must abort
     reason: str = ''             #: human-readable one-liner for the report/log
@@ -259,6 +317,11 @@ class DensityConvergenceMonitor:
         self._d: list[float] = []
         self._passes = 0
 
+    def precision_gate(self) -> float:
+        """The ``SEM/mean`` precision gate, ``drift_tol/precision_p``.  Fixed (not size-scaled): the
+        autocorrelation-corrected SEM is already size-aware because ``sigma/mean ~ 1/sqrt(N_atoms)``."""
+        return self.params.drift_tol / self.params.precision_p
+
     def add_samples(self, times, densities):
         """Append one chunk's density time series (parallel sequences of equal length)."""
         times = list(times)
@@ -282,57 +345,97 @@ class DensityConvergenceMonitor:
             return ConvergenceReport(blowup=True, last_step=last_step,
                                      reason='non-finite density (box blowup)')
 
-        # Burn-in: drop samples during the barostat transient.  Then assess only the *trailing*
-        # `window_frac` of what remains, so the early densification ramp ages out of the window as the
-        # run lengthens -- otherwise the ancient transient keeps inflating the drift/SEM forever and a
-        # plateaued box never converges (observed: a full-history window on a BPTI box that plateaued
-        # by ~30k steps still read drift ~5e-3 at 80k).  The window still *grows* in absolute length as
-        # the run grows (a fraction of a longer run is longer), so the precision gate keeps tightening.
-        keep = t > p.burn_in
+        # Burn-in: drop samples during the barostat transient.  Measured *relative to the first sample*
+        # (the start of this task's NPT), not as an absolute timestep: density_equilibrate continues
+        # from a `firsttimestep` that is already well past `burn_in` (e.g. 2400/8000 after the NVT
+        # warm-up), so an absolute `t > burn_in` would drop nothing and leave the transient in.  Then
+        # assess only the *trailing* `window_frac` of what remains, so the early densification ramp ages
+        # out of the window as the run lengthens -- otherwise the ancient transient keeps inflating the
+        # drift/SEM forever and a plateaued box never converges (observed: a full-history window on a
+        # BPTI box that plateaued by ~30k steps still read drift ~5e-3 at 80k).  The window still
+        # *grows* in absolute length as the run grows, so the precision gate keeps tightening.
+        origin = float(t[0]) if t.size else 0.0
+        keep = t > origin + p.burn_in
         tw, dw = t[keep], d[keep]
         if 0.0 < p.window_frac < 1.0 and tw.size:
             start = int(tw.size * (1.0 - p.window_frac))
             tw, dw = tw[start:], dw[start:]
 
-        # Need enough windowed samples to populate the blocks.
-        if tw.size < p.n_blocks:
+        # Need a few windowed samples just to fit a line and estimate its variance (the real gate is
+        # the autocorrelation-reliability guard below, which needs many more).
+        if tw.size < 4:
             self._passes = 0
             return ConvergenceReport(passes=0, n_window=int(tw.size), last_step=last_step,
-                                     reason=f'insufficient window ({tw.size} < {p.n_blocks} samples)')
-
-        # Contiguous block means (density and time).
-        idx = np.array_split(np.arange(tw.size), p.n_blocks)
-        block_t = np.array([tw[ix].mean() for ix in idx])
-        block_d = np.array([dw[ix].mean() for ix in idx])
+                                     reason=f'insufficient window ({tw.size} < 4 samples)')
 
         mean = float(dw.mean())
-        sem = float(np.std(block_d, ddof=1) / np.sqrt(p.n_blocks))
-        sem_over_mean = sem / mean if mean else float('inf')
-        precision_met = sem_over_mean < (p.drift_tol / p.precision_p)
 
-        # Fractional drift from the line fit to the block means.
-        slope = float(np.polyfit(block_t, block_d, 1)[0])
-        span = float(block_t[-1] - block_t[0])
+        # Honest SEM: the .xst frames are autocorrelated (tau_int ~ hundreds of steps for NPT density),
+        # so the standard error of the mean is sigma/sqrt(N_eff) with N_eff = N_window/tau_int, not
+        # sigma/sqrt(N).  We also refuse to trust the estimate until the window spans several
+        # correlation times (tau_int is not estimable from a short series) -- until then the mean is
+        # simply not resolved, no matter how flat it looks.
+        tau_int = integrated_autocorr_time(dw)
+        n_eff = tw.size / tau_int if tau_int > 0 else float(tw.size)
+        sigma = float(np.std(dw, ddof=1))
+        sem = sigma / np.sqrt(n_eff) if n_eff >= 1.0 else float('inf')
+        sem_over_mean = sem / mean if mean else float('inf')
+        gate = self.precision_gate()
+        # Reliability: the window must span several correlation times AND hold an absolute minimum of
+        # samples.  The absolute floor matters because tau_int is *under*-estimated from a short series
+        # (you cannot see a long correlation with few samples), which would otherwise let a too-short
+        # window pass the tau-relative test spuriously.
+        reliable = (tw.size >= _MIN_WINDOW_SAMPLES
+                    and tw.size >= p.autocorr_reliability * tau_int)
+        precision_met = reliable and (sem_over_mean < gate)
+
+        # Drift: fit a line to the raw windowed density and test whether we can *confidently* say the
+        # fractional change over the window is below tolerance.  We use the UPPER confidence bound on
+        # |drift| = |slope|*span/mean + drift_conf*SE, not the point estimate, so a noisy slope on a
+        # plateau (few independent samples) raises its own uncertainty and correctly fails to certify --
+        # instead of the raw point estimate randomly tripping above/below the tolerance and resetting the
+        # hysteresis counter.  The slope's standard error is inflated by sqrt(tau_int): OLS assumes
+        # independent residuals, but the density is autocorrelated, so the honest slope SE is larger.
+        tc = tw - tw.mean()
+        Sxx = float(np.dot(tc, tc))
+        if Sxx > 0 and tw.size > 2:
+            slope = float(np.dot(tc, dw - mean) / Sxx)
+            resid = dw - (mean + slope * tc)
+            s2 = float(np.dot(resid, resid) / (tw.size - 2))
+            se_slope = np.sqrt(s2 / Sxx) * np.sqrt(max(tau_int, 1.0))  # autocorrelation-inflated
+        else:
+            slope, se_slope = 0.0, float('inf')
+        span = float(tw[-1] - tw[0])
         drift = abs(slope) * span / mean if mean else float('inf')
+        drift_se = se_slope * span / mean if mean else float('inf')
+        drift_hi = drift + p.drift_conf * drift_se       # upper confidence bound on |drift|
+        drift_ok = drift_hi < p.drift_tol
 
         below_min = last_step is None or last_step < p.min_steps
-        this_pass = precision_met and (drift < p.drift_tol) and not below_min
+        this_pass = precision_met and drift_ok and not below_min
         self._passes = self._passes + 1 if this_pass else 0
         converged = self._passes >= p.n_consecutive
 
         if below_min:
             reason = f'below min_steps ({last_step:.0f} < {p.min_steps})'
+        elif not reliable:
+            reason = (f'window too short for its autocorrelation (N {tw.size}, need '
+                      f'>= {_MIN_WINDOW_SAMPLES} and >= {p.autocorr_reliability:g}*tau {tau_int:.0f}); '
+                      f'mean not yet resolved')
         elif not precision_met:
-            reason = (f'precision gate unmet (SEM/mean {sem_over_mean:.2e} '
-                      f'>= {p.drift_tol / p.precision_p:.2e})')
-        elif drift >= p.drift_tol:
-            reason = f'drift {drift:.2e} >= tol {p.drift_tol:.2e}'
+            reason = (f'precision gate unmet (SEM/mean {sem_over_mean:.2e} >= {gate:.2e}; '
+                      f'tau {tau_int:.0f} fr, N_eff {n_eff:.0f})')
+        elif not drift_ok:
+            reason = (f'drift not confidently below tol (|drift| {drift:.2e}, '
+                      f'{p.drift_conf:g}-sigma upper {drift_hi:.2e} >= {p.drift_tol:.2e})')
         elif converged:
-            reason = f'converged: drift {drift:.2e} < tol for {self._passes} consecutive checks'
+            reason = f'converged: drift confidently < tol ({drift_hi:.2e} < {p.drift_tol:.2e}) x{self._passes}'
         else:
-            reason = f'passing ({self._passes}/{p.n_consecutive}); drift {drift:.2e} < tol {p.drift_tol:.2e}'
+            reason = (f'passing ({self._passes}/{p.n_consecutive}); drift upper {drift_hi:.2e} '
+                      f'< tol {p.drift_tol:.2e}')
 
         return ConvergenceReport(converged=converged, passes=self._passes, drift=drift,
-                                 sem_over_mean=sem_over_mean, precision_met=precision_met,
-                                 mean_density=mean, n_window=int(tw.size), last_step=last_step,
-                                 reason=reason)
+                                 drift_hi=drift_hi, sem_over_mean=sem_over_mean,
+                                 precision_met=precision_met, mean_density=mean,
+                                 n_window=int(tw.size), tau_int=tau_int, n_eff=n_eff,
+                                 last_step=last_step, reason=reason)

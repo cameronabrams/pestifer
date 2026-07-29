@@ -195,34 +195,36 @@ what appears here is refined and reprioritized as the project evolves.
           *earlier*, `SEM/mean`∝1/√N) but needs more GPU memory than the local 4 GB card.
           **Full 27-example CPU reference sweep: 27/27 pass, 0 failures** (large boxes up to ~1M atoms
           confirm the 1/√N trend on CPU; reactive net never needed). See P2.5 below for the one finding.
-    - [ ] **P2.5 — size-aware precision gate (small boxes over-run).** The water-tuned convergence
-          defaults (`drift_tol` 0.2%, `precision_p` 3 → precision gate `SEM/mean < 6.67e-4`) are too
-          strict for **small boxes generally**, not just non-aqueous ones — the over-conservatism is a
-          size effect. Replaying the recorded per-chunk `(drift, SEM/mean)` series from the full sweep
-          (10 examples, 14k–550k atoms; prototype in `scratchpad/gate_proto/`) shows the stop step
-          overshoots the physical density plateau by **~5–9× for the smallest aqueous boxes** (BPTI
-          example 1: flat by step ~6.5k, ran to 57750) but only **~1.2–1.8× for the ≥250k-atom giants**.
-          Root cause, measured: the plateau noise floor of `SEM/mean` scales as ~`N^-0.26` (≈6.5e-4 at
-          14k atoms → ≈2.5e-4 at 500k), so the fixed 6.67e-4 gate sits *right on* the small-box floor
-          (flickers, repeatedly resetting the `n_consecutive` counter) while big boxes clear it 2–3×. The
-          drift metric grazes its tol the same way (plateau drift floor ≈ `√n_blocks·SEM/mean`).
-          **Prototype result — recommended fix:** a size-aware precision gate
-          `SEM/mean < (drift_tol/precision_p)·max(1, (N_ref/N)^0.5)` with `N_ref≈150–250k`. It is
-          backward-compatible (boxes ≥`N_ref` unchanged), **safe** (no example stops before its physical
-          settle; no new ceilings), and cuts BPTI-class boxes ~40% (BPTI 57750→32750) — worthwhile since
-          BPTI-class is the most-run case. Two things that *don't* help and were ruled out: a
-          noise-aware drift band (`drift < max(tol, C·SEM)`) — the real drift excursions on a plateaued
-          small box exceed the `√n_blocks·SEM` prediction, so it changes nothing; and dropping
-          `n_consecutive` 3→2 — it produces an *unsafe* pre-settle stop (myoglobin). **Organic solvents
-          are a separate, harder case:** acetone/acetonitrile have a genuinely high noise floor
-          (~1e-3, fewer molecules) and slow real equilibration, so they need a looser *physical*
-          `drift_tol`, not just a looser gate — best handled by a per-solvent override, not a global
-          change. **Limitation before finalizing defaults:** the `.dat` replay only faithfully tests
-          *threshold* changes; the other lever — the averaging window (`window_frac`, `n_blocks`,
-          `burn_in`) — needs a raw-per-sample `.xst` replay, not yet done. Defaults unchanged pending
-          that. Cheap, low-risk (the gate change is a one-line size factor in
-          `util/density_convergence.py`).
-    - [ ] **P3 (optional) — generalize** to an `equilibrate` task with a selectable observable.
+    - [x] **P2.5 — honest, size-aware convergence (Unreleased; supersedes the size-gate prototype).**
+          The over-conservatism turned out not to need an ad-hoc size gate: a fine-sampling (`xstfreq=1`)
+          experiment measured the density autocorrelation time (τ_int ≈ 559 steps — the block-means SEM
+          under-reported uncertainty because `.xst` frames are correlated), so the precision gate now
+          uses an **autocorrelation-corrected SEM** (`σ/√N_eff`, `N_eff = N/τ_int`) with a reliability
+          guard. This is size-aware *for free* (`σ/mean ∝ 1/√N_atoms`, τ ~size-independent → big boxes
+          converge in the fewest chunks; small boxes are fluctuation-limited), so the prototyped
+          `(N_ref/N)^0.5` gate was dropped as redundant. The drift test became an **equivalence/upper-
+          confidence-bound** test (fixing the plateau flicker without the √12 significance floor). A
+          second full 27-example sweep validated it: **24/25 converge + 2 membranes = 27/27, 0 errors**;
+          organic solvents improved (acetonitrile 49,850 vs. old 94,540; DMSO 53,740 vs. 64,470).
+          **Residual:** only **acetone** still hits a *benign* `max_steps` ceiling (precision met, drift
+          4e-4, density flat) — the one genuinely high-noise small-organic box; a **per-solvent
+          `drift_tol` override** is the remaining low-risk follow-up. See `density-equilibrate.md`
+          ("Honest autocorrelation-corrected criterion").
+    - [ ] **P3 — membrane-aware equilibration (density + lateral area).** A self-terminating NPgT
+          sibling of `density_equilibrate` that stops when BOTH box density and membrane lateral area
+          (`A = a_x·b_y`) have converged, replacing the hand-tuned fixed NPgT ladders at three points in
+          a membrane build: the asymmetric **calibration patch** (APL sizes the whole grid), the
+          **bare-bilayer quilt** (pre-embed), and the **post-embed** protein+membrane ladder (examples
+          16/17). Density+area is the complete minimal set (`V = A·c_z`, so `c_z` follows). The
+          convergence engine is already observable-agnostic, so this is mostly additive: `xst_cell_areas`
+          + a `JointConvergence` wrapper + a base-class refactor of `density_equilibrate` into shared
+          base / `DensityEquilibrateTask` (NPT, [density]) / `MembraneEquilibrateTask` (NPgT,
+          [density, area]). Area tolerances are per-observable, defaulted to density's and then set from
+          a measured area autocorrelation (area is a soft γ=0 mode, likely longer τ / larger σ/mean).
+          Phasing M1 (engine) → M2 (task + area-autocorrelation calibration + two-panel report/plot +
+          APL) → M3 (migrate 16/17 post-embed) → M4 (wire into `make_membrane_system` pre-embed, retire
+          `_autostage_protocol`'s fixed NPgT tail + the crude `_area_convergence`). Full plan in
+          `docs/design/membrane-equilibrate.md`.
 - [~] **Optionally-interactive `new-system` for sequence modifications.** `new-system` generated a
       build config from a PDB/UniProt ID off a fixed template with no look at the structure. Now it
       inspects the source for **missing residues** (chain gaps / `REMARK 465`) and **engineered
