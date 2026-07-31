@@ -1,7 +1,35 @@
 # Lipid conformer generation for fluid-bilayer-like grid packing
 
-**Status:** planned (not started). Handoff doc — self-contained; a new agent should be able to
-pick this up cold. Written 2026-07-31.
+**Status:** Lever 1 + Lever 2a implemented (MC opt-in); acceptance test met on DMPC (MC reaches the
+fluid basin, rods gel-trap). Written 2026-07-31; updated same day with results + roadmap.
+
+## Roadmap (decisions with the user, 2026-07-31)
+
+Ordered: **ex16 payoff → re-tune area defaults → multi-lipid smoke test → flip `mc` to default.**
+
+1. **ex16 payoff (in flight).** The pristine test proved MC escapes the gel trap; ex16 tests whether
+   that kinetic win survives into the *protein-embedded* system — i.e. does the MC start cut the
+   post-embed equilibration cost (the original ~800k-step pain)? Membrane assembly already validated
+   clean at ex16 scale (233 lipids/leaflet). Decisive result pending.
+2. **Re-tune `membrane_equilibrate` area defaults** for the fluid start (was design item 5); a fluid
+   start with small area drift should let them tighten → realize the speedup.
+3. **Multi-lipid smoke test** — gate for the default flip. Cover POPC/POPE/POPS/POPG (unsaturated
+   tails), a sphingolipid, and a mixture; confirm tail identification + cylinder work per species.
+4. **Flip `sampler='mc'` to default** after (1)+(3). Keep opt-in until then.
+
+- **Sterols → single conformer: DONE** (`ccdc662e`). Cholesterol-substream resis are forced to
+  `sampler='single'` (init+minimize+orient, one conformer); they're rigid, so MC/MD sampling is
+  pointless. Provenance records `sampler: single`.
+- **Absolute APL (~67 vs lit ~60–61):** noted, revisit later — force-field/conditions territory (310 K,
+  small patch, density not fully converged), *not* conformer generation; no reference bilayer to check
+  against anyway.
+- **Dropped/deferred:** Lever 2b (whole-grid MC pre-relax) — unnecessary, single-conformer MC + re-spin
+  already reaches fluid; advanced MC ergodicity (~7/10 distinct was enough) — defer unless a quality
+  problem surfaces; PSF-first tiling — robust fallback if the re-spin ever proves fragile, not active.
+
+---
+
+*Original handoff doc (context/evidence) follows.*
 
 ## Why this project exists
 
