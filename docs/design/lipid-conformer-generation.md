@@ -160,7 +160,34 @@ then per-conformer xy convex-hull footprint + z-extension).
 - z-extension only drops modestly (~29.5→~24–26 Å); not yet clearly "fluid" — needs an order-parameter
   target to judge.
 
-## Remaining work — the acceptance test (phase 3)
+## Acceptance test — RUNNING (phase 3, 2026-07-31)
+
+The bare-membrane contract fix (`58b75144`) unblocked a config-driven pristine DMPC bilayer, and
+grid-packing *fluid* (fat) conformers surfaced **two independent failure modes**, both now fixed:
+
+1. **Topology corruption → NaN.** The psfgen step loads the bare grid PDB into VMD to split by
+   type/leaflet; with bond perception on, two near-coincident lipid atoms get spuriously bonded and
+   VMD **merges their two residues**, scrambling the per-residue coords → psfgen guesses a
+   box-sized-displaced atom → NAMD diverges to NaN. Fixed by loading with **`autobonds off`**
+   (`c6612865`) — connectivity is irrelevant there (it comes from the RESI topologies at psfgen
+   time) and `residue` grouping then falls back to resSeq/segname. (Verified: a 0.05 Å
+   near-coincidence loads as 5 merged residues with autobonds on, 6 correct with it off.)
+2. **Physical overlap → segfault.** Even with correct topology, fat conformers packed at SAPL 60
+   have severe steric clashes that **segfault the NAMD minimize** (rc 139). Fixed by the packer
+   **re-spin guard** (`c56863db`): re-spin each lipid until its atoms clear placed lipids by ≥0.9 Å.
+
+Both are needed (correctness + physical viability) and both are committed. With them, a pristine
+DMPC bilayer (100 lipids/leaflet) grid-packs from MC conformers and runs `membrane_equilibrate`
+(NPgT) to completion.
+
+**First result (inflation 1.9):** equilibrated **APL ≈ 67 Å²** with **tiny drift (−0.52%** over the
+final half) — vs the old vacuum-rod membrane's gel-like **~50** with a large *persistent* positive
+drift. The slow mode is largely gone (the project's core goal). But 1.9 *overshoots* fluid DMPC
+(~60–61): the tails are a bit too fat, so the membrane settles high. Re-running at **inflation 1.5**
+(footprints ~48 vs ~56) to bring the equilibrated APL down toward 60. Harness:
+`~/devtests/pestifer/mc_validate/` (`pristine_dmpc_equil.yaml`, `analyze_apl.py`).
+
+## Remaining work (superseded — see above)
 
 The only real validator (no reference bilayer) is: **generate MC ensemble → grid-pack → NPgT-equilibrate
 → does APL land ~60 with small drift from the start?** Status/obstacles:
