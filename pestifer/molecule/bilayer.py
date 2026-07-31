@@ -563,8 +563,20 @@ class Bilayer:
             rng.shuffle(bag)
             return cache, bag
 
+        from scipy.spatial import cKDTree
+        # Two lipid atoms landing nearer than this fuse in VMD's distance-based bond perception
+        # ("Exceeded maximum number of bonds"), after which psfgen fails to read the involved
+        # lipid's coordinates and silently *guesses* them -- yielding a grossly misplaced atom
+        # (a box-sized bond) that makes NAMD diverge to NaN on the first step.  Thin rod conformers
+        # rarely trigger this, but fatter/splayed (fluid-like) conformers do, so each lipid is
+        # re-spun (new in-plane rotation + jitter) until its atoms clear already-placed lipids.
+        fusion = 0.9
+        respin_tries = 12
+
         # lipids: per-leaflet 2D lattice, oriented, tails toward the midplane
         lipid_xyz = []   # placed lipid atom coords, indexed below for solvent clash removal
+        placed_tree = None   # cKDTree over already-placed lipid atoms (refreshed per lipid)
+        n_respun = 0
         for leaflet, upper in ((self.LL, False), (self.UL, True)):
             cache, bag = bag_of(leaflet)
             if not bag:
@@ -589,15 +601,29 @@ class Bilayer:
                     k += 1
                     conformers = cache[nm]
                     coords, lines, _head_i, tail_is = conformers[rng.integers(len(conformers))]
-                    c = coords.copy()
+                    oriented = coords.copy()
                     if not upper:
-                        c = c * np.array([1.0, -1.0, -1.0])     # head -> -z for lower leaflet
-                    c = zspin(c)
-                    c[:, 2] += target_z - (c[tail_is, 2].mean() if tail_is is not None else c[:, 2].mean())
-                    c[:, 0] += ll[0] + (col + 0.5) * sx + rng.uniform(-jitter, jitter)
-                    c[:, 1] += ll[1] + (row + 0.5) * sy + rng.uniform(-jitter, jitter)
+                        oriented = oriented * np.array([1.0, -1.0, -1.0])   # head -> -z (lower leaflet)
+                    cx = ll[0] + (col + 0.5) * sx
+                    cy = ll[1] + (row + 0.5) * sy
+                    c = None
+                    for _try in range(respin_tries):
+                        cand = zspin(oriented)
+                        cand[:, 2] += target_z - (cand[tail_is, 2].mean()
+                                                  if tail_is is not None else cand[:, 2].mean())
+                        cand[:, 0] += cx + rng.uniform(-jitter, jitter)
+                        cand[:, 1] += cy + rng.uniform(-jitter, jitter)
+                        if placed_tree is None or placed_tree.query(cand)[0].min() >= fusion:
+                            c = cand
+                            break
+                        c = cand   # keep the last try if none clears (rare; better than nothing)
+                        n_respun += 1
                     emit(c, lines)
                     lipid_xyz.append(c)
+                    placed_tree = cKDTree(np.vstack(lipid_xyz))
+        if n_respun:
+            logger.debug(f'write_grid_pdb: re-spun {n_respun} lipid placement(s) to clear '
+                         f'near-coincidences (<{fusion} A) that corrupt psfgen bond perception')
 
         # A chamber-solvent molecule dropped (independently) on top of a lipid ruins the
         # structure before relaxation runs: a near-coincident water makes VMD infer
@@ -605,8 +631,7 @@ class Bilayer:
         # that lipid's coordinates and silently guesses them.  Index the lipid atoms so
         # such solvent molecules can be dropped (a handful of waters is negligible for
         # hydration, and the relaxation still resolves the milder overlaps).
-        from scipy.spatial import cKDTree
-        lipid_tree = cKDTree(np.vstack(lipid_xyz)) if lipid_xyz else None
+        lipid_tree = placed_tree   # already covers every placed lipid atom
         n_solvent_dropped = 0
 
         # chamber solvent: 3D lattice
