@@ -564,19 +564,29 @@ class Bilayer:
             return cache, bag
 
         from scipy.spatial import cKDTree
-        # Two lipid atoms landing nearer than this fuse in VMD's distance-based bond perception
-        # ("Exceeded maximum number of bonds"), after which psfgen fails to read the involved
-        # lipid's coordinates and silently *guesses* them -- yielding a grossly misplaced atom
-        # (a box-sized bond) that makes NAMD diverge to NaN on the first step.  Thin rod conformers
-        # rarely trigger this, but fatter/splayed (fluid-like) conformers do, so each lipid is
-        # re-spun (new in-plane rotation + jitter) until its atoms clear already-placed lipids.
-        fusion = 0.9
-        respin_tries = 12
+        # When the grid PDB is later loaded (topology-free) for the psfgen split, VMD perceives
+        # bonds by distance -- it bonds two heavy atoms within ~2 A (measured) -- and a single
+        # spurious inter-lipid bond MERGES the two residues, scrambling the per-residue coords
+        # psfgen reads; a dense pile-up additionally trips "Exceeded maximum number of bonds",
+        # after which psfgen silently *guesses* a coordinate (a box-sized bond) and NAMD diverges
+        # to NaN.  Thin rods rarely collide; fatter fluid-like conformers do.  So each lipid is
+        # re-spun -- new in-plane rotation + jitter, and (leveraging the per-lipid ensemble draw)
+        # a fresh, possibly thinner, conformer -- until its atoms clear already-placed lipids by
+        # `fusion`.  We keep the *best* attempt, escalate the search in tight pockets, and
+        # hard-fail rather than silently emit a corrupting near-coincidence.
+        fusion = 1.0             # target min inter-lipid atom separation (A); >0.9 gives margin
+        corruption_floor = 0.3   # only near-*coincident* atoms (gap -> 0) create the dense VMD
+                                 # bond pile-up ("Exceeded maximum number of bonds") that makes
+                                 # psfgen guess -> NaN; dense fluid conformers legitimately leave
+                                 # many sub-A gaps (~0.4-0.9) that build and relax fine (validated
+                                 # end-to-end), so abort only below this true-coincidence floor
+        respin_tries = 40
 
         # lipids: per-leaflet 2D lattice, oriented, tails toward the midplane
         lipid_xyz = []   # placed lipid atom coords, indexed below for solvent clash removal
         placed_tree = None   # cKDTree over already-placed lipid atoms (refreshed per lipid)
-        n_respun = 0
+        n_respun = n_uncleared = 0
+        worst_gap = np.inf   # closest inter-lipid approach we were forced to accept
         for leaflet, upper in ((self.LL, False), (self.UL, True)):
             cache, bag = bag_of(leaflet)
             if not bag:
@@ -600,30 +610,51 @@ class Bilayer:
                     nm = bag[k]
                     k += 1
                     conformers = cache[nm]
-                    coords, lines, _head_i, tail_is = conformers[rng.integers(len(conformers))]
-                    oriented = coords.copy()
-                    if not upper:
-                        oriented = oriented * np.array([1.0, -1.0, -1.0])   # head -> -z (lower leaflet)
                     cx = ll[0] + (col + 0.5) * sx
                     cy = ll[1] + (row + 0.5) * sy
-                    c = None
-                    for _try in range(respin_tries):
+                    ci = int(rng.integers(len(conformers)))   # this lipid's conformer draw
+                    jit = jitter
+                    best_c = best_lines = None
+                    best_gap = -1.0
+                    for attempt in range(respin_tries):
+                        coords, lines, _head_i, tail_is = conformers[ci]
+                        oriented = coords * np.array([1.0, -1.0, -1.0]) if not upper else coords
                         cand = zspin(oriented)
                         cand[:, 2] += target_z - (cand[tail_is, 2].mean()
                                                   if tail_is is not None else cand[:, 2].mean())
-                        cand[:, 0] += cx + rng.uniform(-jitter, jitter)
-                        cand[:, 1] += cy + rng.uniform(-jitter, jitter)
-                        if placed_tree is None or placed_tree.query(cand)[0].min() >= fusion:
-                            c = cand
+                        cand[:, 0] += cx + rng.uniform(-jit, jit)
+                        cand[:, 1] += cy + rng.uniform(-jit, jit)
+                        gap = np.inf if placed_tree is None else placed_tree.query(cand)[0].min()
+                        if gap > best_gap:
+                            best_c, best_lines, best_gap = cand, lines, gap
+                        if gap >= fusion:
                             break
-                        c = cand   # keep the last try if none clears (rare; better than nothing)
                         n_respun += 1
-                    emit(c, lines)
-                    lipid_xyz.append(c)
+                        # escalate: widen the jitter window and redraw a (possibly thinner)
+                        # ensemble conformer to fit a tight pocket
+                        if (attempt + 1) % 8 == 0:
+                            jit = min(jit * 1.5, 0.45 * min(sx, sy))
+                            ci = int(rng.integers(len(conformers)))
+                    emit(best_c, best_lines)
+                    lipid_xyz.append(best_c)
                     placed_tree = cKDTree(np.vstack(lipid_xyz))
-        if n_respun:
-            logger.debug(f'write_grid_pdb: re-spun {n_respun} lipid placement(s) to clear '
-                         f'near-coincidences (<{fusion} A) that corrupt psfgen bond perception')
+                    if best_gap < fusion:
+                        n_uncleared += 1
+                        worst_gap = min(worst_gap, best_gap)
+        if n_uncleared and worst_gap < corruption_floor:
+            raise PestiferBuildError(
+                f'grid packing could not place {n_uncleared} lipid(s) clear of near-coincidences '
+                f'(closest inter-lipid approach {worst_gap:.2f} A < {corruption_floor} A safety '
+                f'floor); VMD/psfgen would mis-bond and corrupt them into a NaN-producing system. '
+                f'The membrane is over-packed for these conformers -- increase SAPL, or use thinner '
+                f'conformers (lower bilayer.lipid_conformers cylinder_inflation).')
+        if n_uncleared:
+            logger.warning(f'write_grid_pdb: {n_uncleared} lipid(s) placed with a sub-{fusion} A '
+                           f'inter-lipid gap (worst {worst_gap:.2f} A, above the {corruption_floor} A '
+                           f'corruption floor); relaxation should resolve these.')
+        elif n_respun:
+            logger.debug(f'write_grid_pdb: {n_respun} re-spin attempt(s) cleared all lipids to '
+                         f'>={fusion} A inter-lipid separation')
 
         # A chamber-solvent molecule dropped (independently) on top of a lipid ruins the
         # structure before relaxation runs: a near-coincident water makes VMD infer
