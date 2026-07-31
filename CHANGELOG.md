@@ -21,8 +21,25 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   observable rather than a different regime; optional `area_*` specs override per-observable — and
   `lipids_per_leaflet` enables area-per-lipid (APL) in the report/plot. Writes a
   two-observable `.dat` report and a two-panel density+area (+APL) plot. Registered and schema-validated;
-  36 unit tests. Not yet wired into the bundled membrane examples (M3) or `make_membrane_system`'s
-  pre-embed relaxation (M4). See `docs/design/membrane-equilibrate.md`.
+  36 unit tests. Now **wired into `make_membrane_system`'s pre-embed quilt relaxation and examples
+  16/17 (M3–M5)**, with per-leaflet protein-corrected APL, a soft-mode area criterion (`area_min_steps`
+  floor), the **100/50 NPgT barostat**, and whole-box embed solvation; validated end-to-end on ex16.
+  See `docs/design/membrane-equilibrate.md`.
+
+- feat: **fluid-bilayer-like lipid conformers for grid packing (opt-in).** The grid packer stamped one
+  extended vacuum conformer onto every lipid, so gridded membranes started over-packed / gel-trapped
+  (DMPC settling to APL ~50 vs. fluid ~60). Now: **Lever 1** draws a conformer per lipid across the whole
+  cached ensemble (and fixed a latent `lipid_conformers` key mismatch that had been ignoring the pin
+  knob); **Lever 2a** adds a cylinder-confined **athermal-MC** conformer generator (`charmmff/
+  athermal_mc.py` — dihedral-pivot moves that preserve bonds/angles exactly, hard-sphere excluded volume,
+  cylinder cross-section = `cylinder_inflation × APL`), wired as opt-in `sampler='mc'` through
+  `do_psfgen`/`do_resi`/`ensure_lipid_conformer` (default stays `'md'` pending multi-lipid validation);
+  **sterols** are forced to a single rigid conformer. Packer hardened for the denser fluid conformers: a
+  protein-free bare-membrane build is now reachable (the contract detects a *meaningful* embed), and a
+  re-spin guard (best-of-40 + escalating jitter + ensemble redraw + loud warnings + hard-abort below a
+  true-coincidence floor) prevents the VMD-bond-merge → psfgen-guess → NaN and the overlap segfault.
+  Acceptance test on a pristine DMPC bilayer: old rods gel-trap at APL 50.3, MC conformers reach fluid
+  APL ~67 with 0.5% area drift. See `docs/design/lipid-conformer-generation.md`.
 
 ## [3.14.0] - 2026-07-29
 

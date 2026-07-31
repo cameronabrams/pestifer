@@ -48,6 +48,43 @@ what appears here is refined and reprioritized as the project evolves.
         former `Orient::orient`-based `bilayer_orient` script (RMSD < 0.01 Å on the van3 fixture).
         (v3.4.0.)
 
+- [~] **Fluid-bilayer-like lipid conformers for grid packing.** The grid packer stamped one extended
+      vacuum conformer onto every lipid, so gridded membranes started **over-packed / gel-trapped**
+      (DMPC settles to APL ~50 vs. fluid ~60) and the slow post-embed area drift was the acyl chains
+      slowly acquiring configurational entropy — a chicken-and-egg the packer couldn't escape. Fix:
+      generate *fluid-like* conformers (moderately splayed, gauche-rich tails) with cylinder-confined
+      **athermal Monte Carlo** and draw them per-lipid. Full design + results + the `autobonds off`
+      dead-end in `docs/design/lipid-conformer-generation.md`. (All Unreleased.)
+  - [x] **Lever 1 — per-lipid conformer draw.** `write_grid_pdb` caches the whole cached ensemble per
+        species and draws a conformer per lipid (and per chamber solvent) from the packer RNG; explicit
+        `conf` still pins. Fixed a latent `conformers` vs `lipid_conformers` key mismatch that had been
+        silently ignoring the pin knob; schema default `'0'`→`''`. (`f8772a04`.)
+  - [x] **Lever 2a — cylinder-confined athermal-MC conformer generator (opt-in).** New
+        `charmmff/athermal_mc.py`: dihedral-pivot MC (bonds/angles preserved exactly; only torsions
+        move), hard-sphere excluded volume (sigma-scaled `Rmin/2`, exclude ≤1-4 so gauche is allowed),
+        monotone-inward cylinder confinement about the membrane normal through the tail-bundle centroid.
+        Cylinder cross-section = `cylinder_inflation × APL` (a *packing* knob — the equilibrated APL is
+        set by NPgT, not the conformers). Wired as `sampler='mc'` through
+        `do_psfgen`/`do_resi`/`ensure_lipid_conformer`; **default stays `'md'`** until validated across
+        lipid types. (`92d4953d`, `44fc6029`, `bd68dffa`, `3c242eff`.)
+  - [x] **Sterols → single conformer.** Cholesterol-substream resis are forced to `sampler='single'`
+        (init+minimize+orient, one rigid conformer); provenance records it. (`ccdc662e`.)
+  - [x] **Packer robustness for fat conformers.** (1) A protein-free pristine bilayer was unbuildable
+        from config — the schema always fills `embed` so the contract saw `embedding=True`; now detects
+        a *meaningful* embed (`58b75144`). (2) Fluid conformers pack dense enough to (a) make VMD
+        distance-bond near-coincident lipid atoms → **merge residues** → psfgen guesses → NaN, and (b)
+        **segfault** the minimize on overlap; both fixed and *hardened* by the packer re-spin guard —
+        best-of-40 attempts, escalating jitter + ensemble redraw, loud warnings, and a hard-abort below
+        a true-coincidence floor (`c56863db`, `80326565`). (`autobonds off` was tried and reverted
+        `9a316ed5` — the VMD split step needs bond perception; it exploded psfgen 23.6k→2.8M atoms.)
+  - [x] **Acceptance test met (DMPC).** Clean control, identical protocol: old rods gel-trap at APL
+        50.3; MC conformers reach fluid APL ~67 with 0.5% area drift — the over-packing bug is fixed.
+  - [ ] **Remaining:** (i) **ex16 payoff** — does the fluid start cut post-embed equilibration cost
+        (running now); (ii) **re-tune `membrane_equilibrate` area defaults** for the fluid start;
+        (iii) **multi-lipid smoke test** (POPC/POPE/POPS/POPG, a sphingolipid, a mixture); then
+        (iv) **flip `sampler='mc'` to default.** Deferred: absolute-APL vs literature (force-field /
+        conditions, not conformer generation); Lever 2b (whole-grid MC pre-relax — likely unnecessary).
+
 ## Resources / on-demand generation
 
 - [x] Generate-on-miss into a user cache (`~/.pestifer/`). When a build references a residue that
@@ -210,21 +247,20 @@ what appears here is refined and reprioritized as the project evolves.
           4e-4, density flat) — the one genuinely high-noise small-organic box; a **per-solvent
           `drift_tol` override** is the remaining low-risk follow-up. See `density-equilibrate.md`
           ("Honest autocorrelation-corrected criterion").
-    - [ ] **P3 — membrane-aware equilibration (density + lateral area).** A self-terminating NPgT
-          sibling of `density_equilibrate` that stops when BOTH box density and membrane lateral area
-          (`A = a_x·b_y`) have converged, replacing the hand-tuned fixed NPgT ladders at three points in
-          a membrane build: the asymmetric **calibration patch** (APL sizes the whole grid), the
-          **bare-bilayer quilt** (pre-embed), and the **post-embed** protein+membrane ladder (examples
-          16/17). Density+area is the complete minimal set (`V = A·c_z`, so `c_z` follows). The
-          convergence engine is already observable-agnostic, so this is mostly additive: `xst_cell_areas`
-          + a `JointConvergence` wrapper + a base-class refactor of `density_equilibrate` into shared
-          base / `DensityEquilibrateTask` (NPT, [density]) / `MembraneEquilibrateTask` (NPgT,
-          [density, area]). Area tolerances are per-observable, defaulted to density's and then set from
-          a measured area autocorrelation (area is a soft γ=0 mode, likely longer τ / larger σ/mean).
-          Phasing M1 (engine) → M2 (task + area-autocorrelation calibration + two-panel report/plot +
-          APL) → M3 (migrate 16/17 post-embed) → M4 (wire into `make_membrane_system` pre-embed, retire
-          `_autostage_protocol`'s fixed NPgT tail + the crude `_area_convergence`). Full plan in
+    - [x] **P3 — membrane-aware equilibration (density + lateral area) (Unreleased).** A
+          self-terminating NPgT sibling of `density_equilibrate` that stops when BOTH box density and
+          membrane lateral area (`A = a_x·b_y`) have converged (`V = A·c_z` pins the anisotropic cell).
+          Built on the observable-agnostic engine (`xst_cell_areas` + `JointConvergence`) with a
+          base-class refactor into shared `ChunkedEquilibrateTask` / `DensityEquilibrateTask` (NPT) /
+          `MembraneEquilibrateTask` (NPgT, [density, area]). Shipped M1 (engine primitives, `a6621ae6`)
+          → M2 (task + measured area autocorrelation, `31f46fc2`) → M3–M5 (`feda3740`: wired into
+          `make_membrane_system` pre-embed quilt + examples 16/17, per-leaflet protein-corrected APL,
+          soft-mode area criterion with `area_min_steps` floor, the **100/50 NPgT barostat**, and M5
+          whole-box embed solvation). Validated end-to-end on ex16. Design doc:
           `docs/design/membrane-equilibrate.md`.
+        - **Residual cleanup:** the old `_autostage_protocol` fixed-NPgT tail and the crude
+          `_area_convergence` helper are still present/called in `make_membrane_system.py`
+          (lines ~490/637/885) alongside the new task; retire them.
 - [~] **Optionally-interactive `new-system` for sequence modifications.** `new-system` generated a
       build config from a PDB/UniProt ID off a fixed template with no look at the structure. Now it
       inspects the source for **missing residues** (chain gaps / `REMARK 465`) and **engineered
