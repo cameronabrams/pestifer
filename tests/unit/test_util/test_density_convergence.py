@@ -169,6 +169,21 @@ class TestConvergenceMonitor(unittest.TestCase):
         self.assertFalse(rep.converged)
         self.assertGreater(rep.drift, p.drift_tol)
 
+    def test_signed_drift_carries_direction(self):
+        # signed_drift keeps the trend sign (>0 growing, <0 shrinking); drift is its magnitude
+        p = self._params(min_steps=200, n_consecutive=3)
+        for sign in (+1.0, -1.0):
+            mon = DensityConvergenceMonitor(p)
+            step, rep = 0, None
+            for _ in range(4):
+                t = np.arange(step + 100, step + 2100, 100)
+                d = 1.0 + sign * 5e-4 * (t / 1000.0)   # steady up (or down) drift
+                mon.add_samples(t, d)
+                step += 2000
+                rep = mon.check()
+            self.assertEqual(rep.signed_drift > 0, sign > 0)   # direction preserved
+            self.assertAlmostEqual(rep.drift, abs(rep.signed_drift))   # magnitude drives the gate
+
     def test_trailing_window_ages_out_transient(self):
         # A ramp-then-plateau series: a full-history window (window_frac=1) keeps seeing the ramp and
         # never converges; a trailing window (0.5) lets it age out and converges once the trailing

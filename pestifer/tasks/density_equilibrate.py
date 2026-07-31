@@ -70,19 +70,21 @@ class DensityEquilibrateTask(ChunkedEquilibrateTask):
             self._all_d.extend(dens.tolist())
         report = self._monitor.check()
         self._rows.append((n_chunk, total_steps, this_chunk, report))
+        # signed drift (negative = de-densifying) so the trend direction is visible; the
+        # convergence gate keys off the magnitude (report.drift).
         logger.info(f'{self.taskname}: chunk {n_chunk} @ step {total_steps} -- '
-                    f'rho={_fmt(report.mean_density)} g/cc, drift={_fmt(report.drift)}, '
+                    f'rho={_fmt(report.mean_density)} g/cc, drift={_fmt(report.signed_drift)}, '
                     f'SEM/mean={_fmt(report.sem_over_mean)} -- {report.reason}')
         return report.blowup, report.converged
 
     def _converged_stop_reason(self, total_steps):
         r = self._rows[-1][3]
-        return (f'CONVERGED at step {total_steps}: fractional drift {_fmt(r.drift)} '
-                f'< tol {self.specs["drift_tol"]:g} for {r.passes} consecutive checks')
+        return (f'CONVERGED at step {total_steps}: fractional drift {_fmt(r.signed_drift)} '
+                f'(|.| < tol {self.specs["drift_tol"]:g}) for {r.passes} consecutive checks')
 
     def _ceiling_stop_reason(self, total_steps, max_steps):
         last = self._rows[-1][3] if self._rows else None
-        resid = _fmt(last.drift) if last else 'n/a'
+        resid = _fmt(last.signed_drift) if last else 'n/a'
         gate = 'met' if (last and last.precision_met) else 'UNMET'
         return (f'CEILING: reached max_steps ({max_steps}) without convergence; '
                 f'residual drift {resid}, precision gate {gate} -- system may not have settled')
@@ -110,7 +112,7 @@ class DensityEquilibrateTask(ChunkedEquilibrateTask):
                     'precision  passes  reason\n')
             for n, step, nsteps, r in rows:
                 f.write(f'{n:6d}  {step:8d}  {nsteps:6d}  {_fmt(r.mean_density):>9}  '
-                        f'{_fmt(r.drift):>9}  {_fmt(r.drift_hi):>9}  {_fmt(r.sem_over_mean):>9}  '
+                        f'{_fmt(r.signed_drift):>9}  {_fmt(r.drift_hi):>9}  {_fmt(r.sem_over_mean):>9}  '
                         f'{_fmt(r.tau_int):>7}  {_fmt(r.n_eff):>6}  '
                         f'{"yes" if r.precision_met else "no":>9}  {r.passes:6d}  {r.reason}\n')
         self.register(f'{self.basename}-density', key='density_report', artifact_type=DataFileArtifact)

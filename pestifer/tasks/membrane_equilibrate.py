@@ -117,10 +117,12 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         rd, ra = jr.reports.get('density'), jr.reports.get('area')
         area = ra.mean_density if ra else None
         apl = self._apl_mean(area)
+        # display the *signed* drift (negative = shrinking, positive = growing) so the direction of
+        # the trend is legible; the convergence gate still keys off the magnitude (rd/ra.drift).
         logger.info(f'{self.taskname}: chunk {n_chunk} @ step {total_steps} -- '
                     f'rho={_fmt(rd.mean_density if rd else None)} g/cc '
-                    f'(drift {_fmt(rd.drift if rd else None)}), '
-                    f'area={_fmt(area)} A^2 (drift {_fmt(ra.drift if ra else None)}'
+                    f'(drift {_fmt(rd.signed_drift if rd else None)}), '
+                    f'area={_fmt(area)} A^2 (drift {_fmt(ra.signed_drift if ra else None)}'
                     f'{"" if apl is None else f", APL~{_fmt(apl)}"}) -- {jr.reason}')
         return jr.blowup, jr.converged
 
@@ -135,7 +137,7 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
             for name in ('density', 'area'):
                 r = jr.reports.get(name)
                 if r:
-                    bits.append(f'{name} drift {_fmt(r.drift)} (precision '
+                    bits.append(f'{name} drift {_fmt(r.signed_drift)} (precision '
                                 f'{"met" if r.precision_met else "UNMET"})')
         return (f'CEILING: reached max_steps ({max_steps}) without joint convergence; '
                 f'{"; ".join(bits) or "n/a"} -- system may not have settled')
@@ -195,9 +197,9 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
                 apl_lo, apl_up = self._apl_pair(area)
                 f.write(f'{n:6d}  {step:8d}  {nsteps:6d}  '
                         f'{_fmt(rd.mean_density if rd else None):>9}  '
-                        f'{_fmt(rd.drift if rd else None):>9}  {_fmt(rd.sem_over_mean if rd else None):>9}  '
+                        f'{_fmt(rd.signed_drift if rd else None):>9}  {_fmt(rd.sem_over_mean if rd else None):>9}  '
                         f'{_fmt(area):>9}  {_fmt(apl_lo):>11}  {_fmt(apl_up):>11}  '
-                        f'{_fmt(ra.drift if ra else None):>10}  '
+                        f'{_fmt(ra.signed_drift if ra else None):>10}  '
                         f'{_fmt(ra.sem_over_mean if ra else None):>10}  '
                         f'{jr.passes:6d}  {jr.reason}\n')
         self.register(f'{self.basename}-membrane', key='membrane_report', artifact_type=DataFileArtifact)

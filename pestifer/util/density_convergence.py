@@ -438,7 +438,8 @@ class ConvergenceReport:
     """Verdict + diagnostics from one :meth:`DensityConvergenceMonitor.check` call."""
     converged: bool = False
     passes: int = 0              #: consecutive passing checks accumulated so far
-    drift: float | None = None   #: fractional drift over the window (|slope|*span/mean)
+    drift: float | None = None   #: fractional drift *magnitude* over the window (|slope|*span/mean)
+    signed_drift: float | None = None  #: signed fractional drift (slope*span/mean); <0 = shrinking
     drift_hi: float | None = None  #: upper confidence bound on |drift| (|drift| + drift_conf*SE)
     sem_over_mean: float | None = None
     precision_met: bool = False
@@ -560,7 +561,8 @@ class DensityConvergenceMonitor:
         else:
             slope, se_slope = 0.0, float('inf')
         span = float(tw[-1] - tw[0])
-        drift = abs(slope) * span / mean if mean else float('inf')
+        signed_drift = slope * span / mean if mean else float('inf')  # <0 shrinking, >0 growing
+        drift = abs(signed_drift)                                     # magnitude drives the gate
         drift_se = se_slope * span / mean if mean else float('inf')
         drift_hi = drift + p.drift_conf * drift_se       # upper confidence bound on |drift|
         drift_ok = drift_hi < p.drift_tol
@@ -589,6 +591,7 @@ class DensityConvergenceMonitor:
                       f'< tol {p.drift_tol:.2e}')
 
         return ConvergenceReport(converged=converged, passes=self._passes, drift=drift,
+                                 signed_drift=signed_drift,
                                  drift_hi=drift_hi, sem_over_mean=sem_over_mean,
                                  precision_met=precision_met, mean_density=mean,
                                  n_window=int(tw.size), tau_int=tau_int, n_eff=n_eff,
