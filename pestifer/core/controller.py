@@ -160,6 +160,10 @@ class Controller:
             if task.index < resume_from:
                 logger.info(f"--restart: skipping completed task {task.index:02d} '{task.taskname}'")
                 continue
+            pre_hash = None
+            if manifest is not None:
+                from .run_manifest import spec_hash
+                pre_hash = spec_hash(task.specs)   # BEFORE execute() -- some tasks mutate their specs
             returned_result = task.execute()
             task_report[task.index] = dict(taskname=task.taskname, taskindex=task.index, result=returned_result)
             task_durations += task.duration
@@ -167,7 +171,7 @@ class Controller:
                 logger.warning(f'Task {task.taskname} failed; task.result {task.result} returned result {returned_result} controller is aborted.')
                 break
             if manifest is not None:
-                manifest.record(task, self.pipeline)   # durable resume point after each clean task
+                manifest.record(task, self.pipeline, task_spec_hash=pre_hash)   # durable resume point
         if manifest is not None and task_report and all(r['result'] == 0 for r in task_report.values()):
             manifest.mark_complete()   # a finished build has nothing to resume
         for task in self.tasks:

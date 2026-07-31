@@ -80,12 +80,18 @@ class RunManifest:
         m.data = raw
         return m
 
-    def record(self, task, pipeline) -> None:
+    def record(self, task, pipeline, task_spec_hash=None) -> None:
         """Append (or replace) the entry for a cleanly-completed ``task`` and persist.
 
         Records the current ``state`` fileset (unchanged tasks carry the prior state forward) and the
         task's provided pipeline currencies (so restart can detect a non-STATE handoff across the
         resume boundary).  Never raises -- a manifest failure must not fail the build.
+
+        ``task_spec_hash`` must be the hash of the task's specs computed **before** it executed:
+        several tasks mutate ``self.specs`` during ``do()`` (resolved defaults, artifact bookkeeping),
+        so hashing here (post-execution) would not match the pre-execution hash a later ``--restart``
+        recomputes.  The caller passes the pre-execution hash; we fall back to hashing now only if it
+        is omitted.
         """
         try:
             state = pipeline.get_current_artifact('state')
@@ -96,7 +102,7 @@ class RunManifest:
             entry = {
                 'index': task.index,
                 'taskname': task.taskname,
-                'spec_hash': spec_hash(task.specs),
+                'spec_hash': task_spec_hash if task_spec_hash is not None else spec_hash(task.specs),
                 'state': _state_files(state),
                 'provides': provides,
             }
