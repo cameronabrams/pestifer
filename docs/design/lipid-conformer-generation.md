@@ -168,17 +168,25 @@ grid-packing *fluid* (fat) conformers surfaced **two independent failure modes**
 1. **Topology corruption → NaN.** The psfgen step loads the bare grid PDB into VMD to split by
    type/leaflet; with bond perception on, two near-coincident lipid atoms get spuriously bonded and
    VMD **merges their two residues**, scrambling the per-residue coords → psfgen guesses a
-   box-sized-displaced atom → NAMD diverges to NaN. Fixed by loading with **`autobonds off`**
-   (`c6612865`) — connectivity is irrelevant there (it comes from the RESI topologies at psfgen
-   time) and `residue` grouping then falls back to resSeq/segname. (Verified: a 0.05 Å
-   near-coincidence loads as 5 merged residues with autobonds on, 6 correct with it off.)
-2. **Physical overlap → segfault.** Even with correct topology, fat conformers packed at SAPL 60
-   have severe steric clashes that **segfault the NAMD minimize** (rc 139). Fixed by the packer
-   **re-spin guard** (`c56863db`): re-spin each lipid until its atoms clear placed lipids by ≥0.9 Å.
+   box-sized-displaced atom → NAMD diverges to NaN.
+2. **Physical overlap → segfault.** Fat conformers packed at SAPL 60 have severe steric clashes
+   that **segfault the NAMD minimize** (rc 139).
 
-Both are needed (correctness + physical viability) and both are committed. With them, a pristine
-DMPC bilayer (100 lipids/leaflet) grid-packs from MC conformers and runs `membrane_equilibrate`
-(NPgT) to completion.
+**Fix = the packer re-spin guard** (`c56863db`): re-spin each lipid until its atoms clear placed
+lipids by ≥0.9 Å. This removes the near-coincidences that cause *both* failures at once (a cleared
+placement neither fuses residues in VMD nor over-clashes NAMD). Proven: pristine DMPC (100
+lipids/leaflet) then grid-packs and runs `membrane_equilibrate` to completion.
+
+> **Dead end — `autobonds off` (reverted `9a316ed5`).** Loading the grid PDB with VMD bond
+> perception disabled *seemed* the clean root fix (a 6-atom test grouped residues correctly by
+> resSeq), but in the real pipeline it **catastrophically broke VMD's residue/segment splitting**:
+> `write_psfgen`/`leaflet_apportionment` rely on VMD's `residue` field, which VMD derives from
+> *connectivity*; with no bonds it mis-grouped and psfgen over-generated the system ~120× (23,600 →
+> 2.8M atoms) → segfault. So the VMD split step genuinely *needs* bond perception; the right layer
+> is to keep placements clean (re-spin) so perception stays correct. A future robustness option is
+> the user's idea of tiling single-molecule PSFs into a full-system PSF loaded *before* the PDB (VMD
+> then uses real bonds) — correct but a larger refactor, and single-molecule PSFs aren't available
+> for shipped conformers.
 
 **First result (inflation 1.9):** equilibrated **APL ≈ 67 Å²** with **tiny drift (−0.52%** over the
 final half) — vs the old vacuum-rod membrane's gel-like **~50** with a large *persistent* positive
