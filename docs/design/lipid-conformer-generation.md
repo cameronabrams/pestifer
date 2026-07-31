@@ -128,6 +128,21 @@ ensemble draw is the true default. Unit-tested (`test_bilayer_write_grid_pdb_sam
   Provenance recorded in `info.yaml['generation']`. **Default stays `'md'`** until validated. Legacy md
   path verified unchanged end-to-end.
 
+### Cylinder sizing — engineering solution (2026-07-31, agreed with user)
+No reference bilayer exists to calibrate against (chicken-and-egg: the user trusts only bilayers they
+build, and none exist yet). So sizing is an **engineering knob**: confinement cross-section =
+`cylinder_inflation × cylinder_apl`, where `cylinder_apl` is the honest target APL (default 60) and
+`cylinder_inflation` (default **1.9**) accounts for a single conformer's convex-hull footprint exceeding
+the packed APL. **Cheap calibration proxy** (needs no bilayer): tune inflation so the ensemble's mean
+footprint ≈ target APL. On DMPC (shipped MC params), inflation 1.9 (area 114 Å²) → mean footprint ~56–61,
+~7/10 distinct shapes, vs the old all-rod ensemble (34–50, mean ~41). Committed `3c242eff`.
+
+**Integration validated end-to-end** (`~/devtests/pestifer/mc_validate/`): generate MC DMPC → cache
+(`info['generation']` stamped `sampler:mc`) → grid packer draws per-lipid → 128-lipid patch with
+footprints ~45–57. The full chain works. (The manually-seeded MC cache entry was removed afterward to
+keep the user env on the shipped md conformers; reseed with `ensure_lipid_conformer('DMPC', CC,
+sampler='mc')`.)
+
 ### What the DMPC end-to-end runs showed (findings that set up the tuning)
 Validation harness: `~/devtests/pestifer/mc_validate/gen_dmpc_mc.py` (`do_resi(..., sampler='mc')`,
 then per-conformer xy convex-hull footprint + z-extension).
@@ -145,19 +160,34 @@ then per-conformer xy convex-hull footprint + z-extension).
 - z-extension only drops modestly (~29.5→~24–26 Å); not yet clearly "fluid" — needs an order-parameter
   target to judge.
 
-## Open questions for the user (blocking final Lever 2a tuning)
+## Remaining work — the acceptance test (phase 3)
 
-- **Cylinder sizing.** The confinement area is *not* the packed APL. What target should map to the
-  confinement radius — a measured single-conformer footprint from a real bilayer (per species), or an
-  APL×inflation-factor? Per-species (mixtures) or global? The `cylinder_apl` knob and its `sqrt(area/π)`
-  mapping are in place; only the calibration is missing.
-- **Validation target + reference data.** Preferred fluid-likeness metric — Scd order parameters vs
-  mean tail length/footprint — and a reference to hit (e.g. DMPC conformers extracted from a fluid
-  bilayer in the user's DB at `/mnt/storage1/cfa/research/lipids/db/`). This closes phasing step 3.
-- **Sampling ergodicity.** Accept the current small-move MC with more steps, or add a
-  configurational-bias / tail-regrowth move for the dense regime? (Affects `mc_n_equil`/`mc_n_decorr`
-  defaults and possibly a new move type in `run_mc`.)
-- (Resolved on paper 2026-07-31: hard-sphere potential; tails-only confinement — both implemented.)
+The only real validator (no reference bilayer) is: **generate MC ensemble → grid-pack → NPgT-equilibrate
+→ does APL land ~60 with small drift from the start?** Status/obstacles:
+
+- **A protein-free pristine-bilayer build is currently unreachable via a config file.** `make_membrane_
+  system`'s contract intends a bare membrane to be an origin (`requires=()` when not embedding), but the
+  ycleptic schema populates the `embed` block with defaults even when the user omits it, so
+  `bool(specs.get('embed'))` is always true and the pipeline validator demands a prior protein state.
+  Either (a) run the full **ex16** (has a protein — the design's stated acceptance test, but expensive:
+  membrane_equilibrate ran ~800k steps for the old over-packed case), or (b) fix the contract to detect a
+  *meaningful* embed (e.g. presence of `z_ref_group`/user-set keys) so bare builds work — this is a
+  genuine latent bug worth a small separate fix.
+- To run the test: seed the MC cache (`ensure_lipid_conformer('DMPC', CC, sampler='mc')`) so the packer
+  uses MC conformers, build, and read APL/area drift from the `.xst` via
+  `pestifer.util.density_convergence` (`xst_cell_areas`, `membrane_leaflet_geometry`).
+- If APL still low / drift still large → nudge `cylinder_inflation` up (looser cylinder → fatter
+  footprints) and/or improve MC mixing before considering Lever 2b.
+
+## Still-open tuning knobs (revisit after the acceptance test)
+
+- **Sampling ergodicity.** Current small-move MC gives only ~7/10 distinct conformers (dense-regime
+  mixing: compact states have low pivot acceptance). "See how far we get without advanced MC first"
+  (user, 2026-07-31). If insufficient: more steps, or a configurational-bias / tail-regrowth move in
+  `run_mc`.
+- **Per-species inflation** for mixtures with very different intrinsic areas (single global factor now).
+- (Resolved 2026-07-31: hard-sphere potential; tails-only confinement; APL×inflation sizing — all
+  implemented. No reference bilayer exists, so the acceptance test is the calibration authority.)
 
 ## Key code locations
 
