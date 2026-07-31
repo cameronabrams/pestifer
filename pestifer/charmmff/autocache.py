@@ -186,8 +186,8 @@ def ensure_solvent_box(resname: str, CC, *, nmol: int = 216, density: float = 1.
 def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps: int = 5000,
                            minimize_steps: int = 500, sample_temperature: float = 300.0,
                            force_constant: float = 1.0, sampler: str = 'md',
-                           cylinder_apl: float = 100.0, mc_n_equil: int = 20000,
-                           mc_n_decorr: int = 3000, mc_seed: int = 0,
+                           cylinder_apl: float = 60.0, cylinder_inflation: float = 1.9,
+                           mc_n_equil: int = 20000, mc_n_decorr: int = 3000, mc_seed: int = 0,
                            mc_max_angle: float = math.pi / 6, mc_radius_scale: float = 0.8) -> Path:
     """Ensure a cached ``kind: molecule`` conformer entry for ``resname`` and return the
     (``lipid``) collection dir.
@@ -213,10 +213,14 @@ def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps
         Forwarded to :func:`do_resi`.  ``sample_steps``/``sample_temperature``/``force_constant``
         apply to the ``'md'`` sampler only.
     sampler : str
-        ``'mc'`` (default, athermal MC) or ``'md'`` (legacy vacuum sampling).
-    cylinder_apl, mc_n_equil, mc_n_decorr, mc_seed
-        Athermal-MC controls (target area-per-lipid setting the confinement radius, equilibration
-        proposals, proposals between samples, RNG seed).  Forwarded to :func:`do_resi`.
+        ``'md'`` (default, legacy vacuum sampling) or ``'mc'`` (athermal MC).
+    cylinder_apl, cylinder_inflation, mc_n_equil, mc_n_decorr, mc_seed, mc_max_angle, mc_radius_scale
+        Athermal-MC controls.  The confinement cylinder cross-section is
+        ``cylinder_inflation * cylinder_apl`` (the inflation factor accounts for a single
+        conformer's convex-hull footprint exceeding the packed area-per-lipid; calibrated so the
+        ensemble's mean footprint lands near ``cylinder_apl``).  The rest set equilibration
+        proposals, proposals between samples, RNG seed, pivot-angle half-width, and the
+        hard-sphere ``Rmin/2`` scale.  Forwarded to :func:`do_resi`.
 
     Returns
     -------
@@ -247,7 +251,8 @@ def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps
             do_resi(resname, build_CC, RM=RM, outdir='out', faildir='fail', cleanup=True,
                     nsamples=nsamples, sample_steps=sample_steps, minimize_steps=minimize_steps,
                     sample_temperature=sample_temperature, force_constant=force_constant,
-                    sampler=sampler, cylinder_apl=cylinder_apl, mc_n_equil=mc_n_equil,
+                    sampler=sampler, cylinder_apl=cylinder_apl,
+                    cylinder_inflation=cylinder_inflation, mc_n_equil=mc_n_equil,
                     mc_n_decorr=mc_n_decorr, mc_seed=mc_seed, mc_max_angle=mc_max_angle,
                     mc_radius_scale=mc_radius_scale)
             produced = Path('out') / resname
@@ -257,6 +262,7 @@ def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps
             info = yaml.safe_load((produced / 'info.yaml').read_text())
             info['quality'] = 'auto'
             info['generation'] = ({'sampler': 'mc', 'cylinder_apl': cylinder_apl,
+                                   'cylinder_inflation': cylinder_inflation,
                                    'mc_n_equil': mc_n_equil, 'mc_n_decorr': mc_n_decorr,
                                    'mc_seed': mc_seed, 'mc_max_angle': mc_max_angle,
                                    'mc_radius_scale': mc_radius_scale} if sampler == 'mc'

@@ -30,8 +30,9 @@ logger = logging.getLogger(__name__)
 def _sample_and_write_mc_conformers(resid: str, psf_file: str, pdb_file: str,
                                     heads: list, tails: list, par_basenames: list,
                                     DB: CHARMMFFContent, *, nsamples: int, digits: int,
-                                    cylinder_apl: float, n_equil: int, n_decorr: int,
-                                    seed: int, max_angle: float, radius_scale: float) -> int:
+                                    cylinder_apl: float, cylinder_inflation: float,
+                                    n_equil: int, n_decorr: int, seed: int,
+                                    max_angle: float, radius_scale: float) -> int:
     """Athermal-MC sampler: melt the tails of a built lipid into a fluid-like conformer set.
 
     Given the built, minimized single-molecule ``psf_file`` + ``pdb_file`` (the same artifacts
@@ -96,12 +97,13 @@ def _sample_and_write_mc_conformers(resid: str, psf_file: str, pdb_file: str,
                            f'parameters for atom types {missing}')
     rmin_half = [params.nonbonded[t].Rmin_half for t in atomtypes]
 
-    R = cylinder_radius_for_apl(cylinder_apl)
+    R = cylinder_radius_for_apl(cylinder_apl, cylinder_inflation)
     mol = build_lipid_mc(coords, None, masses, bonds, head_idx, tail_idx, rmin_half,
                          cylinder_radius=R, radius_scale=radius_scale)
     logger.info(f'MC {resid}: {len(mol.rotatable)} tail torsions, '
                 f'{int(mol.confined.sum())} confined atoms, cylinder radius {R:.2f} A '
-                f'(target APL {cylinder_apl:.0f})')
+                f'(target APL {cylinder_apl:.0f} x inflation {cylinder_inflation:.2f} '
+                f'= area {cylinder_apl * cylinder_inflation:.0f} A^2)')
     if not mol.rotatable:
         logger.warning(f'MC {resid}: no rotatable tail torsions found; conformers will be copies')
     samples = run_mc(mol, nsamples=nsamples, n_equil=n_equil, n_decorr=n_decorr,
@@ -122,8 +124,8 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
               sample_temperature: float = 300,
               refic_idx: int = 0, force_constant: float = 1.0,
               borrow_ic_from: str = None, sampler: str = 'md',
-              cylinder_apl: float = 100.0, mc_n_equil: int = 20000,
-              mc_n_decorr: int = 3000, mc_seed: int = 0,
+              cylinder_apl: float = 60.0, cylinder_inflation: float = 1.9,
+              mc_n_equil: int = 20000, mc_n_decorr: int = 3000, mc_seed: int = 0,
               mc_max_angle: float = np.pi / 6, mc_radius_scale: float = 0.8):
     """ 
     Generate a PDB file for a residue defined by the CHARMM force field using psfgen, and sample it using NAMD.  Also generate the ``info.yaml`` file for this residue.
@@ -362,7 +364,8 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             _sample_and_write_mc_conformers(
                 resid, mc_psf, mc_pdb, heads, tails, par, DB,
                 nsamples=nsamples, digits=digits, cylinder_apl=cylinder_apl,
-                n_equil=mc_n_equil, n_decorr=mc_n_decorr, seed=mc_seed,
+                cylinder_inflation=cylinder_inflation, n_equil=mc_n_equil,
+                n_decorr=mc_n_decorr, seed=mc_seed,
                 max_angle=mc_max_angle, radius_scale=mc_radius_scale)
         except Exception as exc:
             logger.warning(f'MC conformer generation for {resid} failed: {exc}')
@@ -467,9 +470,9 @@ def do_resi(resi: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             sample_steps: int = 5000, nsamples: int = 10,
             sample_temperature: float = 300, refic_idx: int = 0,
             force_constant: float = 1.0, borrow_ic_from: str = None,
-            sampler: str = 'md', cylinder_apl: float = 100.0, mc_n_equil: int = 20000,
-            mc_n_decorr: int = 3000, mc_seed: int = 0, mc_max_angle: float = np.pi / 6,
-            mc_radius_scale: float = 0.8):
+            sampler: str = 'md', cylinder_apl: float = 60.0, cylinder_inflation: float = 1.9,
+            mc_n_equil: int = 20000, mc_n_decorr: int = 3000, mc_seed: int = 0,
+            mc_max_angle: float = np.pi / 6, mc_radius_scale: float = 0.8):
     """
     Manager function for :func:`do_psfgen`.  Makes sure it operates in the correct subdirectories and handles success/failure cases.
 
@@ -511,8 +514,8 @@ def do_resi(resi: str, DB: CHARMMFFContent, RM: ResourceManager = None,
                             sample_temperature=sample_temperature,
                             refic_idx=refic_idx, force_constant=force_constant,
                             borrow_ic_from=borrow_ic_from, sampler=sampler,
-                            cylinder_apl=cylinder_apl, mc_n_equil=mc_n_equil,
-                            mc_n_decorr=mc_n_decorr, mc_seed=mc_seed,
+                            cylinder_apl=cylinder_apl, cylinder_inflation=cylinder_inflation,
+                            mc_n_equil=mc_n_equil, mc_n_decorr=mc_n_decorr, mc_seed=mc_seed,
                             mc_max_angle=mc_max_angle, mc_radius_scale=mc_radius_scale)
         os.chdir(cwd)
         if result == 0:

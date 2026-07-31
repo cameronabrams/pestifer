@@ -358,9 +358,16 @@ def build_lipid_mc(coords, elements, masses, bonds, head_indices, tail_indices,
                       cylinder_radius=cylinder_radius, confined=confined)
 
 
-def cylinder_radius_for_apl(apl: float) -> float:
-    """Confinement radius whose cross-section equals a target area-per-lipid: ``sqrt(APL/pi)``."""
-    return float(np.sqrt(apl / np.pi))
+def cylinder_radius_for_apl(apl: float, inflation: float = 1.0) -> float:
+    """Confinement radius for a target area-per-lipid, ``sqrt(inflation*APL/pi)``.
+
+    A *single* lipid conformer's convex-hull footprint runs larger than its packed area-per-lipid
+    (in a real bilayer neighbors interdigitate into each other's concavities), so confining the
+    footprint to exactly ``APL`` would over-tighten and select for thin rods.  ``inflation`` (an
+    engineering factor, calibrated so the ensemble's mean footprint lands near ``APL``) sizes the
+    cylinder to ``inflation*APL``.
+    """
+    return float(np.sqrt(inflation * apl / np.pi))
 
 
 def build_exclusions(graph, order: int = 2) -> set:
