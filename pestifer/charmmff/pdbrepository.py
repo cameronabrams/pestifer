@@ -163,6 +163,35 @@ class PDBInput:
             return 0.0
         return c.get('max-internal-length', 0)
 
+    def get_z_extent(self, conformerID: int = 0) -> float:
+        """Coordinate z-span (``max_z - min_z``) of one conformer -- see :meth:`get_max_z_extent`."""
+        text = self.pdbcontents.get(conformerID)
+        if text is None and conformerID == 0 and self.pdbcontents:
+            text = next(iter(self.pdbcontents.values()))   # solo entry keyed '0'/0
+        if text is None:
+            return 0.0
+        zs = [float(ln[46:54]) for ln in text.splitlines() if ln.startswith(('ATOM', 'HETATM'))]
+        return (max(zs) - min(zs)) if zs else 0.0
+
+    def get_max_z_extent(self) -> float:
+        """The largest coordinate z-span (``max_z - min_z``) over all conformers.
+
+        Conformers are generated oriented head-up along z, so a conformer's z-span is the vertical
+        thickness the lipid occupies in a leaflet -- the quantity the grid packer must reserve so
+        lipids do not overflow into (and thin) the water chambers.  Unlike
+        :meth:`get_head_tail_length` (head to tail *tip*), this does not collapse when a fluid
+        conformer curls its tail tip back toward the head; for rod conformers the two agree.  The
+        max over conformers covers the packer's per-lipid draw across the ensemble.  Returns 0.0 if
+        there are no coordinates.
+        """
+        best = 0.0
+        for text in self.pdbcontents.values():
+            zs = [float(ln[46:54]) for ln in text.splitlines()
+                  if ln.startswith(('ATOM', 'HETATM'))]
+            if zs:
+                best = max(best, max(zs) - min(zs))
+        return best
+
     def get_head_tail_length(self, conformerID: int = 0):
         """
         Get the head-tail length for a given conformer ID. If no conformers are found, return 0.0. If the conformer ID is out of range, return 0.0.

@@ -342,7 +342,18 @@ class Bilayer:
                     data['avgMW'] += species['MW'] * species['patn']
                 elif 'leaflet' in layer:
                     for lipid in data['composition']:
-                        lipid['reference_length'] = self.species_data[lipid['name']].get_head_tail_length(conformerID=lipid.get('conf', 0))
+                        sd = self.species_data[lipid['name']]
+                        # Reserve leaflet z from the lipid's true vertical extent, not its head-tail
+                        # length: fluid (melted) MC conformers curl the tail *tip* back toward the
+                        # head, so head-tail-length collapses (~11 A) far below the real z-extent
+                        # (~28 A) -- sizing from it under-reserves the leaflet and the lipids overflow
+                        # into (and thin) the water chambers.  Conformers are generated oriented
+                        # head-up along z, so the coordinate z-span is the leaflet thickness (and for
+                        # rod conformers equals head-tail-length, so existing builds are unchanged).
+                        # An explicit `conf` pins one conformer (use its extent); otherwise the packer
+                        # draws per lipid across the ensemble, so reserve for the tallest.
+                        lipid['reference_length'] = (sd.get_z_extent(lipid['conf']) if 'conf' in lipid
+                                                     else sd.get_max_z_extent())
                         if lipid['reference_length'] > data['maxthickness']:
                             data['maxthickness'] = lipid['reference_length']
                     logger.debug(f'{layer} maxthickness {data["maxthickness"]:.3f}')

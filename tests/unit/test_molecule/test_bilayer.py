@@ -361,7 +361,9 @@ class TestBilayer(unittest.TestCase):
         assert test_bilayer.patch_ll_corner[2]==pytest.approx(0.0, rel=1e-2)
         assert test_bilayer.patch_ur_corner[0]==pytest.approx(86.60, rel=1e-2)
         assert test_bilayer.patch_ur_corner[1]==pytest.approx(86.60, rel=1e-2)
-        assert test_bilayer.patch_ur_corner[2]==pytest.approx(83.08, rel=1e-2)
+        # box z reserves each leaflet's true coordinate z-extent (choline + caps), not just the
+        # head-to-tail-tip length -- so lipids don't overflow into and thin the water chambers
+        assert test_bilayer.patch_ur_corner[2]==pytest.approx(87.86, rel=1e-2)
         self.RM.charmmff_content.clean_local_charmmff_files()
 
         os.chdir('..')
