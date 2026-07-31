@@ -38,8 +38,13 @@ class TestPipelineContract(unittest.TestCase):
 
     def test_membrane_embed_and_mdplot_ok(self):
         self._assert_ok([{'fetch': {'sourceID': '6e8w'}}, {'psfgen': {}},
-                         {'make_membrane_system': {'embed': {'xydist': 10}}},
+                         {'make_membrane_system': {'embed': {'z_head_group': 'name CA',
+                                                             'z_tail_group': 'name CB'}}},
                          {'md': {}}, {'mdplot': {}}])
+
+    def test_bare_membrane_is_an_origin(self):
+        # a protein-free bilayer build needs no preceding state -- it originates one
+        self._assert_ok([{'make_membrane_system': {'bilayer': {'packer': 'grid'}}}, {'md': {}}])
 
     # ---- missing prerequisite (category A) ----
     def test_continuation_then_psfgen_is_the_motivating_error(self):
@@ -80,8 +85,19 @@ class TestPipelineContract(unittest.TestCase):
     # ---- contract details ----
     def test_membrane_contract_is_conditional_on_embed(self):
         from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask as MM
-        self.assertIn(STATE, MM.pipeline_contract({'embed': {'xydist': 10}}).requires)
+        # a genuine embed (protein-positioning directive) requires a protein state to insert
+        self.assertIn(STATE, MM.pipeline_contract({'embed': {'z_head_group': 'name CA'}}).requires)
+        self.assertIn(STATE, MM.pipeline_contract({'embed': {'no_orient': True}}).requires)
+        # no embed at all -> origin
         self.assertEqual(frozenset(), MM.pipeline_contract({}).requires)
+        # the schema's default `embed` scaffolding (no positioning directive) is NOT an embed:
+        # this is the real-pipeline case that must not spuriously require a protein state
+        schema_default_embed = {'no_orient': False, 'q_tolerance': 1.e-4, 'xydist': 15,
+                                'zdist': 20, 'margin': 2.4,
+                                'orient': {'source': [], 'target': []}, 'z_ref_group': {}}
+        self.assertEqual(frozenset(), MM.pipeline_contract({'embed': schema_default_embed}).requires)
+        # and it must never be flagged as discarding an incoming protein state
+        self.assertFalse(MM.pipeline_contract({'embed': schema_default_embed}).discards_state)
 
     def test_default_contract_is_a_transform(self):
         c = TaskContract()

@@ -99,15 +99,40 @@ class MakeMembraneSystemTask(BaseTask):
     YAML header for the MakeMembraneSystemTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
 
+    @staticmethod
+    def _embed_requested(specs) -> bool:
+        """True only if the specs describe an actual protein embedding.
+
+        Mere presence of an ``embed`` block cannot signal intent: the ycleptic schema always
+        materializes ``embed`` with default scalars (``xydist``, ``zdist``, ``margin`` ...) even
+        when the user requests no embedding, so ``bool(specs.get('embed'))`` is always true on the
+        real (schema-expanded) pipeline and would wrongly reject a legitimate bare-membrane build.
+        A genuine embed instead carries a protein-*positioning* directive -- a head/tail z-axis
+        selection, an explicit orient vector pair, a ``z_ref_group`` anchor, or an explicit
+        ``no_orient`` opt-in -- none of which the schema fills by default.
+        """
+        embed = specs.get('embed') or {}
+        if not isinstance(embed, dict):
+            return False
+        if embed.get('z_head_group') or embed.get('z_tail_group') or embed.get('no_orient'):
+            return True
+        orient = embed.get('orient') or {}
+        if isinstance(orient, dict) and (orient.get('source') or orient.get('target')):
+            return True
+        zref = embed.get('z_ref_group') or {}
+        return bool(isinstance(zref, dict) and zref.get('text'))
+
     @classmethod
     def pipeline_contract(cls, specs):
         from .pipeline_contract import TaskContract, STATE, SOLVATED
-        embedding = bool(specs.get('embed'))
-        # embedding requires a protein state to insert; a bare membrane build is an origin.
-        # The builder solvates the assembled system itself, so a prior solvation is suspect.
-        return TaskContract(requires=(STATE,) if embedding else (),
+        # A genuine embed requires a protein state to insert; a bare membrane build is an origin
+        # (embed detection ignores the schema's default `embed` scaffolding -- see _embed_requested).
+        # This task never *discards* an incoming protein: at runtime it embeds whatever state is
+        # present and only builds from scratch when none is, so discards_state stays False.  The
+        # builder solvates the assembled system itself, so a prior solvation is suspect.
+        return TaskContract(requires=(STATE,) if cls._embed_requested(specs) else (),
                             provides=(STATE, SOLVATED),
-                            discards_state=not embedding,
+                            discards_state=False,
                             warn_if_present=(SOLVATED,))
 
     def provision(self, packet: dict):
