@@ -5,6 +5,7 @@ the configuration, from which the list of tasks is created.  The :meth:`do_tasks
 the tasks.
 """
 import logging
+import os
 
 from dataclasses import dataclass
 
@@ -147,6 +148,7 @@ class Controller:
         """
         task_report = {}
         task_durations = 0
+        manifest = self._init_run_manifest()   # None for subcontrollers
         for task in self.tasks:
             returned_result = task.execute()
             task_report[task.index] = dict(taskname=task.taskname, taskindex=task.index, result=returned_result)
@@ -154,12 +156,38 @@ class Controller:
             if task.result != 0:
                 logger.warning(f'Task {task.taskname} failed; task.result {task.result} returned result {returned_result} controller is aborted.')
                 break
+            if manifest is not None:
+                manifest.record(task, self.pipeline)   # durable resume point after each clean task
+        if manifest is not None and task_report and all(r['result'] == 0 for r in task_report.values()):
+            manifest.mark_complete()   # a finished build has nothing to resume
         for task in self.tasks:
             if task.index not in task_report:
                 continue
             task_report[task.index]['duration'] = task.duration
             task_report[task.index]['duration_frac'] = task.duration/task_durations if task_durations > 0 else 0
         return task_report
+
+    def _init_run_manifest(self):
+        """Create the per-task completion manifest for a top-level build, or ``None``.
+
+        Only the top-level controller (index 0) writes one; subcontroller pipelines are opaque and
+        appear as a single entry under their parent task.  Any failure is non-fatal (returns ``None``).
+        """
+        if self.index != 0:
+            return None
+        try:
+            from .run_manifest import RunManifest, tasks_fingerprint, MANIFEST_NAME
+            version = ''
+            try:
+                from importlib.metadata import version as _pkg_version
+                version = _pkg_version('pestifer')
+            except Exception:
+                pass
+            return RunManifest(os.path.join(os.getcwd(), MANIFEST_NAME),
+                               version=version, fingerprint=tasks_fingerprint(self.tasks))
+        except Exception as exc:
+            logger.warning(f'run manifest: could not initialize ({exc}); resume will be unavailable')
+            return None
 
     def write_complete_config(self, filename='complete-user.yaml'):
         """ 
