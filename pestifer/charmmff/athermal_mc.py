@@ -237,6 +237,111 @@ def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: i
     return samples[:nsamples]
 
 
+def _element_of_mass(mass: float) -> str:
+    """Coarse element symbol from atomic weight (enough to tell C/H/O/N/P/S apart in lipids)."""
+    for sym, m in (('H', 1.008), ('C', 12.011), ('N', 14.007), ('O', 15.999),
+                   ('P', 30.974), ('S', 32.06)):
+        if abs(mass - m) < 1.0:
+            return sym
+    return '?'
+
+
+def build_lipid_mc(coords, elements, masses, bonds, head_indices, tail_indices,
+                   rmin_half, cylinder_radius, radius_scale: float = _SIGMA_FROM_RMIN,
+                   min_tip_heavy: int = 2) -> MoleculeMC:
+    """Assemble a :class:`MoleculeMC` for a lipid from its topology + geometry.
+
+    Rotatable degrees of freedom are the **acyl-tail C-C torsions**, found intrinsically: a bond
+    is a tail torsion iff it is a bridge (its removal disconnects the molecule) whose tip-side
+    fragment is *all carbon* -- exactly the criterion :meth:`lipid_annotate` uses to peel tails.
+    This automatically excludes ester/glycerol/headgroup bonds (whose fragments carry oxygens),
+    so the headgroup stays rigid and only the tails sample, per the design.  The tip-side subtree
+    (hydrogens included) is what each pivot rotates.
+
+    The confinement cylinder is anchored at the head centroid and directed head->tail, so at the
+    tails' depth its axis passes through the tail bundle's lateral center; the tail atoms are
+    confined to ``cylinder_radius`` about it, capping the lateral footprint near the target APL.
+
+    Parameters
+    ----------
+    coords : (N,3) array_like
+        Atom coordinates (the built, minimized, head-up conformer).
+    elements : sequence[str] or None
+        Per-atom element symbols; if ``None`` they are inferred from ``masses``.
+    masses : sequence[float]
+        Per-atom atomic weights (used to infer elements when ``elements`` is None).
+    bonds : iterable[(int, int)]
+        Bonded atom-index pairs (the full topology, hydrogens included).
+    head_indices, tail_indices : sequence[int]
+        Atom indices of the head reference atom(s) and the terminal tail-carbon atom(s).
+    rmin_half : sequence[float]
+        Per-atom CHARMM ``Rmin/2``.  Hard-sphere radii are ``rmin_half * radius_scale``.
+    cylinder_radius : float
+        Confinement radius (e.g. ``sqrt(APL_target/pi)``).
+    radius_scale : float
+        Factor on ``Rmin/2`` giving the hard-sphere radius (default scales the pair minimum down
+        to the LJ collision diameter sigma).
+    min_tip_heavy : int
+        Minimum heavy-atom count on a bond's tip side for it to count as a rotatable torsion;
+        ``2`` skips the terminal-methyl bond (a useless symmetric spin).
+
+    Returns
+    -------
+    MoleculeMC
+    """
+    import networkx as nx
+
+    coords = np.asarray(coords, dtype=float)
+    n = len(coords)
+    if elements is None:
+        elements = [_element_of_mass(m) for m in masses]
+    elements = list(elements)
+
+    full = nx.Graph()
+    full.add_nodes_from(range(n))
+    full.add_edges_from((int(i), int(j)) for i, j in bonds)
+    heavy = full.subgraph([i for i in range(n) if elements[i] != 'H']).copy()
+
+    rotatable: list[RotatableBond] = []
+    tail_atoms: set[int] = set()
+    for i, j in nx.bridges(heavy):
+        g = heavy.copy()
+        g.remove_edge(i, j)
+        comp_i = nx.node_connected_component(g, i)
+        comp_j = nx.node_connected_component(g, j)
+        # the tail-tip side is the all-carbon fragment; anchor is the other side
+        for tip_root, anchor_root, tip_comp in ((j, i, comp_j), (i, j, comp_i)):
+            if all(elements[k] == 'C' for k in tip_comp):
+                if len(tip_comp) < min_tip_heavy:
+                    break
+                moving = moving_set(full, anchor_root, tip_root)
+                rotatable.append(RotatableBond(a=anchor_root, b=tip_root, moving=moving))
+                tail_atoms.update(int(m) for m in moving)
+                break
+
+    confined = np.zeros(n, dtype=bool)
+    if tail_atoms:
+        confined[list(tail_atoms)] = True
+
+    head_c = coords[list(head_indices)].mean(axis=0)
+    tail_ref = coords[list(tail_indices)] if len(tail_indices) else coords[list(tail_atoms)]
+    tail_c = tail_ref.mean(axis=0)
+    axis_dir = tail_c - head_c
+    if np.linalg.norm(axis_dir) < 1e-6:
+        axis_dir = np.array([0.0, 0.0, -1.0])
+
+    radii = np.asarray(rmin_half, dtype=float) * radius_scale
+    return MoleculeMC(coords=coords, radii=radii, rotatable=rotatable,
+                      exclusions=build_exclusions(full, order=2),
+                      axis_point=head_c, axis_dir=axis_dir,
+                      cylinder_radius=cylinder_radius, confined=confined)
+
+
+def cylinder_radius_for_apl(apl: float) -> float:
+    """Confinement radius whose cross-section equals a target area-per-lipid: ``sqrt(APL/pi)``."""
+    return float(np.sqrt(apl / np.pi))
+
+
 def build_exclusions(graph, order: int = 2) -> set:
     """Return the set of ``frozenset({i, j})`` atom-index pairs within ``order`` bonds.
 

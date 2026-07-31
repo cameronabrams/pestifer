@@ -10,6 +10,7 @@ import pytest
 
 from pestifer.charmmff.athermal_mc import (
     MoleculeMC, RotatableBond, run_mc, radial_distances, build_exclusions, moving_set,
+    build_lipid_mc, cylinder_radius_for_apl,
 )
 
 
@@ -136,3 +137,88 @@ class TestAthermalMCEngine:
         assert len(samples) == 3
         for s in samples:
             assert np.array_equal(s, coords)
+
+
+def _synthetic_diacyl():
+    """A minimal two-tail 'lipid': P-O-glycerol, two ester carbonyls (each C=O), and two
+    all-carbon tails.  The ester oxygens are what must stop the all-carbon tail-peeling, so the
+    ester/glycerol/head bonds stay rigid and only the tail C-C bonds become rotatable."""
+    #   idx: 0=P 1=O 2=C(gly) 3=C(=O)A 4=C 5=C 6=C(term) 7=C(=O)B 8=C 9=C 10=C(term)
+    #        11=O(=A) 12=O(=B)
+    elements = ['P', 'O', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'C', 'O', 'O']
+    masses = [30.974, 15.999, 12.011, 12.011, 12.011, 12.011, 12.011,
+              12.011, 12.011, 12.011, 12.011, 15.999, 15.999]
+    bonds = [(0, 1), (1, 2), (2, 3), (3, 11), (3, 4), (4, 5), (5, 6),
+             (2, 7), (7, 12), (7, 8), (8, 9), (9, 10)]
+    coords = np.zeros((13, 3))
+    coords[0] = (0.0, 0.0, 6.0)     # head P, highest z
+    coords[1] = (0.0, 0.0, 5.0)
+    coords[2] = (0.0, 0.0, 4.0)     # glycerol
+    coords[3] = (-1.0, 0.0, 3.0); coords[11] = (-2.0, 0.0, 3.0)   # carbonyl A + =O
+    coords[4] = (-1.0, 0.0, 2.0); coords[5] = (-1.0, 0.0, 1.0); coords[6] = (-1.0, 0.0, 0.0)
+    coords[7] = (1.0, 0.0, 3.0);  coords[12] = (2.0, 0.0, 3.0)    # carbonyl B + =O
+    coords[8] = (1.0, 0.0, 2.0);  coords[9] = (1.0, 0.0, 1.0); coords[10] = (1.0, 0.0, 0.0)
+    rmin_half = np.full(13, 1.0)
+    return coords, elements, masses, bonds, rmin_half
+
+
+class TestBuildLipidMC:
+
+    def test_selects_only_tail_torsions(self):
+        coords, elements, masses, bonds, rmin_half = _synthetic_diacyl()
+        mol = build_lipid_mc(coords, elements, masses, bonds,
+                             head_indices=[0], tail_indices=[6, 10],
+                             rmin_half=rmin_half, cylinder_radius=5.0, min_tip_heavy=2)
+        pivots = {(rb.a, rb.b) for rb in mol.rotatable}
+        # C(=O)-C and C-C tail torsions, but NOT terminal methyls, NOT ester/glycerol/head bonds
+        assert pivots == {(3, 4), (4, 5), (7, 8), (8, 9)}
+
+    def test_moving_sets_are_tip_subtrees(self):
+        coords, elements, masses, bonds, rmin_half = _synthetic_diacyl()
+        mol = build_lipid_mc(coords, elements, masses, bonds,
+                             head_indices=[0], tail_indices=[6, 10],
+                             rmin_half=rmin_half, cylinder_radius=5.0)
+        mv = {(rb.a, rb.b): tuple(rb.moving) for rb in mol.rotatable}
+        assert mv[(3, 4)] == (4, 5, 6)
+        assert mv[(4, 5)] == (5, 6)
+        assert mv[(7, 8)] == (8, 9, 10)
+
+    def test_confines_tail_atoms_only(self):
+        coords, elements, masses, bonds, rmin_half = _synthetic_diacyl()
+        mol = build_lipid_mc(coords, elements, masses, bonds,
+                             head_indices=[0], tail_indices=[6, 10],
+                             rmin_half=rmin_half, cylinder_radius=5.0)
+        confined = set(np.nonzero(mol.confined)[0].tolist())
+        assert confined == {4, 5, 6, 8, 9, 10}   # both acyl tails, nothing in head/ester
+
+    def test_radii_and_axis(self):
+        coords, elements, masses, bonds, rmin_half = _synthetic_diacyl()
+        mol = build_lipid_mc(coords, elements, masses, bonds,
+                             head_indices=[0], tail_indices=[6, 10],
+                             rmin_half=rmin_half, cylinder_radius=5.0, radius_scale=0.9)
+        assert np.allclose(mol.radii, 0.9)
+        # head at +z, tails below -> axis points toward -z
+        assert mol.axis_dir[2] < 0
+
+    def test_elements_inferred_from_mass(self):
+        coords, elements, masses, bonds, rmin_half = _synthetic_diacyl()
+        mol = build_lipid_mc(coords, None, masses, bonds,
+                             head_indices=[0], tail_indices=[6, 10],
+                             rmin_half=rmin_half, cylinder_radius=5.0)
+        assert {(rb.a, rb.b) for rb in mol.rotatable} == {(3, 4), (4, 5), (7, 8), (8, 9)}
+
+    def test_run_mc_on_synthetic_lipid_preserves_geometry(self):
+        coords, elements, masses, bonds, rmin_half = _synthetic_diacyl()
+        mol = build_lipid_mc(coords, elements, masses, bonds,
+                             head_indices=[0], tail_indices=[6, 10],
+                             rmin_half=np.full(13, 0.6), cylinder_radius=6.0)
+        b0 = np.array([np.linalg.norm(coords[i] - coords[j]) for i, j in bonds])
+        samples = run_mc(mol, nsamples=4, n_equil=400, n_decorr=100, seed=9)
+        for s in samples:
+            bl = np.array([np.linalg.norm(s[i] - s[j]) for i, j in bonds])
+            assert np.allclose(bl, b0, atol=1e-8)
+
+    def test_cylinder_radius_for_apl(self):
+        assert cylinder_radius_for_apl(60.0) == pytest.approx((60.0 / np.pi) ** 0.5, rel=1e-9)
+        # ~8.7 A diameter for APL 60, per the design doc
+        assert 2 * cylinder_radius_for_apl(60.0) == pytest.approx(8.74, abs=0.05)
