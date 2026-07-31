@@ -798,16 +798,24 @@ class MakeMembraneSystemTask(BaseTask):
         # (parameter files, flexible cell) alongside the user's own stages
         guarded_protocol = self._guard_pierced_lipids(relaxation_protocol)
         for stage in guarded_protocol:
-            if 'md' not in stage:
-                continue  # e.g. the spliced-in ring_check
-            specs = stage['md']
+            # a relaxation stage is an `md` stage or a self-terminating `membrane_equilibrate` stage
+            # (the latter converges density + lateral area under NPgT, replacing a fixed NPT/NPgT tail);
+            # anything else (e.g. the spliced-in ring_check) is left untouched
+            key = next((k for k in ('md', 'membrane_equilibrate') if k in stage), None)
+            if key is None:
+                continue
+            specs = stage[key]
             specs['addl_paramfiles'] = bilayer.addl_streamfiles
             other = specs.setdefault('other_parameters', {})
             if is_gpu and other.get('pressureProfile'):
                 raise PestiferBuildError(
-                    f'Stage {specs.get("ensemble", "?")} has pressureProfile set in other_parameters, '
-                    f'but processor-type is "gpu"; CUDA-enabled NAMD does not support pressureProfile.')
-            if str(specs.get('ensemble', '') or '').casefold() in ('npt', 'npat', 'npgt'):
+                    f'Stage {key}/{specs.get("ensemble", "?")} has pressureProfile set in '
+                    f'other_parameters, but processor-type is "gpu"; CUDA-enabled NAMD does not '
+                    f'support pressureProfile.')
+            # membrane_equilibrate is intrinsically NPgT; md NPT/NPAT/NPgT stages get the flexible cell
+            barostatted = key == 'membrane_equilibrate' or \
+                str(specs.get('ensemble', '') or '').casefold() in ('npt', 'npat', 'npgt')
+            if barostatted:
                 other.setdefault('useflexiblecell', True)
                 other.setdefault('useconstantratio', True)
                 if pp_requested:

@@ -265,60 +265,78 @@ set water_min_y [expr $bilayer_mid_y - $bilayer_box_Ly / 2.0]
 set water_max_y [expr $bilayer_mid_y + $bilayer_box_Ly / 2.0]
 
 vmdcon -info "required box min z $box_min_z, current bilayer min z $bilayer_min_z"
+
+# M5 (2026-07-30): fill the water gaps above/below the membrane from a SINGLE full-box
+# solvate rather than two thin `-minmax` slabs.  Trimming a generic water box down to a thin
+# slab leaves under-dense skins on the cut faces -- a large fraction of a thin slab -- so the
+# added water arrived ~2-4% below bulk density and the post-embed equilibration spent a long
+# time just compacting it.  Solvating the whole box is a THICK fill (its far-z faces become the
+# periodic boundary, no z-skin), so the water lands at bulk density; we then keep only the
+# residues in the gap z-regions (outside the membrane span) and let the overlap-removal step
+# below trim the thin seam where the gap water meets the membrane's own water.
+
+# Size the box z-extent, keeping >=3 A of water on whichever side actually has a gap (this
+# reproduces the old per-slab extragap logic and the no-gap fallbacks).
 if { $box_min_z < $bilayer_min_z } {
-   # make a slab of water thick enough to fill this gap
    set gapsize [expr $bilayer_min_z - $box_min_z]
    if {$gapsize < 3.0} {
-      set extragap [expr 3.0 - $gapsize]
-      set box_min_z [expr $box_min_z - $extragap]
+      set box_min_z [expr $box_min_z - (3.0 - $gapsize)]
    }
-   set lower_minmax [list [list $water_min_x $water_min_y $box_min_z] [list $water_max_x $water_max_y $bilayer_min_z]]
-   vmdcon -info "Running solvate -minmax $lower_minmax -o ${outbasename}_water_lower"
-   solvate -minmax $lower_minmax -o ${outbasename}_water_lower
-   incr n_solvate_slabs
-   lappend tmp_files ${outbasename}_water_lower.psf
-   lappend tmp_files ${outbasename}_water_lower.pdb
-   lappend tmp_files ${outbasename}_water_lower.log
-   if { $sc > 0.0 } {
-      vmdcon -info "Adding $sc M salt (cation $cation, anion $anion) to lower water slab"
-      autoionize -psf ${outbasename}_water_lower.psf -pdb ${outbasename}_water_lower.pdb -o ${outbasename}_solution_lower -sc $sc -cation $cation -anion $anion
-   } else {
-      file copy -force ${outbasename}_water_lower.psf ${outbasename}_solution_lower.psf
-      file copy -force ${outbasename}_water_lower.pdb ${outbasename}_solution_lower.pdb
-   }
-   lappend tmp_files ${outbasename}_solution_lower.psf
-   lappend tmp_files ${outbasename}_solution_lower.pdb
-   lappend addl_solution ${outbasename}_solution_lower
 } else {
    set box_min_z $bilayer_min_z
 }
-
 if { $box_max_z > $bilayer_max_z } {
-   # make a slab of water thick enough to fill this gap
    set gapsize [expr $box_max_z - $bilayer_max_z]
    if {$gapsize < 3.0} {
-      set extragap [expr 3.0 - $gapsize]
-      set box_max_z [expr $box_max_z + $extragap]
+      set box_max_z [expr $box_max_z + (3.0 - $gapsize)]
    }
-   set upper_minmax [list [list $water_min_x $water_min_y $bilayer_max_z] [list $water_max_x $water_max_y $box_max_z]]
-   vmdcon -info "Running solvate -minmax $upper_minmax -o ${outbasename}_water_upper"
-   solvate -minmax $upper_minmax -o ${outbasename}_water_upper
-   incr n_solvate_slabs
-   lappend tmp_files ${outbasename}_water_upper.psf
-   lappend tmp_files ${outbasename}_water_upper.pdb
-   lappend tmp_files ${outbasename}_water_upper.log
-   if { $sc > 0.0 } {
-      vmdcon -info "Adding $sc M salt (cation $cation, anion $anion) to upper water slab"
-      autoionize -psf ${outbasename}_water_upper.psf -pdb ${outbasename}_water_upper.pdb -o ${outbasename}_solution_upper -sc $sc -cation $cation -anion $anion
-   } else {
-      file copy -force ${outbasename}_water_upper.psf ${outbasename}_solution_upper.psf
-      file copy -force ${outbasename}_water_upper.pdb ${outbasename}_solution_upper.pdb
-   }
-   lappend tmp_files ${outbasename}_solution_upper.psf
-   lappend tmp_files ${outbasename}_solution_upper.pdb
-   lappend addl_solution ${outbasename}_solution_upper
 } else {
    set box_max_z $bilayer_max_z
+}
+
+if { $box_min_z < $bilayer_min_z || $box_max_z > $bilayer_max_z } {
+   set full_minmax [list [list $water_min_x $water_min_y $box_min_z] [list $water_max_x $water_max_y $box_max_z]]
+   vmdcon -info "M5 whole-box solvate: solvate -minmax $full_minmax -o ${outbasename}_waterbox"
+   solvate -minmax $full_minmax -o ${outbasename}_waterbox
+   incr n_solvate_slabs
+   lappend tmp_files ${outbasename}_waterbox.psf
+   lappend tmp_files ${outbasename}_waterbox.pdb
+   lappend tmp_files ${outbasename}_waterbox.log
+
+   # Keep only whole water residues whose oxygen lies in a gap z-region (outside the membrane
+   # span); drop the rest -- that water would double up on the membrane's own water.  Identify
+   # the doomed residues by (segname,resid) on the oxygen, then delatom them out of a fresh
+   # psfgen context (mirrors the (seg,resid) mapping used in the overlap loop below to avoid
+   # the recursive-destructor stack overflow that a large "index ..." selection triggers).
+   mol new ${outbasename}_waterbox.psf
+   mol addfile ${outbasename}_waterbox.pdb waitfor all
+   set wbmol [molinfo top get id]
+   set drop_sel [atomselect $wbmol "water and name OH2 and (z >= $bilayer_min_z and z <= $bilayer_max_z)"]
+   set drop_seg [$drop_sel get segname]
+   set drop_res [$drop_sel get resid]
+   $drop_sel delete
+   mol delete $wbmol
+   resetpsf
+   readpsf ${outbasename}_waterbox.psf pdb ${outbasename}_waterbox.pdb
+   foreach seg $drop_seg res $drop_res {
+      delatom $seg $res
+   }
+   writepsf cmap ${outbasename}_gapwater.psf
+   writepdb ${outbasename}_gapwater.pdb
+   resetpsf
+   lappend tmp_files ${outbasename}_gapwater.psf
+   lappend tmp_files ${outbasename}_gapwater.pdb
+
+   if { $sc > 0.0 } {
+      vmdcon -info "Adding $sc M salt (cation $cation, anion $anion) to gap water"
+      autoionize -psf ${outbasename}_gapwater.psf -pdb ${outbasename}_gapwater.pdb -o ${outbasename}_solution_gap -sc $sc -cation $cation -anion $anion
+   } else {
+      file copy -force ${outbasename}_gapwater.psf ${outbasename}_solution_gap.psf
+      file copy -force ${outbasename}_gapwater.pdb ${outbasename}_solution_gap.pdb
+   }
+   lappend tmp_files ${outbasename}_solution_gap.psf
+   lappend tmp_files ${outbasename}_solution_gap.pdb
+   lappend addl_solution ${outbasename}_solution_gap
 }
 
 set newsegids [list]
@@ -379,15 +397,19 @@ writepdb ${outbasename}_solvent_appended.pdb
 lappend tmp_files ${outbasename}_solvent_appended.psf
 lappend tmp_files ${outbasename}_solvent_appended.pdb
 
-# delete any waters that conflict with the protein after the slab addition
+# Delete any added gap water/ions that clash with the pre-existing system after the fill.
+# With the whole-box M5 fill the gap water is carved by z, so besides the protein it can also
+# abut the membrane's own water and lipids at the z-seam; trim the added atoms against
+# EVERYTHING that was already there (protein, glycan, lipid, existing water, existing ions =
+# anything not in the freshly-added segids), which cleans every seam in one pass.
 mol new ${outbasename}_solvent_appended.psf
 mol addfile ${outbasename}_solvent_appended.pdb waitfor all
 set embedded_system [molinfo top get id]
 set all [atomselect $embedded_system "all"]
 $all moveby [list 0 0 [expr (-1*$box_min_z)]]
 set box_Lz [expr $box_max_z - $box_min_z]
-set pro_sel [atomselect $embedded_system "protein or glycan"]
 set segs_to_search [join $newsegids]
+set pro_sel [atomselect $embedded_system "not (segname $segs_to_search)"]
 set water_sel [atomselect $embedded_system "segname $segs_to_search"]
 set bad_atoms [measure contacts 2.4 $water_sel $pro_sel]
 set bad_water_idx [lindex $bad_atoms 0]

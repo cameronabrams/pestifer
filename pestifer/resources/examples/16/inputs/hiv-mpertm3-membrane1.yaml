@@ -39,10 +39,13 @@ tasks:
               frac: 1.00
         seed: 270272
         relaxation_protocols:
-          # symmetric grid builds the membrane directly (no calibration patches), so only
-          # the quilt protocol -- the relaxation of the gridded membrane -- is used. Long
-          # NPT/NPgT stages are auto-split into restarts so the condensing cell never
-          # outgrows NAMD's startup patch grid.
+          # Strategy (2026-07-30, after the minimize-only trial was rejected): pre-equilibrate the
+          # pristine gridded membrane (density + lateral area, tensionless NPgT) BEFORE embedding.
+          # The minimize-only alternative left the ASSEMBLED system at ~0.795 g/cc; that huge post-embed
+          # compaction never cleared the density drift gate (a long slow tail, with the lateral area
+          # co-compacting metastably low and only slowly recovering). Pre-equilibrating here starts the
+          # single post-embed membrane_equilibrate near density-equilibrium (~0.96, denser still once M5's
+          # bulk-density water is added), which is what keeps that run convergeable.
           quilt:
             - md:
                 ensemble: minimize
@@ -50,27 +53,8 @@ tasks:
                 ensemble: NVT
                 nsteps: 1000
                 temperature: 310
-                pressure: 1.0
-            - md:
-                ensemble: NPT
-                nsteps: 2000
+            - membrane_equilibrate:
                 temperature: 310
-                pressure: 1.0
-            - md:
-                ensemble: NPT
-                nsteps: 4000
-                temperature: 310
-                pressure: 1.0
-            - md:
-                ensemble: NPT
-                nsteps: 8000
-                temperature: 310
-                pressure: 1.0
-            - md:
-                ensemble: NPgT
-                nsteps: 16000
-                temperature: 310
-                pressure: 1.0
       embed:
         xydist: 40
         zdist: 10
@@ -94,13 +78,13 @@ tasks:
         k: 10
         atoms: protein and name CA
   # --- post-embed equilibration ---
-  # A brief warm pass fluidizes the lipids around the freshly-embedded protein;
-  # staged isotropic NPT then condenses out the embedding voids (each stage is a
-  # restart, so the shrinking cell never outgrows NAMD's startup patch grid); and
-  # a long, restart-staged NPgT relaxes the lateral area at zero tension -- the
-  # only ensemble that can, and the one that actually sets the equilibrium area.
-  # Weak CA restraints hold the protein steady while the box relaxes and are
-  # released only on the final stage, on which the pressure profile is computed.
+  # A brief warm pass fluidizes the lipids around the freshly-embedded protein; a
+  # self-terminating membrane_equilibrate task then condenses out the embedding
+  # voids and relaxes the lateral area under tensionless NPgT, stopping once both
+  # the box density and the lateral area have converged (replacing the old fixed
+  # NPT-condense + NPgT-area ladder). Weak CA restraints hold the protein steady
+  # while the box relaxes and are released only on the final stage, on which the
+  # pressure profile is computed.
   - md:
       ensemble: NVT
       nsteps: 1000
@@ -115,52 +99,18 @@ tasks:
       constraints:
         k: 1
         atoms: protein and name CA
-  - md:
-      ensemble: NPT
-      nsteps: 2000
+  # A single self-terminating membrane_equilibrate task replaces the restrained NPT-condense +
+  # NPgT-area-relax ladder: chunked NPgT (useFlexibleCell + useConstantRatio, tensionless) sized so the
+  # condensing cell never outruns NAMD's startup patch grid, stopping when the box density AND the
+  # membrane lateral area have both converged. Weak CA restraints hold the protein while the box relaxes.
+  - membrane_equilibrate:
       temperature: 310
-      constraints:
-        k: 1
-        atoms: protein and name CA
-  - md:
-      ensemble: NPT
-      nsteps: 4000
-      temperature: 310
-      constraints:
-        k: 1
-        atoms: protein and name CA
-  - md:
-      ensemble: NPT
-      nsteps: 8000
-      temperature: 310
-      constraints:
-        k: 1
-        atoms: protein and name CA
-  - md:
-      ensemble: NPT
-      nsteps: 16000
-      temperature: 310
-      constraints:
-        k: 1
-        atoms: protein and name CA
-  - md:
-      ensemble: NPgT
-      nsteps: 16000
-      temperature: 310
-      constraints:
-        k: 1
-        atoms: protein and name CA
-  - md:
-      ensemble: NPgT
-      nsteps: 32000
-      temperature: 310
-      constraints:
-        k: 1
-        atoms: protein and name CA
-  - md:
-      ensemble: NPgT
-      nsteps: 64000
-      temperature: 310
+      # Post-embed needs a larger ceiling than the schema default (500k): inserting the protein
+      # perturbs the preferred area, and the density compaction (from the ~0.95 assembled start) and
+      # the ensuing ~3% lateral-area expansion relax *sequentially*, so density converges first
+      # (~1 ns) and the slow lipid area mode needs several 100k more. 500k ceilinged with the area
+      # ~97% relaxed; 800k lets it finish. (The bare-bilayer quilt, unperturbed, converges by ~84k.)
+      max_steps: 800000
       constraints:
         k: 1
         atoms: protein and name CA

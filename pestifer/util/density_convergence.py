@@ -147,6 +147,143 @@ def volume_to_density(volume_a3, mass_amu):
     return AMU_PER_A3_TO_G_PER_CC * mass_amu / np.asarray(volume_a3, dtype=float)
 
 
+def _parse_psf_atoms(psf_path):
+    """Return ``(segnames, resids, resnames, masses)`` in PSF atom order (XPLOR/CHARMM ``!NATOM``).
+
+    Columns: ``id segname resid resname name type charge mass ...``."""
+    with open(psf_path) as f:
+        lines = f.readlines()
+    i = 0
+    while i < len(lines) and '!NATOM' not in lines[i]:
+        i += 1
+    if i == len(lines):
+        raise ValueError(f'{psf_path}: no !NATOM record found; not a PSF?')
+    natom = int(lines[i].split()[0])
+    seg = np.empty(natom, dtype=object)
+    resid = np.empty(natom, dtype=object)
+    resn = np.empty(natom, dtype=object)
+    mass = np.empty(natom, dtype=float)
+    for k, line in enumerate(lines[i + 1:i + 1 + natom]):
+        p = line.split()
+        seg[k], resid[k], resn[k], mass[k] = p[1], p[2], p[3], float(p[7])
+    return seg, resid, resn, mass
+
+
+def _read_coor_xyz(path, natom):
+    """Read ``(natom, 3)`` coordinates from a PDB/``.ent`` or a NAMD binary ``.coor`` file."""
+    if path.lower().endswith(('.pdb', '.ent')):
+        xyz = np.empty((natom, 3), dtype=float)
+        k = 0
+        with open(path) as f:
+            for line in f:
+                if line.startswith(('ATOM', 'HETATM')):
+                    if k < natom:
+                        xyz[k] = (float(line[30:38]), float(line[38:46]), float(line[46:54]))
+                    k += 1
+        if k != natom:
+            raise ValueError(f'{path}: {k} atoms but PSF has {natom}')
+        return xyz
+    import struct
+    with open(path, 'rb') as f:
+        raw = f.read()
+    for endian in ('<', '>'):
+        n = struct.unpack(endian + 'i', raw[:4])[0]
+        if n == natom and len(raw) >= 4 + n * 24:
+            return np.frombuffer(raw[4:4 + n * 24], dtype=endian + 'f8').reshape(n, 3).copy()
+    raise ValueError(f'{path}: NAMD binary atom count does not match PSF ({natom})')
+
+
+def _hull_area_xy(xy):
+    """Convex-hull area of a set of 2-D points; ``0.0`` for degenerate (<3 points or collinear)."""
+    if xy.shape[0] < 3:
+        return 0.0
+    try:
+        from scipy.spatial import ConvexHull, QhullError
+        try:
+            return float(ConvexHull(xy).volume)   # 2-D hull "volume" is the enclosed area
+        except QhullError:
+            return 0.0
+    except Exception:  # pragma: no cover - scipy always present in runtime, guard for isolation
+        return 0.0
+
+
+@dataclass
+class LeafletGeometry:
+    """Per-leaflet membrane bookkeeping for protein-corrected area-per-lipid (APL) reporting.
+
+    Computed once from the embedded structure (lipid counts and the protein cross-section don't
+    change during equilibration -- lipids are neither added nor removed and the protein is
+    restrained).  APL for a leaflet at cell area ``A`` is ``(A - a_prot) / n_lipids``: the protein's
+    projected footprint *at that leaflet's lipid plane* is charged to the protein, not smeared over
+    the lipids (which would inflate APL by the protein cross-section)."""
+    n_lower: int
+    n_upper: int
+    a_prot_lower: float          #: protein xy cross-section in the lower leaflet's lipid slab (A^2)
+    a_prot_upper: float
+    midplane_z: float
+    n_lipids_total: int
+
+    def apl_lower(self, area):
+        return (area - self.a_prot_lower) / self.n_lower if (area is not None and self.n_lower) else None
+
+    def apl_upper(self, area):
+        return (area - self.a_prot_upper) / self.n_upper if (area is not None and self.n_upper) else None
+
+    def apl_mean(self, area):
+        lo, up = self.apl_lower(area), self.apl_upper(area)
+        return 0.5 * (lo + up) if (lo is not None and up is not None) else (lo if lo is not None else up)
+
+
+def membrane_leaflet_geometry(psf_path, coor_path):
+    """Measure per-leaflet lipid counts and protein cross-sections from an embedded membrane frame.
+
+    Lipids are counted **per molecule** (grouped by ``segname``/``resid``) and assigned to a leaflet
+    by their mass-weighted mean-z against the bilayer **midplane** (the mass-weighted mean-z of all
+    lipid atoms).  The protein footprint for a leaflet is the convex-hull area of the xy-projection of
+    the protein *heavy* atoms (mass > 2) lying between the midplane and that leaflet's lipid extent --
+    i.e. only where the protein actually displaces lipid, not its extramembrane parts in bulk water.
+    Species are inferred from residue name via :func:`classify_species` (anything unrecognized is
+    treated as lipid, matching the density-profile convention).  Returns a :class:`LeafletGeometry`;
+    raises ``ValueError`` if no lipid atoms are found (not a membrane system)."""
+    from .densityprofile import classify_species
+    seg, resid, resn, mass = _parse_psf_atoms(psf_path)
+    xyz = _read_coor_xyz(coor_path, mass.size)
+    z = xyz[:, 2]
+    cls = classify_species(resn)
+    lip = cls == 'lipid'
+    if not lip.any():
+        raise ValueError('no lipid atoms found; not a membrane system')
+    midplane = float(np.average(z[lip], weights=mass[lip]))
+
+    # count lipids per leaflet by per-molecule mass-weighted mean-z vs the midplane
+    n_lower = n_upper = 0
+    lower_z, upper_z = [], []
+    idx = np.flatnonzero(lip)
+    key = np.array([f'{seg[i]}:{resid[i]}' for i in idx])
+    for k in np.unique(key):
+        aidx = idx[key == k]
+        zc = float(np.average(z[aidx], weights=mass[aidx]))
+        (upper_z if zc > midplane else lower_z).append(zc)
+        if zc > midplane:
+            n_upper += 1
+        else:
+            n_lower += 1
+
+    # protein heavy atoms, split by leaflet within the lipid z-extent
+    prot = (cls == 'protein') & (mass > 2.0)
+    pz = z[prot]
+    pxy = xyz[prot][:, :2]
+    # leaflet outer bounds from the lipid atoms themselves (robust percentiles avoid stray/wrapped tails)
+    zlip = z[lip]
+    up_hi = float(np.percentile(zlip[zlip > midplane], 98)) if (zlip > midplane).any() else midplane
+    lo_lo = float(np.percentile(zlip[zlip <= midplane], 2)) if (zlip <= midplane).any() else midplane
+    a_up = _hull_area_xy(pxy[(pz > midplane) & (pz <= up_hi)])
+    a_lo = _hull_area_xy(pxy[(pz <= midplane) & (pz >= lo_lo)])
+    return LeafletGeometry(n_lower=n_lower, n_upper=n_upper,
+                           a_prot_lower=a_lo, a_prot_upper=a_up,
+                           midplane_z=midplane, n_lipids_total=n_lower + n_upper)
+
+
 def xst_max_shrink_rate(path):
     """Largest per-dimension cell-edge *shrink* rate (angstrom/step) across a ``.xst`` chunk.
 

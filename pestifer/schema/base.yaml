@@ -362,8 +362,13 @@ attributes:
         default:
           langevinpiston: on 
           langevinpistontarget: $pressure
-          langevinpistonperiod: 200
-          langevinpistondecay: 100
+          # 100/50 (not the 200/100 used for isotropic NPT): a controlled measurement showed the
+          # faster lateral piston cuts the membrane AREA autocorrelation time ~4x (9144 -> 2109 steps)
+          # with the equilibrium density/area unchanged, while density (already not piston-limited) is
+          # unaffected. The area is the convergence bottleneck, so this directly speeds it up. See
+          # docs/design/membrane-equilibrate.md (barostat).
+          langevinpistonperiod: 100
+          langevinpistondecay: 50
           langevinpistontemp: $temperature
           usegrouppressure: yes
           useflexiblecell: yes
@@ -1380,6 +1385,46 @@ attributes:
                               - name: pressureProfileFreq
                                 text: frequency of pressure profile calculation in time steps
                                 type: int
+                      - name: membrane_equilibrate
+                        text: self-terminating NPgT density+area equilibration stage for bilayer relaxation (replaces a fixed NPT/NPgT tail; convergence specs default from the top-level membrane_equilibrate task)
+                        type: dict
+                        attributes:
+                          - name: temperature
+                            text: Temperature (K)
+                            type: float
+                            default: 310
+                          - name: pressure
+                            text: Pressure (bar)
+                            type: float
+                            default: 1
+                          - name: max_steps
+                            text: hard ceiling on total NPgT steps for this relaxation stage
+                            type: int
+                            default: 500000
+                          - name: addl_paramfiles
+                            type: list
+                            text: additional parameter files for the NAMD run
+                            default: []
+                          - name: constraints
+                            text: position constraints (usually none for a bare bilayer)
+                            type: dict
+                            attributes:
+                              - name: atoms
+                                type: string
+                              - name: k
+                                type: float
+                              - name: consfile
+                                type: string
+                          - name: other_parameters
+                            type: dict
+                            text: key:value pairs for other namd configuration file statements
+                            attributes:
+                              - name: useflexiblecell
+                                type: bool
+                                default: True
+                              - name: useconstantratio
+                                type: bool
+                                default: True
                   - name: quilt
                     text: relaxation protocol for the full gridded membrane; if the calibration patch is well-equilibrated this is usually much shorter
                     type: list
@@ -1439,6 +1484,46 @@ attributes:
                                 default: True
                               - name: useconstantratio
                                 text: constant X:Y ratio for NPT
+                                type: bool
+                                default: True
+                      - name: membrane_equilibrate
+                        text: self-terminating NPgT density+area equilibration stage for bilayer relaxation (replaces a fixed NPT/NPgT tail; convergence specs default from the top-level membrane_equilibrate task)
+                        type: dict
+                        attributes:
+                          - name: temperature
+                            text: Temperature (K)
+                            type: float
+                            default: 310
+                          - name: pressure
+                            text: Pressure (bar)
+                            type: float
+                            default: 1
+                          - name: max_steps
+                            text: hard ceiling on total NPgT steps for this relaxation stage
+                            type: int
+                            default: 500000
+                          - name: addl_paramfiles
+                            type: list
+                            text: additional parameter files for the NAMD run
+                            default: []
+                          - name: constraints
+                            text: position constraints (usually none for a bare bilayer)
+                            type: dict
+                            attributes:
+                              - name: atoms
+                                type: string
+                              - name: k
+                                type: float
+                              - name: consfile
+                                type: string
+                          - name: other_parameters
+                            type: dict
+                            text: key:value pairs for other namd configuration file statements
+                            attributes:
+                              - name: useflexiblecell
+                                type: bool
+                                default: True
+                              - name: useconstantratio
                                 type: bool
                                 default: True
           - name: embed
@@ -1788,9 +1873,9 @@ attributes:
             type: int
             default: 5
           - name: max_steps
-            text: hard ceiling on total NPT steps; the task stops (with a warning) even if not converged
+            text: hard ceiling on total NPgT steps; the task stops (with a warning) even if not converged. Higher than the isotropic density_equilibrate default because membrane post-embed densification (void removal) is inherently slow -- the hand-written ladder it replaces budgeted ~380k steps
             type: int
-            default: 100000
+            default: 500000
           - name: min_steps
             text: never declare convergence before this many total steps
             type: int
@@ -1827,24 +1912,37 @@ attributes:
             text: lipids per leaflet, used only to report area-per-lipid (APL = area / lipids_per_leaflet) in the report/plot; 0 = unknown (report raw area only)
             type: int
             default: 0
+          # Area gets its OWN, deliberately looser defaults: the lateral area is a soft, slow mode
+          # (measured on a pristine DMPC bilayer: sigma/mean ~0.55% and integrated autocorrelation time
+          # ~47000 steps, ~100x the density's), so the density-strict gates cannot resolve it at any
+          # practical run length. These first-cut values are sized to that measurement; unset falls back
+          # to the density value. See docs/design/membrane-equilibrate.md (area criterion).
           - name: area_drift_tol
-            text: optional per-observable override of drift_tol for the lateral AREA (defaults to the density drift_tol); area is a soft mode that may want its own tolerance once its autocorrelation is measured
+            text: per-observable drift tolerance for the lateral AREA (soft/slow mode; defaults looser than density's, sized to the area's own finite-sample drift noise floor). Unset falls back to density drift_tol.
             type: float
+            default: 0.012
           - name: area_precision_p
-            text: optional per-observable override of precision_p for the lateral area (defaults to the density value)
+            text: per-observable precision_p for the lateral area (relaxed vs density so the SEM gate = area_drift_tol/area_precision_p is attainable given the area's large autocorrelation time). Unset falls back to density.
             type: float
+            default: 2.0
           - name: area_drift_conf
             text: optional per-observable override of drift_conf for the lateral area (defaults to the density value)
             type: float
           - name: area_burn_in
-            text: optional per-observable override of burn_in for the lateral area (defaults to the density value)
+            text: per-observable burn_in for the lateral area, in steps (discards the initial fast area-relaxation transient before the window is evaluated). Unset falls back to density.
             type: int
+            default: 20000
+          - name: area_min_steps
+            text: minimum total steps before the AREA may be declared converged (a floor, ~1-2x the area autocorrelation time, that prevents premature convergence on a momentary flat spot during the initial relaxation). Sized for the 100/50 barostat (area tau ~2k steps); relax/tighten with the measured tau. Unset falls back to the shared min_steps.
+            type: int
+            default: 40000
           - name: area_window_frac
             text: optional per-observable override of window_frac for the lateral area (defaults to the density value)
             type: float
           - name: area_autocorr_reliability
-            text: optional per-observable override of autocorr_reliability for the lateral area (defaults to the density value)
+            text: per-observable autocorr_reliability for the lateral area (relaxed vs density's 6 so the reliability guard is attainable given the long area autocorrelation time). Unset falls back to density.
             type: float
+            default: 4.0
           - name: addl_paramfiles
             type: list
             text: list of additional parameter files to be included in the NAMD run

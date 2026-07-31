@@ -23,6 +23,7 @@ from ..util.density_convergence import (
     ConvergenceParams,
     DensityConvergenceMonitor,
     JointConvergence,
+    membrane_leaflet_geometry,
     total_atoms,
     total_mass_amu,
     volume_to_density,
@@ -69,9 +70,28 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         specs = self.specs
         self._mass_amu = total_mass_amu(state.psf.path)
         n_atoms = total_atoms(state.psf.path)
+        # Measure per-leaflet lipid counts + protein cross-sections from the embedded frame so APL is
+        # reported protein-corrected and per-leaflet (see membrane_leaflet_geometry).  A supplied
+        # `lipids_per_leaflet` spec, if any, is only a fallback for when the geometry can't be measured.
+        self._geom = None
+        coor = getattr(state, 'pdb', None) or getattr(state, 'coor', None)
+        try:
+            if coor is None:
+                raise ValueError('no coordinate file in state')
+            self._geom = membrane_leaflet_geometry(state.psf.path, coor.path)
+            logger.info(f'{self.taskname}: leaflet geometry -- lipids/leaflet '
+                        f'{self._geom.n_lower}(lower)/{self._geom.n_upper}(upper); protein footprint '
+                        f'{self._geom.a_prot_lower:.0f}/{self._geom.a_prot_upper:.0f} A^2 '
+                        f'(APL reported protein-corrected, per leaflet)')
+        except Exception as e:
+            logger.warning(f'{self.taskname}: could not measure leaflet geometry ({e}); '
+                           f'APL will use the lipids_per_leaflet spec if given')
         self._lipids_per_leaflet = int(specs.get('lipids_per_leaflet') or 0)
         mon_d = DensityConvergenceMonitor(self._params_for('density', min_steps))
-        mon_a = DensityConvergenceMonitor(self._params_for('area', min_steps))
+        # Area is a soft, slow mode; a larger floor (area_min_steps) prevents premature convergence on
+        # a momentary flat spot during the initial area relaxation (see the area_* schema defaults).
+        area_min = int(specs.get('area_min_steps') or 0) or min_steps
+        mon_a = DensityConvergenceMonitor(self._params_for('area', max(min_steps, area_min)))
         self._joint = JointConvergence({'density': mon_d, 'area': mon_a},
                                        n_consecutive=int(specs['n_consecutive']))
         self._all_t, self._all_d, self._all_a = [], [], []   # series for the two-panel plot
@@ -95,11 +115,13 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         jr = self._joint.check()
         self._rows.append((n_chunk, total_steps, this_chunk, jr))
         rd, ra = jr.reports.get('density'), jr.reports.get('area')
+        area = ra.mean_density if ra else None
+        apl = self._apl_mean(area)
         logger.info(f'{self.taskname}: chunk {n_chunk} @ step {total_steps} -- '
                     f'rho={_fmt(rd.mean_density if rd else None)} g/cc '
                     f'(drift {_fmt(rd.drift if rd else None)}), '
-                    f'area={_fmt(ra.mean_density if ra else None)} A^2 '
-                    f'(drift {_fmt(ra.drift if ra else None)}) -- {jr.reason}')
+                    f'area={_fmt(area)} A^2 (drift {_fmt(ra.drift if ra else None)}'
+                    f'{"" if apl is None else f", APL~{_fmt(apl)}"}) -- {jr.reason}')
         return jr.blowup, jr.converged
 
     def _converged_stop_reason(self, total_steps):
@@ -130,26 +152,51 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         self._write_plot(stop_reason)
 
     # --- report + plot -----------------------------------------------------------------------------
-    def _apl(self, area):
-        return area / self._lipids_per_leaflet if (area is not None and self._lipids_per_leaflet) else None
+    def _apl_pair(self, area):
+        """Return ``(apl_lower, apl_upper)`` in A^2/lipid -- protein-corrected and per-leaflet when the
+        leaflet geometry was measured; otherwise the naive ``area/lipids_per_leaflet`` (spec) for both;
+        ``(None, None)`` if neither is available."""
+        if area is None:
+            return None, None
+        if self._geom is not None:
+            return self._geom.apl_lower(area), self._geom.apl_upper(area)
+        if self._lipids_per_leaflet:
+            v = area / self._lipids_per_leaflet
+            return v, v
+        return None, None
+
+    def _apl_mean(self, area):
+        lo, up = self._apl_pair(area)
+        if lo is not None and up is not None:
+            return 0.5 * (lo + up)
+        return lo if lo is not None else up
 
     def _write_report(self, stop_reason):
         """Write a per-chunk two-observable convergence report (``<basename>-membrane.dat``)."""
         fn = f'{self.basename}-membrane.dat'
         with open(fn, 'w') as f:
             f.write(f'# membrane_equilibrate convergence report -- {self.taskname}\n')
-            f.write(f'# total system mass: {self._mass_amu:.1f} amu; '
-                    f'lipids/leaflet: {self._lipids_per_leaflet or "n/a"}\n')
+            if self._geom is not None:
+                g = self._geom
+                f.write(f'# total system mass: {self._mass_amu:.1f} amu; lipids/leaflet: '
+                        f'{g.n_lower}(lower)/{g.n_upper}(upper); protein xy footprint: '
+                        f'{g.a_prot_lower:.0f}/{g.a_prot_upper:.0f} A^2 (lower/upper)\n')
+                f.write('# APL is protein-corrected per leaflet: (area - protein_footprint)/n_lipids\n')
+            else:
+                f.write(f'# total system mass: {self._mass_amu:.1f} amu; '
+                        f'lipids/leaflet: {self._lipids_per_leaflet or "n/a"} (geometry unmeasured; '
+                        f'APL = area/lipids_per_leaflet, NOT protein-corrected)\n')
             f.write(f'# stop: {stop_reason}\n')
-            f.write('# chunk  step  nsteps  rho[g/cc]  rho_drift  rho_SEM/m  area[A^2]  APL[A^2]  '
-                    'area_drift  area_SEM/m  passes  reason\n')
+            f.write('# chunk  step  nsteps  rho[g/cc]  rho_drift  rho_SEM/m  area[A^2]  '
+                    'APL_lo[A^2]  APL_up[A^2]  area_drift  area_SEM/m  passes  reason\n')
             for n, step, nsteps, jr in self._rows:
                 rd, ra = jr.reports.get('density'), jr.reports.get('area')
                 area = ra.mean_density if ra else None
+                apl_lo, apl_up = self._apl_pair(area)
                 f.write(f'{n:6d}  {step:8d}  {nsteps:6d}  '
                         f'{_fmt(rd.mean_density if rd else None):>9}  '
                         f'{_fmt(rd.drift if rd else None):>9}  {_fmt(rd.sem_over_mean if rd else None):>9}  '
-                        f'{_fmt(area):>9}  {_fmt(self._apl(area)):>8}  '
+                        f'{_fmt(area):>9}  {_fmt(apl_lo):>11}  {_fmt(apl_up):>11}  '
                         f'{_fmt(ra.drift if ra else None):>10}  '
                         f'{_fmt(ra.sem_over_mean if ra else None):>10}  '
                         f'{jr.passes:6d}  {jr.reason}\n')
@@ -193,11 +240,16 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
             ax.set_xlim(t0, t1)
         axes[0].set_title(f'{self.taskname}: density + lateral area vs. time'
                           + (f' — converged @ {conv_step:.0f}' if conv_step is not None else ''))
-        if self._lipids_per_leaflet:
+        # Secondary APL axis: mean protein-corrected APL is affine in area, so a linear twin axis with
+        # limits mapped through _apl_mean is exact.  (Falls back to naive area/lipids if geometry is
+        # unmeasured but a spec count was given.)
+        lo0, lo1 = axes[1].get_ylim()
+        apl0, apl1 = self._apl_mean(lo0), self._apl_mean(lo1)
+        if apl0 is not None and apl1 is not None:
             ax2 = axes[1].twinx()
-            ax2.set_ylim(axes[1].get_ylim()[0] / self._lipids_per_leaflet,
-                         axes[1].get_ylim()[1] / self._lipids_per_leaflet)
-            ax2.set_ylabel('APL (A^2/lipid)')
+            ax2.set_ylim(apl0, apl1)
+            ax2.set_ylabel('mean APL (A^2/lipid, protein-corr.)'
+                           if self._geom is not None else 'APL (A^2/lipid)')
         axes[1].set_xlabel('timestep')
         fig.tight_layout()
         fn = f'{self.basename}-membrane.png'

@@ -10,6 +10,7 @@ from pestifer.util.density_convergence import (
     DensityConvergenceMonitor,
     JointConvergence,
     is_patch_grid_crash,
+    membrane_leaflet_geometry,
     next_chunk_steps,
     integrated_autocorr_time,
     parse_patch_grid,
@@ -30,6 +31,20 @@ def _write_xst(path, rows):
         f.write('#$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z\n')
         for ts, ax, by, cz in rows:
             f.write(f'{ts} {ax} 0 0  0 {by} 0  0 0 {cz}  0 0 0\n')
+
+
+def _write_psf_pdb(psf_path, pdb_path, atoms):
+    """atoms: list of (segname, resid, resname, name, mass, x, y, z) -> a minimal matched PSF+PDB."""
+    with open(psf_path, 'w') as f:
+        f.write('PSF CMAP\n\n       1 !NTITLE\n REMARKS synthetic\n\n')
+        f.write(f'{len(atoms):8d} !NATOM\n')
+        for i, (seg, resid, resn, name, mass, x, y, z) in enumerate(atoms, start=1):
+            f.write(f'{i:8d} {seg:<4s} {resid:<4s} {resn:<4s} {name:<4s} {name:<4s} '
+                    f'0.000000 {mass:10.4f}           0\n')
+    with open(pdb_path, 'w') as f:
+        for i, (seg, resid, resn, name, mass, x, y, z) in enumerate(atoms, start=1):
+            f.write(f'ATOM  {i:5d} {name:<4s} {resn:<4s}{" ":1s}{resid:>4s}    '
+                    f'{x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00\n')
 
 
 class TestXstParsing(unittest.TestCase):
@@ -449,3 +464,60 @@ class TestJointConvergence(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestMembraneLeafletGeometry(unittest.TestCase):
+    """Per-leaflet lipid counts + protein-corrected APL from an embedded membrane frame."""
+
+    def _synthetic(self):
+        # midplane at z=0; 3 lipids per leaflet (mass-weighted mean-z puts each on its side);
+        # protein: a 10x10 square in the upper leaflet (hull area 100) and a 5x5 in the lower (25)
+        atoms = []
+        for r, (px, py) in enumerate([(0, 0), (30, 0), (0, 30)], start=1):
+            atoms.append(('MEMB', str(r), 'DMPC', 'P', 31.0, px, py, -20.0))
+            atoms.append(('MEMB', str(r), 'DMPC', 'C22', 12.0, px, py, -5.0))
+        for r, (px, py) in enumerate([(0, 0), (30, 0), (0, 30)], start=4):
+            atoms.append(('MEMB', str(r), 'DMPC', 'P', 31.0, px, py, 20.0))
+            atoms.append(('MEMB', str(r), 'DMPC', 'C22', 12.0, px, py, 5.0))
+        for (x, y) in [(0, 0), (10, 0), (10, 10), (0, 10)]:      # upper protein square -> 100
+            atoms.append(('PROT', '1', 'ALA', 'CA', 12.0, x, y, 10.0))
+        for (x, y) in [(0, 0), (5, 0), (5, 5), (0, 5)]:          # lower protein square -> 25
+            atoms.append(('PROT', '2', 'ALA', 'CA', 12.0, x, y, -10.0))
+        atoms.append(('WT1', '1', 'TIP3', 'OH2', 16.0, 50.0, 50.0, 0.0))   # ignored
+        return atoms
+
+    def test_counts_footprints_and_apl(self):
+        atoms = self._synthetic()
+        with tempfile.TemporaryDirectory() as d:
+            psf, pdb = os.path.join(d, 's.psf'), os.path.join(d, 's.pdb')
+            _write_psf_pdb(psf, pdb, atoms)
+            g = membrane_leaflet_geometry(psf, pdb)
+        self.assertEqual((g.n_lower, g.n_upper), (3, 3))
+        self.assertEqual(g.n_lipids_total, 6)
+        self.assertAlmostEqual(g.midplane_z, 0.0, places=6)
+        self.assertAlmostEqual(g.a_prot_upper, 100.0, places=4)
+        self.assertAlmostEqual(g.a_prot_lower, 25.0, places=4)
+        # protein-corrected APL is below the naive area/n_lipids, by footprint/n_lipids
+        A = 600.0
+        self.assertAlmostEqual(g.apl_upper(A), (600.0 - 100.0) / 3, places=4)
+        self.assertAlmostEqual(g.apl_lower(A), (600.0 - 25.0) / 3, places=4)
+        self.assertLess(g.apl_mean(A), A / 3)   # naive per-leaflet would be 200
+
+    def test_degenerate_footprint_is_zero(self):
+        # drop the lower protein square -> fewer than 3 atoms in that leaflet -> 0 footprint
+        atoms = [a for a in self._synthetic() if not (a[0] == 'PROT' and a[1] == '2')]
+        with tempfile.TemporaryDirectory() as d:
+            psf, pdb = os.path.join(d, 's.psf'), os.path.join(d, 's.pdb')
+            _write_psf_pdb(psf, pdb, atoms)
+            g = membrane_leaflet_geometry(psf, pdb)
+        self.assertEqual(g.a_prot_lower, 0.0)
+        self.assertAlmostEqual(g.apl_lower(600.0), 200.0, places=4)   # falls back to naive when no protein
+
+    def test_no_lipids_raises(self):
+        atoms = [('PROT', '1', 'ALA', 'CA', 12.0, 0.0, 0.0, 0.0),
+                 ('WT1', '1', 'TIP3', 'OH2', 16.0, 5.0, 5.0, 5.0)]
+        with tempfile.TemporaryDirectory() as d:
+            psf, pdb = os.path.join(d, 's.psf'), os.path.join(d, 's.pdb')
+            _write_psf_pdb(psf, pdb, atoms)
+            with self.assertRaises(ValueError):
+                membrane_leaflet_geometry(psf, pdb)

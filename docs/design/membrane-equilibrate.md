@@ -91,15 +91,133 @@ answered the same way we answered it for density, not a guess:
 - The plot becomes two-panel: density-vs-time and area-vs-time (APL on a twin axis), each with its own
   burn-in region, trailing window, and convergence marker.
 
-## Integration — one engine, three sites
+## Build strategy (2026-07-30, final) — pre-equilibrate the membrane, then equilibrate the assembled system
+
+We tried a **minimize-only quilt** (skip pre-equilibrating the pristine bilayer; let a single post-embed
+`membrane_equilibrate` do everything) and **rejected it on the evidence.** M5 (below) was implemented
+and validated first, so the trial was a *fair* test of the strategy, and it failed to converge:
+
+**The minimize-only trial (ex16, `m5_embed_2026-07-30`).** The gridded bilayer, only minimized, embedded
+and M5-solvated, gave an assembled system at **ρ = 0.795 g/cc** — vs **0.96** for the earlier
+pre-equilibrated membrane (same atom-number-density; the difference is entirely the un-compacted
+lattice, *not* the water — M5's water was measured at bulk density). The post-embed run then had to make
+up a ~26 %-volume compaction, and:
+- **Density never cleared the drift gate.** It plateaued *physically* (~1.023 g/cc, local rate decayed
+  from +0.044 to ~+0.0005 per 10k steps) but the trailing-window drift stayed ~0.009 — the residual slow
+  tail of a huge compaction, integrated over a window that grows with the run, never fell below 0.002.
+  Headed for the 500k ceiling without converging.
+- **Area co-compacted metastably low, then slowly recovered.** It converged *early* (drift < 1e-3 by
+  ~100k) but at ~11.8k Å² (corrected APL ~52.8, low for DMPC ~60) because it was dragged down with the
+  shrinking box; as density settled it began re-expanding, which *un-converged* it (drift back to ~6e-3).
+
+**So the earlier "area is the slow, unfairly-tested observable" worry is resolved — backwards.** With M5
+giving bulk-density water from step 0, the **area is the *fast* observable**; **density** is the
+bottleneck, and only because the minimize-only start is so under-dense. Pre-equilibrating the membrane
+removes that: it starts the post-embed near equilibrium (~0.96, denser still with M5), no long tail.
+
+**Final flow (both pre- and post-embed equilibration; M5 throughout):**
+
+- **Symmetric** (e.g. ex16): grid membrane → **minimize → NVT → `membrane_equilibrate`** (pre-embed
+  quilt: density+area of the pristine bilayer) → embed → **M5-solvate** → **`membrane_equilibrate`**
+  (post-embed: the assembled system). Both runs start near-equilibrium and converge.
+- **Asymmetric** (e.g. ex17): **calibration patches** get `membrane_equilibrate` to measure preferred
+  APL (sizes the grid); the quilt is pre-equilibrated as above; then embed → M5-solvate →
+  `membrane_equilibrate`.
+
+**M5 — as built (whole-box solvate + carve), and it works regardless of quilt strategy.** Rather than
+tile a pre-equilibrated water box, `bilayer_embed.tcl` now solvates the **whole embed box in one call**
+(a thick fill, so its far-z faces are the periodic boundary and there are no thin-slab skins), keeps only
+the water in the gap z-regions outside the membrane span, and trims the seam in the existing
+overlap-removal pass. Measured on ex16: the added gap water went from **60–100 % of bulk (skinned)** to
+**100–120 % (no skins)**. This fixes the *added-water* under-density; the *membrane* under-density is
+what pre-equilibration handles.
+
+**APL reporting (2026-07-30).** APL is now measured **per leaflet and protein-corrected**:
+`(A − A_protein,leaflet) / N_lipid,leaflet`, with the lipid count taken **per molecule after embedding**
+(not the pristine grid count) and the protein cross-section measured **at each leaflet's lipid plane**
+(heavy-atom convex hull, bounded to the lipid slab so extramembrane parts in bulk water don't count). The
+old `area / lipids_per_leaflet` charged the protein footprint to the lipids (≈ +2–4 Å²/lipid for ex16,
+leaflet-dependent) and, if fed the pristine count, hid it by dividing by too many lipids. See
+`membrane_leaflet_geometry`. `lipids_per_leaflet` in the spec is now only a fallback.
+
+**Area criterion — measured on a clean pristine bilayer, first cut implemented (2026-07-30).** The
+pre-equilibration quilt gave the clean measurement the co-compacted trial couldn't: on the pristine
+DMPC bilayer (no protein, no embedding, no compaction) the **density converges fast and rigorously**
+(drift < 1e-3, precision met), but the **lateral area is a soft, slow mode** —
+
+- equilibrated `sigma/mean ≈ 0.55%` (4x the density's 0.14%), and
+- integrated autocorrelation time `tau_int ≈ 47,000 steps (~94 ps)`, **~100x the density's**.
+
+At that `tau` the trailing window holds only `n_eff ≈ 4` independent area samples, so the density-strict
+gates (`drift_tol` 0.002, precision gate 6.7e-4, reliability 6·tau) are **unreachable** — certifying the
+area to density precision would need ~1.4 M steps, and the strict criterion simply never converges
+(the quilt was headed for the 500k ceiling "waiting on area"). This is *not* a bad start — it is the
+area's intrinsic lipid-repacking timescale. (The barostat is not the lever: `tau_area` is ~470x the
+200 fs piston period, i.e. lipid-limited, not barostat-limited — see the 100/50 measurement.)
+
+*First-cut area defaults* (schema `area_*`, sized to this measurement; refine as more systems/force
+fields are seen): `area_drift_tol 0.012`, `area_precision_p 2.0` (gate 6e-3), `area_autocorr_reliability
+4.0`, `area_burn_in 40000`, and a new **`area_min_steps 80000`** floor. The floor is the key piece:
+loosening the tolerance alone converges *prematurely* at ~23k steps (the drift metric reads a momentary
+flat spot at the bottom of the fast area drop, ~1.9% below the settled area); the `~1-2·tau` floor blocks
+that, after which the area converges at ~90-110k with a residual **~0.7%** below the (still slowly
+asymptoting) settled value — the honest practical accuracy for a `tau ≈ 47k` mode. These numbers are
+tuned to one DMPC bilayer; the principled generalization (scale the floor/burn-in to a robustly measured
+`tau_area`, or an equivalence test that adapts to it) is the follow-up.
+
+**Barostat — 100/50, chosen by measurement (2026-07-30).** A controlled experiment (same embedded,
+near-equilibrated system; two 40k-step NPgT runs from the *same* restart, differing only in the Langevin
+piston) overturned the naive expectation:
+
+| piston period/decay (fs) | density τ (steps) | **area τ (steps)** | means |
+|---|---|---|---|
+| 200/100 | 1136 | **9144** | ρ 1.0272, area 12041 |
+| **100/50** | 1266 | **2109** | ρ 1.0274, area 12078 |
+
+- **Density is *not* piston-limited** (τ ~10x the period already; the faster piston left it unchanged).
+- **The area *is* piston-limited** — the faster lateral piston cut its autocorrelation **~4.3x** with the
+  equilibrium density and area unchanged (no artifact). The slow area mode was a *sluggish lateral
+  piston*, not (only) intrinsic lipid rearrangement.
+
+So `membrane` (NPgT) barostat is now **100/50** (the isotropic-NPT `barostat` block stays 200/100 —
+density sees no benefit). Since area convergence cost scales as `sigma^2 * tau`, this is a direct ~4x
+speedup on the bottleneck, and it means the "τ ≈ 47,000" pristine-bilayer figure was drift-inflated — the
+clean equilibrated area τ is ~9k at 200/100, ~2k at 100/50 — so the area floor above (`area_min_steps`,
+`area_burn_in`) was relaxed accordingly. Whether an even faster piston (50/25) helps further or hits the
+lipid floor is an open follow-up.
+
+## Integration — one engine, three sites (original M1–M5 framing; see Revised build strategy above)
 
 - **Post-embed (M3, easiest):** replace the hand-written NPgT ladders in examples 16/17 with a single
   `membrane_equilibrate:` task (keep the restrained minimize/NVT warm-up; replace the NPgT tail) — same
   migration pattern as the P2 protein work.
-- **Bare-quilt + calibration-patch (M4, deeper):** `make_membrane_system` already runs its pre-embed
-  relaxation through a subcontroller of nested tasks, so it can append a `membrane_equilibrate` task
-  in place of `_autostage_protocol`'s fixed NPgT stages, and **retire the crude `_area_convergence`
-  heuristic** for the rigorous monitor. Highest value on the calibration patch (it sizes the grid).
+- **Bare-quilt + calibration-patch (M4, deeper):** `make_membrane_system.equilibrate_bilayer` runs its
+  pre-embed relaxation through a subcontroller whose task list is
+  `[continuation, ...relaxation_protocol stages..., mdplot]`. Since `membrane_equilibrate` is a
+  registered task, the subcontroller can run it exactly like the `md` stages. Concrete change:
+  1. **Replace the barostatted tail** of the relaxation protocol (the `NPT/NPAT/NPgT` stages) with a
+     single `{membrane_equilibrate: {...}}` stage; keep the `minimize`/`NVT` warm-up fixed. The
+     hard-coded default protocol (`equilibrate_bilayer`, currently `minimize → NVT → NPT×3 → NPAT×5`)
+     becomes `minimize → NVT → membrane_equilibrate`. `_autostage_protocol`'s fixed restart-ramp
+     splitting is then superfluous for that tail (`membrane_equilibrate` sizes its own chunks
+     adaptively); keep it only for any fixed barostatted stage a user still lists.
+  2. **Retire `_area_convergence`** (the crude first-half-vs-second-half area-drift heuristic): the
+     "is the APL trustworthy?" flag becomes simply *did `membrane_equilibrate` converge* (vs. hit
+     `max_steps`). This needs `membrane_equilibrate` to register a small `converged` artifact that
+     `equilibrate_bilayer` reads back (it already imports the subcontroller pipeline).
+  3. **The calibration patch is the headline.** `build_patch` → `equilibrate_bilayer` on the per-leaflet
+     patches, so this change automatically makes the **preferred APL** — which sizes the whole grid —
+     resolve to an honest area convergence instead of a fixed guess + coarse heuristic. Caveat: a small
+     calibration patch is *area-fluctuation-limited* (like BPTI density), so it may need **more** steps
+     than the old fixed 40k NPgT to converge honestly — that is the real cost of a trustworthy APL;
+     keep `max_steps` sane.
+  4. The differential-stress **pressureProfile diagnostic** pass stays a fixed `md` stage (it is a
+     measurement on the equilibrated cell, not equilibration).
+  Schema note: the `relaxation_protocols.patch`/`.quilt` specs are free-form `type: list`, so they
+  already accept a `{membrane_equilibrate: {...}}` stage — no schema change. The real touch-point is
+  `equilibrate_bilayer`'s per-stage setup loop, which currently keys on `stage['md']` (skipping
+  anything else); it must also configure a `membrane_equilibrate` stage (inject `addl_paramfiles`,
+  `useflexiblecell`/`useconstantratio`, and pressure-profile keys) the same way it does `md` stages.
 
 ## Phasing (each shippable)
 
@@ -118,9 +236,32 @@ answered the same way we answered it for density, not a guess:
   + schema-validated; 36 unit tests. **Area-autocorrelation calibration** (a fine-sampling `xstfreq=1`
   NPgT probe on a real DMPC membrane) measures whether area needs its own tolerances; end-to-end
   validation of the task in a full membrane build comes with M3.
-- **M3 — migrate examples 16/17 post-embed ladders** to `membrane_equilibrate`.
+- **M3 — migrate examples 16/17 post-embed ladders** to `membrane_equilibrate` (in progress: example 16
+  migrated, validation build running).
 - **M4 — wire the engine into `make_membrane_system` pre-embed** (quilt + calibration patch); retire
-  the fixed NPgT tail of `_autostage_protocol` and `_area_convergence`.
+  the fixed NPgT tail of `_autostage_protocol` and `_area_convergence`. **Design drafted** (see
+  Integration above): replace each relaxation protocol's barostatted tail with a `membrane_equilibrate`
+  stage, make the "APL trustworthy" flag = did it converge, and configure the stage in
+  `equilibrate_bilayer`'s per-stage loop (which currently only handles `md`). Calibration-patch APL is
+  the headline win. Implement after M3 validates.
+- **M5 — equilibrated-density embed solvation (follow-up; not a `membrane_equilibrate` change).**
+  *Motivation, measured on the M3+M4 ex16 build:* even with a fully pre-equilibrated bilayer (M4
+  converged @119k), the **post-embed** `membrane_equilibrate` densifies very slowly — the lateral area
+  settles fast but the **density keeps rising** (c_z shrinks at fixed area), i.e. an under-dense body of
+  bulk water slowly compacts. Root cause: `bilayer_embed.tcl` fills the gaps above/below the protein
+  with VMD `solvate -minmax {slab}` (lines ~277, ~302). VMD's source water box is equilibrated, but
+  **clipping a generic box to arbitrary thin slab bounds leaves an under-dense ~3 Å skin on every cut
+  face** (worse for small `zdist`), and the water-box periodicity does not lattice-match the periodic
+  system — so the fill is under-dense and the post-embed run has to squeeze out ~1.5% along z over
+  hundreds of k steps. *Fix:* **replicate the just-converged pre-embed bilayer's own water slab in z**
+  to fill the added gaps instead of `solvate -minmax` — that water is already at this system's exact
+  equilibrium density *and* laterally lattice-matched/periodic with the box, so it stacks with no
+  trimming skins. Mechanically: carve the bilayer water/ion slab, tile it in z across the gap, trim only
+  at the far z-face, splice at the membrane interface, autoionize the added slab as before. Localized to
+  `bilayer_embed.tcl` (the bilayer water is already loaded there). Payoff: the post-embed
+  `membrane_equilibrate` then converges fast (the real pre/post synergy) because the system starts near
+  density-equilibrium. Does not block M3/M4 — those tasks are validated; this is an embed-quality
+  improvement that makes membranes converge quickly.
 - **Validation.** Full 16/17 builds; compare converged area/APL/density to the old fixed-ladder values;
   confirm APL calibration stability.
 
