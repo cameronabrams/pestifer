@@ -209,21 +209,35 @@ def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: i
     samples: list[np.ndarray] = []
     n_accept = n_attempt = 0
 
+    # Confinement is applied *monotonically inward*: a starting conformer whose tails splay wider
+    # than the target cylinder (footprint > pi*R^2, common for an extended minimized lipid) begins
+    # with atoms outside the wall, and a plain hard wall would reject every move and freeze the
+    # start.  Instead a move is allowed while still outside if it does not push the confined atoms
+    # farther out than they already are; once the whole bundle is inside R the wall is hard.  This
+    # funnels an over-wide start into the cylinder and then samples within it.
+    confined_idx = np.nonzero(mol.confined)[0]
+    confine = np.isfinite(mol.cylinder_radius) and len(confined_idx) > 0
+    if confine:
+        cur_conf_max = radial_distances(coords[confined_idx], mol.axis_point,
+                                        mol.axis_dir).max()
+
     total_proposals = n_equil + nsamples * n_decorr
     for step in range(1, total_proposals + 1):
         bond = mol.rotatable[rng.integers(nbonds)]
         theta = rng.uniform(-max_angle, max_angle)
         trial = _apply_pivot(coords, bond, theta)
         n_attempt += 1
-        # confinement: only the moved, confined atoms can newly leave the cylinder
-        conf_moved = bond.moving[mol.confined[bond.moving]]
-        if len(conf_moved) and np.isfinite(mol.cylinder_radius):
-            if radial_distances(trial[conf_moved], mol.axis_point,
-                                 mol.axis_dir).max() > mol.cylinder_radius:
+        if confine:
+            trial_conf_max = radial_distances(trial[confined_idx], mol.axis_point,
+                                              mol.axis_dir).max()
+            # accept iff inside the wall, or not worse than the current (still-shrinking) worst
+            if trial_conf_max > mol.cylinder_radius and trial_conf_max > cur_conf_max + 1e-9:
                 continue
         if _has_overlap(trial, mol.radii, bond.moving, mol.exclusions):
             continue
         coords = trial
+        if confine:
+            cur_conf_max = trial_conf_max
         n_accept += 1
         if step > n_equil and (step - n_equil) % n_decorr == 0:
             samples.append(coords.copy())
@@ -248,7 +262,8 @@ def _element_of_mass(mass: float) -> str:
 
 def build_lipid_mc(coords, elements, masses, bonds, head_indices, tail_indices,
                    rmin_half, cylinder_radius, radius_scale: float = _SIGMA_FROM_RMIN,
-                   min_tip_heavy: int = 2) -> MoleculeMC:
+                   min_tip_heavy: int = 2, exclusion_order: int = 3,
+                   axis_dir=(0.0, 0.0, 1.0)) -> MoleculeMC:
     """Assemble a :class:`MoleculeMC` for a lipid from its topology + geometry.
 
     Rotatable degrees of freedom are the **acyl-tail C-C torsions**, found intrinsically: a bond
@@ -258,9 +273,12 @@ def build_lipid_mc(coords, elements, masses, bonds, head_indices, tail_indices,
     so the headgroup stays rigid and only the tails sample, per the design.  The tip-side subtree
     (hydrogens included) is what each pivot rotates.
 
-    The confinement cylinder is anchored at the head centroid and directed head->tail, so at the
-    tails' depth its axis passes through the tail bundle's lateral center; the tail atoms are
-    confined to ``cylinder_radius`` about it, capping the lateral footprint near the target APL.
+    The confinement cylinder axis is the membrane normal (``axis_dir``, default ``+z`` -- valid
+    once the molecule is head-up) through the tail bundle's lateral centroid, so radial distance
+    is the in-plane footprint radius and confining the tails to ``cylinder_radius`` caps the
+    footprint near the target APL.  Hard-sphere overlaps are tested only for pairs separated by
+    more than ``exclusion_order`` bonds, so near-neighbor torsional (gauche) contacts -- governed
+    by fixed local geometry, not excluded volume -- are not spuriously forbidden.
 
     Parameters
     ----------
@@ -323,17 +341,20 @@ def build_lipid_mc(coords, elements, masses, bonds, head_indices, tail_indices,
     if tail_atoms:
         confined[list(tail_atoms)] = True
 
-    head_c = coords[list(head_indices)].mean(axis=0)
-    tail_ref = coords[list(tail_indices)] if len(tail_indices) else coords[list(tail_atoms)]
-    tail_c = tail_ref.mean(axis=0)
-    axis_dir = tail_c - head_c
-    if np.linalg.norm(axis_dir) < 1e-6:
-        axis_dir = np.array([0.0, 0.0, -1.0])
+    # Cylinder axis: the membrane normal (default +z, valid after head-up orientation), anchored
+    # at the tail bundle's lateral centroid, so "radial distance" is the in-plane footprint radius
+    # and confining it caps the footprint near the target APL.  Using the head->tail centroid
+    # vector instead would tilt the axis toward the offset headgroup (whose ester oxygens drag the
+    # centroid down) and miscenter the cylinder on the tails.
+    axis_dir = np.asarray(axis_dir, dtype=float)
+    axis_dir = axis_dir / np.linalg.norm(axis_dir)
+    bundle = list(tail_atoms) if tail_atoms else list(range(n))
+    axis_point = coords[bundle].mean(axis=0)
 
     radii = np.asarray(rmin_half, dtype=float) * radius_scale
     return MoleculeMC(coords=coords, radii=radii, rotatable=rotatable,
-                      exclusions=build_exclusions(full, order=2),
-                      axis_point=head_c, axis_dir=axis_dir,
+                      exclusions=build_exclusions(full, order=exclusion_order),
+                      axis_point=axis_point, axis_dir=axis_dir,
                       cylinder_radius=cylinder_radius, confined=confined)
 
 

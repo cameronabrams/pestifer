@@ -26,12 +26,105 @@ from ..psfutil.psfcontents  import PSFContents
 
 logger = logging.getLogger(__name__)
 
+
+def _sample_and_write_mc_conformers(resid: str, psf_file: str, pdb_file: str,
+                                    heads: list, tails: list, par_basenames: list,
+                                    DB: CHARMMFFContent, *, nsamples: int, digits: int,
+                                    cylinder_apl: float, n_equil: int, n_decorr: int,
+                                    seed: int, max_angle: float, radius_scale: float) -> int:
+    """Athermal-MC sampler: melt the tails of a built lipid into a fluid-like conformer set.
+
+    Given the built, minimized single-molecule ``psf_file`` + ``pdb_file`` (the same artifacts
+    the vacuum-MD sampler would relax), identify the acyl-tail torsions, run cylinder-confined
+    athermal MC (:mod:`pestifer.charmmff.athermal_mc`), and write ``{resid}-NN.pdb`` conformers
+    that the shared ``info.yaml`` block below then measures.  This is the drop-in replacement for
+    the vacuum ``NVT`` sampling that produced over-thin rod conformers.
+
+    Parameters
+    ----------
+    psf_file, pdb_file : str
+        The built topology and (minimized/oriented) coordinates.
+    heads, tails : list[str]
+        Head reference atom name(s) and terminal tail-carbon name(s), as computed for the lipid.
+    par_basenames : list[str]
+        CHARMM parameter/stream file basenames whose NONBONDED records supply per-atom ``Rmin/2``.
+    DB : CHARMMFFContent
+        Used to resolve ``par_basenames`` to absolute paths.
+    nsamples, digits, cylinder_apl, n_equil, n_decorr, seed
+        MC controls; ``digits`` zero-pads the conformer filenames to match ``do_psfgen``.
+
+    Returns
+    -------
+    int
+        Number of conformer PDBs written.
+    """
+    from .charmmffprm import CharmmParamFile
+    from .athermal_mc import build_lipid_mc, run_mc, cylinder_radius_for_apl
+
+    psf = PSFContents(psf_file, parse_topology=['bonds'])
+    name_of = {a.serial: a.atomname for a in psf.atoms.data}
+    type_of = {a.serial: a.atomtype for a in psf.atoms.data}
+    mass_of = {a.serial: a.atomicwt for a in psf.atoms.data}
+
+    # read the template PDB in file order; MC coordinate rows are indexed the same way
+    template, coords, serials = [], [], []
+    with open(pdb_file) as fh:
+        for ln in fh:
+            if ln.startswith(('ATOM', 'HETATM')):
+                serials.append(int(ln[6:11]))
+                coords.append((float(ln[30:38]), float(ln[38:46]), float(ln[46:54])))
+                template.append(ln)
+    coords = np.array(coords)
+    row_of = {s: i for i, s in enumerate(serials)}
+
+    masses = [mass_of[s] for s in serials]
+    atomtypes = [type_of[s] for s in serials]
+    bonds = [(row_of[b.serial1], row_of[b.serial2]) for b in psf.bonds]
+    head_idx = [i for i, s in enumerate(serials) if name_of[s] in heads]
+    tail_idx = [i for i, s in enumerate(serials) if name_of[s] in tails]
+
+    params = CharmmParamFile()
+    for base in set(par_basenames):
+        try:
+            local = DB.copy_charmmfile_local(base)   # materialize into cwd, return basename
+            params.merge(CharmmParamFile.from_file(local))
+        except Exception as exc:
+            logger.debug(f'MC: skipping parameter file {base}: {exc}')
+    missing = sorted(t for t in set(atomtypes) if t not in params.nonbonded)
+    if missing:
+        raise RuntimeError(f'MC conformer generation for {resid}: missing vdW (Rmin/2) '
+                           f'parameters for atom types {missing}')
+    rmin_half = [params.nonbonded[t].Rmin_half for t in atomtypes]
+
+    R = cylinder_radius_for_apl(cylinder_apl)
+    mol = build_lipid_mc(coords, None, masses, bonds, head_idx, tail_idx, rmin_half,
+                         cylinder_radius=R, radius_scale=radius_scale)
+    logger.info(f'MC {resid}: {len(mol.rotatable)} tail torsions, '
+                f'{int(mol.confined.sum())} confined atoms, cylinder radius {R:.2f} A '
+                f'(target APL {cylinder_apl:.0f})')
+    if not mol.rotatable:
+        logger.warning(f'MC {resid}: no rotatable tail torsions found; conformers will be copies')
+    samples = run_mc(mol, nsamples=nsamples, n_equil=n_equil, n_decorr=n_decorr,
+                     max_angle=max_angle, seed=seed)
+
+    for f, s in enumerate(samples):
+        with open(f'{resid}-{f:0{digits}d}.pdb', 'w') as out:
+            for row, ln in enumerate(template):
+                x, y, z = s[row]
+                out.write(f'{ln[:30]}{x:8.3f}{y:8.3f}{z:8.3f}{ln[54:]}')
+            out.write('END\n')
+    return len(samples)
+
+
 def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
               lenfac: float = 1.2, minimize_steps: int = 500,
               sample_steps: int = 5000, nsamples: int = 10,
               sample_temperature: float = 300,
               refic_idx: int = 0, force_constant: float = 1.0,
-              borrow_ic_from: str = None):
+              borrow_ic_from: str = None, sampler: str = 'md',
+              cylinder_apl: float = 100.0, mc_n_equil: int = 20000,
+              mc_n_decorr: int = 3000, mc_seed: int = 0,
+              mc_max_angle: float = np.pi / 6, mc_radius_scale: float = 0.8):
     """ 
     Generate a PDB file for a residue defined by the CHARMM force field using psfgen, and sample it using NAMD.  Also generate the ``info.yaml`` file for this residue.
 
@@ -151,7 +244,10 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             base_md['colvar_specs'] = deepcopy(colvar_specs)
             assert 'minimize' not in base_md
             logger.debug(f'base_md {base_md}')
-            tasklist.append({'md': base_md})
+            # The colvar-driven stretch pushes tails apart into a 'standard' (rod-like) shape --
+            # exactly what the athermal-MC sampler must avoid, so skip it for sampler='mc'.
+            if sampler != 'mc':
+                tasklist.append({'md': base_md})
     else:
         my_logger(f'{resid} is from stream {stream}', logger.debug, just='^', frame='!', fill='!')
         with open(f'{resid}-topo.rtf', 'w') as f:
@@ -160,15 +256,19 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
     if len(heads) > 0:
         # reorient molecule so head is at highest z position if molecule is rotated about its COM
         tasklist.append({'manipulate': {'mods': {'orient': [f'z,{heads[0]}']}}})
-    # do a conformer-generation MD simulation with the external forces dialed down a bit
-    base_md = {'ensemble': 'NVT', 'nsteps': sample_steps, 'dcdfreq': sample_steps // nsamples, 'xstfreq': 100, 'temperature': sample_temperature}
-    if substream not in ['cholesterol', 'detergent']:
-        for cv, spec in colvar_specs['harmonics'].items():
-            if 'forceConstant' in spec:
-                spec['forceConstant'] *= 0.1
-        base_md['colvar_specs'] = deepcopy(colvar_specs)
-    tasklist.append({'md': base_md})
-    logger.debug(f'base_md (2): {base_md}')
+    # The vacuum sampling MD (below) generates the conformer ensemble for sampler='md'.  For
+    # sampler='mc' the ensemble comes from athermal MC on the minimized+oriented structure
+    # instead (run after do_tasks), so no sampling MD is scheduled.
+    if sampler != 'mc':
+        # do a conformer-generation MD simulation with the external forces dialed down a bit
+        base_md = {'ensemble': 'NVT', 'nsteps': sample_steps, 'dcdfreq': sample_steps // nsamples, 'xstfreq': 100, 'temperature': sample_temperature}
+        if substream not in ['cholesterol', 'detergent']:
+            for cv, spec in colvar_specs['harmonics'].items():
+                if 'forceConstant' in spec:
+                    spec['forceConstant'] *= 0.1
+            base_md['colvar_specs'] = deepcopy(colvar_specs)
+        tasklist.append({'md': base_md})
+        logger.debug(f'base_md (2): {base_md}')
     # All NAMD runs for PDB collection are single-molecule vacuum runs; restrict to 1 core.
     for task_dict in tasklist:
         if 'md' in task_dict:
@@ -248,44 +348,57 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
                 topo.to_file(f)
             return -1
         
-    # now sample
-    dcd = None
-    # prefer 00-04-00_md-NVT.dcd, but if it doesn't exist, use 00-03-00_md-NVT.dcd, but
-    # only for sterols
-    possible_dcds = glob.glob('*.dcd')
-    possible_dcds.sort(key=os.path.getmtime, reverse=True)
-    for d in possible_dcds:
-        if os.path.exists(d):
-            dcd = d
-            break
-    if dcd is None:
-        return -1
-    if dcd == possible_dcds[-1] and substream != 'cholesterol':
-        # we don't do any steered md for sterols, so the final
-        # dcd file is 00-03-00_md-NVT.dcd; otherwise, if there is no 
-        # 00-04-00_md-NVT.dcd, we bail
-        return -1
-    W = C.tasks[0].scripters['vmd']
-    W.newscript('sample')
-    W.addline(f'mol new {resid}-init.psf')
-    W.addline(f'mol addfile {dcd} waitfor all')
-    W.addline(f'set a [atomselect top all]')
-    # W.addline(f'set b [atomselect top noh]')
-    W.addline(f'set ref [atomselect top all]')
-    W.addline(f'$ref frame 0')
-    # W.addline(f'set bref [atomselect top noh]')
-    W.addline(f'$ref move [vecscale -1 [measure center $ref]]')
-    # W.addline(f'$bref move [vecscale -1 [measure center $bref]]')
-    W.addline(r'for { set f 0 } { $f < [molinfo top get numframes] } { incr f } {')
-    W.addline( '    $a frame $f')
-    W.addline( '    $a move [measure fit $a $ref]')
-    W.addline(f'    $a writepdb {resid}-[format %0{digits}d $f].pdb')
-    # W.addline( '    $b frame $f')
-    # W.addline( '    $b move [measure fit $b $bref]')
-    # W.addline(f'    $b writepdb {resid}-noh-[format %0{digits}d $f].pdb')
-    W.addline(r'}')
-    W.writescript()
-    W.runscript()
+    # now sample: write the {resid}-NN.pdb conformer set, either from the vacuum-MD trajectory
+    # (sampler='md') or from cylinder-confined athermal MC on the minimized structure
+    # (sampler='mc'); the shared info.yaml block below measures whichever set was produced.
+    if sampler == 'mc':
+        state = C.tasks[-1].get_current_artifact('state')
+        mc_psf = state.psf.name if state and state.psf else f'{resid}-init.psf'
+        mc_pdb = state.pdb.name if state and state.pdb else None
+        if not mc_pdb or not os.path.exists(mc_pdb):
+            logger.warning(f'MC {resid}: no minimized structure to sample from')
+            return -1
+        try:
+            _sample_and_write_mc_conformers(
+                resid, mc_psf, mc_pdb, heads, tails, par, DB,
+                nsamples=nsamples, digits=digits, cylinder_apl=cylinder_apl,
+                n_equil=mc_n_equil, n_decorr=mc_n_decorr, seed=mc_seed,
+                max_angle=mc_max_angle, radius_scale=mc_radius_scale)
+        except Exception as exc:
+            logger.warning(f'MC conformer generation for {resid} failed: {exc}')
+            return -1
+    else:
+        dcd = None
+        # prefer 00-04-00_md-NVT.dcd, but if it doesn't exist, use 00-03-00_md-NVT.dcd, but
+        # only for sterols
+        possible_dcds = glob.glob('*.dcd')
+        possible_dcds.sort(key=os.path.getmtime, reverse=True)
+        for d in possible_dcds:
+            if os.path.exists(d):
+                dcd = d
+                break
+        if dcd is None:
+            return -1
+        if dcd == possible_dcds[-1] and substream != 'cholesterol':
+            # we don't do any steered md for sterols, so the final
+            # dcd file is 00-03-00_md-NVT.dcd; otherwise, if there is no
+            # 00-04-00_md-NVT.dcd, we bail
+            return -1
+        W = C.tasks[0].scripters['vmd']
+        W.newscript('sample')
+        W.addline(f'mol new {resid}-init.psf')
+        W.addline(f'mol addfile {dcd} waitfor all')
+        W.addline(f'set a [atomselect top all]')
+        W.addline(f'set ref [atomselect top all]')
+        W.addline(f'$ref frame 0')
+        W.addline(f'$ref move [vecscale -1 [measure center $ref]]')
+        W.addline(r'for { set f 0 } { $f < [molinfo top get numframes] } { incr f } {')
+        W.addline( '    $a frame $f')
+        W.addline( '    $a move [measure fit $a $ref]')
+        W.addline(f'    $a writepdb {resid}-[format %0{digits}d $f].pdb')
+        W.addline(r'}')
+        W.writescript()
+        W.runscript()
 
     # and now we write the ancillary info file in YAML format
     psf = PSFContents(f'{resid}-init.psf')
@@ -353,7 +466,10 @@ def do_resi(resi: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             lenfac: float = 1.2, cleanup: bool = True, minimize_steps: int = 500,
             sample_steps: int = 5000, nsamples: int = 10,
             sample_temperature: float = 300, refic_idx: int = 0,
-            force_constant: float = 1.0, borrow_ic_from: str = None):
+            force_constant: float = 1.0, borrow_ic_from: str = None,
+            sampler: str = 'md', cylinder_apl: float = 100.0, mc_n_equil: int = 20000,
+            mc_n_decorr: int = 3000, mc_seed: int = 0, mc_max_angle: float = np.pi / 6,
+            mc_radius_scale: float = 0.8):
     """
     Manager function for :func:`do_psfgen`.  Makes sure it operates in the correct subdirectories and handles success/failure cases.
 
@@ -394,7 +510,10 @@ def do_resi(resi: str, DB: CHARMMFFContent, RM: ResourceManager = None,
                             sample_steps=sample_steps, nsamples=nsamples,
                             sample_temperature=sample_temperature,
                             refic_idx=refic_idx, force_constant=force_constant,
-                            borrow_ic_from=borrow_ic_from)
+                            borrow_ic_from=borrow_ic_from, sampler=sampler,
+                            cylinder_apl=cylinder_apl, mc_n_equil=mc_n_equil,
+                            mc_n_decorr=mc_n_decorr, mc_seed=mc_seed,
+                            mc_max_angle=mc_max_angle, mc_radius_scale=mc_radius_scale)
         os.chdir(cwd)
         if result == 0:
             if cleanup: 

@@ -197,8 +197,10 @@ class TestBuildLipidMC:
                              head_indices=[0], tail_indices=[6, 10],
                              rmin_half=rmin_half, cylinder_radius=5.0, radius_scale=0.9)
         assert np.allclose(mol.radii, 0.9)
-        # head at +z, tails below -> axis points toward -z
-        assert mol.axis_dir[2] < 0
+        # confinement axis is the membrane normal (+z by default), anchored on the tail bundle
+        assert np.allclose(mol.axis_dir, [0.0, 0.0, 1.0])
+        tail_xy = coords[[4, 5, 6, 8, 9, 10]].mean(axis=0)
+        assert np.allclose(mol.axis_point, tail_xy)
 
     def test_elements_inferred_from_mass(self):
         coords, elements, masses, bonds, rmin_half = _synthetic_diacyl()

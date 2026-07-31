@@ -29,6 +29,7 @@ force-field state is not disturbed.
 """
 import fcntl
 import logging
+import math
 import os
 import shutil
 from contextlib import contextmanager
@@ -184,7 +185,10 @@ def ensure_solvent_box(resname: str, CC, *, nmol: int = 216, density: float = 1.
 
 def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps: int = 5000,
                            minimize_steps: int = 500, sample_temperature: float = 300.0,
-                           force_constant: float = 1.0) -> Path:
+                           force_constant: float = 1.0, sampler: str = 'md',
+                           cylinder_apl: float = 100.0, mc_n_equil: int = 20000,
+                           mc_n_decorr: int = 3000, mc_seed: int = 0,
+                           mc_max_angle: float = math.pi / 6, mc_radius_scale: float = 0.8) -> Path:
     """Ensure a cached ``kind: molecule`` conformer entry for ``resname`` and return the
     (``lipid``) collection dir.
 
@@ -193,6 +197,12 @@ def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps
     the finished entry directory (``<out>/<resname>/`` with ``info.yaml`` + conformer PDBs) itself;
     we mark it ``quality: auto`` and move it into the cache.
 
+    The default sampler is ``'md'`` (legacy vacuum sampling).  The opt-in ``'mc'`` sampler is
+    cylinder-confined athermal Monte Carlo, which yields a more fluid-like conformer ensemble
+    (moderately splayed, gauche-rich tails) rather than the extended rods vacuum MD produces;
+    it is still being tuned/validated against fluid-bilayer references before becoming the
+    default.  The chosen sampler and its controls are recorded in ``info.yaml`` for provenance.
+
     Parameters
     ----------
     resname : str
@@ -200,7 +210,13 @@ def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps
     CC : CHARMMFFContent
         The live force-field content (see :func:`ensure_solvent_box`).
     nsamples, sample_steps, minimize_steps, sample_temperature, force_constant
-        Forwarded to :func:`do_resi`.  Defaults match ``make-pdb-collection``; tests may shorten.
+        Forwarded to :func:`do_resi`.  ``sample_steps``/``sample_temperature``/``force_constant``
+        apply to the ``'md'`` sampler only.
+    sampler : str
+        ``'mc'`` (default, athermal MC) or ``'md'`` (legacy vacuum sampling).
+    cylinder_apl, mc_n_equil, mc_n_decorr, mc_seed
+        Athermal-MC controls (target area-per-lipid setting the confinement radius, equilibration
+        proposals, proposals between samples, RNG seed).  Forwarded to :func:`do_resi`.
 
     Returns
     -------
@@ -218,7 +234,7 @@ def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps
         if _has_entry(collection_dir, resname):
             logger.info(f'{resname} conformer was built by another process; using it')
             return collection_dir
-        _announce_build(resname, 'single-molecule conformer set (sample + minimize)', collection_dir)
+        _announce_build(resname, f'single-molecule conformer set ({sampler} sampler)', collection_dir)
 
         RM, build_CC = _fresh_charmmff(getattr(CC, 'release_str', ''))
         if resname not in build_CC:
@@ -230,13 +246,22 @@ def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps
         try:
             do_resi(resname, build_CC, RM=RM, outdir='out', faildir='fail', cleanup=True,
                     nsamples=nsamples, sample_steps=sample_steps, minimize_steps=minimize_steps,
-                    sample_temperature=sample_temperature, force_constant=force_constant)
+                    sample_temperature=sample_temperature, force_constant=force_constant,
+                    sampler=sampler, cylinder_apl=cylinder_apl, mc_n_equil=mc_n_equil,
+                    mc_n_decorr=mc_n_decorr, mc_seed=mc_seed, mc_max_angle=mc_max_angle,
+                    mc_radius_scale=mc_radius_scale)
             produced = Path('out') / resname
             if not (produced / 'info.yaml').is_file():
                 raise RuntimeError(f'conformer generation for {resname} failed (no entry produced; '
                                    f'see {work_dir / "fail" / resname} if present)')
             info = yaml.safe_load((produced / 'info.yaml').read_text())
             info['quality'] = 'auto'
+            info['generation'] = ({'sampler': 'mc', 'cylinder_apl': cylinder_apl,
+                                   'mc_n_equil': mc_n_equil, 'mc_n_decorr': mc_n_decorr,
+                                   'mc_seed': mc_seed, 'mc_max_angle': mc_max_angle,
+                                   'mc_radius_scale': mc_radius_scale} if sampler == 'mc'
+                                  else {'sampler': 'md', 'sample_steps': sample_steps,
+                                        'sample_temperature': sample_temperature})
             (produced / 'info.yaml').write_text(yaml.dump(info))
         finally:
             os.chdir(cwd)
