@@ -11,8 +11,8 @@ from pestifer.core.run_manifest import (
 )
 
 
-def _fake_task(index, taskname, specs, provides=('STATE',)):
-    contract = SimpleNamespace(provides=frozenset(provides))
+def _fake_task(index, taskname, specs, provides=('STATE',), requires=()):
+    contract = SimpleNamespace(provides=frozenset(provides), requires=frozenset(requires))
     return SimpleNamespace(index=index, taskname=taskname, specs=specs,
                            pipeline_contract=lambda s: contract)
 
@@ -167,3 +167,32 @@ class TestResumePoint(unittest.TestCase):
     def test_state_entry(self):
         self.assertEqual(self.m.state_entry(1)['coor'], '00-01-00_md.coor')
         self.assertEqual(self.m.state_entry(99), {})
+
+    def test_guard_noop_for_state_threaded_tail(self):
+        # a purely STATE-threaded tail needs no backup -- resume point is the prefix match
+        tasks = self._tasks((0, 'psfgen', {}), (1, 'md', {'nsteps': 100}), (2, 'solvate', {}))
+        for t in tasks[1:]:
+            t.pipeline_contract = (lambda c: lambda s: c)(SimpleNamespace(
+                provides=frozenset({'state'}), requires=frozenset({'state'})))
+        self.assertEqual(self.m.resume_point(tasks), 2)
+
+    def test_guard_backs_up_for_nonstate_handoff(self):
+        # fetch -> psfgen -> md (provides md_output) -> mdplot (needs md_output); interrupted before
+        # mdplot.  Resuming after md restores only STATE, so mdplot would run without md_output --
+        # the guard backs the resume point up to re-run md.
+        for fn in ('a.psf', 'b.pdb', 'b.coor'):
+            open(fn, 'w').close()
+        m = RunManifest('g.json')
+        m.record(_fake_task(0, 'fetch', {}, provides=('base_coordinates',)), _fake_pipeline({}))
+        m.record(_fake_task(1, 'psfgen', {}, provides=('state', 'base_molecule')),
+                 _fake_pipeline({'psf': 'a.psf'}))
+        m.record(_fake_task(2, 'md', {}, provides=('state', 'md_output')),
+                 _fake_pipeline({'psf': 'a.psf', 'pdb': 'b.pdb', 'coor': 'b.coor'}))
+        tasks = [
+            _fake_task(0, 'fetch', {}, provides=('base_coordinates',)),
+            _fake_task(1, 'psfgen', {}, provides=('state', 'base_molecule'), requires=('base_coordinates',)),
+            _fake_task(2, 'md', {}, provides=('state', 'md_output'), requires=('state',)),
+            _fake_task(3, 'mdplot', {}, requires=('md_output',)),
+        ]
+        # prefix match is 2 (md done); guard backs up to 1 so md re-runs and provides md_output
+        self.assertEqual(m.resume_point(tasks), 1)

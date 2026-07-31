@@ -39,6 +39,9 @@ class RunSubcommand(Subcommand):
                                       '(reads the .pestifer-manifest.json in the run directory)')
         self.parser.add_argument('--fresh', default=False, action='store_true',
                                  help='ignore any existing run manifest and build from scratch')
+        self.parser.add_argument('--from', dest='from_task', type=str, default=None, metavar='TASK',
+                                 help='resume explicitly from this task (index or taskname), overriding '
+                                      'auto-detection (implies --restart)')
         return self.parser
 
     def default_log_file(self, args):
@@ -84,6 +87,7 @@ class RunSubcommand(Subcommand):
         C = Controller().configure(config)
         C.restart = getattr(args, 'restart', False)
         C.fresh = getattr(args, 'fresh', False)
+        C.from_task = getattr(args, 'from_task', None)
         if args.gpu:
             C.config.namd_type = 'gpu'
             C.config.scripters['namd'].namd_type = 'gpu'

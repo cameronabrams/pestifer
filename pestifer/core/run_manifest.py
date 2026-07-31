@@ -113,15 +113,16 @@ class RunManifest:
         except Exception as exc:
             logger.warning(f'run manifest: could not record task {getattr(task, "index", "?")}: {exc}')
 
-    def resume_point(self, tasks) -> int:
+    def resume_point(self, tasks, restored=('state',)) -> int:   # 'state' == pipeline_contract.STATE
         """The last task index in ``tasks`` that is *done and still current* per this manifest.
 
         Walks ``tasks`` from the top; task ``t`` counts iff a manifest entry with the same index
         exists, matches by ``taskname`` **and** ``spec_hash``, and every file it recorded still
         exists on disk.  Stops at the first divergence — so an edited spec, an inserted/removed task,
-        or a missing/stale output invalidates from that point down.  Returns ``-1`` when nothing
-        matches (fresh run) or the build is already ``complete`` (nothing to resume).  The caller
-        resumes at ``resume_point + 1``.
+        or a missing/stale output invalidates from that point down.  Then backs the point up (see
+        :meth:`_guard_currencies`) so the resume never runs a task whose non-STATE input came only
+        from a skipped task.  Returns ``-1`` when nothing matches (fresh run) or the build is already
+        ``complete`` (nothing to resume).  The caller resumes at ``resume_point + 1``.
         """
         if self.data.get('complete'):
             return -1
@@ -134,7 +135,41 @@ class RunManifest:
             if not all(os.path.exists(f) for f in e.get('state', {}).values()):
                 break
             last = t.index
-        return last
+        return self._guard_currencies(tasks, last, set(restored))
+
+    def _guard_currencies(self, tasks, rp, restored) -> int:
+        """Back ``rp`` up so no resumed (index > rp) task needs a currency other than the restored
+        STATE that only a *skipped* (index <= rp) task provides.
+
+        Only the STATE fileset is re-established at the resume boundary; a task needing e.g.
+        ``md_output`` from a skipped ``md`` (a trailing ``mdplot``) would otherwise run without its
+        input.  Re-run the earliest such provider by moving the resume point just before it, and
+        re-analyze (backing up can pull in more tasks whose inputs then also come from skipped ones)
+        until it stabilizes.  A missing currency that no skipped task supplies is left alone -- the
+        static pipeline check owns that case.
+        """
+        provides_by_index = {e['index']: set(e.get('provides', [])) for e in self.data['tasks']}
+        changed = True
+        while changed and rp >= 0:
+            changed = False
+            available = set(restored)
+            for t in tasks:
+                if t.index <= rp:
+                    continue
+                try:
+                    contract = t.pipeline_contract(t.specs)
+                    req = set(getattr(contract, 'requires', ()) or ())
+                    prov = set(getattr(contract, 'provides', ()) or ())
+                except Exception:
+                    req, prov = set(), set()
+                missing = req - available
+                suppliers = [i for i, p in provides_by_index.items() if i <= rp and (p & missing)]
+                if suppliers:
+                    rp = min(suppliers) - 1   # re-run from the earliest needed supplier
+                    changed = True
+                    break
+                available |= prov
+        return rp
 
     def state_entry(self, index: int) -> dict:
         """The recorded ``{slot: filename}`` STATE fileset for a completed task index, or ``{}``."""

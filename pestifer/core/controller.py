@@ -59,6 +59,7 @@ class Controller:
         self.parent = None
         self.restart = False   # --restart: resume from the last cleanly-completed task
         self.fresh = False     # --fresh: ignore any existing manifest
+        self.from_task = None  # --from: resume explicitly at this task (index or taskname)
         self.packet = None     # provisioning packet, kept for the resume state-restore
 
     def configure(self, config: Config, userspecs: dict = {}, index: int = 0, terminate: bool = True,
@@ -156,6 +157,7 @@ class Controller:
         manifest, resume_from = self._init_run_manifest()   # (None, 0) for subcontrollers
         if resume_from > 0:
             self._restore_state_for_resume(manifest, resume_from)
+            self._clean_resumed_task_outputs(resume_from)
         for task in self.tasks:
             if task.index < resume_from:
                 logger.info(f"--restart: skipping completed task {task.index:02d} '{task.taskname}'")
@@ -206,29 +208,71 @@ class Controller:
             logger.warning(f'run manifest: could not initialize ({exc}); resume will be unavailable')
             return None, 0
 
-        if self.restart and not self.fresh and os.path.exists(path):
+        from_idx = self._resolve_from_task()          # explicit --from index (or None)
+        want_resume = (self.restart or from_idx is not None) and not self.fresh
+        if want_resume and os.path.exists(path):
             try:
                 manifest = RunManifest.load(path)
-                rp = manifest.resume_point(self.tasks)
-                if rp < 0:
-                    logger.info('--restart: nothing to resume (no matching manifest or build already '
-                                'complete); building from scratch')
-                    resume_from = 0
+                if from_idx is not None:
+                    resume_from = from_idx
+                    logger.info(f'--from: resuming explicitly at task {resume_from:02d}')
                 else:
-                    resume_from = rp + 1
-                    logger.info(f'--restart: tasks 00-{rp:02d} already complete; resuming at '
-                                f'task {resume_from:02d}')
+                    rp = manifest.resume_point(self.tasks)
+                    if rp < 0:
+                        logger.info('--restart: nothing to resume (no matching manifest or build '
+                                    'already complete); building from scratch')
+                        resume_from = 0
+                    else:
+                        resume_from = rp + 1
+                        logger.info(f'--restart: tasks 00-{rp:02d} already complete; resuming at '
+                                    f'task {resume_from:02d}')
                 manifest.data.update(pestifer_version=version, tasks_fingerprint=fingerprint,
                                      complete=False)
                 return manifest, resume_from
             except Exception as exc:
                 logger.warning(f'--restart: could not read run manifest ({exc}); building from scratch')
+        elif from_idx is not None and not os.path.exists(path):
+            raise PestiferBuildError(
+                f'--from {self.from_task!r}: no run manifest ({MANIFEST_NAME}) in this directory to '
+                f'restore state from; run the build here first')
 
         try:
             return RunManifest(path, version=version, fingerprint=fingerprint), 0
         except Exception as exc:
             logger.warning(f'run manifest: could not initialize ({exc}); resume will be unavailable')
             return None, 0
+
+    def _resolve_from_task(self):
+        """Resolve ``--from`` (a task index or taskname) to a task index in this pipeline, or None."""
+        if not self.from_task:
+            return None
+        ft = str(self.from_task)
+        if ft.isdigit():
+            return int(ft)
+        for task in self.tasks:
+            if task.taskname == ft:
+                return task.index
+        raise PestiferBuildError(
+            f'--from {self.from_task!r}: no task with that index or name in the pipeline')
+
+    def _clean_resumed_task_outputs(self, resume_from):
+        """Delete on-disk output files of every task that will re-run (index >= resume_from), so a
+        half-written partial left by the interrupt can't be mistaken for a completed output.  The
+        restored STATE (from task ``resume_from - 1``) is a lower index, so it is never touched."""
+        import glob
+        removed = 0
+        for task in self.tasks:
+            if task.index < resume_from:
+                continue
+            for f in glob.glob(f'{self.index:02d}-{task.index:02d}-*'):
+                if os.path.isfile(f):
+                    try:
+                        os.remove(f)
+                        removed += 1
+                    except OSError:
+                        pass
+        if removed:
+            logger.info(f'--restart: cleared {removed} stale/partial output file(s) from re-run tasks')
 
     def _restore_state_for_resume(self, manifest, resume_from):
         """Re-establish the pipeline STATE (psf/pdb/coor/xsc/vel + CHARMM streams) at the resume
