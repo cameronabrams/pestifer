@@ -108,23 +108,69 @@ cylinder-only first; add this only if the packed membrane still starts too tight
    fluid start should let them tighten — see the `area_*` defaults in `schema/base.yaml` and
    membrane-equilibrate.md).
 
-## Open questions for the user
+## Implementation status (2026-07-31)
 
-- **Repulsive potential:** hard-sphere with CHARMM vdW radii (simplest, reproducible) vs soft WCA-style
-  (better acceptance in dense confinement). Leaning hard-sphere for v1.
-- **Cylinder diameter default** and whether to expose it per-species (mixtures with very different
-  intrinsic areas may want per-species diameters).
-- Whether the headgroup should be confined too, or only the tails.
-- Validation target: a bilayer-extracted DMPC conformer footprint/order-parameter reference to check
-  against (ask the user; they know the lipid physics and their DB).
+**Lever 1 — DONE, committed** (`f8772a04`). `bag_of` in `write_grid_pdb` caches the whole conformer
+ensemble per species and draws one per lipid (and per chamber solvent) from the packer RNG; explicit
+per-species `conf` still pins. Fixed a latent key mismatch (`bilayer_specs['conformers']` vs schema
+`lipid_conformers`) that had been silently ignoring the pin knob; schema default `'0'`→`''` so unpinned
+ensemble draw is the true default. Unit-tested (`test_bilayer_write_grid_pdb_samples_conformers`).
+
+**Lever 2a — engine + builder + wiring DONE, committed** (`92d4953d`, `44fc6029`, `bd68dffa`); **TUNING
++ VALIDATION OPEN.**
+- `pestifer/charmmff/athermal_mc.py`: force-field-agnostic MC core (`MoleculeMC`, `run_mc`,
+  `build_lipid_mc`, `cylinder_radius_for_apl`, `build_exclusions`, `moving_set`). Dihedral-pivot moves
+  (rigid tip-subtree rotation → bonds/angles preserved exactly); hard-sphere overlap (sigma-scaled
+  `Rmin/2`, exclude ≤1-4); **monotone-inward** cylinder confinement; membrane-normal axis through the
+  tail-bundle centroid. 16 unit tests (synthetic alkane + synthetic diacyl).
+- Wired as opt-in `sampler='mc'` through `do_psfgen`/`do_resi`/`ensure_lipid_conformer` — reuses the
+  psfgen-init + minimize + orient front matter, skips stretch/sample MD, then MC → `{resid}-NN.pdb`.
+  Provenance recorded in `info.yaml['generation']`. **Default stays `'md'`** until validated. Legacy md
+  path verified unchanged end-to-end.
+
+### What the DMPC end-to-end runs showed (findings that set up the tuning)
+Validation harness: `~/devtests/pestifer/mc_validate/gen_dmpc_mc.py` (`do_resi(..., sampler='mc')`,
+then per-conformer xy convex-hull footprint + z-extension).
+- The mechanism works: geometry preserved, rod melts partially, footprint compresses and **distributes**
+  (e.g. 43–64 Å² at cylinder area 100), distinct conformers produced.
+- **Cylinder tightness for two-tail lipids is the key knob.** `d ≈ 2√(APL/π)` (R≈4.37 for APL 60) treats
+  a lipid footprint as one disk of area APL, but a *single* conformer's convex-hull footprint runs well
+  above the packed APL (lipids interdigitate/tessellate in a real bilayer). At R=4.37 the two tails only
+  fit as straight, tightly-stacked rods → the cylinder *selects for* the rod and diversity collapses
+  (≈7/10 samples identical). Loosening to area ~90–120 restores diversity. Provisional default set to
+  `cylinder_apl=100`, flagged for retune.
+- **Dense-MC mixing** limits diversity once compacted: at a tight footprint most pivots clash, acceptance
+  drops, consecutive decorrelation windows repeat. Small moves (`mc_max_angle=π/6`) + `radius_scale=0.8`
+  gave the best acceptance in a sweep; may still need many more steps or smarter moves (see below).
+- z-extension only drops modestly (~29.5→~24–26 Å); not yet clearly "fluid" — needs an order-parameter
+  target to judge.
+
+## Open questions for the user (blocking final Lever 2a tuning)
+
+- **Cylinder sizing.** The confinement area is *not* the packed APL. What target should map to the
+  confinement radius — a measured single-conformer footprint from a real bilayer (per species), or an
+  APL×inflation-factor? Per-species (mixtures) or global? The `cylinder_apl` knob and its `sqrt(area/π)`
+  mapping are in place; only the calibration is missing.
+- **Validation target + reference data.** Preferred fluid-likeness metric — Scd order parameters vs
+  mean tail length/footprint — and a reference to hit (e.g. DMPC conformers extracted from a fluid
+  bilayer in the user's DB at `/mnt/storage1/cfa/research/lipids/db/`). This closes phasing step 3.
+- **Sampling ergodicity.** Accept the current small-move MC with more steps, or add a
+  configurational-bias / tail-regrowth move for the dense regime? (Affects `mc_n_equil`/`mc_n_decorr`
+  defaults and possibly a new move type in `run_mc`.)
+- (Resolved on paper 2026-07-31: hard-sphere potential; tails-only confinement — both implemented.)
 
 ## Key code locations
 
+- **Athermal-MC engine (new):** `pestifer/charmmff/athermal_mc.py` — `run_mc`, `build_lipid_mc`,
+  `cylinder_radius_for_apl`, `MoleculeMC`. Tests: `tests/unit/test_charmmff/test_athermal_mc.py`.
+- **MC sampler wiring:** `pestifer/charmmff/make_pdb_collection.py` — `_sample_and_write_mc_conformers`
+  and the `sampler='mc'` branch in `do_psfgen`/`do_resi`; MC knobs (`cylinder_apl`, `mc_n_equil`,
+  `mc_n_decorr`, `mc_seed`, `mc_max_angle`, `mc_radius_scale`).
 - Packer + conformer selection: `pestifer/molecule/bilayer.py` (`write_grid_pdb`, `bag_of` ~L544,
-  `_load_conformer` ~L489, `conf` defaults L159/343/387/549).
-- Conformer generation + cache: `pestifer/charmmff/autocache.py` (`ensure_lipid_conformer` ~L185,
-  `do_resi`), cache root `~/.pestifer/pdbrepository`, base repo tarball
-  `pestifer/resources/charmmff/feb26/pdbrepository/lipid.tgz`.
+  `_load_conformer` ~L489; per-lipid draw is now default, explicit `conf` pins).
+- Conformer generation + cache: `pestifer/charmmff/autocache.py` (`ensure_lipid_conformer`, threads the
+  `sampler`/MC knobs, stamps `info['generation']`), cache root `~/.pestifer/pdbrepository`, base repo
+  tarball `pestifer/resources/charmmff/feb26/pdbrepository/lipid.tgz`.
 - Repository entry API: `pestifer/charmmff/pdbrepository.py` (`get_pdb`, `get_conformer_data`,
   `info['conformers']`).
 - User's lipid DB (source of the conformers): `/mnt/storage1/cfa/research/lipids/db/`.
