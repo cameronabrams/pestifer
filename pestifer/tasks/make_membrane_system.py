@@ -147,7 +147,7 @@ class MakeMembraneSystemTask(BaseTask):
         """
         lipid_specstring = self.bilayer_specs.get('lipids', '')
         ratio_specstring = self.bilayer_specs.get('mole_fractions', '')
-        conformers_specstring = self.bilayer_specs.get('conformers', '')
+        conformers_specstring = self.bilayer_specs.get('lipid_conformers', '')
         solvent_specstring = self.bilayer_specs.get('solvents', 'TIP3')
         solvent_ratio_specstring = self.bilayer_specs.get('solvent_mole_fractions', '1.0')
         solvent_to_lipid_ratio = self.bilayer_specs.get('solvent_to_lipid_ratio', 32.0)

@@ -411,4 +411,52 @@ class TestBilayer(unittest.TestCase):
         assert dmin >= 1.2, f"solvent-lipid clash survived: min distance {dmin:.3f} A"
         self.RM.charmmff_content.clean_local_charmmff_files()
         os.chdir('..')
+
+    def test_bilayer_write_grid_pdb_samples_conformers(self):
+        """Lever 1: with no pinned conformer the packer draws per-lipid across the whole
+        conformer ensemble instead of stamping one frozen shape onto every lipid (the
+        over-packing root cause).  Each placed lipid is fingerprinted by its maximum
+        internal pairwise distance, which is invariant under the rigid placement transforms
+        (mirror + in-plane spin + translation), so distinct fingerprints prove distinct
+        source conformers were used."""
+        import numpy as _np
+        self.charmmff_content.deprovision()
+        d = '__test_bilayer_grid_conformer_sampling'
+        if os.path.exists(d):
+            shutil.rmtree(d)
+        os.mkdir(d)
+        os.chdir(d)
+        # single species, no conformer pin (empty conformers specstring) -> ensemble draw
+        cdict = specstrings_builddict(lipid_specstring='POPC//POPC',
+                                      lipid_ratio_specstring='1.0//1.0')
+        b = Bilayer(composition_dict=cdict, leaflet_nlipids=dict(upper=48, lower=48),
+                    charmmffcontent=self.charmmff_content)
+        # the ensemble must actually be available for the draw to be meaningful
+        assert len(b.species_data['POPC'].pdbcontents) > 1
+        # and no species should carry a pinned conformer
+        for layer in ('upper_leaflet', 'lower_leaflet'):
+            for species in b.slices[layer]['composition']:
+                assert 'conf' not in species
+        b.spec_out(SAPL=55.0)
+        out = b.write_grid_pdb('grid_patch.pdb', seed=1, clash_cutoff=1.2)
+        residues = {}
+        with open(out) as fh:
+            for ln in fh:
+                if ln.startswith(('ATOM', 'HETATM')):
+                    if ln[17:21].strip() in ('TIP3', 'POT', 'CLA', 'SOD'):
+                        continue
+                    residues.setdefault(ln[22:26], []).append(
+                        (float(ln[30:38]), float(ln[38:46]), float(ln[46:54])))
+        assert len(residues) > 1
+        fingerprints = set()
+        for xyz in residues.values():
+            a = _np.array(xyz)
+            dmax = _np.sqrt(((a[:, None, :] - a[None, :, :]) ** 2).sum(-1)).max()
+            fingerprints.add(round(float(dmax), 1))
+        assert len(fingerprints) > 1, (
+            f'grid placement used a single conformer shape ({fingerprints}); '
+            f'expected a per-lipid draw across the {len(b.species_data["POPC"].pdbcontents)}'
+            f'-conformer ensemble')
+        self.RM.charmmff_content.clean_local_charmmff_files()
+        os.chdir('..')
         

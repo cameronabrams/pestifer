@@ -132,7 +132,7 @@ class BilayerSpecString:
                 for i in range(len(self.right)):
                     self.right[i][attr_name] = Lright[0]
 
-def specstrings_builddict(lipid_specstring='', lipid_ratio_specstring='', lipid_conformers_specstring='0',
+def specstrings_builddict(lipid_specstring='', lipid_ratio_specstring='', lipid_conformers_specstring='',
                           solvent_specstring='TIP3', solvent_ratio_specstring=''):
     """
     Builds a dictionary of bilayer specifications from the provided specification strings.
@@ -144,7 +144,9 @@ def specstrings_builddict(lipid_specstring='', lipid_ratio_specstring='', lipid_
     lipid_ratio_specstring : str, optional
         The mole-fraction specification string for the lipid bilayer.
     lipid_conformers_specstring : str, optional
-        The conformer specification string for the lipid bilayer.
+        The conformer specification string for the lipid bilayer.  Empty (the default) leaves
+        each species' conformer unpinned, so the grid packer draws a conformer per lipid across
+        the whole ensemble; an explicit per-species integer pins that single conformer.
     solvent_specstring : str, optional
         The specification string for the solvent.
     solvent_ratio_specstring : str, optional
@@ -542,11 +544,21 @@ class Bilayer:
             return c @ np.array([[cs, -sn, 0.0], [sn, cs, 0.0], [0.0, 0.0, 1.0]]).T
 
         def bag_of(layer):
+            # cache[nm] is a *list* of loaded conformers; each placed lipid draws one from
+            # it (below), so the leaflet samples the whole conformer ensemble rather than
+            # stamping one frozen shape onto every molecule (the over-packing root cause).
+            # An explicit per-species 'conf' pins a single conformer (backward compatible);
+            # absent 'conf' (the default) draws across all available conformers.
             cache, bag = {}, []
             for specs in layer['composition']:
                 nm = specs['name']
                 if nm not in cache:
-                    cache[nm] = self._load_conformer(nm, specs.get('conf', 0))
+                    pinned = specs.get('conf', None)
+                    if pinned is not None:
+                        conf_ids = [pinned]
+                    else:
+                        conf_ids = list(range(len(self.species_data[nm].pdbcontents)))
+                    cache[nm] = [self._load_conformer(nm, c) for c in conf_ids]
                 bag += [nm] * specs['patn']
             rng.shuffle(bag)
             return cache, bag
@@ -575,7 +587,8 @@ class Bilayer:
                 for col in range(row_n):
                     nm = bag[k]
                     k += 1
-                    coords, lines, _head_i, tail_is = cache[nm]
+                    conformers = cache[nm]
+                    coords, lines, _head_i, tail_is = conformers[rng.integers(len(conformers))]
                     c = coords.copy()
                     if not upper:
                         c = c * np.array([1.0, -1.0, -1.0])     # head -> -z for lower leaflet
@@ -609,7 +622,8 @@ class Bilayer:
             gz_n = max(1, int(np.ceil(n / (gx_n * gy_n))))
             sx, sy, sz = Lx / gx_n, Ly / gy_n, Lz / gz_n
             for k, nm in enumerate(bag):
-                coords, lines, _h, _t = cache[nm]
+                conformers = cache[nm]
+                coords, lines, _h, _t = conformers[rng.integers(len(conformers))]
                 c = zspin(coords.copy())
                 i, j, m = k % gx_n, (k // gx_n) % gy_n, k // (gx_n * gy_n)
                 c[:, 0] += ll[0] + (i + 0.5) * sx + rng.uniform(-jitter, jitter)

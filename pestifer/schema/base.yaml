@@ -1165,9 +1165,9 @@ attributes:
                 type: str
                 default: POPC
               - name: lipid_conformers
-                text: declaration of which conformer index to use for each lipid in memgen format C1:C2//C3 (defaults to 0); must be congruent with the lipids attribute
+                text: declaration of which conformer index to pin for each lipid in memgen format C1:C2//C3; must be congruent with the lipids attribute. Empty (the default) leaves conformers unpinned, so the grid packer draws a conformer per lipid across the whole ensemble; an explicit integer pins that single conformer for the species.
                 type: str
-                default: '0'
+                default: ''
               - name: mole_fractions
                 text: declaration of mole fractions of each lipid in each leaflet in memgen format R1:R2//R3; must be congruent with the lipids attribute
                 type: str
