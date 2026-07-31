@@ -169,3 +169,6 @@ tests/unit/test_molecule/TIP3.pdb
 tests/unit/test_tasks/test_cleave/par_*.prm
 tests/unit/test_tasks/test_cleave/toppar_pestifer_dihedral_fills.prm
 tests/unit/test_tasks/test_cleave/my_system-artifacts.tar.gz
+
+# per-run restart manifest (build bookkeeping; regenerated each run)
+.pestifer-manifest.json
