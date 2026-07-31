@@ -1,8 +1,31 @@
-# Restart / resume an interrupted build
+# Build lineage: branch + restart/resume
 
-**Status:** design, not started. Written 2026-07-31. Substrate mapped (see anchors inline).
+**Status:** design. **Branch numbering implemented** (2026-07-31); in-stream restart designed, not
+started. Substrate mapped (see anchors inline).
 
-## Why
+## Two modes, one lineage principle
+
+Continuing a build from an intermediate state comes in two flavors, unified by one idea — **task
+numbering stays continuous with the origin, and the state filename carries the lineage**:
+
+- **Branch** — a *new* yaml that opens with a `continuation` from *another* run's intermediate state.
+  Explicit and manual; the user picks the fork point. No manifest needed. The continuation **adopts the
+  task index encoded in the state filename** (`00-02-00_md.coor` → the continuation is task `02`, the
+  next task is `03`, …), so the branch's output filenames read as one continuous lineage across runs
+  rather than restarting at `00`. **Implemented** — `parse_basename_task_index` +
+  `_branch_index_offset` in `taskcollections.from_yaml` (`index = position + offset`; offset is the
+  coordinate file's encoded index, taken from `pdb` else `coor`; `0`/unchanged for a from-scratch
+  pipeline or a non-encoded continuation).
+- **In-stream restart** — the *same* run, *same* directory, *same* task list: auto-detect the last
+  cleanly-completed task and resume in place. Needs the persisted manifest below. Indices are unchanged
+  (the original list already numbers the tail correctly), which is the branch principle applied to the
+  same list.
+
+The `continuation` task is the single lineage primitive both lean on: in-stream restart's "restore
+state" step *is* a continuation adopting the last-good task's index, which is why the resumed tail keeps
+identical basenames.
+
+## Why (in-stream restart)
 
 A long multi-task build that dies partway — Ctrl-C, a crash, a killed job, a wall-clock timeout —
 currently starts over from scratch. The SIGINT/SIGTERM handler (`core/command.py:82-96`, v3.11.1)

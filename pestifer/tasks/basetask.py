@@ -15,6 +15,8 @@ Available tasks that inherit from :class:`BaseTask` include all those in the :mo
 from __future__ import annotations
 
 import logging
+import os
+import re
 
 from abc import ABC, abstractmethod
 from time import perf_counter
@@ -34,6 +36,22 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
+
+_BASENAME_INDEX_RE = re.compile(r'^(\d+)-(\d+)-(\d+)_')
+
+
+def parse_basename_task_index(name) -> int | None:
+    """The task index encoded in a ``NN-NN-NN_taskname`` basename/filename, or ``None``.
+
+    Build output files are named ``{controller:02d}-{index:02d}-{subtask:02d}_{taskname}`` (see
+    :meth:`BaseTask.next_basename`).  This recovers the middle field -- the task index -- from such a
+    name (e.g. ``00-02-00_md.coor`` -> ``2``), so a *branch* pipeline that opens with a
+    ``continuation`` from another run's intermediate state can adopt that task's number and keep the
+    lineage numbering continuous (the continuation takes the state's index; the next task is +1).
+    Returns ``None`` for names that are not index-encoded (the ordinary from-scratch case).
+    """
+    m = _BASENAME_INDEX_RE.match(os.path.basename(str(name or '')))
+    return int(m.group(2)) if m else None
 
 
 def restore_chain_ids_from_reference(target_pdb: str, reference_pdb: str) -> None:
