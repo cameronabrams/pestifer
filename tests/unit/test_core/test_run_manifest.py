@@ -111,3 +111,59 @@ class TestRunManifest(unittest.TestCase):
         # and the file is valid JSON
         with open(self.path) as f:
             json.load(f)
+
+
+class TestResumePoint(unittest.TestCase):
+    """resume_point over a manifest x task-list x on-disk-file matrix."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self.cwd = os.getcwd()
+        os.chdir(self.tmp)
+        # a manifest for psfgen@0 -> md@1 -> solvate@2, with their state files touched on disk
+        self.m = RunManifest(MANIFEST_NAME)
+        self._record(0, 'psfgen', {}, {'psf': '00-00-00_psfgen.psf', 'pdb': '00-00-00_psfgen.pdb'})
+        self._record(1, 'md', {'nsteps': 100}, {'psf': '00-00-00_psfgen.psf', 'pdb': '00-01-00_md.pdb',
+                                                'coor': '00-01-00_md.coor'})
+        self._record(2, 'solvate', {}, {'psf': '00-02-00_solvate.psf', 'pdb': '00-02-00_solvate.pdb'})
+
+    def tearDown(self):
+        os.chdir(self.cwd)
+
+    def _record(self, i, name, specs, state):
+        for fn in state.values():
+            open(fn, 'w').close()   # touch
+        self.m.record(_fake_task(i, name, specs), _fake_pipeline(state))
+
+    def _tasks(self, *triples):
+        return [_fake_task(i, n, s) for i, n, s in triples]
+
+    def test_clean_full_match(self):
+        tasks = self._tasks((0, 'psfgen', {}), (1, 'md', {'nsteps': 100}), (2, 'solvate', {}))
+        self.assertEqual(self.m.resume_point(tasks), 2)   # all done -> resume at 3 (nothing)
+
+    def test_spec_edit_invalidates_from_there(self):
+        tasks = self._tasks((0, 'psfgen', {}), (1, 'md', {'nsteps': 999}), (2, 'solvate', {}))
+        self.assertEqual(self.m.resume_point(tasks), 0)   # md changed -> resume at 1
+
+    def test_taskname_change_breaks(self):
+        tasks = self._tasks((0, 'psfgen', {}), (1, 'mdplot', {'nsteps': 100}))
+        self.assertEqual(self.m.resume_point(tasks), 0)
+
+    def test_missing_state_file_breaks(self):
+        os.remove('00-01-00_md.coor')   # md's output vanished
+        tasks = self._tasks((0, 'psfgen', {}), (1, 'md', {'nsteps': 100}), (2, 'solvate', {}))
+        self.assertEqual(self.m.resume_point(tasks), 0)   # md no longer current -> resume at 1
+
+    def test_complete_build_returns_minus_one(self):
+        self.m.mark_complete()
+        tasks = self._tasks((0, 'psfgen', {}), (1, 'md', {'nsteps': 100}), (2, 'solvate', {}))
+        self.assertEqual(self.m.resume_point(tasks), -1)
+
+    def test_no_manifest_entries_is_fresh(self):
+        empty = RunManifest(MANIFEST_NAME + '.empty')
+        self.assertEqual(empty.resume_point(self._tasks((0, 'psfgen', {}))), -1)
+
+    def test_state_entry(self):
+        self.assertEqual(self.m.state_entry(1)['coor'], '00-01-00_md.coor')
+        self.assertEqual(self.m.state_entry(99), {})

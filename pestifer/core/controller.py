@@ -12,6 +12,7 @@ from dataclasses import dataclass
 from pestifer.tasks.validate import ValidateTask
 
 from .config import Config
+from .errors import PestiferBuildError
 from .pipeline import PipelineContext
 from ..tasks.taskcollections import TaskList
 from ..tasks import TerminateTask
@@ -56,6 +57,9 @@ class Controller:
         self.tasks = None
         self.pipeline = None
         self.parent = None
+        self.restart = False   # --restart: resume from the last cleanly-completed task
+        self.fresh = False     # --fresh: ignore any existing manifest
+        self.packet = None     # provisioning packet, kept for the resume state-restore
 
     def configure(self, config: Config, userspecs: dict = {}, index: int = 0, terminate: bool = True,
                   validate: bool = True):
@@ -116,6 +120,7 @@ class Controller:
             'progress-flag': self.config.use_terminal_progress,
             'namd_global_config': self.config['user']['namd'],
         }
+        self.packet = packet   # kept so a --restart can provision a state-restore continuation
         logger.debug(f'Controller {self.index:02d} provisioning {len(self.tasks)} task{plu(len(self.tasks))} with packet:')
         my_logger(packet, logger.debug)
         for task in self.tasks:
@@ -148,8 +153,13 @@ class Controller:
         """
         task_report = {}
         task_durations = 0
-        manifest = self._init_run_manifest()   # None for subcontrollers
+        manifest, resume_from = self._init_run_manifest()   # (None, 0) for subcontrollers
+        if resume_from > 0:
+            self._restore_state_for_resume(manifest, resume_from)
         for task in self.tasks:
+            if task.index < resume_from:
+                logger.info(f"--restart: skipping completed task {task.index:02d} '{task.taskname}'")
+                continue
             returned_result = task.execute()
             task_report[task.index] = dict(taskname=task.taskname, taskindex=task.index, result=returned_result)
             task_durations += task.duration
@@ -168,26 +178,75 @@ class Controller:
         return task_report
 
     def _init_run_manifest(self):
-        """Create the per-task completion manifest for a top-level build, or ``None``.
+        """Return ``(manifest, resume_from)`` for a top-level build, or ``(None, 0)``.
 
-        Only the top-level controller (index 0) writes one; subcontroller pipelines are opaque and
-        appear as a single entry under their parent task.  Any failure is non-fatal (returns ``None``).
+        The top-level controller (index 0) writes ``.pestifer-manifest.json``; subcontroller
+        pipelines are opaque and appear as a single entry under their parent task.  With
+        ``--restart`` (and not ``--fresh``), an existing manifest is loaded, the resume point
+        computed, and recording continues into it; otherwise a fresh manifest is started.  Any
+        failure is non-fatal (falls back to a from-scratch build).
         """
         if self.index != 0:
-            return None
+            return None, 0
+        from .run_manifest import RunManifest, tasks_fingerprint, MANIFEST_NAME
+        path = os.path.join(os.getcwd(), MANIFEST_NAME)
+        version = ''
         try:
-            from .run_manifest import RunManifest, tasks_fingerprint, MANIFEST_NAME
-            version = ''
-            try:
-                from importlib.metadata import version as _pkg_version
-                version = _pkg_version('pestifer')
-            except Exception:
-                pass
-            return RunManifest(os.path.join(os.getcwd(), MANIFEST_NAME),
-                               version=version, fingerprint=tasks_fingerprint(self.tasks))
+            from importlib.metadata import version as _pkg_version
+            version = _pkg_version('pestifer')
+        except Exception:
+            pass
+        try:
+            fingerprint = tasks_fingerprint(self.tasks)
         except Exception as exc:
             logger.warning(f'run manifest: could not initialize ({exc}); resume will be unavailable')
-            return None
+            return None, 0
+
+        if self.restart and not self.fresh and os.path.exists(path):
+            try:
+                manifest = RunManifest.load(path)
+                rp = manifest.resume_point(self.tasks)
+                if rp < 0:
+                    logger.info('--restart: nothing to resume (no matching manifest or build already '
+                                'complete); building from scratch')
+                    resume_from = 0
+                else:
+                    resume_from = rp + 1
+                    logger.info(f'--restart: tasks 00-{rp:02d} already complete; resuming at '
+                                f'task {resume_from:02d}')
+                manifest.data.update(pestifer_version=version, tasks_fingerprint=fingerprint,
+                                     complete=False)
+                return manifest, resume_from
+            except Exception as exc:
+                logger.warning(f'--restart: could not read run manifest ({exc}); building from scratch')
+
+        try:
+            return RunManifest(path, version=version, fingerprint=fingerprint), 0
+        except Exception as exc:
+            logger.warning(f'run manifest: could not initialize ({exc}); resume will be unavailable')
+            return None, 0
+
+    def _restore_state_for_resume(self, manifest, resume_from):
+        """Re-establish the pipeline STATE (psf/pdb/coor/xsc/vel + CHARMM streams) at the resume
+        boundary from the manifest, by running a `continuation` against the last completed task's
+        recorded fileset -- the same primitive a manual branch uses.  Raises on failure (a resume
+        with no restored state would fail the first tail task confusingly)."""
+        k = resume_from - 1
+        state = manifest.state_entry(k)
+        if not state:
+            logger.info(f'--restart: task {k:02d} recorded no STATE fileset; the resume task is an '
+                        f'origin, nothing to restore')
+            return
+        from ..tasks.continuation import ContinuationTask
+        logger.info(f'--restart: restoring STATE from task {k:02d}: {state}')
+        ct = ContinuationTask(specs=dict(state), index=k)
+        if self.packet is not None:
+            ct.provision(self.packet)
+        ct.controller_index = self.index
+        if ct.execute() != 0:
+            raise PestiferBuildError(
+                f'--restart: could not restore state from task {k:02d} ({state}); '
+                f'the recorded files may be missing or corrupt -- rebuild with --fresh')
 
     def write_complete_config(self, filename='complete-user.yaml'):
         """ 

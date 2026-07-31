@@ -107,6 +107,36 @@ class RunManifest:
         except Exception as exc:
             logger.warning(f'run manifest: could not record task {getattr(task, "index", "?")}: {exc}')
 
+    def resume_point(self, tasks) -> int:
+        """The last task index in ``tasks`` that is *done and still current* per this manifest.
+
+        Walks ``tasks`` from the top; task ``t`` counts iff a manifest entry with the same index
+        exists, matches by ``taskname`` **and** ``spec_hash``, and every file it recorded still
+        exists on disk.  Stops at the first divergence — so an edited spec, an inserted/removed task,
+        or a missing/stale output invalidates from that point down.  Returns ``-1`` when nothing
+        matches (fresh run) or the build is already ``complete`` (nothing to resume).  The caller
+        resumes at ``resume_point + 1``.
+        """
+        if self.data.get('complete'):
+            return -1
+        by_index = {e['index']: e for e in self.data['tasks']}
+        last = -1
+        for t in tasks:
+            e = by_index.get(t.index)
+            if not e or e['taskname'] != t.taskname or e['spec_hash'] != spec_hash(t.specs):
+                break
+            if not all(os.path.exists(f) for f in e.get('state', {}).values()):
+                break
+            last = t.index
+        return last
+
+    def state_entry(self, index: int) -> dict:
+        """The recorded ``{slot: filename}`` STATE fileset for a completed task index, or ``{}``."""
+        for e in self.data['tasks']:
+            if e['index'] == index:
+                return dict(e.get('state', {}))
+        return {}
+
     def mark_complete(self) -> None:
         """Flag the build as finished (a completed build has nothing to resume)."""
         try:

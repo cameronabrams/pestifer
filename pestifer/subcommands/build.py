@@ -34,6 +34,11 @@ class RunSubcommand(Subcommand):
         self.parser.add_argument('--gpu', default=False, action='store_true', help='force run on GPU')
         self.parser.add_argument('--ncpus', type=int, default=0, help='number of NAMD processing elements (0 = auto-detect)')
         self.parser.add_argument('--complete-config', default=False, action='store_true', help='write complete config file')
+        self.parser.add_argument('--restart', default=False, action='store_true',
+                                 help='resume an interrupted build from the last cleanly-completed task '
+                                      '(reads the .pestifer-manifest.json in the run directory)')
+        self.parser.add_argument('--fresh', default=False, action='store_true',
+                                 help='ignore any existing run manifest and build from scratch')
         return self.parser
 
     def default_log_file(self, args):
@@ -77,6 +82,8 @@ class RunSubcommand(Subcommand):
 
         config = Config(userfile=configname, ncpus_override=args.ncpus, **kwargs).configure_new()
         C = Controller().configure(config)
+        C.restart = getattr(args, 'restart', False)
+        C.fresh = getattr(args, 'fresh', False)
         if args.gpu:
             C.config.namd_type = 'gpu'
             C.config.scripters['namd'].namd_type = 'gpu'
