@@ -26,15 +26,7 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
     }
 }
 
-# Load with autobonds OFF: this PDB is a bare coordinate file (no topology), so VMD would
-# otherwise infer bonds by distance -- and two lipid atoms landing near-coincident (common for
-# fatter, fluid-like conformers) make VMD spuriously bond them, MERGE the two residues into one,
-# and thereby scramble the per-residue coordinates handed to psfgen (which then guesses a grossly
-# misplaced atom -> a box-sized bond -> NAMD diverges to NaN).  We only need atom names/resnames
-# and positions here (to split by type and leaflet); connectivity comes from the RESI topologies
-# at psfgen time, so bond perception is both unnecessary and harmful.  `residue` grouping then
-# falls back to resSeq/segname, which is exactly what we want.
-mol new $pdb type pdb autobonds off waitfor all
+mol new $pdb waitfor all
 set environ_molid [molinfo top get id]
 
 set waters [atomselect $environ_molid "water"]
