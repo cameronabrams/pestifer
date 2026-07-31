@@ -188,12 +188,28 @@ lipids/leaflet) then grid-packs and runs `membrane_equilibrate` to completion.
 > then uses real bonds) — correct but a larger refactor, and single-molecule PSFs aren't available
 > for shipped conformers.
 
-**First result (inflation 1.9):** equilibrated **APL ≈ 67 Å²** with **tiny drift (−0.52%** over the
-final half) — vs the old vacuum-rod membrane's gel-like **~50** with a large *persistent* positive
-drift. The slow mode is largely gone (the project's core goal). But 1.9 *overshoots* fluid DMPC
-(~60–61): the tails are a bit too fat, so the membrane settles high. Re-running at **inflation 1.5**
-(footprints ~48 vs ~56) to bring the equilibrated APL down toward 60. Harness:
-`~/devtests/pestifer/mc_validate/` (`pristine_dmpc_equil.yaml`, `analyze_apl.py`).
+**RESULT — the core goal is met.** Identical protocol (pristine DMPC, 100 lipids/leaflet, SAPL 60
+grid start, 100k-step NPgT `membrane_equilibrate`), varying only the conformer source:
+
+| conformers | equilibrated APL | outcome |
+|---|---|---|
+| old rods (shipped) | **50.3 Å²** | converged — but **gel-trapped** |
+| MC (inflation 1.9) | **67.1 Å²** | **fluid**, area drift 0.5% |
+| MC (inflation 1.5) | 68.7 Å² | fluid, area drift 0.5% |
+
+The old rod conformers **compress into a gel** (APL 50) and kinetically stick there — the run even
+self-declares "converged" because the metastable gel looks stationary. The MC conformers **reach the
+fluid state** (APL ~67) directly. This is exactly the over-packing bug the project targeted, now
+demonstrated against a clean control. It also settles the calibration question: the conformer
+*ensemble type* (rod vs fluid) picks which basin you land in (gel 50 vs fluid 67); inflation *within*
+the fluid ensemble barely moves it (67 vs 69), so inflation is not an APL knob — its job is only to
+pack cleanly and start in-basin. Default kept at **1.9** (fluid, slightly lower APL). Harness:
+`~/devtests/pestifer/mc_validate/` (`pristine_dmpc_equil.yaml`; `run_rod` / `run_mc` / `run_mc15`).
+
+**Open (force-field/conditions, not conformer generation):** the fluid APL lands ~67 vs literature
+~60–61 *at 303 K* — but this runs at **310 K** (DMPC expands with T → ~62–63 expected) on a small
+100-lipid patch with density not yet fully converged. Whether ~67 is right for CHARMM36 DMPC at 310 K
+under this barostat is a separate validation; the conformer knob can't and shouldn't move it.
 
 ## Remaining work (superseded — see above)
 
