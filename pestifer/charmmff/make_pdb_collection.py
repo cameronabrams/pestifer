@@ -171,6 +171,18 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
     charmm_topfile, stream, substream = meta['charmmfftopfile'], meta['streamID'], meta['substreamID']
     charmm_topfile = os.path.basename(charmm_topfile)
     logger.debug(f'charmm_topfile: {charmm_topfile}, stream: {stream}, substream: {substream}')
+
+    # Sterols (cholesterol substream) are dominated by a rigid fused-ring system; the grid packer
+    # only ever needs a single representative conformer for them.  Force single-conformer generation
+    # -- skip both the MD and the athermal-MC tail sampling and emit one minimized structure --
+    # regardless of the requested sampler.
+    is_sterol = (substream == 'cholesterol')
+    if is_sterol and sampler != 'single':
+        logger.info(f'{resid} is a sterol ({substream}); generating a single rigid conformer '
+                    f"(skipping '{sampler}' sampling)")
+        sampler = 'single'
+    if sampler == 'single':
+        nsamples, digits = 1, 1
     # substream_overrides = DB.overrides.get('substreams', {})
     # ss_override = substream_overrides.get(resid, None)
     # if ss_override is not None:
@@ -260,8 +272,9 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
         tasklist.append({'manipulate': {'mods': {'orient': [f'z,{heads[0]}']}}})
     # The vacuum sampling MD (below) generates the conformer ensemble for sampler='md'.  For
     # sampler='mc' the ensemble comes from athermal MC on the minimized+oriented structure
-    # instead (run after do_tasks), so no sampling MD is scheduled.
-    if sampler != 'mc':
+    # instead (run after do_tasks); for sampler='single' (sterols) the minimized+oriented
+    # structure IS the sole conformer.  Neither schedules a sampling MD.
+    if sampler not in ('mc', 'single'):
         # do a conformer-generation MD simulation with the external forces dialed down a bit
         base_md = {'ensemble': 'NVT', 'nsteps': sample_steps, 'dcdfreq': sample_steps // nsamples, 'xstfreq': 100, 'temperature': sample_temperature}
         if substream not in ['cholesterol', 'detergent']:
@@ -351,9 +364,17 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             return -1
         
     # now sample: write the {resid}-NN.pdb conformer set, either from the vacuum-MD trajectory
-    # (sampler='md') or from cylinder-confined athermal MC on the minimized structure
-    # (sampler='mc'); the shared info.yaml block below measures whichever set was produced.
-    if sampler == 'mc':
+    # (sampler='md'), from cylinder-confined athermal MC on the minimized structure
+    # (sampler='mc'), or -- for sterols (sampler='single') -- the single minimized+oriented
+    # structure itself; the shared info.yaml block below measures whichever set was produced.
+    if sampler == 'single':
+        state = C.tasks[-1].get_current_artifact('state')
+        src = state.pdb.name if state and state.pdb else None
+        if not src or not os.path.exists(src):
+            logger.warning(f'single-conformer {resid}: no minimized structure produced')
+            return -1
+        shutil.copyfile(src, f'{resid}-{0:0{digits}d}.pdb')
+    elif sampler == 'mc':
         state = C.tasks[-1].get_current_artifact('state')
         mc_psf = state.psf.name if state and state.psf else f'{resid}-init.psf'
         mc_pdb = state.pdb.name if state and state.pdb else None
@@ -419,6 +440,7 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             'tails': [dict(serial=p.serial, name=p.atomname) for p in psfatoms.data if p.atomname in tails],
         },
         'charge': qstr,
+        'sampler': sampler,   # effective sampler ('md'|'mc'|'single'); sterols are forced to 'single'
         'conformers': []
         }
 

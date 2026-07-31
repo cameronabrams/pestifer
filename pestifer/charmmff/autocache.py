@@ -261,13 +261,20 @@ def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps
                                    f'see {work_dir / "fail" / resname} if present)')
             info = yaml.safe_load((produced / 'info.yaml').read_text())
             info['quality'] = 'auto'
-            info['generation'] = ({'sampler': 'mc', 'cylinder_apl': cylinder_apl,
-                                   'cylinder_inflation': cylinder_inflation,
-                                   'mc_n_equil': mc_n_equil, 'mc_n_decorr': mc_n_decorr,
-                                   'mc_seed': mc_seed, 'mc_max_angle': mc_max_angle,
-                                   'mc_radius_scale': mc_radius_scale} if sampler == 'mc'
-                                  else {'sampler': 'md', 'sample_steps': sample_steps,
-                                        'sample_temperature': sample_temperature})
+            # do_resi may override the sampler internally (sterols are forced to 'single'); trust
+            # the effective sampler recorded in info.yaml for the provenance stamp.
+            effective = info.get('sampler', sampler)
+            if effective == 'mc':
+                info['generation'] = {'sampler': 'mc', 'cylinder_apl': cylinder_apl,
+                                      'cylinder_inflation': cylinder_inflation,
+                                      'mc_n_equil': mc_n_equil, 'mc_n_decorr': mc_n_decorr,
+                                      'mc_seed': mc_seed, 'mc_max_angle': mc_max_angle,
+                                      'mc_radius_scale': mc_radius_scale}
+            elif effective == 'single':
+                info['generation'] = {'sampler': 'single'}
+            else:
+                info['generation'] = {'sampler': 'md', 'sample_steps': sample_steps,
+                                      'sample_temperature': sample_temperature}
             (produced / 'info.yaml').write_text(yaml.dump(info))
         finally:
             os.chdir(cwd)
