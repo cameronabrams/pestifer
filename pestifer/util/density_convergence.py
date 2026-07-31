@@ -35,6 +35,7 @@ isolation.  It provides three separable pieces, mirroring ``docs/design/density-
 from __future__ import annotations
 
 import logging
+import os
 import re
 from dataclasses import dataclass, field
 
@@ -171,6 +172,7 @@ def _parse_psf_atoms(psf_path):
 
 def _read_coor_xyz(path, natom):
     """Read ``(natom, 3)`` coordinates from a PDB/``.ent`` or a NAMD binary ``.coor`` file."""
+    path = os.fspath(path)   # accept pathlib.Path artifacts, not just str
     if path.lower().endswith(('.pdb', '.ent')):
         xyz = np.empty((natom, 3), dtype=float)
         k = 0
@@ -477,6 +479,16 @@ class DensityConvergenceMonitor:
         autocorrelation-corrected SEM is already size-aware because ``sigma/mean ~ 1/sqrt(N_atoms)``."""
         return self.params.drift_tol / self.params.precision_p
 
+    def reset(self) -> None:
+        """Discard all accumulated samples and the hysteresis counter (keep ``params``).
+
+        Used when the physical regime changes mid-run -- e.g. a two-stage membrane equilibration
+        switching from constant-area density settling to tensionless area relaxation -- so convergence
+        is re-assessed on the new stage's samples only, not contaminated by the previous stage's."""
+        self._t.clear()
+        self._d.clear()
+        self._passes = 0
+
     def add_samples(self, times, densities):
         """Append one chunk's density time series (parallel sequences of equal length)."""
         times = list(times)
@@ -639,6 +651,13 @@ class JointConvergence:
     def add_samples(self, name, times, values):
         """Append one chunk's samples for observable ``name``."""
         self.monitors[name].add_samples(times, values)
+
+    def reset(self) -> None:
+        """Reset every observable monitor and the joint hysteresis counter (see
+        :meth:`DensityConvergenceMonitor.reset`)."""
+        for m in self.monitors.values():
+            m.reset()
+        self._passes = 0
 
     def check(self) -> JointConvergenceReport:
         """Assess all observables; advance/reset the joint hysteresis counter."""

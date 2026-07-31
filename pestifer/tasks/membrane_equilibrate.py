@@ -3,13 +3,24 @@
 Definition of :class:`MembraneEquilibrateTask` -- a self-terminating NPgT equilibration for membrane
 systems, the anisotropic sibling of :class:`~pestifer.tasks.density_equilibrate.DensityEquilibrateTask`.
 
-It runs NPgT (``useFlexibleCell`` + ``useConstantRatio``, tensionless by default) in the same
-stability-bounded chunks and stops when **both** the box density **and** the membrane lateral area
-(``A = a_x·b_y``) have converged.  Density + area fully pin the anisotropic cell (``V = A·c_z``), so the
-box thickness follows.  The chunk loop, crash-and-retry, and sizing are inherited from
+It runs NPgT (``useFlexibleCell``, tensionless) in the same stability-bounded chunks and stops when
+**both** the box density **and** the membrane lateral area (``A = a_x·b_y``) have converged.  Density +
+area fully pin the anisotropic cell (``V = A·c_z``), so the box thickness follows.  The chunk loop,
+crash-and-retry, and sizing are inherited from
 :class:`~pestifer.tasks.equilibrate_base.ChunkedEquilibrateTask`; this class supplies the membrane
-hooks and tracks the two observables jointly with :class:`JointConvergence`.  See
+hooks and tracks the observables with :class:`JointConvergence`.  See
 ``docs/design/membrane-equilibrate.md``.
+
+**Two-stage protocol (default, `two_stage: true`).**  A freshly gridded bilayer is built at the correct
+lateral area (~SAPL) but is under-dense in *z* (the leaflet z-reservation over-sizes the box height).
+A single tensionless piston asked to fix that density *and* find the equilibrium area at once takes the
+excess volume out of the lateral dimensions too, co-compacting the area down to a metastable gel-like
+APL.  So we decouple the two: **stage 1** settles the density at *constant lateral area*
+(``useConstantArea``) -- excess volume leaves from z only, the area stays at build; **stage 2** then
+relaxes the area under tensionless NPgT (``useConstantRatio``) from the already-correct density, a small
+move that no longer collapses.  Stage 1 gates on density alone (area is pinned); stage 2 gates on both.
+Set ``two_stage: false`` for the legacy single-stage behavior (e.g. a post-embed stage already near
+density equilibrium).
 
 Area tolerances currently reuse the density convergence specs (area is a soft mode that may want its own
 values once its autocorrelation is measured -- see the design doc); optional `area_*` specs override
@@ -65,6 +76,23 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
             autocorr_reliability=g('autocorr_reliability', float),
         )
 
+    # --- barostat mode per stage -------------------------------------------------------------------
+    def _set_barostat_mode(self, phase):
+        """Point ``other_parameters`` at the barostat mode for a stage, overriding the ``membrane``
+        NAMD block (``useFlexibleCell`` stays on; we only flip the lateral constraint):
+
+        * **phase 1 -- constant area** (``useConstantArea yes``, ``useConstantRatio no``): x,y are
+          frozen and only z relaxes, so the under-dense box removes its excess volume *from z alone*
+          and the lateral area (already correct at build, ~SAPL) is not dragged down while density settles.
+        * **phase 2 -- tensionless** (``useConstantArea no``, ``useConstantRatio yes``): the current
+          NPgT area relaxation; density is already at target, so only the small lateral move remains.
+
+        A user-supplied ``other_parameters`` is preserved and merged under these keys (lowercase, to
+        override the ``membrane`` block's ``useconstantratio``)."""
+        mode = ({'useconstantarea': 'yes', 'useconstantratio': 'no'} if phase == 1
+                else {'useconstantarea': 'no', 'useconstantratio': 'yes'})
+        self.specs['other_parameters'] = {**self._user_other, **mode}
+
     # --- ChunkedEquilibrateTask hooks --------------------------------------------------------------
     def _setup(self, state, min_steps):
         specs = self.specs
@@ -87,43 +115,87 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
             logger.warning(f'{self.taskname}: could not measure leaflet geometry ({e}); '
                            f'APL will use the lipids_per_leaflet spec if given')
         self._lipids_per_leaflet = int(specs.get('lipids_per_leaflet') or 0)
-        mon_d = DensityConvergenceMonitor(self._params_for('density', min_steps))
+        self._mon_d = DensityConvergenceMonitor(self._params_for('density', min_steps))
         # Area is a soft, slow mode; a larger floor (area_min_steps) prevents premature convergence on
         # a momentary flat spot during the initial area relaxation (see the area_* schema defaults).
-        area_min = int(specs.get('area_min_steps') or 0) or min_steps
-        mon_a = DensityConvergenceMonitor(self._params_for('area', max(min_steps, area_min)))
-        self._joint = JointConvergence({'density': mon_d, 'area': mon_a},
-                                       n_consecutive=int(specs['n_consecutive']))
+        self._min_steps = min_steps
+        self._area_min = max(min_steps, int(specs.get('area_min_steps') or 0) or min_steps)
+        self._mon_a = DensityConvergenceMonitor(self._params_for('area', self._area_min))
+        self._n_consecutive = int(specs['n_consecutive'])
         self._all_t, self._all_d, self._all_a = [], [], []   # series for the two-panel plot
-        logger.info(f'{self.taskname}: {n_atoms} atoms; NPgT density+area convergence '
-                    f'(density gate < {mon_d.precision_gate():.2e}, area gate < '
-                    f'{mon_a.precision_gate():.2e}; autocorrelation-corrected)')
+        self._phase2_start_step = None                       # set at the stage-1 -> stage-2 handoff
+
+        # Two-stage protocol (default on): stage 1 settles density at *constant lateral area* so the
+        # under-dense box loses its excess volume from z only; stage 2 then relaxes the lateral area at
+        # constant (already-correct) density under tensionless NPgT.  A single tensionless piston asked
+        # to do both at once co-compacts the area down with the shrinking box (metastable gel-like APL);
+        # decoupling the two removes that failure mode.  See docs/design/membrane-equilibrate.md.
+        self._user_other = dict(specs.get('other_parameters', {}))
+        self._two_stage = bool(specs.get('two_stage', True))
+        self._phase = 1 if self._two_stage else 2
+        self._set_barostat_mode(self._phase)
+        if self._two_stage:
+            # stage-1 gates on DENSITY alone (area is pinned, so it is not a meaningful observable yet)
+            self._conv = JointConvergence({'density': self._mon_d}, n_consecutive=self._n_consecutive)
+            logger.info(f'{self.taskname}: {n_atoms} atoms; two-stage NPgT -- stage 1 settles density '
+                        f'at constant lateral area (gate < {self._mon_d.precision_gate():.2e}), then '
+                        f'stage 2 relaxes area tensionless (gate < {self._mon_a.precision_gate():.2e}); '
+                        f'autocorrelation-corrected')
+        else:
+            self._conv = JointConvergence({'density': self._mon_d, 'area': self._mon_a},
+                                          n_consecutive=self._n_consecutive)
+            logger.info(f'{self.taskname}: {n_atoms} atoms; single-stage NPgT density+area convergence '
+                        f'(density gate < {self._mon_d.precision_gate():.2e}, area gate < '
+                        f'{self._mon_a.precision_gate():.2e}; autocorrelation-corrected)')
 
     def _ingest_chunk(self, xst, total_steps, this_chunk, n_chunk):
         ts, vols = xst_cell_volumes(xst)
         _, areas = xst_cell_areas(xst)
+        last_area = None
         if ts.size == 0:
             logger.warning(f'{self.taskname}: chunk {n_chunk} .xst had no frames; '
                            f'continuing (raise xstfreq resolution if this persists)')
         else:
             dens = volume_to_density(vols, self._mass_amu)
-            self._joint.add_samples('density', ts, dens)
-            self._joint.add_samples('area', ts, areas)
+            last_area = float(areas.mean())
+            self._conv.add_samples('density', ts, dens)
+            if self._phase == 2:                     # area is only a live observable once it can move
+                self._conv.add_samples('area', ts, areas)
             self._all_t.extend(ts.tolist())
             self._all_d.extend(dens.tolist())
             self._all_a.extend(areas.tolist())
-        jr = self._joint.check()
-        self._rows.append((n_chunk, total_steps, this_chunk, jr))
+        jr = self._conv.check()
+        self._rows.append((n_chunk, total_steps, this_chunk, jr, self._phase))
         rd, ra = jr.reports.get('density'), jr.reports.get('area')
-        area = ra.mean_density if ra else None
+        # in stage 1 the area monitor is absent; report the measured (pinned) area/APL for legibility,
+        # with drift shown as n/a since the area is not yet relaxing
+        area = ra.mean_density if ra else last_area
         apl = self._apl_mean(area)
         # display the *signed* drift (negative = shrinking, positive = growing) so the direction of
         # the trend is legible; the convergence gate still keys off the magnitude (rd/ra.drift).
-        logger.info(f'{self.taskname}: chunk {n_chunk} @ step {total_steps} -- '
+        stage = f'[stage {self._phase}] ' if self._two_stage else ''
+        logger.info(f'{self.taskname}: {stage}chunk {n_chunk} @ step {total_steps} -- '
                     f'rho={_fmt(rd.mean_density if rd else None)} g/cc '
                     f'(drift {_fmt(rd.signed_drift if rd else None)}), '
                     f'area={_fmt(area)} A^2 (drift {_fmt(ra.signed_drift if ra else None)}'
                     f'{"" if apl is None else f", APL~{_fmt(apl)}"}) -- {jr.reason}')
+
+        # stage 1 -> stage 2 handoff: density has settled at constant area; hand off to tensionless
+        # area relaxation.  Reset both monitors so stage-2 convergence is judged on stage-2 samples only,
+        # and require area_min more steps of *actual* relaxation before the area may certify.
+        if self._phase == 1 and jr.converged:
+            self._phase = 2
+            self._phase2_start_step = total_steps
+            self._set_barostat_mode(2)
+            self._mon_d.reset()
+            self._mon_a.reset()
+            self._mon_d.params.min_steps = total_steps + self._min_steps
+            self._mon_a.params.min_steps = total_steps + self._area_min
+            self._conv = JointConvergence({'density': self._mon_d, 'area': self._mon_a},
+                                          n_consecutive=self._n_consecutive)
+            logger.info(f'{self.taskname}: stage 1 complete at step {total_steps} (density settled at '
+                        f'constant area, APL~{_fmt(apl)}); switching to tensionless area relaxation')
+            return jr.blowup, False
         return jr.blowup, jr.converged
 
     def _converged_stop_reason(self, total_steps):
@@ -188,14 +260,21 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
                 f.write(f'# total system mass: {self._mass_amu:.1f} amu; '
                         f'lipids/leaflet: {self._lipids_per_leaflet or "n/a"} (geometry unmeasured; '
                         f'APL = area/lipids_per_leaflet, NOT protein-corrected)\n')
+            if self._two_stage:
+                s2 = ('n/a (still in stage 1)' if self._phase2_start_step is None
+                      else f'step {self._phase2_start_step}')
+                f.write(f'# protocol: two-stage (stage 1 = const-area density settle, '
+                        f'stage 2 = tensionless area relaxation; stage 2 began at {s2})\n')
+            else:
+                f.write('# protocol: single-stage tensionless NPgT (density+area jointly)\n')
             f.write(f'# stop: {stop_reason}\n')
-            f.write('# chunk  step  nsteps  rho[g/cc]  rho_drift  rho_SEM/m  area[A^2]  '
+            f.write('# stage  chunk  step  nsteps  rho[g/cc]  rho_drift  rho_SEM/m  area[A^2]  '
                     'APL_lo[A^2]  APL_up[A^2]  area_drift  area_SEM/m  passes  reason\n')
-            for n, step, nsteps, jr in self._rows:
+            for n, step, nsteps, jr, ph in self._rows:
                 rd, ra = jr.reports.get('density'), jr.reports.get('area')
                 area = ra.mean_density if ra else None
                 apl_lo, apl_up = self._apl_pair(area)
-                f.write(f'{n:6d}  {step:8d}  {nsteps:6d}  '
+                f.write(f'{ph:6d}  {n:6d}  {step:8d}  {nsteps:6d}  '
                         f'{_fmt(rd.mean_density if rd else None):>9}  '
                         f'{_fmt(rd.signed_drift if rd else None):>9}  {_fmt(rd.sem_over_mean if rd else None):>9}  '
                         f'{_fmt(area):>9}  {_fmt(apl_lo):>11}  {_fmt(apl_up):>11}  '
@@ -238,6 +317,9 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
                 ax.axvspan(ws, t1, color='#ddeecc', alpha=0.6)
             if conv_step is not None:
                 ax.axvline(conv_step, ls='-', color='#118811', lw=1.2)
+            # mark the stage 1 -> stage 2 (const-area -> tensionless) handoff
+            if self._phase2_start_step is not None:
+                ax.axvline(self._phase2_start_step, ls='--', color='#aa6633', lw=1.0)
             ax.set_ylabel(ylabel)
             ax.set_xlim(t0, t1)
         axes[0].set_title(f'{self.taskname}: density + lateral area vs. time'

@@ -5,6 +5,8 @@ import unittest
 
 import numpy as np
 
+from pathlib import Path
+
 from pestifer.util.density_convergence import (
     ConvergenceParams,
     DensityConvergenceMonitor,
@@ -22,6 +24,7 @@ from pestifer.util.density_convergence import (
     xst_cell_volumes,
     xst_max_shrink_rate,
 )
+from pestifer.util.density_convergence import _read_coor_xyz
 
 
 def _write_xst(path, rows):
@@ -536,3 +539,40 @@ class TestMembraneLeafletGeometry(unittest.TestCase):
             _write_psf_pdb(psf, pdb, atoms)
             with self.assertRaises(ValueError):
                 membrane_leaflet_geometry(psf, pdb)
+
+    def test_accepts_pathlib_coord(self):
+        # regression: coord artifacts are pathlib.Path; _read_coor_xyz used to call str-only .lower()
+        # on the path and blow up, silently forcing the lipids_per_leaflet fallback
+        atoms = self._synthetic()
+        with tempfile.TemporaryDirectory() as d:
+            psf, pdb = Path(d) / 's.psf', Path(d) / 's.pdb'
+            _write_psf_pdb(str(psf), str(pdb), atoms)
+            xyz = _read_coor_xyz(pdb, len(atoms))             # Path in, no AttributeError
+            self.assertEqual(xyz.shape[1], 3)
+            g = membrane_leaflet_geometry(psf, pdb)           # end-to-end with Path args
+        self.assertEqual((g.n_lower, g.n_upper), (3, 3))
+
+
+class TestMonitorReset(unittest.TestCase):
+    def test_monitor_reset_clears_samples_and_passes(self):
+        mon = DensityConvergenceMonitor(ConvergenceParams(min_steps=0, n_consecutive=1))
+        t = np.arange(100, 100 + 100 * 40, 100)
+        mon.add_samples(t, 1.0 + 1e-6 * np.sin(t))
+        mon.check()
+        self.assertTrue(mon._t)
+        mon.reset()
+        self.assertEqual(mon._t, [])
+        self.assertEqual(mon._d, [])
+        self.assertEqual(mon._passes, 0)
+
+    def test_joint_reset_clears_all_monitors(self):
+        a = DensityConvergenceMonitor(ConvergenceParams(min_steps=0, n_consecutive=1))
+        b = DensityConvergenceMonitor(ConvergenceParams(min_steps=0, n_consecutive=1))
+        jc = JointConvergence({'a': a, 'b': b}, n_consecutive=1)
+        jc.add_samples('a', [100, 200], [1.0, 1.0])
+        jc.add_samples('b', [100, 200], [1.0, 1.0])
+        jc._passes = 2
+        jc.reset()
+        self.assertEqual(a._t, [])
+        self.assertEqual(b._t, [])
+        self.assertEqual(jc._passes, 0)

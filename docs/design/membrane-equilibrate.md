@@ -91,6 +91,49 @@ answered the same way we answered it for density, not a guess:
 - The plot becomes two-panel: density-vs-time and area-vs-time (APL on a twin axis), each with its own
   burn-in region, trailing window, and convergence marker.
 
+## Two-stage protocol (2026-07-31) — constant-area density settle, then tensionless area
+
+**The single-stage tensionless run co-compacts the area even on a *correctly built* bilayer.** The
+2026-07-30 flow below pre-equilibrates the pristine quilt with `membrane_equilibrate`, expecting the
+area to relax to the fluid DMPC value (~60 Å²). Re-running ex16 with the fluid MC conformer start
+showed it does the opposite:
+
+- Build was **correct**: box sized to protein + margin (117.9 × 118.6 Å²), 233 lipids/leaflet → naive
+  APL = 13984/233 = **60.0**, exactly the SAPL 60 target (verified: 466 DMPC = 466/118 = 466 residues,
+  clean 233/233 split about the midplane).
+- The single tensionless piston then **monotonically compacted** it: APL 60.0 (build) → 56.4 (chunk 1)
+  → **50.7 and still shrinking** at 124 ps, with density overshooting to 1.022 g/cc and still rising.
+  P–P bilayer thickness measured 40.2 Å (gel range; fluid DMPC is ~35–36) — an independent structural
+  confirmation of gel-like over-condensation at 310 K, where DMPC should be fluid.
+
+**Root cause.** A freshly gridded bilayer is built at the correct *lateral area* (~SAPL) but is
+**under-dense in *z***: the leaflet z-reservation (the isolated melted-conformer z-extent, ~27.7 Å,
+taller than the packed leaflet because tails interdigitate at the midplane) over-sizes the box height,
+so ρ starts ~0.92. The excess volume physically lives in z, but a tensionless piston with
+`useConstantRatio` removes it from the lateral dimensions too (x:y shrink together, z flexes) — the
+density-fixing job drags the area down to a metastable gel-like APL, and recovery from there is slow
+(high K_A) and fragile (the area monitor can false-converge on the compressed flat spot). Confirmed by
+the `.xst`: box 114×115×89 → 108×109×81, both lateral and z shrank ~10%.
+
+**Fix — decouple the two relaxations (standard membrane protocol, cf. CHARMM-GUI NVT→NPAT→NPγT).**
+`membrane_equilibrate` now runs two stages by default (`two_stage: true`):
+
+1. **Constant-area density settle** (`useConstantArea yes`, `useConstantRatio no`; `useFlexibleCell`
+   stays on): x,y frozen, only z relaxes, so the excess volume leaves **from z alone** and the
+   build-correct lateral area is untouched. Gates on **density alone** (area is pinned, not a live
+   observable).
+2. **Tensionless area relaxation** (`useConstantArea no`, `useConstantRatio yes`): the original NPgT.
+   Density is already at target, so only the small lateral move remains — no collapse. Gates on
+   **both** density and area (the monitors are `reset()` at the handoff so stage-2 convergence is
+   judged on stage-2 samples only, and the area is given `area_min_steps` of *actual* relaxation before
+   it may certify).
+
+Build SAPL stays at 60 (it was always correct; 56/50 were compaction, not the packer). The
+per-leaflet-geometry `PosixPath` bug (`_read_coor_xyz` called `.lower()` on a `Path`) is fixed so
+stage 2 gates on a real protein-corrected APL rather than the `lipids_per_leaflet` fallback. Set
+`two_stage: false` to recover the legacy single-stage run (fine for a post-embed stage already near
+density equilibrium).
+
 ## Build strategy (2026-07-30, final) — pre-equilibrate the membrane, then equilibrate the assembled system
 
 We tried a **minimize-only quilt** (skip pre-equilibrating the pristine bilayer; let a single post-embed

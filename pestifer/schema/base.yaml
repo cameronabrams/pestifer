@@ -1397,6 +1397,13 @@ attributes:
                             text: Pressure (bar)
                             type: float
                             default: 1
+                          - name: two_stage
+                            text: >-
+                              If true (default), settle density at constant lateral area first, then
+                              relax the area tensionless (see the top-level membrane_equilibrate task);
+                              false runs the legacy single-stage tensionless NPgT.
+                            type: bool
+                            default: true
                           - name: max_steps
                             text: hard ceiling on total NPgT steps for this relaxation stage
                             type: int
@@ -1498,6 +1505,13 @@ attributes:
                             text: Pressure (bar)
                             type: float
                             default: 1
+                          - name: two_stage
+                            text: >-
+                              If true (default), settle density at constant lateral area first, then
+                              relax the area tensionless (see the top-level membrane_equilibrate task);
+                              false runs the legacy single-stage tensionless NPgT.
+                            type: bool
+                            default: true
                           - name: max_steps
                             text: hard ceiling on total NPgT steps for this relaxation stage
                             type: int
@@ -1824,12 +1838,14 @@ attributes:
       - name: membrane_equilibrate
         text: >-
           Self-terminating NPgT membrane equilibration -- the anisotropic sibling of
-          density_equilibrate. Runs NPgT (useFlexibleCell + useConstantRatio, tensionless by default) in
-          the same stability-bounded chunks and stops when BOTH the box density AND the membrane lateral
-          area (A = a_x*b_y) have converged (density + area fully pin the anisotropic cell since
-          V = A*c_z). Convergence uses the same autocorrelation-corrected criterion per observable; area
-          reuses the density tolerances unless area_* overrides are given. See
-          docs/design/membrane-equilibrate.md.
+          density_equilibrate. Runs NPgT (useFlexibleCell, tensionless) in the same stability-bounded
+          chunks and stops when BOTH the box density AND the membrane lateral area (A = a_x*b_y) have
+          converged (density + area fully pin the anisotropic cell since V = A*c_z). By default a
+          two-stage protocol (two_stage) first settles density at constant lateral area, then relaxes
+          the area tensionless, so a freshly gridded (under-dense-in-z) bilayer does not co-compact its
+          area down to a metastable gel-like APL. Convergence uses the same autocorrelation-corrected
+          criterion per observable; area reuses the density tolerances unless area_* overrides are given.
+          See docs/design/membrane-equilibrate.md.
         type: dict
         attributes:
           - name: temperature
@@ -1840,6 +1856,16 @@ attributes:
             text: Pressure (bar); NPT requires a solvated (periodic) system
             type: float
             default: 1
+          - name: two_stage
+            text: >-
+              If true (default), run the two-stage protocol: stage 1 settles the box density at
+              CONSTANT lateral area (useConstantArea -- excess volume leaves from z only, so the
+              build-correct lateral area is not dragged down) gating on density alone, then stage 2
+              relaxes the lateral area under tensionless NPgT (useConstantRatio) from the already-correct
+              density, gating on both. Set false for the legacy single-stage tensionless run (density +
+              area jointly), appropriate for a post-embed stage already near density equilibrium.
+            type: bool
+            default: true
           - name: dcdfreq
             text: number of time steps between configuration output to DCD file
             type: int
