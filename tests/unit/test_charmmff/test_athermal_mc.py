@@ -224,3 +224,29 @@ class TestBuildLipidMC:
         assert cylinder_radius_for_apl(60.0) == pytest.approx((60.0 / np.pi) ** 0.5, rel=1e-9)
         # ~8.7 A diameter for APL 60, per the design doc
         assert 2 * cylinder_radius_for_apl(60.0) == pytest.approx(8.74, abs=0.05)
+
+
+class TestAutoCylinderAPL:
+    """Chain-count-driven confinement-cylinder sizing (make_pdb_collection.auto_cylinder_apl)."""
+
+    def test_scales_with_chain_count(self):
+        from pestifer.charmmff.make_pdb_collection import auto_cylinder_apl, _PER_CHAIN_APL
+        # chain_info is a per-chain list; only its length matters here
+        assert auto_cylinder_apl([{}, {}]) == pytest.approx(2 * _PER_CHAIN_APL)   # di-acyl PL -> 60
+        assert auto_cylinder_apl([{}] * 4) == pytest.approx(4 * _PER_CHAIN_APL)   # cardiolipin -> 120
+        assert auto_cylinder_apl([{}]) == pytest.approx(_PER_CHAIN_APL)           # lyso -> 30
+
+    def test_dmpc_calibration_preserved(self):
+        # the 2-chain default must still be 60 (the DMPC-calibrated value)
+        from pestifer.charmmff.make_pdb_collection import auto_cylinder_apl
+        assert auto_cylinder_apl([{}, {}]) == pytest.approx(60.0)
+
+    def test_zero_chains_falls_back_to_one(self):
+        # detergents annotate with an empty chain_info but carry one chain -> never size to 0
+        from pestifer.charmmff.make_pdb_collection import auto_cylinder_apl, _PER_CHAIN_APL
+        assert auto_cylinder_apl([]) == pytest.approx(_PER_CHAIN_APL)
+        assert auto_cylinder_apl(None) == pytest.approx(_PER_CHAIN_APL)
+
+    def test_custom_per_chain(self):
+        from pestifer.charmmff.make_pdb_collection import auto_cylinder_apl
+        assert auto_cylinder_apl([{}] * 3, per_chain=25.0) == pytest.approx(75.0)

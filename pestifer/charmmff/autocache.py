@@ -186,7 +186,7 @@ def ensure_solvent_box(resname: str, CC, *, nmol: int = 216, density: float = 1.
 def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps: int = 5000,
                            minimize_steps: int = 500, sample_temperature: float = 300.0,
                            force_constant: float = 1.0, sampler: str = 'md',
-                           cylinder_apl: float = 60.0, cylinder_inflation: float = 1.9,
+                           cylinder_apl: float = None, cylinder_inflation: float = 1.9,
                            mc_n_equil: int = 20000, mc_n_decorr: int = 3000, mc_seed: int = 0,
                            mc_max_angle: float = math.pi / 6, mc_radius_scale: float = 0.8) -> Path:
     """Ensure a cached ``kind: molecule`` conformer entry for ``resname`` and return the
@@ -261,20 +261,10 @@ def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps
                                    f'see {work_dir / "fail" / resname} if present)')
             info = yaml.safe_load((produced / 'info.yaml').read_text())
             info['quality'] = 'auto'
-            # do_resi may override the sampler internally (sterols are forced to 'single'); trust
-            # the effective sampler recorded in info.yaml for the provenance stamp.
-            effective = info.get('sampler', sampler)
-            if effective == 'mc':
-                info['generation'] = {'sampler': 'mc', 'cylinder_apl': cylinder_apl,
-                                      'cylinder_inflation': cylinder_inflation,
-                                      'mc_n_equil': mc_n_equil, 'mc_n_decorr': mc_n_decorr,
-                                      'mc_seed': mc_seed, 'mc_max_angle': mc_max_angle,
-                                      'mc_radius_scale': mc_radius_scale}
-            elif effective == 'single':
-                info['generation'] = {'sampler': 'single'}
-            else:
-                info['generation'] = {'sampler': 'md', 'sample_steps': sample_steps,
-                                      'sample_temperature': sample_temperature}
+            # do_psfgen writes the authoritative `generation` provenance block with *resolved* values
+            # (e.g. the auto-sized cylinder_apl); we only stamp quality here and leave it intact.  Older
+            # entries without one get a minimal fallback so downstream code can rely on the field.
+            info.setdefault('generation', {'sampler': info.get('sampler', sampler)})
             (produced / 'info.yaml').write_text(yaml.dump(info))
         finally:
             os.chdir(cwd)

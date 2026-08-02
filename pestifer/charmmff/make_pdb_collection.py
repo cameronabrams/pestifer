@@ -26,6 +26,27 @@ from ..psfutil.psfcontents  import PSFContents
 
 logger = logging.getLogger(__name__)
 
+# Fluid area per acyl chain (A^2).  A single-molecule athermal-MC confinement cylinder is sized as
+# n_chains * this value (times the geometric inflation factor).  Calibrated from DMPC: a 2-chain lipid
+# gets cylinder_apl = 60 (2 x 30), which lands the melted ensemble near the fluid DMPC APL ~67.  This
+# is what lets a 4-chain cardiolipin be confined at ~120 rather than crushed into a 2-chain cylinder.
+_PER_CHAIN_APL = 30.0
+
+
+def auto_cylinder_apl(chain_info, *, substream: str = '', per_chain: float = _PER_CHAIN_APL) -> float:
+    """On-the-fly confinement-cylinder APL from the lipid's acyl-chain count.
+
+    ``chain_info`` is the per-chain list produced by the head/tail network analysis
+    (:meth:`~pestifer.charmmff.charmmfftop.CharmmResiTopology.generic_lipid_annotate`), so
+    ``len(chain_info)`` is the number of acyl chains: 2 for a di-acyl PL, 4 for a cardiolipin, 1 for a
+    lyso lipid.  The cylinder is sized ``n_chains * per_chain`` (A^2) so its cross-section tracks the
+    lipid's real footprint rather than a global default.  Detergents annotate with an empty
+    ``chain_info`` but do carry one chain, so 0 chains falls back to 1 (never 0)."""
+    n = len(chain_info) if chain_info else 0
+    if n == 0:
+        n = 1   # detergents (and any lipid the labeler left un-split) have at least one chain
+    return float(n) * per_chain
+
 
 def _sample_and_write_mc_conformers(resid: str, psf_file: str, pdb_file: str,
                                     heads: list, tails: list, par_basenames: list,
@@ -124,7 +145,7 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
               sample_temperature: float = 300,
               refic_idx: int = 0, force_constant: float = 1.0,
               borrow_ic_from: str = None, sampler: str = 'md',
-              cylinder_apl: float = 60.0, cylinder_inflation: float = 1.9,
+              cylinder_apl: float = None, cylinder_inflation: float = 1.9,
               mc_n_equil: int = 20000, mc_n_decorr: int = 3000, mc_seed: int = 0,
               mc_max_angle: float = np.pi / 6, mc_radius_scale: float = 0.8):
     """ 
@@ -207,6 +228,7 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
          {'md': {'ensemble': 'minimize', 'nsteps': 0, 'minimize': minimize_steps, 'dcdfreq': 0, 'xstfreq': 0, 'temperature': 100}},
     ]
     heads = []
+    chain_info = []
     if stream == 'lipid':
         topo.lipid_annotate()
         ano = topo.annotation
@@ -381,6 +403,12 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
         if not mc_pdb or not os.path.exists(mc_pdb):
             logger.warning(f'MC {resid}: no minimized structure to sample from')
             return -1
+        # size the confinement cylinder to the lipid's real footprint: auto from the chain count
+        # (n_chains x per-chain area) unless an explicit cylinder_apl was requested
+        if cylinder_apl is None:
+            cylinder_apl = auto_cylinder_apl(chain_info, substream=substream)
+            logger.info(f'MC {resid}: {len(chain_info)} acyl chain(s) -> auto cylinder_apl '
+                        f'{cylinder_apl:.0f} A^2 (inflation {cylinder_inflation:.2f})')
         try:
             _sample_and_write_mc_conformers(
                 resid, mc_psf, mc_pdb, heads, tails, par, DB,
@@ -465,6 +493,22 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
         entry['max-internal-length'] = float(f'{max_internal_length:.3f}')
         info['conformers'].append(entry)
 
+    # provenance: how this conformer set was generated, with *resolved* values (e.g. the auto-sized
+    # cylinder_apl), so a later run can reproduce or audit it.  Written here so both the CLI
+    # (make-pdb-collection) and the on-the-fly autocache paths record it identically.
+    if sampler == 'mc':
+        info['generation'] = {'sampler': 'mc', 'n_chains': len(chain_info),
+                              'cylinder_apl': float(cylinder_apl),
+                              'cylinder_inflation': float(cylinder_inflation),
+                              'mc_n_equil': int(mc_n_equil), 'mc_n_decorr': int(mc_n_decorr),
+                              'mc_seed': int(mc_seed), 'mc_max_angle': float(mc_max_angle),
+                              'mc_radius_scale': float(mc_radius_scale)}
+    elif sampler == 'single':
+        info['generation'] = {'sampler': 'single'}
+    else:
+        info['generation'] = {'sampler': 'md', 'sample_steps': int(sample_steps),
+                              'sample_temperature': float(sample_temperature)}
+
     info['synonym'] = synonym
     with open('info.yaml','w') as f:
         f.write(yaml.dump(info))
@@ -492,7 +536,7 @@ def do_resi(resi: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             sample_steps: int = 5000, nsamples: int = 10,
             sample_temperature: float = 300, refic_idx: int = 0,
             force_constant: float = 1.0, borrow_ic_from: str = None,
-            sampler: str = 'md', cylinder_apl: float = 60.0, cylinder_inflation: float = 1.9,
+            sampler: str = 'md', cylinder_apl: float = None, cylinder_inflation: float = 1.9,
             mc_n_equil: int = 20000, mc_n_decorr: int = 3000, mc_seed: int = 0,
             mc_max_angle: float = np.pi / 6, mc_radius_scale: float = 0.8):
     """
@@ -601,6 +645,15 @@ def make_pdb_collection(args):
     if os.path.exists('tmp'):
         shutil.rmtree('tmp')
     
+    # sampler selection (default 'md' legacy); for 'mc', cylinder_apl=None means auto-size from the
+    # per-lipid acyl-chain count (an explicit --cylinder-apl overrides).  Sterols are always forced to
+    # 'single' inside do_psfgen regardless of this choice.
+    sampler_kwargs = dict(
+        sampler=getattr(args, 'sampler', 'md'),
+        cylinder_apl=getattr(args, 'cylinder_apl', None),
+        cylinder_inflation=getattr(args, 'cylinder_inflation', 1.9),
+    )
+
     if resname is not None and resname != '':
         my_logger(f'RESI {resname}', logger.info, just='^', frame='*', fill='*')
         do_resi(resname, CC, RM=RM, outdir=outdir, faildir=faildir, force=args.force,
@@ -608,7 +661,7 @@ def make_pdb_collection(args):
                  minimize_steps=args.minimize_steps, sample_steps=args.sample_steps,
                  nsamples=args.nsamples, sample_temperature=args.sample_temperature,
                  refic_idx=args.refic_idx, force_constant=args.force_constant,
-                 borrow_ic_from=args.take_ic_from)
+                 borrow_ic_from=args.take_ic_from, **sampler_kwargs)
     else:
         active_resnames = CC.get_resnames_of_streamID(streamID, substreamID=substreamID)
         logger.debug(f'stream {streamID} substream {substreamID} active_resnames: {active_resnames}')
@@ -619,7 +672,8 @@ def make_pdb_collection(args):
                     cleanup=args.cleanup, lenfac=args.lenfac,
                     minimize_steps=args.minimize_steps, sample_steps=args.sample_steps,
                     nsamples=args.nsamples, sample_temperature=args.sample_temperature,
-                    refic_idx=args.refic_idx, force_constant=args.force_constant)
+                    refic_idx=args.refic_idx, force_constant=args.force_constant,
+                    **sampler_kwargs)
 
     # if the faildir is empty, remove it
     if len(os.listdir(faildir)) == 0:

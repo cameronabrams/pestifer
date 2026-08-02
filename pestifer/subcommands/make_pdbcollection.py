@@ -64,6 +64,18 @@ class MakePDBCollectionSubcommand(Subcommand):
         self.parser.add_argument('--force', default=False, action='store_true', help='force overwrite of any existing molecules in the database')
         self.parser.add_argument('--cleanup', default=True, action=ap.BooleanOptionalAction, help='clean up all working files (default: %(default)s)')
         self.parser.add_argument('--resname', type=str, default='', help='single resname to generate')
+        self.parser.add_argument('--sampler', type=str, default='md', choices=['md', 'mc'],
+                                 help="conformer sampler: 'md' (legacy vacuum sampling, extended rods) "
+                                      "or 'mc' (athermal Monte Carlo, fluid-like melted tails); sterols "
+                                      "are always forced to a single conformer regardless (default: %(default)s)")
+        self.parser.add_argument('--cylinder-apl', dest='cylinder_apl', type=float, default=None,
+                                 help='mc sampler: confinement-cylinder area-per-lipid (A^2). Default '
+                                      '(unset) auto-sizes it from the lipid acyl-chain count '
+                                      '(n_chains x 30 A^2), so a 4-chain cardiolipin is not crushed into '
+                                      'a 2-chain cylinder')
+        self.parser.add_argument('--cylinder-inflation', dest='cylinder_inflation', type=float, default=1.9,
+                                 help='mc sampler: geometric inflation of the confinement cylinder cross-'
+                                      'section over cylinder_apl (default: %(default)s)')
         self.parser.add_argument('--take-ic-from', type=str, default='', help='alternate resname to take ICs from if this resname has bad ICs')
         self.parser.add_argument('--force-constant', type=float, default=1.0, help='harmonic force constant used in non-equilibrium MD to stretch a molecule (default: %(default)s)')
         self.parser.add_argument('--lenfac', type=float, default=1.4, help='this factor times topological distance is the cartesian distance to which you want to stretch a molecule (default: %(default)s)')
