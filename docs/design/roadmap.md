@@ -85,6 +85,21 @@ what appears here is refined and reprioritized as the project evolves.
         (iv) **flip `sampler='mc'` to default.** Deferred: absolute-APL vs literature (force-field /
         conditions, not conformer generation); Lever 2b (whole-grid MC pre-relax — likely unnecessary).
 
+- [ ] **Reconcile the two membrane area-convergence criteria on the calibration path.** When an
+      asymmetric build's symmetric **calibration patch** relaxes via a self-terminating
+      `membrane_equilibrate` (migrated from the old fixed NPgT ladder), two different area-convergence
+      tests now both apply: `membrane_equilibrate`'s own autocorrelation-corrected gate (default
+      `area_drift_tol = 0.012`, a deliberately loose soft-mode default) and `make_membrane_system`'s
+      post-hoc `_area_convergence` final-half-drift reliability check (`_AREA_CONVERGENCE_TOL = 0.005`).
+      They can disagree — a patch converges under the loose gate while still creeping at ~0.7% and the
+      stricter check then warns the calibrated preferred APL is unreliable (observed on ex17's
+      47%-cholesterol upper leaflet: converged APL ~45.4 with −0.67% residual drift). Worked around per
+      example by tightening the patch stage's `area_drift_tol` to 0.005, but the redundancy is a design
+      smell: the `_area_convergence` re-check was built for the old *non*-self-terminating fixed-ladder
+      patches. Make `make_membrane_system` **trust a converged `membrane_equilibrate`'s own verdict**
+      (skip/relax the cruder re-check when the last patch stage self-terminated), or unify the two on a
+      single autocorrelation-corrected criterion, so calibration precision is set in one place.
+
 ## Resources / on-demand generation
 
 - [x] Generate-on-miss into a user cache (`~/.pestifer/`). When a build references a residue that
