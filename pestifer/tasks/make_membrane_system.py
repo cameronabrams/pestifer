@@ -384,7 +384,11 @@ class MakeMembraneSystemTask(BaseTask):
             self.grid_patch(patch, patch_name=f'patch{specbyte}', seed=seed,
                             half_mid_zgap=half_mid_zgap)
             self.do_psfgen(patch, bilayer_name=f'patch{specbyte}')
-            self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=patch_protocol)
+            # deepcopy per patch: equilibrate_bilayer/the MD task mutate the stage dicts in place
+            # (e.g. inject ensemble=NPgT during a membrane_equilibrate stage's do()), so a shared
+            # protocol would leak patchA's mutations into patchB and fail patchB's schema re-validation.
+            self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}',
+                                     relaxation_protocol=copy.deepcopy(patch_protocol))
 
     def _guard_pierced_lipids(self, protocol):
         """Insert a lipid ``ring_check`` (and a follow-up minimize) before the first dynamics
