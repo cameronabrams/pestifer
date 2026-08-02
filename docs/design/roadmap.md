@@ -106,6 +106,23 @@ what appears here is refined and reprioritized as the project evolves.
         them under `~/.pestifer/pdbrepository/<release>/lipid/<RESI>/`, sharing the solvent path's
         lock/atomic-publish/isolated-builder machinery. (The artifact *kind* is driven by the
         consumer, not the species: packer → conformer, solvate → box.) (v3.5.0.)
+- [ ] **Auto-resolve sterol IC-donor dependencies in conformer generation.** `CHM1` (and possibly
+      other sterols) has an intentionally empty IC table in the bundled
+      `toppar_all36_lipid_cholesterol.str` (bond lengths/angles all `0.0000`): it is *designed* to
+      inherit its geometry from `CHL1`, a normal CHARMM cross-residue IC pattern — not a typo. psfgen
+      coordinate guessing therefore fails during on-the-fly generation only because pestifer doesn't know
+      to supply the donor; it's currently worked around by hand with `--take-ic-from CHL1` (CHM1 is a
+      `single`-conformer sterol, so no MC is involved). Ship a small **known IC-donor map** (or auto-
+      detect an all-zero IC table and fall back to the parent-ring donor) so generation resolves these
+      dependencies itself instead of failing and needing a manual retry.
+- [ ] **Audit sterol RESI `BOND` records for mis-assignments.** Separate from the IC-donor issue: at
+      least one sterol RESI block (recollection: CHM1 or another in the cholesterol substream) is
+      believed to have **incorrectly assigned bonds** in the vendored CHARMM stream, which would give a
+      wrong psfgen topology and a distorted built conformer. Audit the cholesterol-substream RESI blocks'
+      connectivity against the intended sterol skeleton; if confirmed, ship a committed **diff patch**
+      against the bundled stream. Fits the general "carry local patches over vendored CHARMM streams"
+      need — see the CHARMM-release ingestion item below, which should reapply such patches on each
+      release bump.
 
 ## Ligands / force field
 
