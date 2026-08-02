@@ -1408,6 +1408,23 @@ attributes:
                             text: hard ceiling on total NPgT steps for this relaxation stage
                             type: int
                             default: 500000
+                          - name: area_drift_tol
+                            text: >-
+                              per-stage override of the lateral-area drift tolerance (fraction). The
+                              default (0.012) suits a final relaxation, but a calibration patch sizes the
+                              whole grid and must satisfy make_membrane_system's 0.5% reliability check,
+                              so tighten it (e.g. 0.005) on calibration stages. Inherits the top-level
+                              membrane_equilibrate default when unset.
+                            type: float
+                            default: 0.012
+                          - name: area_min_steps
+                            text: >-
+                              per-stage override of the minimum steps before the lateral area may be
+                              declared converged (a floor preventing premature convergence on a slow,
+                              e.g. cholesterol-rich, area relaxation). Inherits the top-level default when
+                              unset.
+                            type: int
+                            default: 40000
                           - name: addl_paramfiles
                             type: list
                             text: additional parameter files for the NAMD run
@@ -1516,6 +1533,23 @@ attributes:
                             text: hard ceiling on total NPgT steps for this relaxation stage
                             type: int
                             default: 500000
+                          - name: area_drift_tol
+                            text: >-
+                              per-stage override of the lateral-area drift tolerance (fraction). The
+                              default (0.012) suits a final relaxation, but a calibration patch sizes the
+                              whole grid and must satisfy make_membrane_system's 0.5% reliability check,
+                              so tighten it (e.g. 0.005) on calibration stages. Inherits the top-level
+                              membrane_equilibrate default when unset.
+                            type: float
+                            default: 0.012
+                          - name: area_min_steps
+                            text: >-
+                              per-stage override of the minimum steps before the lateral area may be
+                              declared converged (a floor preventing premature convergence on a slow,
+                              e.g. cholesterol-rich, area relaxation). Inherits the top-level default when
+                              unset.
+                            type: int
+                            default: 40000
                           - name: addl_paramfiles
                             type: list
                             text: additional parameter files for the NAMD run
