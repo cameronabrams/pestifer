@@ -1425,6 +1425,14 @@ attributes:
                               unset.
                             type: int
                             default: 40000
+                          - name: area_plateau_tol
+                            text: >-
+                              cumulative area-plateau gate (fraction); when > 0, also require the stage-2
+                              area's quarter-over-quarter drift below this before converging -- the same
+                              metric make_membrane_system uses to judge a calibration patch's preferred
+                              APL reliable. Set e.g. 0.005 on calibration stages; 0 (default) disables it.
+                            type: float
+                            default: 0.0
                           - name: addl_paramfiles
                             type: list
                             text: additional parameter files for the NAMD run
@@ -1550,6 +1558,14 @@ attributes:
                               unset.
                             type: int
                             default: 40000
+                          - name: area_plateau_tol
+                            text: >-
+                              cumulative area-plateau gate (fraction); when > 0, also require the stage-2
+                              area's quarter-over-quarter drift below this before converging -- the same
+                              metric make_membrane_system uses to judge a calibration patch's preferred
+                              APL reliable. Set e.g. 0.005 on calibration stages; 0 (default) disables it.
+                            type: float
+                            default: 0.0
                           - name: addl_paramfiles
                             type: list
                             text: additional parameter files for the NAMD run
@@ -2003,6 +2019,17 @@ attributes:
             text: per-observable autocorr_reliability for the lateral area (relaxed vs density's 6 so the reliability guard is attainable given the long area autocorrelation time). Unset falls back to density.
             type: float
             default: 4.0
+          - name: area_plateau_tol
+            text: >-
+              optional cumulative area-plateau gate (fraction). When > 0, convergence also requires the
+              lateral area to have genuinely flattened -- the quarter-over-quarter drift of the stage-2
+              area series (mean over the final quarter vs the preceding quarter) must be below this --
+              not merely the local windowed slope. This is the exact metric make_membrane_system uses to
+              judge a calibration patch's preferred APL reliable (_AREA_CONVERGENCE_TOL), so set it (e.g.
+              0.005) on calibration patches to make "run until the creep flattens" the actual gate for a
+              slowly-condensing (e.g. cholesterol-rich) leaflet. 0 (default) disables the extra gate.
+            type: float
+            default: 0.0
           - name: addl_paramfiles
             type: list
             text: list of additional parameter files to be included in the NAMD run

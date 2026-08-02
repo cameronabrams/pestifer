@@ -102,6 +102,8 @@ def _machine(two_stage=True, n_consecutive=1, user_other=None):
     t._all_t, t._all_d, t._all_a = [], [], []
     t._rows = []
     t._phase2_start_step = None
+    t._area_plateau_tol = float(t.specs.get('area_plateau_tol') or 0.0)
+    t._last_plateau_drift = None
     t._user_other = dict(t.specs.get('other_parameters', {}))
     t._two_stage = two_stage
     t._phase = 1 if two_stage else 2
@@ -193,3 +195,54 @@ class TestPhaseMachine(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestPlateauGate:
+    """The cumulative area-plateau gate (area_plateau_tol) for calibration convergence."""
+
+    def _series(self, t, areas, start=0, step=100, phase2_start=0):
+        import numpy as np
+        n = len(areas)
+        t._all_t = list(np.arange(start, start + n * step, step, dtype=float))
+        t._all_a = list(map(float, areas))
+        t._phase2_start_step = phase2_start
+
+    def test_quarter_drift_flat_is_zero(self):
+        import numpy as np
+        t = _machine(two_stage=False)
+        self._series(t, np.full(200, 4500.0))
+        assert abs(t._area_plateau_drift()) < 1e-9
+
+    def test_quarter_drift_detects_monotone_creep(self):
+        import numpy as np
+        t = _machine(two_stage=False)
+        # steady descent 4600 -> 4500 over the series: 4th-quarter mean below 3rd-quarter mean
+        self._series(t, np.linspace(4600.0, 4500.0, 200))
+        pd = t._area_plateau_drift()
+        assert pd is not None and pd < -0.005   # cumulative quarter-drift exceeds a 0.5% gate
+
+    def test_quarter_drift_only_stage2(self):
+        # stage-1 (pinned, flat) samples before phase2_start must be excluded
+        import numpy as np
+        t = _machine(two_stage=True)
+        flat = np.full(100, 4700.0)              # stage 1: pinned
+        creep = np.linspace(4600.0, 4500.0, 100) # stage 2: relaxing
+        allA = np.concatenate([flat, creep])
+        self._series(t, allA, phase2_start=100 * 100)   # phase2 starts after the 100 flat samples
+        pd = t._area_plateau_drift()
+        # computed over the stage-2 creep only (flat stage-1 excluded), so it sees the descent
+        assert pd is not None and pd < -0.005
+
+    def test_too_few_samples_returns_none(self):
+        t = _machine(two_stage=False)
+        self._series(t, [4500.0] * 6)            # tail < 8 samples
+        assert t._area_plateau_drift() is None
+
+    def test_gate_read_from_spec(self):
+        import numpy as np
+        t = _machine(two_stage=False)
+        t.specs['area_plateau_tol'] = 0.005
+        t._area_plateau_tol = 0.005
+        # a flat area passes the gate; a creeping one would not (verified via _area_plateau_drift above)
+        self._series(t, np.full(200, 4500.0))
+        assert abs(t._area_plateau_drift()) < t._area_plateau_tol

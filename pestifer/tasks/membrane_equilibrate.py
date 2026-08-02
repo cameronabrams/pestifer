@@ -124,6 +124,15 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         self._n_consecutive = int(specs['n_consecutive'])
         self._all_t, self._all_d, self._all_a = [], [], []   # series for the two-panel plot
         self._phase2_start_step = None                       # set at the stage-1 -> stage-2 handoff
+        # Opt-in *plateau* gate (area_plateau_tol > 0): in addition to the local windowed-slope area
+        # gate, refuse to converge until the area has genuinely flattened -- the cumulative
+        # quarter-over-quarter drift of the (stage-2) area series must fall below this tolerance. This is
+        # the exact metric make_membrane_system._area_convergence uses for its calibration-reliability
+        # check, so a slowly-creeping cholesterol leaflet no longer stops on a small *local* slope while
+        # a systematic descent continues (which the local gate calls converged but the reliability check
+        # rejects). Used for calibration patches, which size the whole grid; unset elsewhere.
+        self._area_plateau_tol = float(specs.get('area_plateau_tol') or 0.0)
+        self._last_plateau_drift = None
 
         # Two-stage protocol (default on): stage 1 settles density at *constant lateral area* so the
         # under-dense box loses its excess volume from z only; stage 2 then relaxes the lateral area at
@@ -196,11 +205,45 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
             logger.info(f'{self.taskname}: stage 1 complete at step {total_steps} (density settled at '
                         f'constant area, APL~{_fmt(apl)}); switching to tensionless area relaxation')
             return jr.blowup, False
-        return jr.blowup, jr.converged
+
+        # plateau gate: even when the local gates certify, hold convergence until the area has actually
+        # flattened by the cumulative quarter-drift metric (see _area_plateau_drift / _setup).
+        converged = jr.converged
+        if converged and self._phase == 2 and self._area_plateau_tol > 0.0:
+            pd = self._area_plateau_drift()
+            self._last_plateau_drift = pd
+            if pd is None or abs(pd) >= self._area_plateau_tol:
+                converged = False
+                logger.info(f'{self.taskname}: local gates pass but area not yet plateaued '
+                            f'(cumulative quarter-drift {_fmt(pd)} >= {self._area_plateau_tol:.4f}); '
+                            f'continuing')
+        return jr.blowup, converged
+
+    def _area_plateau_drift(self):
+        """Cumulative area-plateau drift: the fractional change between the mean area over the final
+        quarter and the preceding quarter of the *stage-2* area series (where the area actually relaxes;
+        the whole series if single-stage).  This is exactly the metric
+        :meth:`make_membrane_system._area_convergence` uses, so the two agree -- when this is below
+        ``area_plateau_tol`` the downstream calibration-reliability check passes too.  Returns ``None``
+        until there are enough samples to judge."""
+        import numpy as np
+        t = np.asarray(self._all_t, dtype=float)
+        a = np.asarray(self._all_a, dtype=float)
+        if self._phase2_start_step is not None and t.size:
+            a = a[t >= self._phase2_start_step]
+        tail = a[a.size // 2:]
+        if tail.size < 8:
+            return None
+        h = tail.size // 2
+        m1, m2 = float(tail[:h].mean()), float(tail[h:].mean())
+        return (m2 - m1) / m1 if m1 else None
 
     def _converged_stop_reason(self, total_steps):
+        extra = ('' if self._area_plateau_tol <= 0.0
+                 else f' (area plateaued: cumulative quarter-drift {_fmt(self._last_plateau_drift)} < '
+                      f'{self._area_plateau_tol:.4f})')
         return (f'CONVERGED at step {total_steps}: density + lateral area both stationary for '
-                f'{self._rows[-1][3].passes} consecutive checks')
+                f'{self._rows[-1][3].passes} consecutive checks{extra}')
 
     def _ceiling_stop_reason(self, total_steps, max_steps):
         jr = self._rows[-1][3] if self._rows else None
@@ -211,6 +254,9 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
                 if r:
                     bits.append(f'{name} drift {_fmt(r.signed_drift)} (precision '
                                 f'{"met" if r.precision_met else "UNMET"})')
+        if self._area_plateau_tol > 0.0:
+            bits.append(f'area plateau quarter-drift {_fmt(self._last_plateau_drift)} '
+                        f'(need < {self._area_plateau_tol:.4f})')
         return (f'CEILING: reached max_steps ({max_steps}) without joint convergence; '
                 f'{"; ".join(bits) or "n/a"} -- system may not have settled')
 
