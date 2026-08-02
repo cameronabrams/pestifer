@@ -368,6 +368,12 @@ class MakeMembraneSystemTask(BaseTask):
         logger.debug('Relaxation protocols:')
         my_logger(relaxation_protocols, logger.debug)
         half_mid_zgap = self._grid_half_mid_zgap(half_mid_zgap)
+        # A gridded patch condenses substantially once a barostat is switched on (it is placed loose and
+        # tall in z), so its long NPT/NPgT annealing stages must be split into a restart ramp -- exactly
+        # as the quilt's are (see _grid_membrane) -- or the shrinking cell outruns NAMD's startup patch
+        # grid and aborts.  This matters more with the fluid athermal-MC conformers, which pack looser
+        # and condense further than the old extended rods.  (md/NVT/minimize stages pass through.)
+        patch_protocol = self._autostage_protocol(relaxation_protocol)
         # we now build the patch, or if asymmetric, two patches
         for patch, specbyte in zip([self.patch, self.patchA, self.patchB], ['', 'A', 'B']):
             if patch is None:
@@ -378,7 +384,7 @@ class MakeMembraneSystemTask(BaseTask):
             self.grid_patch(patch, patch_name=f'patch{specbyte}', seed=seed,
                             half_mid_zgap=half_mid_zgap)
             self.do_psfgen(patch, bilayer_name=f'patch{specbyte}')
-            self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=relaxation_protocol)
+            self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}', relaxation_protocol=patch_protocol)
 
     def _guard_pierced_lipids(self, protocol):
         """Insert a lipid ``ring_check`` (and a follow-up minimize) before the first dynamics
