@@ -284,7 +284,13 @@ class PDBCollection:
             logger.debug(f'Tarball {path_or_tarball} root directory: {root_dir}')
             if not root_dir or root_dir != streamID:
                 raise ValueError(f'Tarball {path_or_tarball}\'s top-level directory does not match stream name {streamID} (root_dir {root_dir}).')
-            toplevel_solos = [x['name'] for x in pdbrepo_fs.ls(root_dir) if x['type'] != 'directory']
+            # Solo entries are single-PDB collection members; require the .pdb extension so
+            # hidden bookkeeping files that ride along in the tarball -- notably the per-entry
+            # `.<resname>.lock` advisory locks -- are not mistaken for entries (a `.PSM.lock`
+            # would otherwise register a phantom resname `.PSM`, doubling the collection). This
+            # mirrors the directory branch below, which already filters solos to `.pdb`.
+            toplevel_solos = [x['name'] for x in pdbrepo_fs.ls(root_dir)
+                              if x['type'] != 'directory' and x['name'].endswith('.pdb')]
             toplevel_subdirs = [x['name'] for x in pdbrepo_fs.ls(root_dir) if x['type'] == 'directory']
             for solo in toplevel_solos:
                 # update info and contents for a solo PDB file (info is empty in this case)

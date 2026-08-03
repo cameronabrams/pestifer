@@ -4,6 +4,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **PDB-repository tarball collections no longer register phantom entries from advisory lock
+  files.** The per-entry `.<resname>.lock` files created by the on-demand build lock ride along inside
+  the shipped collection tarballs (e.g. `lipid.tgz`), and `PDBCollection.build_from_resources` was
+  treating every top-level non-directory member as a solo PDB entry — so a `.PSM.lock` registered a
+  phantom resname `.PSM`, doubling the lipid collection to 438 entries (219 real + 219 phantom). The
+  tarball branch now requires the `.pdb` extension for solo entries, matching the directory branch that
+  already filtered them. Note: the `PDBRepository` cache is keyed by pestifer version, so an existing
+  cache is rebuilt on the next version bump (or clear `~/.cache/pestifer/cacheobj-pdbrepository-*`).
+
 - fix: **minimal/truncated `SSBOND` and `LINK` records now load instead of raising.** A real PDB may
   stop before its optional trailing columns — an `SSBOND` with no `sym1/sym2/length`, or one that even
   omits the serial number — and pidibble 1.9.0 hands such blank numeric columns back as an empty value
