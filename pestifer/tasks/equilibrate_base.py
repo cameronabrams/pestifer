@@ -95,19 +95,27 @@ class ChunkedEquilibrateTask(MDTask):
         self._rows = []
         self._setup(state, min_steps)
 
-        total_steps = self.get_current_artifact_data('firsttimestep') or 0
+        start_step = self.get_current_artifact_data('firsttimestep') or 0
+        total_steps = start_step
+        # max_steps is a per-run BUDGET (steps THIS equilibration may run), not an absolute step ceiling.
+        # A membrane_equilibrate whose firsttimestep is already large -- e.g. an asymmetric build's second
+        # calibration patch, running after the first on the same accumulating subcontroller step counter
+        # -- must still get its full budget, not be starved by the inherited offset (which had it ceiling
+        # after a few thousand steps and report an un-relaxed area). Absolute ~ budget when firsttimestep
+        # is small (a fresh post-embed run), so this changes nothing there.
+        step_ceiling = start_step + max_steps
         chunk = chunk_min      # conservative first chunk: the box shrinks fastest now
         stop_reason = None
         n_chunk = 0
         shrink_retries = 0     # consecutive patch-grid retries at the current boundary
         grid_logged = False
 
-        while total_steps < max_steps:
+        while total_steps < step_ceiling:
             # Do not overshoot the ceiling; quantize to a whole number of NAMD cycles.  If less than one
-            # cycle remains to max_steps, we cannot run a valid chunk -- stop here.
-            if max_steps - total_steps < steps_per_cycle:
+            # cycle remains in the budget, we cannot run a valid chunk -- stop here.
+            if step_ceiling - total_steps < steps_per_cycle:
                 break
-            this_chunk = quantize_steps(min(chunk, max_steps - total_steps), steps_per_cycle,
+            this_chunk = quantize_steps(min(chunk, step_ceiling - total_steps), steps_per_cycle,
                                         minimum=_MIN_RETRY_CHUNK)
             specs['nsteps'] = this_chunk
             attempt = f' (retry {shrink_retries}/{max_shrink_retries})' if shrink_retries else ''
@@ -174,7 +182,7 @@ class ChunkedEquilibrateTask(MDTask):
             logger.debug(f'{self.taskname}: shrink rate {rate:.3e} A/step -> rate-sized {rate_sized}, '
                          f'grow-cap {grow_cap} -> next chunk {chunk} steps')
 
-        # No convergence/blowup break -> we reached the step ceiling (either total_steps >= max_steps or
+        # No convergence/blowup break -> we exhausted the budget (either total_steps >= step_ceiling or
         # too few steps remained for a whole cycle).
         if stop_reason is None:
             stop_reason = self._ceiling_stop_reason(total_steps, max_steps)
