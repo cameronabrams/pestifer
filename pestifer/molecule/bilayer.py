@@ -132,6 +132,24 @@ class BilayerSpecString:
                 for i in range(len(self.right)):
                     self.right[i][attr_name] = Lright[0]
 
+def _lipid_anchor_index(coords, lines, head_i):
+    """Index of the atom that marks a lipid's head-group interface, for z-anchoring during grid
+    placement.  Preference: the phosphate ``P`` (phospho-lipids + sphingomyelins) -> the polar head
+    OXYGEN nearest the head reference atom (a sterol 3-hydroxyl, a ceramide OH, ... found generically,
+    no hardcoded name) -> the head reference atom -> ``None`` for a headless species (tail/center
+    anchor).  ``coords`` are the raw conformer coordinates, ``lines`` the parallel PDB atom lines."""
+    p_i = next((i for i, ln in enumerate(lines) if ln[12:16].strip() == 'P'), None)
+    if p_i is not None:
+        return p_i
+    if head_i is None:
+        return None
+    o_idxs = [i for i, ln in enumerate(lines) if ln[12:16].strip().startswith('O')]
+    if not o_idxs:
+        return head_i
+    d2 = ((coords[o_idxs] - coords[head_i]) ** 2).sum(axis=1)
+    return o_idxs[int(np.argmin(d2))]
+
+
 def specstrings_builddict(lipid_specstring='', lipid_ratio_specstring='', lipid_conformers_specstring='',
                           solvent_specstring='TIP3', solvent_ratio_specstring=''):
     """
@@ -613,13 +631,23 @@ class Bilayer:
             sy = Ly / ny
             base, extra = divmod(n, ny)   # `extra` rows carry one more lipid
             target_z = self.midplane_z + (half_mid_zgap if upper else -half_mid_zgap)
-            # Head-anchor plane: the leaflet's outer boundary (the water interface).  Placing every
-            # lipid's head reference atom on this common plane makes a *mixed* leaflet's head groups
-            # tile into one clean interface.  Tail-anchoring instead (tails pinned at target_z near the
-            # midplane, head floating up by the molecule's own length) scatters the heads of different-
-            # length species across several z-planes -- e.g. POPC ~6 A above PSM -- which is what
-            # smeared the head-group band on ex17's mixed leaflets.
-            head_plane_z = self.UL['z-hi'] if upper else self.LL['z-lo']
+            # Anchor every lipid's head marker (phosphate / sterol-OH) to ONE plane so a mixed leaflet's
+            # head groups tile into a clean band -- but position that plane so the TAILS land at the
+            # midplane, not at the outer slab boundary.  Anchoring at the boundary put the phosphate
+            # where the choline (molecule top) belongs, lifting every lipid by the head-cap-to-phosphate
+            # distance and leaving the tails short of the midplane -- a large inter-leaflet void the
+            # barostat then had to condense out slowly.  So place the band at target_z + the mean height
+            # the anchor atom sits above the tail bundle across this leaflet's conformers: the anchors
+            # stay co-planar while the tails average out at the midplane.  Tail-anchoring alone (each
+            # tail pinned, head floating up by the molecule's length) is what scattered the heads.
+            def _mean_anchor_offset(confs):
+                vs = [c[_lipid_anchor_index(c, ln, hi), 2] - c[list(ti), 2].mean()
+                      for c, ln, hi, ti in confs
+                      if _lipid_anchor_index(c, ln, hi) is not None and ti is not None]
+                return float(np.mean(vs)) if vs else 0.0
+            sp_off = {nm2: _mean_anchor_offset(confs) for nm2, confs in cache.items()}
+            raw_off = float(np.mean([sp_off[nm] for nm in bag])) if bag else 0.0
+            head_plane_z = target_z + (raw_off if upper else -raw_off)
             k = 0
             for row in range(ny):
                 row_n = base + (1 if row < extra else 0)
@@ -635,28 +663,9 @@ class Bilayer:
                     best_c = best_lines = None
                     best_gap = -1.0
                     coords, lines, head_i, tail_is = conformers[ci]
-                    # Anchor z by the head group's interface marker so a mixed leaflet's heads share one
-                    # plane (the band the density profile shows and the eye reads).  Preference:
-                    #   1. the PHOSPHATE P            -- phospho-lipids + sphingomyelins
-                    #   2. the polar head OXYGEN nearest the head reference atom -- phosphate-less species
-                    #      (a sterol's 3-hydroxyl O3/O1, a ceramide OH, ...), which sits ~1.4 A above the
-                    #      reference ring/backbone carbon, so pinning the O puts the actual -OH on the plane
-                    #   3. the head reference atom    -- if no head oxygen is present
-                    #   4. tail/center               -- headless species
-                    # Anchoring the head *reference* atom or the tail instead floats heads to species-
-                    # dependent heights (POPC ~6 A above PSM), smearing the head-group band.
-                    p_i = next((i for i, ln in enumerate(lines) if ln[12:16].strip() == 'P'), None)
-                    if p_i is not None:
-                        anchor_i = p_i
-                    elif head_i is not None:
-                        o_idxs = [i for i, ln in enumerate(lines) if ln[12:16].strip().startswith('O')]
-                        if o_idxs:
-                            d2 = ((coords[o_idxs] - coords[head_i]) ** 2).sum(axis=1)
-                            anchor_i = o_idxs[int(np.argmin(d2))]
-                        else:
-                            anchor_i = head_i
-                    else:
-                        anchor_i = None
+                    # head-group marker to pin on the common band (see head_plane_z above and
+                    # _lipid_anchor_index): phosphate -> sterol/ceramide head hydroxyl -> head ref -> tail
+                    anchor_i = _lipid_anchor_index(coords, lines, head_i)
                     oriented = coords * np.array([1.0, -1.0, -1.0]) if not upper else coords
                     for attempt in range(respin_tries):
                         cand = zspin(oriented)
