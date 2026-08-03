@@ -613,6 +613,13 @@ class Bilayer:
             sy = Ly / ny
             base, extra = divmod(n, ny)   # `extra` rows carry one more lipid
             target_z = self.midplane_z + (half_mid_zgap if upper else -half_mid_zgap)
+            # Head-anchor plane: the leaflet's outer boundary (the water interface).  Placing every
+            # lipid's head reference atom on this common plane makes a *mixed* leaflet's head groups
+            # tile into one clean interface.  Tail-anchoring instead (tails pinned at target_z near the
+            # midplane, head floating up by the molecule's own length) scatters the heads of different-
+            # length species across several z-planes -- e.g. POPC ~6 A above PSM -- which is what
+            # smeared the head-group band on ex17's mixed leaflets.
+            head_plane_z = self.UL['z-hi'] if upper else self.LL['z-lo']
             k = 0
             for row in range(ny):
                 row_n = base + (1 if row < extra else 0)
@@ -627,12 +634,24 @@ class Bilayer:
                     jit = jitter
                     best_c = best_lines = None
                     best_gap = -1.0
+                    coords, lines, head_i, tail_is = conformers[ci]
+                    # Anchor z by the PHOSPHATE -- the head-group band the density profile shows and the
+                    # eye reads.  Pinning every lipid's P to the leaflet's common interface plane makes a
+                    # mixed leaflet's phosphates share one band; anchoring the network-analysis head
+                    # *reference* atom instead (choline N, etc.) leaves the phosphates offset by the
+                    # species-dependent P-to-refatom distance.  Fall back to the head reference atom for
+                    # phosphate-less species (sterols, ceramides), then to tail/center anchoring.
+                    p_i = next((i for i, ln in enumerate(lines) if ln[12:16].strip() == 'P'), None)
+                    anchor_i = p_i if p_i is not None else head_i
+                    oriented = coords * np.array([1.0, -1.0, -1.0]) if not upper else coords
                     for attempt in range(respin_tries):
-                        coords, lines, _head_i, tail_is = conformers[ci]
-                        oriented = coords * np.array([1.0, -1.0, -1.0]) if not upper else coords
                         cand = zspin(oriented)
-                        cand[:, 2] += target_z - (cand[tail_is, 2].mean()
-                                                  if tail_is is not None else cand[:, 2].mean())
+                        if anchor_i is not None:
+                            cand[:, 2] += head_plane_z - cand[anchor_i, 2]
+                        else:
+                            # headless species: fall back to tail/center anchoring
+                            cand[:, 2] += target_z - (cand[tail_is, 2].mean()
+                                                      if tail_is is not None else cand[:, 2].mean())
                         cand[:, 0] += cx + rng.uniform(-jit, jit)
                         cand[:, 1] += cy + rng.uniform(-jit, jit)
                         gap = np.inf if placed_tree is None else placed_tree.query(cand)[0].min()
