@@ -368,12 +368,7 @@ class MakeMembraneSystemTask(BaseTask):
         logger.debug('Relaxation protocols:')
         my_logger(relaxation_protocols, logger.debug)
         half_mid_zgap = self._grid_half_mid_zgap(half_mid_zgap)
-        # A gridded patch condenses substantially once a barostat is switched on (it is placed loose and
-        # tall in z), so its long NPT/NPgT annealing stages must be split into a restart ramp -- exactly
-        # as the quilt's are (see _grid_membrane) -- or the shrinking cell outruns NAMD's startup patch
-        # grid and aborts.  This matters more with the fluid athermal-MC conformers, which pack looser
-        # and condense further than the old extended rods.  (md/NVT/minimize stages pass through.)
-        patch_protocol = self._autostage_protocol(relaxation_protocol)
+        patch_protocol = relaxation_protocol or []
         # we now build the patch, or if asymmetric, two patches
         for patch, specbyte in zip([self.patch, self.patchA, self.patchB], ['', 'A', 'B']):
             if patch is None:
@@ -419,55 +414,6 @@ class MakeMembraneSystemTask(BaseTask):
             guarded.append(stage)
         return guarded
 
-    @staticmethod
-    def _autostage_protocol(protocol, chunk_min=500, cap=2000):
-        """Split a gridded membrane's long barostatted stages into a ramp of restarts.
-
-        A gridded membrane is placed loose and -- because each leaflet is built at the
-        extended lipid length -- much thicker in z than its relaxed state, so it condenses
-        substantially (tens of percent) once a barostat is switched on.  NAMD fixes its
-        spatial-decomposition patch grid at startup, so a single long run can shrink the
-        cell past that grid and abort (``Periodic cell has become too small for original
-        patch grid``).  The NAMD-recommended remedy is to **restart** once the cell has
-        shrunk -- a fresh run rebuilds the patch grid for the smaller cell -- so we split
-        each long NPT/NPgT stage into a ramp of sub-runs (``chunk_min``, ``2*chunk_min``,
-        ... up to ``cap`` steps).  Each short sub-run condenses only a little before the
-        next restart re-grids, so no single run outgrows its startup grid.  (This is the
-        proper fix; raising NAMD's ``margin`` is only an easier-but-slower workaround and is
-        not used.)
-
-        The first sub-run is kept at ``chunk_min`` (>> the ~200-step Langevin-piston period)
-        so the barostat can actually move the cell: chunks shorter than the piston period
-        condense nothing and silently defer all the shrinkage to a later, longer -- and
-        overflow-prone -- run.  Non-barostatted stages pass through unchanged.  Returns the
-        input untouched when it is empty or not a list."""
-        if not protocol or not isinstance(protocol, list):
-            return protocol
-        staged = []
-        for stage in protocol:
-            md = stage.get('md', {}) if isinstance(stage, dict) else {}
-            ens = str(md.get('ensemble', '')).casefold()
-            if ens not in ('npt', 'npat', 'npgt'):   # barostatted stages only
-                staged.append(stage)
-                continue
-
-            def _emit(steps):
-                sub = copy.deepcopy(stage)
-                sub['md']['nsteps'] = steps
-                staged.append(sub)
-
-            nsteps = md.get('nsteps', 0)
-            if not isinstance(nsteps, int) or nsteps <= chunk_min:
-                _emit(nsteps)
-                continue
-            remaining, chunk = nsteps, chunk_min
-            while remaining > 0:
-                this = min(chunk, remaining)
-                _emit(this)
-                remaining -= this
-                chunk = min(chunk * 2, cap)
-        return staged
-
     def _grid_membrane(self, leaflet_nlipids, box_SAPL, aspect=None):
         """Grid, build, and relax a full-size membrane with the given per-leaflet counts.
 
@@ -497,7 +443,7 @@ class MakeMembraneSystemTask(BaseTask):
         self.do_psfgen(membrane, bilayer_name='quilt')
         # the gridded membrane starts loose and condenses; stage the relaxation so the cell
         # never shrinks past NAMD's startup patch grid in a single run
-        quilt_protocol = self._autostage_protocol(bs.get('relaxation_protocols', {}).get('quilt', {}))
+        quilt_protocol = bs.get('relaxation_protocols', {}).get('quilt', {})
         self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=quilt_protocol)
 
     def _protein_box_dims(self):
@@ -641,10 +587,9 @@ class MakeMembraneSystemTask(BaseTask):
                                               pressureProfileSlabs=slabs,
                                               pressureProfileFreq=freq,
                                               surfaceTensionTarget=0.0))}]
-        # stage the long pp pass like any other gridded-membrane relaxation: if the membrane
-        # is still condensing, the unstaged single run would overflow the patch grid
-        self.equilibrate_bilayer(membrane, bilayer_name='quilt',
-                                 relaxation_protocol=self._autostage_protocol(pp_protocol))
+        # the pressure-profile pass is a fixed-length sampling run on the already-equilibrated membrane
+        # (which no longer condenses appreciably), so it runs as written -- no restart staging
+        self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=pp_protocol)
         mdplot_task = self.subcontroller.tasks[-1]
         pp_df = getattr(mdplot_task, 'dataframes', {}).get('pressureprofile')
         # final cell depth is a good approximation of dz*nslabs for the averaged tail
