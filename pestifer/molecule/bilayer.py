@@ -362,14 +362,13 @@ class Bilayer:
                     for lipid in data['composition']:
                         sd = self.species_data[lipid['name']]
                         # Reserve leaflet z from the lipid's true vertical extent, not its head-tail
-                        # length: fluid (melted) MC conformers curl the tail *tip* back toward the
-                        # head, so head-tail-length collapses (~11 A) far below the real z-extent
-                        # (~28 A) -- sizing from it under-reserves the leaflet and the lipids overflow
-                        # into (and thin) the water chambers.  Conformers are generated oriented
-                        # head-up along z, so the coordinate z-span is the leaflet thickness (and for
-                        # rod conformers equals head-tail-length, so existing builds are unchanged).
-                        # An explicit `conf` pins one conformer (use its extent); otherwise the packer
-                        # draws per lipid across the ensemble, so reserve for the tallest.
+                        # length: fluid (melted) MC conformers curl the tail *tip* back toward the head,
+                        # so head-tail-length collapses (~11 A) far below the real z-extent (~28 A) --
+                        # sizing from it under-reserves the leaflet.  This is only a first-cut box; after
+                        # placement write_grid_pdb abuts the water chambers to the actual head planes
+                        # (any outer over-reservation is trimmed there, so lipids never overflow the
+                        # water and no vacuum gap is left).  An explicit `conf` pins one conformer;
+                        # otherwise reserve for the tallest drawn.
                         lipid['reference_length'] = (sd.get_z_extent(lipid['conf']) if 'conf' in lipid
                                                      else sd.get_max_z_extent())
                         if lipid['reference_length'] > data['maxthickness']:
@@ -708,6 +707,25 @@ class Bilayer:
         elif n_respun:
             logger.debug(f'write_grid_pdb: {n_respun} re-spin attempt(s) cleared all lipids to '
                          f'>={fusion} A inter-lipid separation')
+
+        # Abut the water chambers to the ACTUAL placed head-group planes.  The leaflet reservation is a
+        # pre-placement estimate of how far the co-planar heads extend; the drawn ensemble's mean can
+        # still land them inside the reserved boundary, leaving a vacuum gap between the head groups and
+        # the water that the barostat would then have to condense away.  Start each chamber just past
+        # the outermost placed lipid atom -- keeping each chamber's (water-count-fixed) thickness -- and
+        # shrink the box z to match, centering the now non-zero-based cell on its actual content (the
+        # xsc origin is the cell centre, so no coordinate shift is needed).
+        if lipid_xyz:
+            all_lip_z = np.vstack(lipid_xyz)[:, 2]
+            lip_hi, lip_lo = float(all_lip_z.max()), float(all_lip_z.min())
+            uc_thick = self.UC['z-hi'] - self.UC['z-lo']
+            lc_thick = self.LC['z-hi'] - self.LC['z-lo']
+            self.UC['z-lo'] = lip_hi + half_mid_zgap
+            self.UC['z-hi'] = self.UC['z-lo'] + uc_thick
+            self.LC['z-hi'] = lip_lo - half_mid_zgap
+            self.LC['z-lo'] = self.LC['z-hi'] - lc_thick
+            self.box[2][2] = self.UC['z-hi'] - self.LC['z-lo']
+            self.origin[2] = 0.5 * (self.LC['z-lo'] + self.UC['z-hi'])
 
         # A chamber-solvent molecule dropped (independently) on top of a lipid ruins the
         # structure before relaxation runs: a near-coincident water makes VMD infer
