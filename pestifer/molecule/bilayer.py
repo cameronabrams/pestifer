@@ -635,14 +635,28 @@ class Bilayer:
                     best_c = best_lines = None
                     best_gap = -1.0
                     coords, lines, head_i, tail_is = conformers[ci]
-                    # Anchor z by the PHOSPHATE -- the head-group band the density profile shows and the
-                    # eye reads.  Pinning every lipid's P to the leaflet's common interface plane makes a
-                    # mixed leaflet's phosphates share one band; anchoring the network-analysis head
-                    # *reference* atom instead (choline N, etc.) leaves the phosphates offset by the
-                    # species-dependent P-to-refatom distance.  Fall back to the head reference atom for
-                    # phosphate-less species (sterols, ceramides), then to tail/center anchoring.
+                    # Anchor z by the head group's interface marker so a mixed leaflet's heads share one
+                    # plane (the band the density profile shows and the eye reads).  Preference:
+                    #   1. the PHOSPHATE P            -- phospho-lipids + sphingomyelins
+                    #   2. the polar head OXYGEN nearest the head reference atom -- phosphate-less species
+                    #      (a sterol's 3-hydroxyl O3/O1, a ceramide OH, ...), which sits ~1.4 A above the
+                    #      reference ring/backbone carbon, so pinning the O puts the actual -OH on the plane
+                    #   3. the head reference atom    -- if no head oxygen is present
+                    #   4. tail/center               -- headless species
+                    # Anchoring the head *reference* atom or the tail instead floats heads to species-
+                    # dependent heights (POPC ~6 A above PSM), smearing the head-group band.
                     p_i = next((i for i, ln in enumerate(lines) if ln[12:16].strip() == 'P'), None)
-                    anchor_i = p_i if p_i is not None else head_i
+                    if p_i is not None:
+                        anchor_i = p_i
+                    elif head_i is not None:
+                        o_idxs = [i for i, ln in enumerate(lines) if ln[12:16].strip().startswith('O')]
+                        if o_idxs:
+                            d2 = ((coords[o_idxs] - coords[head_i]) ** 2).sum(axis=1)
+                            anchor_i = o_idxs[int(np.argmin(d2))]
+                        else:
+                            anchor_i = head_i
+                    else:
+                        anchor_i = None
                     oriented = coords * np.array([1.0, -1.0, -1.0]) if not upper else coords
                     for attempt in range(respin_tries):
                         cand = zspin(oriented)
