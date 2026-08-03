@@ -188,6 +188,9 @@ class ChunkedEquilibrateTask(MDTask):
             stop_reason = self._ceiling_stop_reason(total_steps, max_steps)
             logger.warning(f'{self.taskname}: {stop_reason}')
 
+        # expose the outcome so a caller (e.g. make_membrane_system's calibration) can trust this
+        # self-terminating equilibration's own verdict instead of re-deriving convergence downstream
+        self.converged = stop_reason.startswith('CONVERGED')
         self._write_outputs(stop_reason)
         return 0
 

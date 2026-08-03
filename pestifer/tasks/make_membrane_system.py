@@ -781,6 +781,24 @@ class MakeMembraneSystemTask(BaseTask):
         m1, m2 = tail[:h].mean(), tail[h:].mean()
         return float((m2 - m1) / m1)
 
+    def _relaxed_area_drift(self, tasks, last_task, bilayer_name: str):
+        """Reliability drift for a just-relaxed bilayer's lateral area (used to flag whether a
+        calibrated preferred APL is trustworthy).
+
+        A plateau-gated ``membrane_equilibrate`` is the authoritative "the area has flattened" check --
+        it self-terminates on the same trailing quarter-drift metric ``_area_convergence`` uses -- so
+        when the relaxation ends in one that CONVERGED, return its own plateau drift.  Only otherwise
+        (an ``md``-terminated ladder, or a ``membrane_equilibrate`` that hit its step ceiling) fall back
+        to :meth:`_area_convergence`'s whole-trajectory measure, which over-reports (and would warn
+        spuriously) when the tensionless stage is short because it still spans the earlier annealing /
+        density-settling descent."""
+        plateaued = next((t for t in reversed(tasks)
+                          if getattr(t, '_area_plateau_tol', 0.0) > 0.0 and getattr(t, 'converged', False)),
+                         None)
+        if plateaued is not None:
+            return getattr(plateaued, '_last_plateau_drift', None)
+        return self._area_convergence(last_task, bilayer_name)
+
     def equilibrate_bilayer(self, bilayer: Bilayer, bilayer_name: str, relaxation_protocol: list[dict] = None):
         """
         Equilibrates the bilayer patch using the specified relaxation protocol.
@@ -891,8 +909,14 @@ class MakeMembraneSystemTask(BaseTask):
         bilayer.area = bilayer.box[0][0] * bilayer.box[1][1]
         logger.debug(f'{self.basename} area after equilibration: {bilayer.area:.3f} {sA2_}')
         # flag (and record on the bilayer) whether its area actually equilibrated, so an
-        # asymmetric build can tell whether the preferred APLs it calibrates are trustworthy
-        bilayer.area_drift = self._area_convergence(last_task, bilayer_name)
+        # asymmetric build can tell whether the preferred APLs it calibrates are trustworthy.
+        # A plateau-gated membrane_equilibrate is the authoritative "the lateral area has flattened"
+        # check (it self-terminates on the same quarter-drift metric _AREA_CONVERGENCE_TOL uses).  When
+        # the relaxation ends in one that CONVERGED, trust its plateau verdict rather than re-deriving
+        # reliability from _area_convergence's whole-trajectory quarter-drift -- that whole-run window
+        # over-reports when the tensionless stage is short (it still spans the earlier annealing /
+        # density-settling descent) and would warn spuriously on a genuinely-plateaued patch.
+        bilayer.area_drift = self._relaxed_area_drift(subcontroller.tasks, last_task, bilayer_name)
         if bilayer.area_drift is not None:
             pct = 100.0 * bilayer.area_drift
             if abs(bilayer.area_drift) > _AREA_CONVERGENCE_TOL:

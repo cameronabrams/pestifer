@@ -65,6 +65,45 @@ class TestAreaConvergence(unittest.TestCase):
         self.assertIsNone(drift)
 
 
+class TestRelaxedAreaDrift(unittest.TestCase):
+    """The reconciliation: trust a converged plateau-gated membrane_equilibrate over the cruder
+    whole-trajectory _area_convergence check."""
+
+    def _mms(self):
+        return MakeMembraneSystemTask.__new__(MakeMembraneSystemTask)
+
+    @staticmethod
+    def _me(plateau_tol, converged, drift):
+        from types import SimpleNamespace
+        return SimpleNamespace(_area_plateau_tol=plateau_tol, converged=converged,
+                               _last_plateau_drift=drift)
+
+    def test_trusts_converged_plateau_gated(self):
+        from types import SimpleNamespace
+        # converged plateau-gated ME -> use its own plateau drift, ignore the still-descending whole run
+        tasks = [SimpleNamespace(), self._me(0.005, True, 0.0012)]
+        last = _StubMDPlot(_xst_from_area(np.linspace(7000, 6000, 120)))  # -X% whole-trajectory drift
+        self.assertEqual(self._mms()._relaxed_area_drift(tasks, last, 'patchA'), 0.0012)
+
+    def test_falls_back_when_ceilinged(self):
+        # a plateau-gated ME that hit its ceiling (converged False) -> whole-trajectory _area_convergence
+        tasks = [self._me(0.005, False, 0.0012)]
+        last = _StubMDPlot(_xst_from_area(np.linspace(7000, 6000, 120)))
+        drift = self._mms()._relaxed_area_drift(tasks, last, 'patchB')
+        self.assertIsNotNone(drift)
+        self.assertLess(drift, 0.0)                       # sees the descent, would warn (as intended)
+
+    def test_falls_back_for_md_terminated(self):
+        from types import SimpleNamespace
+        # no plateau-gated task (legacy fixed md ladder) -> _area_convergence on the flat tail
+        tasks = [SimpleNamespace(), SimpleNamespace()]
+        last = _StubMDPlot(_xst_from_area(np.concatenate([np.linspace(8000, 6000, 60),
+                                                          np.full(60, 6000.0)])))
+        drift = self._mms()._relaxed_area_drift(tasks, last, 'quilt')
+        self.assertIsNotNone(drift)
+        self.assertLess(abs(drift), _AREA_CONVERGENCE_TOL)
+
+
 def _pp_df_from_dp(dp, nframes=4, c_z_unused=None):
     """Build a pressureprofile-style dataframe whose Pzz-(Pxx+Pyy)/2 equals dp per slab.
 
