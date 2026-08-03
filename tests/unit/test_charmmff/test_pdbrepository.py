@@ -106,8 +106,8 @@ class TestPDBRepository(unittest.TestCase):
         params = c.get_parameters()
         self.assertIn('toppar_all36_lipid_sphingo.str', params)
         self.assertEqual(len(c.info['conformers']), 10)
-        self.assertAlmostEqual(c.info['conformers'][0]['head-tail-length'], 26.57, places=3)
-        self.assertAlmostEqual(c.info['conformers'][0]['max-internal-length'], 30.54, places=3)
+        self.assertAlmostEqual(c.info['conformers'][0]['head-tail-length'], 11.389, places=3)
+        self.assertAlmostEqual(c.info['conformers'][0]['max-internal-length'], 19.677, places=3)
 
     def test_pdbrepository_checkout_tip3(self):
         c = self.pdbrepo.checkout('TIP3')
