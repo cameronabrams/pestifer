@@ -4,6 +4,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **minimal/truncated `SSBOND` and `LINK` records now load instead of raising.** A real PDB may
+  stop before its optional trailing columns — an `SSBOND` with no `sym1/sym2/length`, or one that even
+  omits the serial number — and pidibble 1.9.0 hands such blank numeric columns back as an empty value
+  (its `EmptyField`, a `str` equal to `''`). `BaseObj._validate_schema` now drops an empty-string value
+  bound for a field whose declared type cannot hold a string (`int`, `float`, …), so pydantic applies
+  the field default (`length=0.0`, `serial_number=0`, `link_distance=None`) rather than failing to parse
+  `''` as a number. Previously these records raised a `ValidationError` in `SSBondList.from_pdb` /
+  `LinkList.from_pdb`, aborting the build. Full records are unchanged, and `String` fields that
+  legitimately carry `''` (e.g. `sym1`, `altloc`) are untouched. Pins `pidibble>=1.9.0`.
+
 - feat: **new `membrane_equilibrate` task — self-terminating NPgT membrane equilibration on density +
   lateral area (M1 + M2).** The anisotropic sibling of `density_equilibrate`: it runs NPgT
   (`useFlexibleCell` + `useConstantRatio`, tensionless by default) in the same stability-bounded chunks

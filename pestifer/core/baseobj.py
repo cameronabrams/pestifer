@@ -104,9 +104,37 @@ class BaseObj(BaseModel):
         """
         return self.model_copy(deep=deep)
 
+    @staticmethod
+    def _accepts_str(annotation: Any) -> bool:
+        """
+        True if a field's declared type can legitimately hold a string value
+        (covers ``str``, ``Optional[str]``, ``str | None``, and unions thereof).
+        """
+        if annotation is str:
+            return True
+        args = get_args(annotation)
+        return any(BaseObj._accepts_str(a) for a in args) if args else False
+
     @model_validator(mode="before")
     @classmethod
     def _validate_schema(cls, values: dict[str, Any]) -> dict[str, Any]:
+        # An empty source value -- a bare '' from a truncated/minimal PDB record,
+        # or pidibble's EmptyField sentinel (a str subclass equal to '') for a
+        # blank numeric column -- means the record simply omitted an optional
+        # field. A minimal SSBOND/LINK with no length or serial number is the
+        # common case. For a field whose declared type cannot hold a string
+        # (int, float, ...), drop the key so pydantic applies the field's default
+        # rather than raising trying to parse '' as a number. Fields that legitimately
+        # accept '' (String fields such as sym1/altloc) are left untouched.
+        pruned = {}
+        for name, value in values.items():
+            field = cls.__pydantic_fields__.get(name)
+            if (field is not None and isinstance(value, str) and value == ''
+                    and not cls._accepts_str(field.annotation)):
+                continue
+            pruned[name] = value
+        values = pruned
+
         declared_fields = cls._required_fields | cls._optional_fields
         received_fields = set(values)
 
