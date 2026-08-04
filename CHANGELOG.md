@@ -4,6 +4,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: **the grid packer now lays lipids on an orthohexagonal lattice** instead of a square one.
+  Rows are offset by half a column pitch with the row pitch at `sqrt(3)/2` of the column pitch, so every
+  lipid has six equidistant neighbors at one uniform spacing (~7.5% larger nearest-neighbor gap than a
+  square lattice at the same APL). This spreads the tight diagonal/jitter contacts that made VMD
+  mis-perceive inter-lipid bonds on the topology-free grid PDB (after which psfgen guessed the merged
+  atoms to the origin and the minimize exploded). The box dimensions now follow from the integer nx x ny
+  cell grid (`ny` even so the offset tiles the periodic box; `patch_area = n*SAPL` preserved), so the box
+  is no longer square. `bilayer.py`; `test_bilayer_spec_out` updated for the hex box geometry.
+
 - fix: **`Linkcell` scalar cell-index encoding was wrong for non-cubic cell grids.** The `cy` stride was
   `nc[1]` where a correct row-major index needs `nc[0]`; the two coincide only when the lateral cell
   counts are equal, so the encode/decode round-trip silently broke for any box whose `nc[0] != nc[1]`,

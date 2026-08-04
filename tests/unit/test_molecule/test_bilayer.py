@@ -359,8 +359,12 @@ class TestBilayer(unittest.TestCase):
         assert test_bilayer.patch_ll_corner[0]==pytest.approx(0.0, rel=1e-2)
         assert test_bilayer.patch_ll_corner[1]==pytest.approx(0.0, rel=1e-2)
         assert test_bilayer.patch_ll_corner[2]==pytest.approx(0.0, rel=1e-2)
-        assert test_bilayer.patch_ur_corner[0]==pytest.approx(86.60, rel=1e-2)
-        assert test_bilayer.patch_ur_corner[1]==pytest.approx(86.60, rel=1e-2)
+        # Orthohexagonal lattice: the box is no longer square -- its dimensions follow from the
+        # integer nx x ny cell grid (here 10 x 10, zero vacancies for 100 lipids) with row pitch
+        # sqrt(3)/2 of the column pitch, so Lx != Ly while patch_area (= n*SAPL = 7500) is preserved.
+        assert test_bilayer.patch_ur_corner[0]==pytest.approx(93.06, rel=1e-2)
+        assert test_bilayer.patch_ur_corner[1]==pytest.approx(80.59, rel=1e-2)
+        assert test_bilayer.patch_area==pytest.approx(7500.0, rel=1e-2)
         # box z reserves each leaflet's true coordinate z-extent (choline + caps), not just the
         # head-to-tail-tip length -- so lipids don't overflow into and thin the water chambers.
         # (78.14 with the athermal-MC conformer set, whose melted tails give a smaller z-extent than

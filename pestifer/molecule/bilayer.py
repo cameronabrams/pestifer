@@ -465,9 +465,30 @@ class Bilayer:
         rotation_pm : float, optional
             The rotation angle in degrees for the patch. Default is 10.0 degrees.
         """
-        patch_area = SAPL * self.leaflet_nlipids['upper']  # assume symmetric
-        Lx = np.sqrt(patch_area / xy_aspect_ratio)
-        Ly = xy_aspect_ratio * Lx
+        # Orthohexagonal lattice geometry (placed in write_grid_pdb): the box dimensions must
+        # FOLLOW from an integer nx x ny cell grid so the hexagon tiles the periodic cell exactly
+        # (row pitch = sqrt(3)/2 * column pitch, odd rows offset by half a pitch, ny even so the
+        # offset wraps).  Search integer (nx, ny even) for the fewest vacancies and a box aspect
+        # near xy_aspect_ratio, then set the pitch so the area per placed lipid equals SAPL.
+        n = max(self.leaflet_nlipids['upper'], self.leaflet_nlipids['lower'])
+        nx0 = max(1, int(round(np.sqrt(n * np.sqrt(3.0) / 2.0 / xy_aspect_ratio))))
+        best = None
+        for nx in range(max(1, nx0 - 3), nx0 + 4):
+            ny = int(np.ceil(n / nx))
+            if ny % 2:
+                ny += 1
+            ncells = nx * ny
+            aspect = (ny * np.sqrt(3.0) / 2.0) / nx      # Ly/Lx this integer lattice would give
+            score = (ncells - n, abs(np.log(aspect / xy_aspect_ratio)))  # min vacancies, then aspect
+            if best is None or score < best[0]:
+                best = (score, nx, ny, ncells)
+        _, nx, ny, ncells = best
+        cell_area = n * SAPL / ncells                    # -> area per placed lipid == SAPL
+        dx_hex = np.sqrt(2.0 * cell_area / np.sqrt(3.0))  # hex column pitch
+        dy_hex = dx_hex * np.sqrt(3.0) / 2.0              # hex row pitch = sqrt(3)/2 * column pitch
+        Lx, Ly = nx * dx_hex, ny * dy_hex
+        self._hex = dict(nx=nx, ny=ny, dx=dx_hex, dy=dy_hex, ncells=ncells)
+        patch_area = Lx * Ly                             # == n * SAPL
         self.patch_area = patch_area
         lc_vol = cuA_of_nmolec(self.LC['avgMW'], solution_gcc, self.LC['patn'])
         uc_vol = cuA_of_nmolec(self.UC['avgMW'], solution_gcc, self.UC['patn'])
@@ -620,15 +641,18 @@ class Bilayer:
             if not bag:
                 continue
             n = len(bag)
-            # Choose a row/column count near the box aspect, then distribute the
-            # lipids across the rows as evenly as possible and space each row across
-            # the full box width.  A naive row-major fill of a fixed nx*ny lattice
-            # leaves the trailing (nx*ny - n) positions empty -- a lipid-free strip
-            # at one box edge; distributing per row keeps the leaflet gap-free.
-            nx = max(1, int(round(np.sqrt(n * Lx / Ly))))
-            ny = max(1, int(np.ceil(n / nx)))
-            sy = Ly / ny
-            base, extra = divmod(n, ny)   # `extra` rows carry one more lipid
+            # Orthohexagonal lattice (sized in spec_out, self._hex): rows offset by half a column
+            # pitch with row pitch = sqrt(3)/2 * column pitch, so every lipid has six equidistant
+            # neighbors at one uniform spacing.  For a fixed APL this spreads the lipids over a
+            # ~7.5% larger nearest-neighbor gap than a square lattice and -- the reason for the
+            # change -- removes the tight diagonal/jitter contacts that made VMD mis-perceive
+            # inter-lipid bonds on the topology-free grid PDB (after which psfgen guessed the
+            # merged atoms to the origin, exploding the minimize).  This leaflet's n lipids fill
+            # the shared nx x ny cell grid; any shortfall is spread as evenly distributed
+            # vacancies rather than a solid edge strip.
+            nx, ny = self._hex['nx'], self._hex['ny']
+            dx, dy = self._hex['dx'], self._hex['dy']
+            ncells = self._hex['ncells']
             target_z = self.midplane_z + (half_mid_zgap if upper else -half_mid_zgap)
             # Anchor every lipid's head marker (phosphate / sterol-OH) to ONE plane so a mixed leaflet's
             # head groups tile into a clean band -- but position that plane so the TAILS land at the
@@ -649,14 +673,19 @@ class Bilayer:
             head_plane_z = target_z + (raw_off if upper else -raw_off)
             k = 0
             for row in range(ny):
-                row_n = base + (1 if row < extra else 0)
-                sx = Lx / max(row_n, 1)
-                for col in range(row_n):
+                x0 = 0.5 * (row % 2)          # half-pitch offset on odd rows -> hexagonal packing
+                for col in range(nx):
+                    if k >= n:
+                        break
+                    cell = row * nx + col
+                    # occupy only the n evenly-spread cells; the remainder are hex vacancies
+                    if (cell + 1) * n // ncells == cell * n // ncells:
+                        continue
                     nm = bag[k]
                     k += 1
                     conformers = cache[nm]
-                    cx = ll[0] + (col + 0.5) * sx
-                    cy = ll[1] + (row + 0.5) * sy
+                    cx = ll[0] + ((col + x0 + 0.5) * dx) % Lx
+                    cy = ll[1] + (row + 0.5) * dy
                     ci = int(rng.integers(len(conformers)))   # this lipid's conformer draw
                     jit = jitter
                     best_c = best_lines = None
@@ -685,7 +714,7 @@ class Bilayer:
                         # escalate: widen the jitter window and redraw a (possibly thinner)
                         # ensemble conformer to fit a tight pocket
                         if (attempt + 1) % 8 == 0:
-                            jit = min(jit * 1.5, 0.45 * min(sx, sy))
+                            jit = min(jit * 1.5, 0.45 * min(dx, dy))
                             ci = int(rng.integers(len(conformers)))
                     emit(best_c, best_lines)
                     lipid_xyz.append(best_c)
