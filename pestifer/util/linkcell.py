@@ -116,7 +116,10 @@ class Linkcell:
         """
         nc = self.cells_per_dim
         # logger.debug(f'{C} {nc}')
-        xc = C[2] * nc[0] * nc[1] + C[1] * nc[1] + C[0]
+        # row-major scalar index: cx fastest (stride 1), cy stride nc[0], cz stride nc[0]*nc[1].
+        # The cy stride MUST be nc[0] (not nc[1]); they coincide only for a square-lateral box, so
+        # the old nc[1] silently broke the encode/decode round-trip for non-cubic cell grids.
+        xc = C[2] * nc[0] * nc[1] + C[1] * nc[0] + C[0]
         return xc
 
     def cellndx_of_ldx(self, i: int):
@@ -136,8 +139,8 @@ class Linkcell:
         nc = self.cells_per_dim
         t1 = i // (nc[0] * nc[1])
         r1 = i - t1 * (nc[0] * nc[1])
-        t2 = r1 // nc[1]
-        t3 = r1 - t2 * nc[1]
+        t2 = r1 // nc[0]          # cy stride is nc[0] (must match ldx_of_cellndx)
+        t3 = r1 - t2 * nc[0]
         return np.array([t3, t2, t1])
 
     def ldx_searchlist_of_ldx(self, i: int):

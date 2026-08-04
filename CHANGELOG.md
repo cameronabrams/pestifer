@@ -4,6 +4,13 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **`Linkcell` scalar cell-index encoding was wrong for non-cubic cell grids.** The `cy` stride was
+  `nc[1]` where a correct row-major index needs `nc[0]`; the two coincide only when the lateral cell
+  counts are equal, so the encode/decode round-trip silently broke for any box whose `nc[0] != nc[1]`,
+  tripping `assert i in searchlist` in `ldx_searchlist_of_ldx`. This never surfaced while lateral boxes
+  were square; a non-square lateral box (e.g. the orthohexagonal membrane grid) hits it immediately.
+  Fixed in `linkcell.py` and the mirrored inline encoding in `psfring._scan`.
+
 - fix: **build-output basenames now use a 3-digit chunk index** (`{controller:02d}-{index:02d}-{subtask:03d}`).
   A chunked equilibration (`membrane_equilibrate`) can run well past 100 chunks; the old 2-wide field
   rendered chunk 100 as `100`, which sorts lexically *before* `99` and corrupts the glob/restart

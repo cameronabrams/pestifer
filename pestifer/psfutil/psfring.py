@@ -262,7 +262,7 @@ class RingChecker:
             nc = LC.cells_per_dim
             C = np.floor((bond_mid - LC.lower_left_corner) / LC.celldim).astype(int)
             C = np.clip(C, 0, nc - 1)
-            bond_ldx = C[:, 2] * nc[0] * nc[1] + C[:, 1] * nc[1] + C[:, 0]
+            bond_ldx = C[:, 2] * nc[0] * nc[1] + C[:, 1] * nc[0] + C[:, 0]
             for bi, ldx in enumerate(bond_ldx.tolist()):
                 bondlist_per_cell.setdefault(ldx, []).append(bi)
         piercespecs = []
