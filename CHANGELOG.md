@@ -4,6 +4,11 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **build-output basenames now use a 3-digit chunk index** (`{controller:02d}-{index:02d}-{subtask:03d}`).
+  A chunked equilibration (`membrane_equilibrate`) can run well past 100 chunks; the old 2-wide field
+  rendered chunk 100 as `100`, which sorts lexically *before* `99` and corrupts the glob/restart
+  ordering that keys off these names. Width is the only change (`basetask.py`).
+
 - fix: **PDB-repository tarball collections no longer register phantom entries from advisory lock
   files.** The per-entry `.<resname>.lock` files created by the on-demand build lock ride along inside
   the shipped collection tarballs (e.g. `lipid.tgz`), and `PDBCollection.build_from_resources` was

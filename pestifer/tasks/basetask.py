@@ -43,7 +43,7 @@ _BASENAME_INDEX_RE = re.compile(r'^(\d+)-(\d+)-(\d+)_')
 def parse_basename_task_index(name) -> int | None:
     """The task index encoded in a ``NN-NN-NN_taskname`` basename/filename, or ``None``.
 
-    Build output files are named ``{controller:02d}-{index:02d}-{subtask:02d}_{taskname}`` (see
+    Build output files are named ``{controller:02d}-{index:02d}-{subtask:03d}_{taskname}`` (see
     :meth:`BaseTask.next_basename`).  This recovers the middle field -- the task index -- from such a
     name (e.g. ``00-02-00_md.coor`` -> ``2``), so a *branch* pipeline that opens with a
     ``continuation`` from another run's intermediate state can adopt that task's number and keep the
@@ -424,7 +424,10 @@ class BaseTask(ABC):
         label = ''
         if extra_label:
             label = f'-{extra_label}'
-        default_basename = f'{self.controller_index:02d}-{self.index:02d}-{self.subtaskcount:02d}_{self.taskname}{label}'
+        # The subtask counter is 3-wide: a chunked equilibration (membrane_equilibrate) can run
+        # well past 100 chunks, and a 2-wide field would render chunk 100 as `100`, which sorts
+        # lexically *before* `99` -- corrupting the glob/restart ordering that keys off these names.
+        default_basename = f'{self.controller_index:02d}-{self.index:02d}-{self.subtaskcount:03d}_{self.taskname}{label}'
         overwrite_basename = self.specs.get('basename', None)  # user put a basename in the task specs in the YAML input
         basename = overwrite_basename if overwrite_basename else default_basename
         self.basename = basename
