@@ -4,6 +4,14 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **`membrane_equilibrate` gains a `constant_ratio` spec** (default `true`). The tensionless area
+  stage runs `useConstantRatio` to lock `Lx:Ly` -- correct for an embedded membrane whose lateral aspect
+  must stay stable. Setting `constant_ratio: false` lets the fully flexible cell relax x and y
+  independently, which is what a calibration patch wants: on a non-square (e.g. orthohexagonal) box a
+  locked skewed ratio drives the tensionless relaxation to over-condense the area along the short axis
+  instead of settling (observed: the calibration APL descended past its plateau and never converged).
+  With the flexible cell the calibration converges cleanly. `membrane_equilibrate.py` + schema.
+
 - change: **the grid packer now lays lipids on an orthohexagonal lattice** instead of a square one.
   Rows are offset by half a column pitch with the row pitch at `sqrt(3)/2` of the column pitch, so every
   lipid has six equidistant neighbors at one uniform spacing (~7.5% larger nearest-neighbor gap than a

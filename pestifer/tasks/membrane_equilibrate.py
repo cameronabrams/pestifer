@@ -90,7 +90,8 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         A user-supplied ``other_parameters`` is preserved and merged under these keys (lowercase, to
         override the ``membrane`` block's ``useconstantratio``)."""
         mode = ({'useconstantarea': 'yes', 'useconstantratio': 'no'} if phase == 1
-                else {'useconstantarea': 'no', 'useconstantratio': 'yes'})
+                else {'useconstantarea': 'no',
+                      'useconstantratio': 'yes' if getattr(self, '_constant_ratio', True) else 'no'})
         self.specs['other_parameters'] = {**self._user_other, **mode}
 
     # --- ChunkedEquilibrateTask hooks --------------------------------------------------------------
@@ -141,6 +142,12 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         # decoupling the two removes that failure mode.  See docs/design/membrane-equilibrate.md.
         self._user_other = dict(specs.get('other_parameters', {}))
         self._two_stage = bool(specs.get('two_stage', True))
+        # `constant_ratio` (default True) locks Lx:Ly during the tensionless area stage -- correct for
+        # an embedded membrane whose aspect must stay stable.  A *calibration patch* has no protein and
+        # no preferred aspect, so on a non-square (e.g. orthohexagonal) box locking a skewed ratio makes
+        # the tensionless relaxation over-condense along the short axis instead of settling.  Set
+        # `constant_ratio: false` there to let the fully flexible cell relax x and y independently.
+        self._constant_ratio = bool(specs.get('constant_ratio', True))
         self._phase = 1 if self._two_stage else 2
         self._set_barostat_mode(self._phase)
         if self._two_stage:

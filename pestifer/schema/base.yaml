@@ -1404,6 +1404,14 @@ attributes:
                               false runs the legacy single-stage tensionless NPgT.
                             type: bool
                             default: true
+                          - name: constant_ratio
+                            text: >-
+                              If true (default), the tensionless area stage locks Lx:Ly (useConstantRatio).
+                              Set false for a calibration patch (no protein, no preferred aspect) so the
+                              flexible cell relaxes x and y independently -- on a non-square box a locked
+                              skewed ratio over-condenses the area along the short axis instead of settling.
+                            type: bool
+                            default: true
                           - name: max_steps
                             text: hard ceiling on total NPgT steps for this relaxation stage
                             type: int
@@ -1535,6 +1543,14 @@ attributes:
                               If true (default), settle density at constant lateral area first, then
                               relax the area tensionless (see the top-level membrane_equilibrate task);
                               false runs the legacy single-stage tensionless NPgT.
+                            type: bool
+                            default: true
+                          - name: constant_ratio
+                            text: >-
+                              If true (default), the tensionless area stage locks Lx:Ly (useConstantRatio).
+                              Set false for a calibration patch (no protein, no preferred aspect) so the
+                              flexible cell relaxes x and y independently -- on a non-square box a locked
+                              skewed ratio over-condenses the area along the short axis instead of settling.
                             type: bool
                             default: true
                           - name: max_steps
@@ -1914,6 +1930,15 @@ attributes:
               relaxes the lateral area under tensionless NPgT (useConstantRatio) from the already-correct
               density, gating on both. Set false for the legacy single-stage tensionless run (density +
               area jointly), appropriate for a post-embed stage already near density equilibrium.
+            type: bool
+            default: true
+          - name: constant_ratio
+            text: >-
+              If true (default), the tensionless area stage locks Lx:Ly (useConstantRatio) -- correct for
+              an embedded membrane whose lateral aspect must stay stable. Set false to let the fully
+              flexible cell relax x and y independently, appropriate for a calibration patch (no protein,
+              no preferred aspect): on a non-square box (e.g. orthohexagonal) a locked skewed ratio makes
+              the tensionless relaxation over-condense along the short axis instead of settling.
             type: bool
             default: true
           - name: dcdfreq
