@@ -4,6 +4,17 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **the membrane grid→psfgen split no longer strands atoms at the origin.** The split
+  (`environ.tcl::write_psfgen`, driven by `bilayer_patch.tcl`) grouped atoms into residues by VMD's
+  connectivity-derived `residue` attribute -- so a single spurious inter-lipid distance bond (common in a
+  densely packed leaflet) merged two lipids into one VMD `residue`, wrote their atoms into one segment
+  with duplicate names, and `coordpdb` then left the unmatched RTF-template atoms at psfgen's default
+  (0,0,0). Those origin atoms made box-sized bonds and NaN'd the downstream minimize. The split now keys
+  on the PDB's own per-molecule `resid` (the grid packer assigns each placed molecule a unique resid), so
+  the grouping never depends on perceived bonds; psfgen still builds all bonds from the RTF. Validated
+  end-to-end on ex17's dense cholesterol/SOPE leaflet: origin atoms 262 (square lattice) -> 131 (hex,
+  old split) -> **0**, and the patch minimize now completes instead of exploding.
+
 - feat: **`membrane_equilibrate` gains a `constant_ratio` spec** (default `true`). The tensionless area
   stage runs `useConstantRatio` to lock `Lx:Ly` -- correct for an embedded membrane whose lateral aspect
   must stay stable. Setting `constant_ratio: false` lets the fully flexible cell relax x and y

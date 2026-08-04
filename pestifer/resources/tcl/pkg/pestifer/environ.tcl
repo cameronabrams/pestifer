@@ -68,7 +68,13 @@ proc PestiferEnviron::write_psfgen { molid {segtypes {lipid ion water}}
         set a [atomselect $molid "$segtype"]
         if { [$a num] > 0 } {
             $a set chain $seglabel
-            set ridx [lsort -integer -unique [$a get residue]]
+            # Group by the PDB's own per-molecule `resid` (the grid packer assigns each placed molecule
+            # a unique resid), NOT VMD's connectivity-derived `residue`: a spurious distance bond between
+            # two close-packed lipids merges them into one VMD `residue`, so their atoms land in a single
+            # segment with duplicate names and `coordpdb` strands the unmatched RTF-template atoms at
+            # (0,0,0) -- the origin atoms that then NaN the minimize.  psfgen still builds all bonds from
+            # the RTF; only the residue grouping must come from the PDB, not from perceived bonds.
+            set ridx [lsort -integer -unique [$a get resid]]
             set nres [llength $ridx]
             set nseg [expr $nres / $maxr_per_seg + 1]
             set mm [expr $nres % $nseg]
@@ -86,15 +92,15 @@ proc PestiferEnviron::write_psfgen { molid {segtypes {lipid ion water}}
                 }
                 vmdcon -info "Segment $segname is residues [lindex $ridx $left] to [lindex $ridx $right]"
                 set res [lrange $ridx $left $right]
-                set segsel [atomselect $molid "$segtype and residue $res"]
-                set sridx [lsort -integer -unique [$segsel get residue]]
+                set segsel [atomselect $molid "$segtype and resid $res"]
+                set sridx [lsort -integer -unique [$segsel get resid]]
                 set rser 1
                 foreach x $sridx {
                     set sridx_sermap($x) $rser
                     incr rser
                 }
                 set rser [list]
-                foreach x [$segsel get residue] {
+                foreach x [$segsel get resid] {
                     lappend rser $sridx_sermap($x)
                 }
                 $segsel set resid $rser
