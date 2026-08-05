@@ -29,6 +29,98 @@ Ordered: **ex16 payoff → re-tune area defaults → multi-lipid smoke test → 
 
 ---
 
+## Phase (Lo vs Ld) as a build-time input, realized through conformer choice (2026-08-05, with the user)
+
+**Origin.** Building ex17 (asymmetric HIV-MPER viral bilayer; both leaflets ~43–47% cholesterol) surfaced
+a calibration that would not converge: the upper-leaflet patch (PSM 36% / POPC 17% / **CHL1 47%**) relaxed
+to a fluid-looking plateau (APL ≈ 48 at chunk 52, density minimum 1.0075) and then **kept condensing** —
+density rising monotonically to 1.0097, area re-*accelerating* downward (drift −0.013 → −0.029), APL
+creeping to 46.7 and still falling at chunk 78. A relaxing system decelerates; this one re-accelerated.
+That is not equilibration, it is a **liquid-ordered (Lo) phase transition** in progress: 47% cholesterol +
+saturated sphingomyelin is the textbook raft pair, and at 310 K (below PSM's Tm ≈ 314 K) the leaflet's
+equilibrium is the ordered phase. We were packing it with **Ld** (splayed, gauche-rich MC) conformers, so
+it had to slowly reorder toward Lo — and *that slow reordering is every symptom we chased*: the
+non-plateauing area, the "very slow lateral compaction," the patch/quilt APL mismatch (68 vs 47).
+
+**The reframe.** Phase is not something to relax *into* — on MD build timescales you cannot cross Ld↔Lo
+(same reason leaflet flip-flop is frozen and the asymmetric differential stress stays put). So the phase
+you **build** in is the phase you **keep**, metastably — and it matches the true equilibrium exactly when
+the chosen phase is consistent with the composition. Therefore phase should be a **build-time input**,
+realized by **which conformer ensemble packs the leaflet**, not an emergent outcome the equilibrator waits
+on. This makes phase an explicit, reproducible user declaration and removes the transition from the
+critical path entirely — there is nothing slow to converge because we start in-basin.
+
+**This doc already proved the mechanism.** The DMPC acceptance test (lines ~219–234) is the evidence,
+mislabeled: *the conformer ensemble type selects the basin, and MD stays in it.*
+
+| ensemble | equilibrated APL | basin | what it actually is |
+|---|---|---|---|
+| extended "rods" | 50.3 Å² | condensed, kinetically stuck | **the Lo/ordered basin** |
+| splayed MC (fluid) | 67.1 Å² | fluid, 0.5% drift | **the Ld basin** |
+
+The "gel trap at 50" was never a failure of conformer generation — it is the **ordered basin**, reached
+by packing extended chains. For DMPC (cholesterol-free, wants Ld) landing there is wrong; for a
+47%-cholesterol raft leaflet it is exactly right. Same machinery, opposite verdict, decided entirely by
+the leaflet's composition and the phase we intend.
+
+### Spec
+
+1. **Per-leaflet `phase: Lo | Ld`, default `Ld`** (today's behavior). Lives on the leaflet / composition,
+   not the bilayer — real asymmetric membranes pair a raft-ish (Lo) exoplasmic leaflet with a fluid (Ld)
+   cytoplasmic one. ex17: declare **both** leaflets `Lo`.
+
+2. **Phase → conformer ensemble, via the existing cylinder knob.** Cylinder *tightness* selects the
+   basin: a loose cylinder (current `cylinder_inflation` ≈ 1.9, area ~114) yields the splayed **Ld**
+   ensemble; a tight cylinder (inflation → ~1.0, area ~60) forces extended, tightly-stacked chains — the
+   **Lo** ensemble. The doc's own finding sharpens this: inflation *within* the fluid regime barely moves
+   APL (67↔69), so this is a **threshold**, not a dial — loose → Ld basin, tight → Lo basin. The
+   "diversity collapse at tight cylinders" (line ~182) that we treated as a defect is physically correct:
+   ordered chains *have* low conformational diversity. Lo is a low-entropy ensemble by nature.
+
+3. **Make the target rigorous with a chain order parameter (Scd), closing the open item at line ~188.**
+   Cylinder tightness is the *mechanism*; the *target* should be the tail order parameter. Tune the
+   cylinder (per species) until the ensemble's mean Scd matches the phase target — Ld ≈ 0.1–0.2,
+   Lo ≈ 0.3–0.4 (indicative; set against CHARMM36 values). Then `Lo`/`Ld` are reproducible physical
+   targets, not two hand-picked cylinder sizes, and mixtures work because each species is tuned to the
+   same Scd independently.
+
+4. **Composition guard.** Phase is a choice *within* the composition's feasible window. You cannot hold
+   Ld on a ~47%-cholesterol leaflet (cholesterol will reorder it — the ex17 drift) nor hold Lo on a
+   cholesterol-poor unsaturated leaflet. At minimum **warn** on a mismatch (e.g. "phase: Ld requested but
+   47% CHL1 — expect ordering drift during equilibration"); ideally sanity-check the declared phase
+   against the sterol fraction. Cholesterol itself stays a single rigid conformer (`sampler='single'`,
+   already done); the acyl chains are the phase determinant.
+
+### Payoffs
+
+- **Calibration becomes reliable again.** A patch packed in its *equilibrium* phase actually plateaus —
+  a stable Lo patch has a well-defined APL because it is not mid-transition. The run-to-run-variable,
+  non-converging calibration was a symptom of building the wrong phase; this removes the cause, not the
+  symptom.
+- **Patch/quilt consistency falls out for free.** Build both with the same phase ensemble and they sit in
+  the same basin by construction, so `n_upper·APL_upper = n_lower·APL_lower` holds without matching anneal
+  schedules or stopping rules after the fact.
+- **Supersedes the "fixed-duration consistency" patch** considered on 2026-08-04 (match anneal + stop both
+  patch and quilt at a fixed step budget). That would have frozen both systems at the *same arbitrary
+  intermediate* point on the transition — consistent but physically meaningless. Choosing the phase up
+  front means there is no transition to stop partway through.
+
+### Open questions / implementation notes
+
+- **Does a tight athermal-MC cylinder reproduce the Lo basin the old MD rods did?** Likely yes (line ~182:
+  R≈4.37 "selects for the rod"), but confirm the *ordered* ensemble packs and equilibrates to ~Lo APL
+  (~45–50) with small drift — the Lo analogue of the DMPC acceptance test, run on a cholesterol-rich patch
+  (ex17's upper leaflet is the natural first case).
+- **Scd measurement** on the generated ensemble needs a small helper (mean −½⟨3cos²θ−1⟩ over tail C–H
+  vectors, per carbon then averaged); reuse the tail-atom identification already in the MC builder.
+- **Per-species cylinder tuning** to hit a common Scd is the mixtures generalization of the single global
+  `cylinder_inflation` (already flagged as open at line ~267).
+- **Schema/wiring:** `phase` is a new per-leaflet key under `composition`; it threads to
+  `ensure_lipid_conformer` as the Scd/cylinder target and is recorded in `info['generation']` (extend the
+  cache key so Lo and Ld ensembles cache separately per species).
+
+---
+
 *Original handoff doc (context/evidence) follows.*
 
 ## Why this project exists
