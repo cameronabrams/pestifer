@@ -58,6 +58,11 @@ class RotatableBond:
     """Index of the pivot's tip-side atom (on the rotating axis, moves with ``moving``)."""
     moving: np.ndarray
     """Integer indices of the atoms rigidly rotated (the tip-side subtree, including ``b``)."""
+    i: int = -1
+    """Anchor-side outer atom of the dihedral ``i-a-b-j`` (for the optional trans bias); ``-1`` if
+    none (then this bond contributes no torsional bias)."""
+    j: int = -1
+    """Tip-side outer atom of the dihedral ``i-a-b-j``; ``-1`` if none."""
 
 
 @dataclass
@@ -125,6 +130,31 @@ def _rotation_matrix(axis: np.ndarray, theta: float) -> np.ndarray:
     ])
 
 
+def _dihedral(p0, p1, p2, p3) -> float:
+    """Signed dihedral angle (radians) of the four points p0-p1-p2-p3, in [-pi, pi]."""
+    b0 = p0 - p1
+    b1 = p2 - p1
+    b2 = p3 - p2
+    b1n = b1 / (np.linalg.norm(b1) + 1e-12)
+    v = b0 - np.dot(b0, b1n) * b1n
+    w = b2 - np.dot(b2, b1n) * b1n
+    x = np.dot(v, w)
+    y = np.dot(np.cross(b1n, v), w)
+    return float(np.arctan2(y, x))
+
+
+def _trans_penalty(phi: float) -> float:
+    """Order potential ``(1 + cos phi)/2``: 0 at trans (phi=180 deg), 1 at cis.
+
+    Biasing the acyl-tail torsions toward trans (this penalty times a tunable strength) extends
+    and orders the chains -- the mechanism that carries the ensemble from fluid (Ld) toward
+    liquid-ordered (Lo).  A single trans well (not the full trans+gauche rotamer set) is deliberate:
+    the athermal base already samples every rotamer, and the bias only *tilts* the population toward
+    extension by a tunable amount.
+    """
+    return 0.5 * (1.0 + np.cos(phi))
+
+
 def radial_distances(coords: np.ndarray, point: np.ndarray, direction: np.ndarray) -> np.ndarray:
     """Perpendicular distance of each row of ``coords`` from the line ``point + t*direction``."""
     rel = coords - point
@@ -169,14 +199,18 @@ def _has_overlap(coords: np.ndarray, radii: np.ndarray, moving: np.ndarray,
 
 
 def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: int = 200,
-           max_angle: float = np.pi, seed: int = None) -> list[np.ndarray]:
-    """Run athermal dihedral-pivot MC and return ``nsamples`` decorrelated conformers.
+           max_angle: float = np.pi, seed: int = None,
+           torsion_bias: float = 0.0) -> list[np.ndarray]:
+    """Run dihedral-pivot MC and return ``nsamples`` decorrelated conformers.
 
     Starting from ``mol.coords``, propose pivots on random rotatable bonds by random angles in
     ``[-max_angle, max_angle]``; accept iff the result is overlap-free and keeps confined atoms
-    inside the cylinder (the athermal, T->infinity criterion -- energy never enters).  After
-    ``n_equil`` proposals to melt the (typically rod-like) starting conformer, collect one
-    conformer every ``n_decorr`` proposals.
+    inside the cylinder.  With ``torsion_bias == 0`` this is the pure athermal (T->infinity)
+    criterion -- energy never enters -- and the ensemble is fluid (Ld).  With ``torsion_bias > 0``
+    an extra Metropolis factor favors trans torsions (an ordering field of strength
+    ``torsion_bias``), extending the chains toward the liquid-ordered (Lo) state; the caller tunes
+    the strength to hit a target chain order parameter.  After ``n_equil`` proposals to melt the
+    (typically rod-like) starting conformer, collect one conformer every ``n_decorr`` proposals.
 
     Parameters
     ----------
@@ -235,6 +269,14 @@ def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: i
                 continue
         if _has_overlap(trial, mol.radii, bond.moving, mol.exclusions):
             continue
+        if torsion_bias > 0.0 and bond.i >= 0 and bond.j >= 0:
+            # Metropolis on the trans-ordering field: a move toward trans (lower penalty) is always
+            # accepted; one toward cis/gauche is accepted with prob exp(-bias*dU).  bias=0 short-
+            # circuits above, so the athermal path is untouched.
+            du = _trans_penalty(_dihedral(trial[bond.i], trial[bond.a], trial[bond.b], trial[bond.j])) \
+                - _trans_penalty(_dihedral(coords[bond.i], coords[bond.a], coords[bond.b], coords[bond.j]))
+            if du > 0.0 and rng.random() >= np.exp(-torsion_bias * du):
+                continue
         coords = trial
         if confine:
             cur_conf_max = trial_conf_max
@@ -333,8 +375,16 @@ def build_lipid_mc(coords, elements, masses, bonds, head_indices, tail_indices,
                 if len(tip_comp) < min_tip_heavy:
                     break
                 moving = moving_set(full, anchor_root, tip_root)
-                rotatable.append(RotatableBond(a=anchor_root, b=tip_root, moving=moving))
-                tail_atoms.update(int(m) for m in moving)
+                moving_ids = set(int(m) for m in moving)
+                # outer dihedral atoms i-a-b-j: i on the anchor side, j on the tip side, each the
+                # lowest-index carbon neighbor available (deterministic).  Used only by the optional
+                # trans bias; -1 when absent.
+                i_nb = _pick_neighbor(full, elements, anchor_root, exclude={tip_root})
+                j_nb = _pick_neighbor(full, elements, tip_root, exclude={anchor_root},
+                                      require_in=moving_ids)
+                rotatable.append(RotatableBond(a=anchor_root, b=tip_root, moving=moving,
+                                               i=i_nb, j=j_nb))
+                tail_atoms.update(moving_ids)
                 break
 
     confined = np.zeros(n, dtype=bool)
@@ -387,6 +437,21 @@ def build_exclusions(graph, order: int = 2) -> set:
     return excl
 
 
+def _pick_neighbor(graph, elements, node, exclude=(), require_in=None) -> int:
+    """Lowest-index carbon neighbor of ``node`` (falling back to any element), for a dihedral ref.
+
+    Excludes ``exclude`` and, if ``require_in`` is given, keeps only neighbors in that set (used to
+    force the tip-side atom to lie within the rotating subtree).  Returns ``-1`` if none qualify.
+    """
+    exclude = set(exclude)
+    cands = [k for k in graph.neighbors(node)
+             if k not in exclude and (require_in is None or k in require_in)]
+    if not cands:
+        return -1
+    cands.sort(key=lambda k: (elements[k] != 'C', k))   # carbons first, then lowest index
+    return int(cands[0])
+
+
 def moving_set(graph, a: int, b: int) -> np.ndarray:
     """Atom indices on ``b``'s side of the ``a-b`` bond (the subtree rotated by that pivot).
 
@@ -401,3 +466,94 @@ def moving_set(graph, a: int, b: int) -> np.ndarray:
     if a in comp:
         raise ValueError(f'bond ({a},{b}) is in a ring; not an independent rotatable bond')
     return np.array(sorted(comp), dtype=int)
+
+
+def tail_carbon_indices(elements, masses, bonds, n=None, min_tip_heavy: int = 2) -> list:
+    """Indices of the acyl-tail carbon atoms (the aliphatic chain carbons).
+
+    Uses the *same* bridge / all-carbon-tip criterion as :func:`build_lipid_mc`, so the tail set is
+    identical to the atoms the sampler confines -- then keeps only the carbons (their hydrogens are
+    dropped).  ``elements`` may be ``None``, in which case they are inferred from ``masses``.  The
+    carbonyl/ester carbons and the whole headgroup are excluded automatically (their bridge tip
+    fragments carry oxygens), so this returns exactly the methylene/methyl chain carbons.
+    """
+    import networkx as nx
+    if elements is None:
+        elements = [_element_of_mass(m) for m in masses]
+    elements = list(elements)
+    if n is None:
+        n = len(elements)
+    full = nx.Graph()
+    full.add_nodes_from(range(n))
+    full.add_edges_from((int(i), int(j)) for i, j in bonds)
+    heavy = full.subgraph([i for i in range(n) if elements[i] != 'H']).copy()
+    tail_atoms: set[int] = set()
+    for i, j in nx.bridges(heavy):
+        g = heavy.copy()
+        g.remove_edge(i, j)
+        comp_i = nx.node_connected_component(g, i)
+        comp_j = nx.node_connected_component(g, j)
+        for tip_root, anchor_root, tip_comp in ((j, i, comp_j), (i, j, comp_i)):
+            if all(elements[k] == 'C' for k in tip_comp):
+                if len(tip_comp) < min_tip_heavy:
+                    break
+                tail_atoms.update(int(m) for m in moving_set(full, anchor_root, tip_root))
+                break
+    return sorted(a for a in tail_atoms if elements[a] == 'C')
+
+
+def chain_order_parameter(coords, elements, masses, bonds, axis_dir=(0.0, 0.0, 1.0),
+                          min_tip_heavy: int = 2) -> float:
+    """Tail-averaged acyl-chain order parameter of a single (head-up) conformer.
+
+    For every C-H bond on an acyl-tail carbon (see :func:`tail_carbon_indices`), form
+    ``s = 1/2 (3 cos^2(theta) - 1)`` with ``theta`` the angle between the C-H bond and the membrane
+    normal ``axis_dir`` (default ``+z`` -- valid because conformers are canonicalized head-up).  The
+    returned value is the tail-averaged **order** ``= -mean(s)``:
+
+    - ``0.0``  -> isotropic / fully disordered chains (``<cos^2 theta> = 1/3``),
+    - ``+0.5`` -> chains perfectly ordered along the normal (all-trans, C-H perpendicular to z).
+
+    This is ``-S_CD`` in the usual deuterium-order-parameter convention; fluid (Ld) ensembles sit
+    around 0.1-0.2 and ordered (Lo) ensembles around 0.3-0.4 (calibrate the phase targets against
+    reference values).  Returns ``nan`` if the molecule has no tail C-H bonds.
+    """
+    import networkx as nx
+    coords = np.asarray(coords, dtype=float)
+    n = len(coords)
+    if elements is None:
+        elements = [_element_of_mass(m) for m in masses]
+    elements = list(elements)
+    full = nx.Graph()
+    full.add_nodes_from(range(n))
+    full.add_edges_from((int(i), int(j)) for i, j in bonds)
+    tail_c = tail_carbon_indices(elements, None, bonds, n=n, min_tip_heavy=min_tip_heavy)
+    axis = np.asarray(axis_dir, dtype=float)
+    axis = axis / np.linalg.norm(axis)
+    svals = []
+    for c in tail_c:
+        for h in full.neighbors(c):
+            if elements[h] == 'H':
+                v = coords[h] - coords[c]
+                nv = np.linalg.norm(v)
+                if nv == 0.0:
+                    continue
+                cval = float(np.dot(v / nv, axis))
+                svals.append(0.5 * (3.0 * cval * cval - 1.0))
+    if not svals:
+        return float('nan')
+    return float(-np.mean(svals))
+
+
+def ensemble_chain_order(conformers, elements, masses, bonds, axis_dir=(0.0, 0.0, 1.0),
+                         min_tip_heavy: int = 2) -> float:
+    """Mean :func:`chain_order_parameter` over a list of conformer coordinate arrays.
+
+    ``conformers`` is an iterable of ``(N,3)`` coordinate arrays that share the one ``bonds`` /
+    ``elements`` topology (the usual case: many samples of one molecule).  ``nan`` conformers (no
+    tail C-H) are skipped; returns ``nan`` if none contribute.
+    """
+    vals = [chain_order_parameter(c, elements, masses, bonds, axis_dir, min_tip_heavy)
+            for c in conformers]
+    vals = [v for v in vals if v == v]  # drop nan
+    return float(np.mean(vals)) if vals else float('nan')

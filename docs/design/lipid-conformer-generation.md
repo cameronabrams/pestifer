@@ -69,20 +69,25 @@ the leaflet's composition and the phase we intend.
    not the bilayer — real asymmetric membranes pair a raft-ish (Lo) exoplasmic leaflet with a fluid (Ld)
    cytoplasmic one. ex17: declare **both** leaflets `Lo`.
 
-2. **Phase → conformer ensemble, via the existing cylinder knob.** Cylinder *tightness* selects the
-   basin: a loose cylinder (current `cylinder_inflation` ≈ 1.9, area ~114) yields the splayed **Ld**
-   ensemble; a tight cylinder (inflation → ~1.0, area ~60) forces extended, tightly-stacked chains — the
-   **Lo** ensemble. The doc's own finding sharpens this: inflation *within* the fluid regime barely moves
-   APL (67↔69), so this is a **threshold**, not a dial — loose → Ld basin, tight → Lo basin. The
-   "diversity collapse at tight cylinders" (line ~182) that we treated as a defect is physically correct:
-   ordered chains *have* low conformational diversity. Lo is a low-entropy ensemble by nature.
+2. **Phase → conformer ensemble, via a trans-bias ordering field (NOT the cylinder).** *Original plan:
+   tighten the cylinder to order the chains. This was empirically disproved* (2026-08-05, DMPC): even at
+   the tightest cylinder the athermal MC's chain order saturates at ~0.15–0.23 — a fluid value — because
+   a repulsive-only (athermal) MC has no driving force to straighten chains; the cylinder caps the
+   *footprint* (APL), not the order. So ordering is a **separate knob**: an optional trans-favoring
+   torsional Metropolis term in `run_mc` (`torsion_bias`; potential `(1+cos φ)/2`, 0 at trans). A dihedral
+   pivot changes exactly one dihedral, so the bias is O(1)/move and `bias=0` reproduces the athermal path
+   bit-for-bit. **Ld = bias 0** (the athermal fluid ensemble *is* Ld); **Lo = bias tuned up** to an order
+   target. Cylinder inflation stays the fixed packing/APL knob.
 
-3. **Make the target rigorous with a chain order parameter (Scd), closing the open item at line ~188.**
-   Cylinder tightness is the *mechanism*; the *target* should be the tail order parameter. Tune the
-   cylinder (per species) until the ensemble's mean Scd matches the phase target — Ld ≈ 0.1–0.2,
-   Lo ≈ 0.3–0.4 (indicative; set against CHARMM36 values). Then `Lo`/`Ld` are reproducible physical
-   targets, not two hand-picked cylinder sizes, and mixtures work because each species is tuned to the
-   same Scd independently.
+3. **Auto-tune the bias to a chain order parameter (Scd) target** (closes the open item at line ~188).
+   `athermal_mc.chain_order_parameter` / `ensemble_chain_order` compute `−mean ½(3cos²θ−1)` over tail C–H
+   vs +z (0 = isotropic, 0.5 = perfectly ordered), reusing the MC builder's tail-carbon identification.
+   `_bisect_to_order` bisects the trans-bias to hit the phase target. **Measured on DMPC:** bias 0 → 0.23
+   (Ld floor), bias 10 → 0.31, saturating ~0.33 near bias 40 (the constrained glycerol carbons + ensemble
+   average cap it below a free chain's 0.5). So the reachable ordered window is ~0.23→0.33; **Lo target set
+   to 0.30** (PROVISIONAL — the real calibration is the ex17 packing/acceptance test: does the Lo ensemble
+   pack and stay in the dense basin?). Mixtures work because each species is tuned to the same Scd
+   independently, and the resolved `torsion_bias`/`chain_order` are recorded in `info['generation']`.
 
 4. **Composition guard.** Phase is a choice *within* the composition's feasible window. You cannot hold
    Ld on a ~47%-cholesterol leaflet (cholesterol will reorder it — the ex17 drift) nor hold Lo on a
@@ -105,14 +110,28 @@ the leaflet's composition and the phase we intend.
   intermediate* point on the transition — consistent but physically meaningless. Choosing the phase up
   front means there is no transition to stop partway through.
 
-### Open questions / implementation notes
+### Implementation status (2026-08-05)
 
-- **Does a tight athermal-MC cylinder reproduce the Lo basin the old MD rods did?** Likely yes (line ~182:
-  R≈4.37 "selects for the rod"), but confirm the *ordered* ensemble packs and equilibrates to ~Lo APL
-  (~45–50) with small drift — the Lo analogue of the DMPC acceptance test, run on a cholesterol-rich patch
-  (ex17's upper leaflet is the natural first case).
-- **Scd measurement** on the generated ensemble needs a small helper (mean −½⟨3cos²θ−1⟩ over tail C–H
-  vectors, per carbon then averaged); reuse the tail-atom identification already in the MC builder.
+**Generation mechanism DONE + unit-tested** (`athermal_mc.py`, `make_pdb_collection.py`,
+`tests/.../test_athermal_mc.py`): Scd metric (`chain_order_parameter`/`ensemble_chain_order`/
+`tail_carbon_indices`); trans-bias ordering field (`run_mc(torsion_bias=…)`, dihedral refs on
+`RotatableBond`, `_dihedral`/`_trans_penalty`); auto-tune (`_bisect_to_order`, memoized bias probes);
+`phase` threaded through `do_psfgen`/`do_resi`, `phase_order_target` (Ld→None, Lo→0.30), provenance
+records `phase`/`torsion_bias`/`chain_order`. Validated end-to-end generating real DMPC (Ld 0.23 / Lo
+0.31). **NOT yet done (next slice):** cache-key separation so `<resname>` Lo/Ld cache distinctly
+(`autocache.py` keys on release+resname only today), packer selection of the phased ensemble
+(`bilayer.py` `checkout`/`bag_of` key on bare resname), and the per-leaflet `phase` schema key.
+
+### Open questions
+
+- **Does the Lo (order ~0.30) ensemble actually pack into the dense Lo basin?** The conformer difference
+  (z-ext ~27.3→~28.5, footprint similar) is modest — the real test is grid-pack + equilibrate on a
+  cholesterol-rich patch (ex17's upper leaflet) and check it holds a dense APL, the Lo analogue of the
+  DMPC acceptance test. This is what pins the provisional 0.30 target (or tells us the per-lipid conformer
+  is too weak a lever and cholesterol's ordering must come from the packed-system relax instead).
+- **order(bias) is noisy/non-monotonic at high bias** (same seed, different accepted trajectory): the
+  bisection still converged (keeps best-so-far), but a smoother estimate (average over a couple of seeds,
+  or more samples) would make the tune more robust if it proves flaky on other species.
 - **Per-species cylinder tuning** to hit a common Scd is the mixtures generalization of the single global
   `cylinder_inflation` (already flagged as open at line ~267).
 - **Schema/wiring:** `phase` is a new per-leaflet key under `composition`; it threads to

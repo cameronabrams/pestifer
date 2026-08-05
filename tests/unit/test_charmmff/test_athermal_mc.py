@@ -11,7 +11,89 @@ import pytest
 from pestifer.charmmff.athermal_mc import (
     MoleculeMC, RotatableBond, run_mc, radial_distances, build_exclusions, moving_set,
     build_lipid_mc, cylinder_radius_for_apl,
+    tail_carbon_indices, chain_order_parameter, ensemble_chain_order,
+    _dihedral, _trans_penalty,
 )
+
+
+def _acyl_with_h(ncarbon=5, ch_dir_fn=None, spacing=1.5, ch_len=1.09):
+    """Synthetic acyl tail: an O anchor + a straight carbon chain along +z, each carbon carrying
+    two explicit H whose directions are set per-carbon by ``ch_dir_fn(i) -> [dir0, dir1]`` (default
+    perpendicular to z, i.e. an ordered chain).  Returns ``(coords, elements, masses, bonds)``.
+
+    The O anchor makes the carbons the *tail* under the all-carbon-tip criterion (the O-bearing
+    side is never the tip), so ``tail_carbon_indices`` picks out exactly the chain carbons.
+    """
+    if ch_dir_fn is None:
+        ch_dir_fn = lambda i: [(1.0, 0.0, 0.0), (-1.0, 0.0, 0.0)]  # noqa: E731
+    coords = [[0.0, 0.0, 0.0]]
+    elements = ['O']
+    masses = [15.999]
+    bonds = []
+    prev = 0
+    for i in range(ncarbon):
+        ci = len(coords)
+        coords.append([0.0, 0.0, spacing * (i + 1)])
+        elements.append('C')
+        masses.append(12.011)
+        bonds.append((prev, ci))
+        prev = ci
+        for d in ch_dir_fn(i):
+            hi = len(coords)
+            dv = np.asarray(d, dtype=float)
+            dv = dv / np.linalg.norm(dv)
+            coords.append((np.asarray(coords[ci]) + ch_len * dv).tolist())
+            elements.append('H')
+            masses.append(1.008)
+            bonds.append((ci, hi))
+    return np.asarray(coords), elements, masses, bonds
+
+
+# H-direction cycle that makes <cos^2 theta_z> = 1/3 exactly over a full period of 6 bonds
+_ISO_AXES = [(1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1)]
+
+
+class TestChainOrderParameter:
+    def test_tail_carbons_are_the_chain(self):
+        coords, elements, masses, bonds = _acyl_with_h(ncarbon=5)
+        carbons = [i for i, e in enumerate(elements) if e == 'C']
+        assert tail_carbon_indices(elements, masses, bonds) == carbons
+
+    def test_elements_inferred_from_masses(self):
+        coords, elements, masses, bonds = _acyl_with_h(ncarbon=5)
+        carbons = [i for i, e in enumerate(elements) if e == 'C']
+        assert tail_carbon_indices(None, masses, bonds) == carbons
+
+    def test_ordered_chain_reaches_half(self):
+        # all C-H perpendicular to z -> cos^2 = 0 -> order = -[1/2(3*0-1)] = +0.5
+        coords, elements, masses, bonds = _acyl_with_h(ncarbon=6)
+        assert chain_order_parameter(coords, elements, masses, bonds) == pytest.approx(0.5)
+
+    def test_isotropic_chain_is_zero(self):
+        # C-H directions cycle x,-x,y,-y,z,-z so <cos^2> = 1/3 exactly -> order = 0
+        dirfn = lambda i: [_ISO_AXES[(2 * i) % 6], _ISO_AXES[(2 * i + 1) % 6]]  # noqa: E731
+        coords, elements, masses, bonds = _acyl_with_h(ncarbon=6, ch_dir_fn=dirfn)
+        assert chain_order_parameter(coords, elements, masses, bonds) == pytest.approx(0.0, abs=1e-12)
+
+    def test_order_is_axis_relative(self):
+        # the same ordered chain measured against its own chain axis (+z) is 0.5; against x it flips
+        coords, elements, masses, bonds = _acyl_with_h(ncarbon=6)
+        # C-H lie along x, so relative to the x axis cos^2 = 1 -> order = -[1/2(3-1)] = -1.0
+        assert chain_order_parameter(coords, elements, masses, bonds,
+                                     axis_dir=(1.0, 0.0, 0.0)) == pytest.approx(-1.0)
+
+    def test_ensemble_averages_conformers(self):
+        ordered, elements, masses, bonds = _acyl_with_h(ncarbon=6)
+        dirfn = lambda i: [_ISO_AXES[(2 * i) % 6], _ISO_AXES[(2 * i + 1) % 6]]  # noqa: E731
+        iso, _, _, _ = _acyl_with_h(ncarbon=6, ch_dir_fn=dirfn)
+        # mean of 0.5 (ordered) and 0.0 (isotropic) = 0.25
+        assert ensemble_chain_order([ordered, iso], elements, masses, bonds) == pytest.approx(0.25)
+
+    def test_no_tail_returns_nan(self):
+        # a bare O2-like fragment: no tail carbons, no C-H
+        coords = np.array([[0.0, 0.0, 0.0], [0.0, 0.0, 1.2]])
+        assert chain_order_parameter(coords, ['O', 'O'], [15.999, 15.999], [(0, 1)]) != \
+            chain_order_parameter(coords, ['O', 'O'], [15.999, 15.999], [(0, 1)])  # nan != nan
 
 
 def _trans_chain(n=16, bond=1.53, angle_deg=112.0):
@@ -250,3 +332,134 @@ class TestAutoCylinderAPL:
     def test_custom_per_chain(self):
         from pestifer.charmmff.make_pdb_collection import auto_cylinder_apl
         assert auto_cylinder_apl([{}] * 3, per_chain=25.0) == pytest.approx(75.0)
+
+
+class TestPhaseOrderTarget:
+    def test_known_phases(self):
+        from pestifer.charmmff.make_pdb_collection import phase_order_target
+        assert phase_order_target('Lo') == pytest.approx(0.30)
+        # Ld is the athermal fluid floor -- no ordering bias, hence no target to tune to
+        assert phase_order_target('Ld') is None
+
+    def test_none_means_no_target(self):
+        from pestifer.charmmff.make_pdb_collection import phase_order_target
+        assert phase_order_target(None) is None
+
+    def test_unknown_phase_raises(self):
+        from pestifer.charmmff.make_pdb_collection import phase_order_target
+        with pytest.raises(ValueError, match='unknown bilayer phase'):
+            phase_order_target('gel')
+
+
+class TestBisectInflation:
+    # a synthetic monotone-decreasing order(inflation), mimicking "looser cylinder -> less order"
+    @staticmethod
+    def _order(inf):
+        return 0.5 - 0.1 * inf   # order(0.8)=0.42, order(3.0)=0.20
+
+    def test_hits_bracketed_target(self):
+        from pestifer.charmmff.make_pdb_collection import _bisect_to_order as _bisect_inflation
+        inf, order, bracketed = _bisect_inflation(self._order, 0.30, bounds=(0.8, 3.0), tol=0.01)
+        assert bracketed
+        assert order == pytest.approx(0.30, abs=0.01)
+        assert inf == pytest.approx(2.0, abs=0.2)   # 0.5 - 0.1*2.0 = 0.30
+
+    def test_target_above_range_uses_tight_bound(self):
+        from pestifer.charmmff.make_pdb_collection import _bisect_to_order as _bisect_inflation
+        inf, order, bracketed = _bisect_inflation(self._order, 0.60, bounds=(0.8, 3.0))
+        assert not bracketed
+        assert inf == pytest.approx(0.8)            # tightest -> most ordered available
+        assert order == pytest.approx(0.42)
+
+    def test_target_below_range_uses_loose_bound(self):
+        from pestifer.charmmff.make_pdb_collection import _bisect_to_order as _bisect_inflation
+        inf, order, bracketed = _bisect_inflation(self._order, 0.05, bounds=(0.8, 3.0))
+        assert not bracketed
+        assert inf == pytest.approx(3.0)            # loosest -> least ordered available
+        assert order == pytest.approx(0.20)
+
+    def test_iteration_count_is_bounded(self):
+        from pestifer.charmmff.make_pdb_collection import _bisect_to_order as _bisect_inflation
+        calls = []
+
+        def counted(inf):
+            calls.append(inf)
+            return self._order(inf)
+
+        _bisect_inflation(counted, 0.30, bounds=(0.8, 3.0), tol=1e-6, max_iters=6)
+        assert len(calls) <= 2 + 6   # two endpoints + at most max_iters probes
+
+    def test_increasing_direction(self):
+        # order rises with the knob (the trans-bias case): order(0)=0.15, order(8)=0.47
+        from pestifer.charmmff.make_pdb_collection import _bisect_to_order
+        rising = lambda b: 0.15 + 0.04 * b  # noqa: E731
+        knob, order, bracketed = _bisect_to_order(rising, 0.35, bounds=(0.0, 8.0), tol=0.01)
+        assert bracketed
+        assert order == pytest.approx(0.35, abs=0.01)
+        assert knob == pytest.approx(5.0, abs=0.3)   # 0.15 + 0.04*5 = 0.35
+
+
+class TestDihedralAndTransPenalty:
+    def test_dihedral_cis_and_trans(self):
+        cis = _dihedral(np.array([0., 1., 0.]), np.array([0., 0., 0.]),
+                        np.array([1., 0., 0.]), np.array([1., 1., 0.]))
+        trans = _dihedral(np.array([0., 1., 0.]), np.array([0., 0., 0.]),
+                          np.array([1., 0., 0.]), np.array([1., -1., 0.]))
+        assert cis == pytest.approx(0.0, abs=1e-9)
+        assert abs(trans) == pytest.approx(np.pi, abs=1e-9)
+
+    def test_trans_penalty_minimized_at_trans(self):
+        assert _trans_penalty(np.pi) == pytest.approx(0.0)   # trans -> no penalty
+        assert _trans_penalty(0.0) == pytest.approx(1.0)     # cis -> max penalty
+        assert _trans_penalty(np.pi / 2) == pytest.approx(0.5)
+
+
+class TestTransBias:
+    def _diacyl_mol(self):
+        coords, elements, masses, bonds, rmin_half = _synthetic_diacyl()
+        return build_lipid_mc(coords, elements, masses, bonds, head_indices=[0],
+                              tail_indices=[6, 10], rmin_half=rmin_half,
+                              cylinder_radius=float('inf'))
+
+    def test_build_sets_dihedral_refs(self):
+        mol = self._diacyl_mol()
+        by_bond = {(rb.a, rb.b): (rb.i, rb.j) for rb in mol.rotatable}
+        # every tail torsion gets a valid outer dihedral i-a-b-j
+        assert all(i >= 0 and j >= 0 for (i, j) in by_bond.values())
+        assert by_bond[(3, 4)] == (2, 5)   # i-a-b-j = 2-3-4-5 along tail A
+        assert by_bond[(4, 5)] == (3, 6)   # 3-4-5-6
+
+    @staticmethod
+    def _zigzag_mol(n=16):
+        # a realistic (tetrahedral zig-zag) backbone whose C-C bonds are NOT collinear, so dihedral
+        # pivots actually bend it -- the athermal MC can curl it, the trans bias re-extends it
+        coords, g, radii = _trans_chain(n)
+        excl = build_exclusions(g, order=2)
+        rot = []
+        for k in range(1, n - 1):                    # pivots on bonds (k, k+1)
+            j = k + 2 if k + 2 < n else -1           # tip-side outer dihedral atom
+            rot.append(RotatableBond(a=k, b=k + 1, moving=moving_set(g, k, k + 1), i=k - 1, j=j))
+        return MoleculeMC(coords=coords, radii=radii, rotatable=rot, exclusions=excl,
+                          cylinder_radius=float('inf')), n
+
+    @staticmethod
+    def _mean_end_to_end(samples, n):
+        return float(np.mean([np.linalg.norm(s[n - 1] - s[0]) for s in samples]))
+
+    def test_bias_extends_the_chain(self):
+        mol, n = self._zigzag_mol()
+        extended = np.linalg.norm(mol.coords[n - 1] - mol.coords[0])   # all-trans reference
+        kw = dict(nsamples=24, n_equil=5000, n_decorr=200, max_angle=np.pi, seed=7)
+        free = run_mc(mol, torsion_bias=0.0, **kw)
+        biased = run_mc(mol, torsion_bias=8.0, **kw)
+        e_free = self._mean_end_to_end(free, n)
+        e_biased = self._mean_end_to_end(biased, n)
+        assert e_free < extended        # the athermal ensemble genuinely curled off all-trans
+        assert e_biased > e_free        # the trans bias re-extended the chains
+
+    def test_zero_bias_matches_athermal(self):
+        mol, _ = self._zigzag_mol()
+        kw = dict(nsamples=8, n_equil=1000, n_decorr=200, max_angle=np.pi, seed=3)
+        a = run_mc(mol, torsion_bias=0.0, **kw)
+        b = run_mc(mol, **kw)   # default torsion_bias
+        assert all(np.array_equal(x, y) for x, y in zip(a, b))
