@@ -456,4 +456,31 @@ what appears here is refined and reprioritized as the project evolves.
       single-character-segid workaround is left in place (still the mechanism that *assigns*
       the distinct chains this restore then preserves); relaxing it is a possible follow-up.
       (Unreleased.)
+- [ ] **Accept an incoming PSF in the `psfgen` task (build *onto* an existing topology).** Today
+      `psfgen` always builds topology from a fetched source structure (PDB/mmCIF → segments →
+      PSF/PDB). Add a path where it instead **reads an existing PSF** (plus its coordinates) via
+      psfgen's `readpsf`/`coordpdb` and then applies the task's normal operations on top — so a user
+      can bring a **pre-built system** (CHARMM-GUI, a prior pestifer build, another tool) into
+      pestifer's downstream machinery (mods, membrane embedding, equilibration) *without rebuilding*,
+      or **extend** an existing topology later (add a ligand, graft a glycan, mutate, patch) without
+      starting from scratch. Distinct from the `continuation` task (which runs MD on a *fixed* topology
+      from a state fileset) — this lets psfgen *edit* the incoming topology.
+  - Decisions to settle:
+    - **Input specification.** How the incoming topology is declared — e.g. `source: {psf, pdb}` (or
+      `psf` + `coor`/`xsc`) as a sibling of the `sourceID`/`model` fetch path — and which coordinate
+      form pairs with the PSF.
+    - **Which operations are meaningful.** Fetch-derived mods (`SEQADV` mutations, `REMARK 465` missing
+      residues, biological-assembly expansion) have no source metadata for an external PSF; decide which
+      of the mod pipeline (grafts, patches, ligations, deletions, explicit mutations) applies to a
+      pre-built topology and error cleanly on the rest.
+    - **Segtype classification.** pestifer classifies segtypes (protein / glycan / lipid / ion / water)
+      from the fetched structure; an incoming PSF must be classified from the PSF itself (segids +
+      resnames), reusing the CHARMM segtype macros.
+    - **Force-field consistency.** The PSF was built against *some* topology set; verify the build's
+      CHARMM release resolves every atom type / parameter (a clear up-front error on a mismatch, not a
+      mid-run NAMD abort) — composes with the on-demand-parameter work.
+    - **Segid / chain reconciliation.** External segid conventions vs. pestifer's expectations, and the
+      chain-ID-persistence machinery above.
+  - Enables round-trip and interop workflows, and is the natural substrate for "modify a finished
+    build" without a from-scratch rebuild.
 - [ ] _(add items here)_
