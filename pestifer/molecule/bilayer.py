@@ -325,8 +325,8 @@ class Bilayer:
                     cation, anion = self.charmmffcontent.get_resi(cation_name), self.charmmffcontent.get_resi(anion_name)
                     n_cation = int(np.round(Npm / np.abs(cation.charge), 0))
                     n_anion = int(np.round(Npm / np.abs(anion.charge), 0))
-                    composition_dict[c].append({'name': cation_name, 'patn': n_cation, 'charge': cation.charge, 'MW': cation.mass})
-                    composition_dict[c].append({'name': anion_name, 'patn': n_anion, 'charge': anion.charge, 'MW': anion.mass})
+                    composition_dict[c].append({'name': cation_name, 'conf_key': cation_name, 'patn': n_cation, 'charge': cation.charge, 'MW': cation.mass})
+                    composition_dict[c].append({'name': anion_name, 'conf_key': anion_name, 'patn': n_anion, 'charge': anion.charge, 'MW': anion.mass})
         # set up some short-cut object labes
         self.slices = {'lower_chamber': {}, 'lower_leaflet': {}, 'upper_leaflet': {}, 'upper_chamber': {}}
         self.LC = self.slices['lower_chamber']
@@ -434,6 +434,9 @@ class Bilayer:
         self.register_species_pdbs = []
         for layer, data in self.slices.items():
             for species in data['composition']:
+                # backfill conf_key for any species added after the initial pass (neutralizing/salt
+                # ions): unphased -> real resname, so lookups are always keyed consistently
+                species.setdefault('conf_key', species['name'])
                 conformerID = species.get('conf', 0)
                 noh = species.get('noh', False)
                 species['local_name'] = self.species_data[species['conf_key']].get_pdb(conformerID=conformerID, noh=noh)

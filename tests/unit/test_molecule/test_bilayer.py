@@ -48,6 +48,28 @@ class TestBilayer(unittest.TestCase):
         assert all([x in ['POPE', 'POPC'] for x in test_bilayer.lipid_names])
         os.chdir('..')
 
+    def test_bilayer_init_with_salt_gives_every_species_a_conf_key(self):
+        # regression: with salt_concentration>0 the constructor appends ion species to the chambers;
+        # the phased-conformer routing keys every grid-placement checkout on 'conf_key', so a late
+        # ion append that omitted it used to KeyError (surfaced building ex17, which is salted).
+        self.charmmff_content.deprovision()
+        d = '__test_bilayer_salt'
+        if os.path.exists(d):
+            shutil.rmtree(d)
+        os.mkdir(d)
+        os.chdir(d)
+        try:
+            b = Bilayer(composition_dict={
+                'upper_leaflet': [{'name': 'POPC', 'frac': 1.0, 'conf': 0}],
+                'lower_leaflet': [{'name': 'POPE', 'frac': 1.0, 'conf': 0}]},
+                salt_concentration=0.154,
+                charmmffcontent=self.charmmff_content)
+            for layer in b.slices.values():
+                for sp in layer['composition']:
+                    assert 'conf_key' in sp, f'species {sp.get("name")} missing conf_key'
+        finally:
+            os.chdir('..')
+
     def test_constructor_does_not_mutate_composition_dict(self):
         # Regression: the constructor fills per-species 'patn' from leaflet_nlipids, but must
         # do so on its own copy. If it stamps 'patn' into the caller's dict, a small patch's
