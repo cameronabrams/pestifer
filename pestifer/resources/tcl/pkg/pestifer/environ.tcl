@@ -68,13 +68,20 @@ proc PestiferEnviron::write_psfgen { molid {segtypes {lipid ion water}}
         set a [atomselect $molid "$segtype"]
         if { [$a num] > 0 } {
             $a set chain $seglabel
-            # Group by the PDB's own per-molecule `resid` (the grid packer assigns each placed molecule
-            # a unique resid), NOT VMD's connectivity-derived `residue`: a spurious distance bond between
-            # two close-packed lipids merges them into one VMD `residue`, so their atoms land in a single
-            # segment with duplicate names and `coordpdb` strands the unmatched RTF-template atoms at
-            # (0,0,0) -- the origin atoms that then NaN the minimize.  psfgen still builds all bonds from
-            # the RTF; only the residue grouping must come from the PDB, not from perceived bonds.
-            set ridx [lsort -integer -unique [$a get resid]]
+            # Residue-grouping field per segtype:
+            #  * lipids -> `resid` (the grid packer assigns each placed lipid a unique resid).  We must
+            #    NOT use VMD's connectivity `residue` here: a spurious distance bond between two close-
+            #    packed lipids merges them into one VMD residue, so coordpdb strands the unmatched RTF
+            #    atoms at (0,0,0) and the minimize NaNs.
+            #  * water/ion -> `residue` (VMD connectivity).  The grid PDB's `resid` column is only 4
+            #    wide, so write_grid_pdb wraps it at 10000; a system with >9999 residues (e.g. a large
+            #    quilt with ~18k waters) then has colliding resids, and grouping by resid MERGES the
+            #    collided molecules -- silently dropping ~half the water.  Water/ions are isolated (they
+            #    do not cross-bond), so their VMD `residue` is one-per-molecule and wrap-immune, which
+            #    both fixes the drop and needs no resid uniqueness.  (Lipids stay capped at <=9999 per
+            #    system by the resid path; a huge single membrane would need a wider scheme.)
+            set gf [expr {$segtype eq "lipid" ? "resid" : "residue"}]
+            set ridx [lsort -integer -unique [$a get $gf]]
             set nres [llength $ridx]
             set nseg [expr $nres / $maxr_per_seg + 1]
             set mm [expr $nres % $nseg]
@@ -92,17 +99,18 @@ proc PestiferEnviron::write_psfgen { molid {segtypes {lipid ion water}}
                 }
                 vmdcon -info "Segment $segname is residues [lindex $ridx $left] to [lindex $ridx $right]"
                 set res [lrange $ridx $left $right]
-                set segsel [atomselect $molid "$segtype and resid $res"]
-                set sridx [lsort -integer -unique [$segsel get resid]]
+                set segsel [atomselect $molid "$segtype and $gf $res"]
+                set sridx [lsort -integer -unique [$segsel get $gf]]
                 set rser 1
                 foreach x $sridx {
                     set sridx_sermap($x) $rser
                     incr rser
                 }
                 set rser [list]
-                foreach x [$segsel get resid] {
+                foreach x [$segsel get $gf] {
                     lappend rser $sridx_sermap($x)
                 }
+                # output resid is always the compact 1..N per-segment remap (fits the 4-wide column)
                 $segsel set resid $rser
                 $segsel writepdb "${segname}_tmp.pdb"
                 lappend tmp_files "${segname}_tmp.pdb"
