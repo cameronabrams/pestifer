@@ -460,6 +460,10 @@ class MakeMembraneSystemTask(BaseTask):
                     ys.append(float(ln[38:46]))
         pro_Lx, pro_Ly = max(xs) - min(xs), max(ys) - min(ys)
         Lx, Ly = pro_Lx + 2 * margin, pro_Ly + 2 * margin
+        # remember the protein's bare footprint so embed_protein can verify the equilibrated
+        # (condensed) box still spans it -- guards against a leaflet APL being overestimated,
+        # which would over-condense the quilt tighter than the protein.
+        self._protein_xy = (pro_Lx, pro_Ly)
         logger.info(f'Sizing gridded membrane to protein {pro_Lx:.1f} x {pro_Ly:.1f} A '
                     f'+ {margin} A margin -> box {Lx:.1f} x {Ly:.1f} A')
         return Lx, Ly
@@ -539,12 +543,18 @@ class MakeMembraneSystemTask(BaseTask):
             n_upper = int(round(n_cal * npatch[0] * npatch[1]))   # requested upper count
             n_lower = int(round(n_upper * apl_upper / apl_lower)) # stress-free count ratio
             target_area = n_upper * apl_upper                     # target equilibrium box area
-        # Grid ~15% looser than the calibrated preferred APL so the placement has no severe
-        # clashes; the NPT relaxation then condenses it to target_area, where each leaflet
-        # reaches its own preferred APL. Base the loose target on the *calibrated* APL, not
-        # the nominal SAPL: SAPL can badly overestimate a condensed (e.g. cholesterol-rich)
-        # leaflet, which would grid the box so loose it has to shrink past NAMD's patch grid.
-        box_SAPL = 1.15 * max(apl_upper, apl_lower)
+        # Grid the quilt AT the calibrated stress-free box area (target_area) -- where both leaflets
+        # sit at their own preferred APL -- with only a token clearance, NOT ~15% loose.  The old 15%
+        # slack existed so the SQUARE lattice's tight diagonal/jitter contacts did not clash at
+        # placement; the orthohexagonal lattice spreads lipids uniformly and the resid-based psfgen
+        # split no longer strands atoms, so that slack is no longer needed -- and it was harmful: 15%
+        # linear ~= 32% area loose left the quilt badly under-dense (~0.64 g/cc), a slow condensation
+        # that also let water seep into the lateral gaps.  Gridding at target_area starts density near
+        # 1.0 with almost nothing to condense, and matches how the calibration patches are gridded
+        # (dense, at their requested SAPL).  spec_out sizes the box as box_SAPL * max(n_upper,n_lower),
+        # so target_area/max(...) reproduces the stress-free area for the (larger) requested leaflet.
+        grid_slack = float(bs.get('quilt_grid_slack', 1.05))   # small placement clearance (~5% area)
+        box_SAPL = grid_slack * target_area / max(n_upper, n_lower)
         logger.info(f'Calibrated preferred APL: upper {apl_upper:.2f}, lower {apl_lower:.2f} A^2 '
                     f'(from relaxed symmetric patches)')
         logger.info(f'Stress-free leaflet counts: upper {n_upper}, lower {n_lower} '
@@ -885,6 +895,32 @@ class MakeMembraneSystemTask(BaseTask):
         if not self.embed_specs:
             logger.debug('No embed specs.')
             return
+        # Fit guard: the quilt was sized to the protein footprint + xydist margin and relaxed to its
+        # stress-free area. If a calibrated leaflet APL was overestimated, the quilt's true tensionless
+        # area is smaller than that box, so it over-condenses -- possibly tighter than the protein,
+        # which would clash the protein with its own periodic image. Verify the equilibrated box still
+        # spans the protein before embedding, turning a silent squeeze into a loud, diagnosable failure.
+        if getattr(self, '_protein_xy', None) is not None:
+            st: StateArtifacts = self.get_current_artifact('state')
+            if st and getattr(st, 'xsc', None) and st.xsc.exists():
+                box, _origin = cell_from_xsc(st.xsc.name)
+                Lx, Ly = float(box[0][0]), float(box[1][1])
+                pro_Lx, pro_Ly = self._protein_xy
+                clear_x, clear_y = (Lx - pro_Lx) / 2.0, (Ly - pro_Ly) / 2.0
+                margin = self.embed_specs.get('xydist', 10.0)
+                if clear_x < 0.0 or clear_y < 0.0:
+                    raise PestiferBuildError(
+                        f'the equilibrated membrane box ({Lx:.1f} x {Ly:.1f} A) is smaller than the '
+                        f'oriented protein footprint ({pro_Lx:.1f} x {pro_Ly:.1f} A): the protein would '
+                        f'clash with its own periodic image. A calibrated leaflet APL was likely '
+                        f'overestimated, so the quilt over-condensed below the protein box. Increase '
+                        f'bilayer.embed.xydist, or re-check the calibrated per-leaflet APLs.')
+                if min(clear_x, clear_y) < 0.5 * margin:
+                    logger.warning(
+                        f'embed_protein: the equilibrated membrane condensed to only '
+                        f'{clear_x:.1f}/{clear_y:.1f} A clearance around the protein (requested '
+                        f'{margin:.1f} A) -- a leaflet APL may be overestimated. Embedding proceeds, '
+                        f'but the periodic-image buffer is thin.')
         zvals = np.zeros(2)
         dum_pdb: PDBFileArtifact = self.get_current_artifact('base_coordinates_dum')
         if dum_pdb and dum_pdb.exists():
