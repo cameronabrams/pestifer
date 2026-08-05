@@ -85,6 +85,47 @@ what appears here is refined and reprioritized as the project evolves.
         (iv) **flip `sampler='mc'` to default.** Deferred: absolute-APL vs literature (force-field /
         conditions, not conformer generation); Lever 2b (whole-grid MC pre-relax — likely unnecessary).
 
+- [~] **Per-leaflet phase (Lo/Ld) as a build-time input.** Building ex17's 43–47%-cholesterol leaflets
+      showed that *fluid* (Ld) conformers cannot calibrate a **raft** leaflet: a cholesterol-rich
+      saturated leaflet undergoes a slow **liquid-ordered (Lo) phase transition** that
+      `membrane_equilibrate` can't converge — the area drifts 48→46.7→44 Å² and consumes the whole 800k
+      -step budget without plateauing (it's a phase change, not equilibration, so there's nothing to
+      stop *at*). Since MD can't cross Ld↔Lo on build timescales, the phase you *build* is the phase you
+      *keep*, so declare it up front and pack with the matching conformer ensemble instead of relaxing
+      into it. Full spec in `docs/design/lipid-conformer-generation.md` (§ "Phase (Lo vs Ld) as a
+      build-time input"). This is the root-cause fix for the calibration-reliability item below.
+  - [x] **Ordering mechanism = a tunable trans-bias, NOT the cylinder.** Empirically disproved the
+        first plan (tighten the cylinder to order the chains): an athermal (repulsive-only) MC stays
+        fluid however tight the cylinder (chain order saturates ~0.15–0.23; the cylinder caps
+        footprint/APL, not order — nothing drives the chains trans). Ordering is a separate *optional*
+        trans-favoring torsional Metropolis term in `run_mc` (`torsion_bias`; potential `(1+cos φ)/2`,
+        O(1)/move since a pivot moves exactly one dihedral; `bias=0` reproduces the athermal path
+        bit-for-bit). **Ld = bias 0** (the athermal fluid ensemble *is* Ld); **Lo = bias auto-tuned**
+        (`_bisect_to_order`) to a chain order parameter (Scd) target measured by
+        `chain_order_parameter`/`ensemble_chain_order` (−mean ½(3cos²θ−1) over tail C–H vs +z). Unit-
+        tested. (`3b641833`.)
+  - [x] **Per-leaflet integration.** schema `composition.upper/lower_leaflet_phase` (choices `[Ld, Lo]`,
+        default `Ld` = prior behavior); the packer routes conformer lookup through a per-species
+        `conf_key` (`PSM__Lo`) while the *placed* resname stays the real CHARMM resname (it comes from
+        the conformer file, not the key); phase-aware autocache entries cache as `<resname>__<phase>`
+        without colliding with the shipped fluid set; a phase/sterol composition-mismatch warning.
+        (`fa2890ae`; salt-ion `conf_key` fix `c912994f`.)
+  - [x] **Validated — the raft calibration now converges.** ex17's upper leaflet (PSM 36 / POPC 17 /
+        CHL1 47) declared `Lo`: patch-A calibration **plateaus at APL ~46.8 Å² (converged step ~258k,
+        area drift +0.002)** — versus the old Ld run's non-converging 48→44 drift that ate all 800k
+        steps. Packing in-phase removes the Lo transition from the critical path.
+  - [ ] **The unsaturated-Lo ceiling.** The trans-bias can't order *unsaturated* chains — the *cis*
+        double bond is a rigid kink, not a rotatable dihedral — so POPE/SOPS/SOPE clamp at the bias
+        ceiling (order ~0.22 ≈ fluid) while saturated PSM/POPC reach 0.31–0.33. An unsaturated leaflet's
+        "Lo" is therefore ≈ Ld. Decide the treatment: declare such leaflets `Ld` (honest to the physics
+        *and* skips their wasted Lo generation), or model cholesterol's *condense-without-straighten*
+        ordering of unsaturated chains differently (Scd isn't the whole story). ex17's lower leaflet
+        (SOPE/SOPS/POPE + 43% CHL1) is the live test — watching whether it drifts the way patch-A used to.
+  - [ ] **Remaining:** calibrate the Lo Scd target against *packing* (does order 0.30 hold the dense
+        basin, or is the per-lipid conformer too weak a lever?); skip redundant `<sterol>__Lo` entries
+        (sterols are phase-independent, forced `single`); finish the ex17 both-`Lo` acceptance build
+        (patch-B → quilt → embed → equilibrate) before committing the example.
+
 - [ ] **Reconcile the two membrane area-convergence criteria on the calibration path.** When an
       asymmetric build's symmetric **calibration patch** relaxes via a self-terminating
       `membrane_equilibrate` (migrated from the old fixed NPgT ladder), two different area-convergence
