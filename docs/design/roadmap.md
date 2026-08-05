@@ -114,13 +114,16 @@ what appears here is refined and reprioritized as the project evolves.
         CHL1 47) declared `Lo`: patch-A calibration **plateaus at APL ~46.8 Å² (converged step ~258k,
         area drift +0.002)** — versus the old Ld run's non-converging 48→44 drift that ate all 800k
         steps. Packing in-phase removes the Lo transition from the critical path.
-  - [ ] **The unsaturated-Lo ceiling.** The trans-bias can't order *unsaturated* chains — the *cis*
-        double bond is a rigid kink, not a rotatable dihedral — so POPE/SOPS/SOPE clamp at the bias
-        ceiling (order ~0.22 ≈ fluid) while saturated PSM/POPC reach 0.31–0.33. An unsaturated leaflet's
-        "Lo" is therefore ≈ Ld. Decide the treatment: declare such leaflets `Ld` (honest to the physics
-        *and* skips their wasted Lo generation), or model cholesterol's *condense-without-straighten*
-        ordering of unsaturated chains differently (Scd isn't the whole story). ex17's lower leaflet
-        (SOPE/SOPS/POPE + 43% CHL1) is the live test — watching whether it drifts the way patch-A used to.
+  - [x] **The unsaturated-Lo ceiling is self-correcting (not a bug).** The trans-bias can't order
+        *unsaturated* chains — the *cis* double bond is a rigid kink, not a rotatable dihedral — so
+        POPE/SOPS/SOPE clamp at the bias ceiling (order ~0.22 ≈ fluid) while saturated PSM/POPC reach
+        0.31–0.33. That is *physically correct*: saturated+cholesterol makes a liquid-ordered raft,
+        unsaturated+cholesterol stays fluid. So declaring an unsaturated leaflet `Lo` harmlessly yields
+        the fluid ensemble it *should* have. Confirmed on ex17: patch-B (SOPE/SOPS/POPE + 43% CHL1)
+        **converged cleanly at a fluid APL ~56.0** (no ordering drift), while patch-A (saturated raft)
+        converged dense at ~46.8 — a real asymmetric raft/fluid bilayer. Follow-up (efficiency, not
+        correctness): declare such leaflets `Ld` to skip the wasted Lo generation, since Ld and Lo give
+        an unsaturated leaflet the same fluid ensemble.
   - [ ] **Remaining:** calibrate the Lo Scd target against *packing* (does order 0.30 hold the dense
         basin, or is the per-lipid conformer too weak a lever?); skip redundant `<sterol>__Lo` entries
         (sterols are phase-independent, forced `single`); finish the ex17 both-`Lo` acceptance build
