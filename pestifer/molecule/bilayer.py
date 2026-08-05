@@ -254,6 +254,19 @@ class Bilayer:
             if 'lower_chamber' not in composition_dict:
                 composition_dict['lower_chamber'] = C.right
 
+        # Route conformer lookup through a per-species key: the real resname for solvents and for
+        # unphased/Ld leaflets (reusing the shipped fluid ensemble), phase-qualified (e.g. PSM__Lo)
+        # for an ordered leaflet so the packer draws that leaflet's phase-specific ensemble.  The
+        # placed-lipid resname always stays the real CHARMM resname (taken from the conformer file),
+        # so get_resi / provision / psfgen keep keying on 'name'.
+        from ..charmmff.autocache import phase_entry_name
+        for lyr in ('upper_leaflet', 'lower_leaflet'):
+            for d in composition_dict[lyr]:
+                d['conf_key'] = phase_entry_name(d['name'], d.get('phase'))
+        for lyr in ('upper_chamber', 'lower_chamber'):
+            for d in composition_dict[lyr]:
+                d['conf_key'] = d['name']
+
         lipid_names = [x['name'] for x in composition_dict['upper_leaflet']]
         lipid_names += [x['name'] for x in composition_dict['lower_leaflet']]
         self.lipid_names = list(set(lipid_names))
@@ -333,14 +346,22 @@ class Bilayer:
         self.addl_streamfiles = []
         pdbrepository = self.charmmffcontent.pdbrepository if self.charmmffcontent is not None else None
         if pdbrepository is not None:
-            for l in self.species_names:
-                logger.debug(f'Getting pdb for {l}')
-                if not l in pdbrepository:
-                    self._generate_missing_species(l, pdbrepository)
-                pdbstruct = pdbrepository.checkout(l)
-                self.species_data[l] = pdbstruct
-                for p in self.species_data[l].get_parameters():
-                    if p.endswith('.str') and not p in self.addl_streamfiles:
+            # unique conformer entries to check out: phase-qualified conf_key -> (base resname, phase)
+            conf_specs = {}
+            for lyr in ('upper_leaflet', 'lower_leaflet'):
+                for d in composition_dict[lyr]:
+                    conf_specs[d['conf_key']] = (d['name'], d.get('phase'))
+            for nm in self.solvent_names:
+                conf_specs.setdefault(nm, (nm, None))
+            for checkout_key, (base_resname, phase) in conf_specs.items():
+                logger.debug(f'Getting pdb for {checkout_key} (resname {base_resname}, phase {phase})')
+                if checkout_key not in pdbrepository:
+                    self._generate_missing_species(base_resname, pdbrepository,
+                                                   phase=phase, checkout_key=checkout_key)
+                pdbstruct = pdbrepository.checkout(checkout_key)
+                self.species_data[checkout_key] = pdbstruct
+                for p in pdbstruct.get_parameters():
+                    if p.endswith('.str') and p not in self.addl_streamfiles:
                         self.addl_streamfiles.append(p)
         logger.debug(f'Additional stream files:')
         my_logger(self.addl_streamfiles, logger.debug)
@@ -360,7 +381,7 @@ class Bilayer:
                     data['avgMW'] += species['MW'] * species['patn']
                 elif 'leaflet' in layer:
                     for lipid in data['composition']:
-                        sd = self.species_data[lipid['name']]
+                        sd = self.species_data[lipid['conf_key']]
                         # Reserve leaflet z from the lipid's true vertical extent, not its head-tail
                         # length: fluid (melted) MC conformers curl the tail *tip* back toward the head,
                         # so head-tail-length collapses (~11 A) far below the real z-extent (~28 A) --
@@ -401,7 +422,7 @@ class Bilayer:
             for chamber, nions in zip(['upper_chamber', 'lower_chamber'], [uc_ion_patn, lc_ion_patn]):
                 chamber_names = [x['name'] for x in self.slices[chamber]['composition']]
                 if ion_name not in chamber_names:
-                    self.slices[chamber]['composition'].append({'name': ion_name, 'patn': nions, 'charge': ion_q, 'MW': ion_resi.mass})
+                    self.slices[chamber]['composition'].append({'name': ion_name, 'conf_key': ion_name, 'patn': nions, 'charge': ion_q, 'MW': ion_resi.mass})
                 else:
                     # if the ion is already in the chamber, just add to the number of ions
                     for species in self.slices[chamber]['composition']:
@@ -413,27 +434,32 @@ class Bilayer:
         self.register_species_pdbs = []
         for layer, data in self.slices.items():
             for species in data['composition']:
-                species_name = species['name']
                 conformerID = species.get('conf', 0)
                 noh = species.get('noh', False)
-                species['local_name'] = self.species_data[species_name].get_pdb(conformerID=conformerID, noh=noh)
+                species['local_name'] = self.species_data[species['conf_key']].get_pdb(conformerID=conformerID, noh=noh)
                 if species['local_name'] not in self.register_species_pdbs:
                     self.register_species_pdbs.append(species['local_name'])
                 # logger.debug(f'Checked out {species_name} as {species["local_name"]}')
 
-    def _generate_missing_species(self, resname: str, pdbrepository):
+    def _generate_missing_species(self, resname: str, pdbrepository, phase: str = None,
+                                  checkout_key: str = None):
         """Handle a membrane-species miss: unless generation is disabled, build single-molecule
         conformers on the fly, cache them under ``~/.pestifer/``, and register the cache collection
         so ``pdbrepository`` can find them.
+
+        ``resname`` is the real CHARMM resname (the force-field lookup is on it); ``phase`` selects
+        the fluid (Ld) vs ordered (Lo) ensemble and ``checkout_key`` is the phase-qualified name the
+        entry is cached/registered under (defaults to ``resname``).
 
         Raises :class:`PestiferBuildError` (preserving the former behavior) when generation is
         disabled (``charmmff.generate_missing_coordinates: false``) or the species is not defined
         in the force field.
         """
+        checkout_key = checkout_key or resname
         CC = self.charmmffcontent
         if not getattr(CC, 'generate_missing_coordinates', True):
             raise PestiferBuildError(
-                f'Cannot find {resname} in PDB repository; build conformers for it with '
+                f'Cannot find {checkout_key} in PDB repository; build conformers for it with '
                 f"'pestifer make-pdb-collection', or set 'charmmff.generate_missing_coordinates: "
                 f"true' to have pestifer build and cache them automatically")
         if resname not in CC:
@@ -441,11 +467,14 @@ class Bilayer:
                 f'{resname} is neither in the PDB repository nor defined in the CHARMM force '
                 f'field; cannot auto-generate conformers')
         from ..charmmff.autocache import ensure_lipid_conformer
-        collection_dir = ensure_lipid_conformer(resname, CC)
+        # a requested phase needs the fluid/ordered MC ensemble (mc sampler + trans bias); legacy
+        # unphased species keep the historical vacuum-MD default
+        sampler = 'mc' if phase in ('Ld', 'Lo') else 'md'
+        collection_dir = ensure_lipid_conformer(resname, CC, phase=phase, sampler=sampler)
         pdbrepository.add_resource(str(collection_dir))
-        if resname not in pdbrepository:
+        if checkout_key not in pdbrepository:
             raise PestiferBuildError(
-                f'internal error: auto-generated conformers for {resname} but they did not '
+                f'internal error: auto-generated conformers for {checkout_key} but they did not '
                 f'register in the PDB repository (cache at {collection_dir})')
 
     def spec_out(self, SAPL=75.0, xy_aspect_ratio=1.0, half_mid_zgap=1.0, solution_gcc=1.0, rotation_pm=10.0):
@@ -600,7 +629,7 @@ class Bilayer:
             # absent 'conf' (the default) draws across all available conformers.
             cache, bag = {}, []
             for specs in layer['composition']:
-                nm = specs['name']
+                nm = specs['conf_key']
                 if nm not in cache:
                     pinned = specs.get('conf', None)
                     if pinned is not None:

@@ -183,7 +183,28 @@ def ensure_solvent_box(resname: str, CC, *, nmol: int = 216, density: float = 1.
         return collection_dir
 
 
-def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps: int = 5000,
+_PHASE_SEP = '__'
+
+
+def phase_entry_name(resname: str, phase: str = None) -> str:
+    """Cache/repository entry name for a ``(resname, phase)`` conformer set.
+
+    ``phase`` None or ``'Ld'`` keeps the bare resname (the shipped fluid ensemble is Ld, so existing
+    caches are reused unchanged); an ordered phase qualifies it, e.g. ``('PSM', 'Lo') -> 'PSM__Lo'``.
+    The conformer PDBs inside always carry the real CHARMM resname; only the entry name is qualified.
+    """
+    if phase is None or phase == 'Ld':
+        return resname
+    return f'{resname}{_PHASE_SEP}{phase}'
+
+
+def base_resname_of(entry: str) -> str:
+    """The real CHARMM resname underlying a possibly phase-qualified entry name (``PSM__Lo`` -> ``PSM``)."""
+    return entry.split(_PHASE_SEP, 1)[0]
+
+
+def ensure_lipid_conformer(resname: str, CC, *, phase: str = None, nsamples: int = 10,
+                           sample_steps: int = 5000,
                            minimize_steps: int = 500, sample_temperature: float = 300.0,
                            force_constant: float = 1.0, sampler: str = 'md',
                            cylinder_apl: float = None, cylinder_inflation: float = 1.9,
@@ -229,22 +250,28 @@ def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps
     """
     from .make_pdb_collection import do_resi
 
+    # A phased ensemble caches as a distinct entry (`<resname>__<phase>`) so an ordered (Lo) set does
+    # not collide with the default/fluid one.  phase None or 'Ld' keeps the bare `<resname>` entry
+    # (the shipped fluid ensemble is Ld), so existing caches are untouched.  do_resi always writes its
+    # output dir by the real CHARMM resname (the conformer PDBs keep resname `<resname>`); only the
+    # published *entry directory* is phase-qualified.
+    entry = phase_entry_name(resname, phase)
     collection_dir = cache_release_root(_release_key(CC)) / 'lipid'
-    if _has_entry(collection_dir, resname):
-        logger.debug(f'auto-cache hit: {resname} conformer at {collection_dir / resname}')
+    if _has_entry(collection_dir, entry):
+        logger.debug(f'auto-cache hit: {entry} conformer at {collection_dir / entry}')
         return collection_dir
 
-    with _entry_lock(collection_dir, resname):
-        if _has_entry(collection_dir, resname):
-            logger.info(f'{resname} conformer was built by another process; using it')
+    with _entry_lock(collection_dir, entry):
+        if _has_entry(collection_dir, entry):
+            logger.info(f'{entry} conformer was built by another process; using it')
             return collection_dir
-        _announce_build(resname, f'single-molecule conformer set ({sampler} sampler)', collection_dir)
+        _announce_build(entry, f'single-molecule conformer set ({sampler} sampler)', collection_dir)
 
         RM, build_CC = _fresh_charmmff(getattr(CC, 'release_str', ''))
         if resname not in build_CC:
             raise ValueError(f'RESI {resname} is not defined in the CHARMM force field; '
                              f'cannot auto-generate a conformer')
-        work_dir = _fresh_dir(collection_dir / f'.{resname}.work')
+        work_dir = _fresh_dir(collection_dir / f'.{entry}.work')
         cwd = os.getcwd()
         os.chdir(work_dir)
         try:
@@ -254,7 +281,7 @@ def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps
                     sampler=sampler, cylinder_apl=cylinder_apl,
                     cylinder_inflation=cylinder_inflation, mc_n_equil=mc_n_equil,
                     mc_n_decorr=mc_n_decorr, mc_seed=mc_seed, mc_max_angle=mc_max_angle,
-                    mc_radius_scale=mc_radius_scale)
+                    mc_radius_scale=mc_radius_scale, phase=phase)
             produced = Path('out') / resname
             if not (produced / 'info.yaml').is_file():
                 raise RuntimeError(f'conformer generation for {resname} failed (no entry produced; '
@@ -268,8 +295,8 @@ def ensure_lipid_conformer(resname: str, CC, *, nsamples: int = 10, sample_steps
             (produced / 'info.yaml').write_text(yaml.dump(info))
         finally:
             os.chdir(cwd)
-        os.rename(work_dir / 'out' / resname, collection_dir / resname)   # atomic publish
+        os.rename(work_dir / 'out' / resname, collection_dir / entry)   # atomic publish (phased name)
         shutil.rmtree(work_dir, ignore_errors=True)
-        logger.warning(f'pestifer: cached {resname} conformer set '
-                       f"({len(info.get('conformers', []))} conformers) at {collection_dir / resname}")
+        logger.warning(f'pestifer: cached {entry} conformer set '
+                       f"({len(info.get('conformers', []))} conformers) at {collection_dir / entry}")
         return collection_dir

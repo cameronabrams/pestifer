@@ -34,6 +34,34 @@ def _xst_from_area(area):
     return pd.DataFrame({'a_x': area, 'b_y': np.ones_like(area)})
 
 
+class TestPhaseCompositionGuard(unittest.TestCase):
+    """The phase/sterol mismatch warning (no NAMD required)."""
+
+    _warn = staticmethod(MakeMembraneSystemTask._warn_phase_composition_mismatch)
+
+    def _warns(self, leaflet, phase, species):
+        with unittest.mock.patch('pestifer.tasks.make_membrane_system.logger.warning') as m:
+            self._warn(leaflet, phase, species)
+            return m.called
+
+    def test_ld_on_cholesterol_rich_warns(self):
+        raft = [{'name': 'PSM', 'frac': 0.36}, {'name': 'POPC', 'frac': 0.17},
+                {'name': 'CHL1', 'frac': 0.47}]
+        self.assertTrue(self._warns('upper_leaflet', 'Ld', raft))
+
+    def test_lo_on_cholesterol_rich_is_fine(self):
+        raft = [{'name': 'PSM', 'frac': 0.36}, {'name': 'CHL1', 'frac': 0.47}]
+        self.assertFalse(self._warns('upper_leaflet', 'Lo', raft))
+
+    def test_lo_on_sterol_poor_warns(self):
+        fluid = [{'name': 'POPC', 'frac': 0.9}, {'name': 'CHL1', 'frac': 0.1}]
+        self.assertTrue(self._warns('lower_leaflet', 'Lo', fluid))
+
+    def test_ld_on_fluid_is_fine(self):
+        fluid = [{'name': 'POPC', 'frac': 1.0}]
+        self.assertFalse(self._warns('lower_leaflet', 'Ld', fluid))
+
+
 class TestAreaConvergence(unittest.TestCase):
     """Unit tests for the calibration-cell area-convergence guard (no NAMD required)."""
 

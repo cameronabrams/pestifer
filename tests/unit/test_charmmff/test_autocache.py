@@ -16,6 +16,22 @@ import pytest
 import yaml
 
 from pestifer.charmmff import autocache
+from pestifer.charmmff.autocache import phase_entry_name, base_resname_of
+
+
+class TestPhaseEntryName(unittest.TestCase):
+    def test_ld_and_none_keep_bare_resname(self):
+        # the shipped fluid ensemble is Ld, so Ld/None reuse the bare entry (no cache churn)
+        self.assertEqual(phase_entry_name('PSM', None), 'PSM')
+        self.assertEqual(phase_entry_name('PSM', 'Ld'), 'PSM')
+
+    def test_ordered_phase_qualifies(self):
+        self.assertEqual(phase_entry_name('PSM', 'Lo'), 'PSM__Lo')
+        self.assertEqual(phase_entry_name('POPC', 'Lo'), 'POPC__Lo')
+
+    def test_base_resname_roundtrip(self):
+        for resname, phase in (('PSM', 'Lo'), ('POPC', None), ('CHL1', 'Ld')):
+            self.assertEqual(base_resname_of(phase_entry_name(resname, phase)), resname)
 
 
 def _write_fake_box_entry(collection_dir: Path, resname: str):
@@ -192,8 +208,19 @@ class TestBilayerGenerateOnMissPolicy(unittest.TestCase):
         with mock.patch('pestifer.charmmff.autocache.ensure_lipid_conformer',
                         return_value=Path('/cache/feb26/lipid')) as m:
             b._generate_missing_species('POPX', repo)
-        m.assert_called_once_with('POPX', b.charmmffcontent)
+        # unphased miss keeps the legacy vacuum-MD default
+        m.assert_called_once_with('POPX', b.charmmffcontent, phase=None, sampler='md')
         repo.add_resource.assert_called_once_with('/cache/feb26/lipid')
+
+    def test_phased_miss_uses_mc_and_base_resname(self):
+        b = self._bilayer(toggle=True, in_ff=True)
+        repo = mock.Mock()
+        repo.__contains__ = mock.Mock(return_value=True)   # present under the qualified key after gen
+        with mock.patch('pestifer.charmmff.autocache.ensure_lipid_conformer',
+                        return_value=Path('/cache/feb26/lipid')) as m:
+            b._generate_missing_species('PSM', repo, phase='Lo', checkout_key='PSM__Lo')
+        # the FF/generator gets the real resname; an ordered phase forces the MC sampler
+        m.assert_called_once_with('PSM', b.charmmffcontent, phase='Lo', sampler='mc')
 
 
 class TestProvisionAutoRegistersCache(unittest.TestCase):

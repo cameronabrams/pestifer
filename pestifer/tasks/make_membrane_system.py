@@ -198,6 +198,16 @@ class MakeMembraneSystemTask(BaseTask):
             C = BilayerSpecString(specstring=solvent_specstring, fracstring=solvent_ratio_specstring)
             composition_dict.setdefault('upper_chamber', C.left)
             composition_dict.setdefault('lower_chamber', C.right)
+        # Attach the per-leaflet target phase (Ld|Lo) to every leaflet species so the packer draws
+        # the phase-specific conformer ensemble.  The phase rides along the composition list through
+        # the asymmetric symmetrization swaps below (patchA gets the upper phase, patchB the lower).
+        comp_spec = self.bilayer_specs.get('composition', {})
+        for lyr, key in (('upper_leaflet', 'upper_leaflet_phase'),
+                         ('lower_leaflet', 'lower_leaflet_phase')):
+            phase = comp_spec.get(key, 'Ld')
+            for d in composition_dict.get(lyr, []):
+                d.setdefault('phase', phase)
+            self._warn_phase_composition_mismatch(lyr, phase, composition_dict.get(lyr, []))
         logger.debug(f'Naive main composition dict:')
         my_logger(composition_dict, logger.debug)
         self.patch = Bilayer(composition_dict,
@@ -445,6 +455,25 @@ class MakeMembraneSystemTask(BaseTask):
         # never shrinks past NAMD's startup patch grid in a single run
         quilt_protocol = bs.get('relaxation_protocols', {}).get('quilt', {})
         self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=quilt_protocol)
+
+    @staticmethod
+    def _warn_phase_composition_mismatch(leaflet, phase, species):
+        """Warn if the requested phase is physically at odds with the leaflet's sterol content.
+
+        A cholesterol-rich leaflet declared Ld will order (drift toward Lo) during equilibration; a
+        sterol-poor leaflet declared Lo will not hold order.  Warning only -- the declared phase is
+        honored (the user may have reasons; the build proceeds).
+        """
+        STEROLS = {'CHL1', 'CHM1', 'ERG', 'CHOL'}
+        sterol_frac = sum(float(d.get('frac', 0.0)) for d in species if d.get('name') in STEROLS)
+        if phase == 'Ld' and sterol_frac >= 0.30:
+            logger.warning(f'{leaflet}: phase Ld requested but sterol fraction is {sterol_frac:.0%} '
+                           f'(cholesterol-rich) -- expect the leaflet to order (drift toward Lo) '
+                           f'during equilibration; consider phase: Lo')
+        elif phase == 'Lo' and sterol_frac < 0.15:
+            logger.warning(f'{leaflet}: phase Lo requested but sterol fraction is only '
+                           f'{sterol_frac:.0%} -- a sterol-poor leaflet may not hold the ordered '
+                           f'(Lo) state; consider phase: Ld')
 
     def _protein_box_dims(self):
         """Lateral (Lx, Ly) the gridded membrane must span to embed the oriented protein:
