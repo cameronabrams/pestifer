@@ -734,6 +734,13 @@ class MakeMembraneSystemTask(BaseTask):
         self.next_basename(f'grid-{patch_name}')
         output_pdb = f'{self.basename}.pdb'
         patch.write_grid_pdb(output_pdb, half_mid_zgap=half_mid_zgap, seed=seed)
+        # write_grid_pdb checks out the whole conformer ensemble (via _load_conformer) into the run
+        # dir; register every one so the terminate cleanup sweeps them into the artifacts tarball
+        # instead of leaving conformers 01..09 loose.  Same-key registrations pile into pipeline
+        # history (get_all_file_artifacts collects history+head), and the cleanup dedupes paths
+        # (make_tarball unique=True), so re-registering a shared filename across patches is harmless.
+        for spdb in patch.register_species_pdbs:
+            self.register(spdb, key='species_pdb_for_packmol', artifact_type=PDBFileArtifact)
         self.register(dict(pdb=PDBFileArtifact(self.basename, pytestable=True)),
                       key=f'{patch_name}_state', artifact_type=StateArtifacts)
         logger.debug(f'grid_patch: built {output_pdb} for {patch_name}')

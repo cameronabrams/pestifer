@@ -574,6 +574,12 @@ class Bilayer:
         tail_idxs), canonicalized so the head reference atom is at +z and the xy
         centroid is at the origin.  Used by :meth:`write_grid_pdb`."""
         pdbfile = self.species_data[name].get_pdb(conformerID=conf)
+        # get_pdb materializes the conformer as a working PDB in the cwd; record it (the whole drawn
+        # ensemble, incl conformers 01..09, not just the conf-0 checkout) so make_membrane_system can
+        # register them as artifacts and the terminate cleanup sweeps them into the tarball rather
+        # than leaving them loose in the run dir.
+        if pdbfile is not None and pdbfile not in self.register_species_pdbs:
+            self.register_species_pdbs.append(pdbfile)
         coords, lines, ser2i = [], [], {}
         with open(pdbfile) as fh:
             for ln in fh:

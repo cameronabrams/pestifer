@@ -70,6 +70,33 @@ class TestBilayer(unittest.TestCase):
         finally:
             os.chdir('..')
 
+    def test_gridding_tracks_full_conformer_ensemble(self):
+        # write_grid_pdb checks out the whole conformer ensemble (00..NN) as working PDBs; all of them
+        # must land in register_species_pdbs so make_membrane_system can register them and the
+        # terminate cleanup sweeps them into the artifacts tarball -- else conformers 01..NN are left
+        # loose in the run dir (the bug the user hit in ex17).
+        import copy
+        self.charmmff_content.deprovision()
+        d = '__test_bilayer_ensemble_reg'
+        if os.path.exists(d):
+            shutil.rmtree(d)
+        os.mkdir(d)
+        os.chdir(d)
+        try:
+            b = Bilayer(composition_dict=copy.deepcopy({
+                'upper_leaflet': [{'name': 'POPC', 'frac': 1.0}],
+                'lower_leaflet': [{'name': 'POPE', 'frac': 1.0}]}),
+                leaflet_nlipids=dict(upper=40, lower=40),
+                solvent_to_key_lipid_ratio=8.0, charmmffcontent=self.charmmff_content)
+            after_init = [x for x in b.register_species_pdbs if x.startswith('POPC')]
+            b.spec_out(SAPL=60.0)
+            b.write_grid_pdb('grid.pdb', seed=42)
+            after_grid = [x for x in b.register_species_pdbs if x.startswith('POPC')]
+            assert len(after_init) == 1, f'__init__ should track only conf-0: {after_init}'
+            assert len(after_grid) > 1, f'gridding must track the drawn ensemble: {after_grid}'
+        finally:
+            os.chdir('..')
+
     def test_constructor_does_not_mutate_composition_dict(self):
         # Regression: the constructor fills per-species 'patn' from leaflet_nlipids, but must
         # do so on its own copy. If it stamps 'patn' into the caller's dict, a small patch's
