@@ -2,6 +2,7 @@ import pytest
 import os
 import shutil
 import unittest
+from unittest import mock
 
 import numpy as np
 import pandas as pd
@@ -40,7 +41,7 @@ class TestPhaseCompositionGuard(unittest.TestCase):
     _warn = staticmethod(MakeMembraneSystemTask._warn_phase_composition_mismatch)
 
     def _warns(self, leaflet, phase, species):
-        with unittest.mock.patch('pestifer.tasks.make_membrane_system.logger.warning') as m:
+        with mock.patch('pestifer.tasks.make_membrane_system.logger.warning') as m:
             self._warn(leaflet, phase, species)
             return m.called
 
