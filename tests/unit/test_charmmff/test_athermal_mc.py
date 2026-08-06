@@ -351,6 +351,21 @@ class TestPhaseOrderTarget:
             phase_order_target('gel')
 
 
+class TestLipidCanOrder:
+    def test_all_saturated_can_order(self):
+        from pestifer.charmmff.make_pdb_collection import lipid_can_order
+        assert lipid_can_order([{'unsaturations': 0}, {'unsaturations': 0}]) is True
+
+    def test_any_unsaturated_cannot(self):
+        from pestifer.charmmff.make_pdb_collection import lipid_can_order
+        # one oleoyl chain -> the whole lipid clamps at the fluid floor
+        assert lipid_can_order([{'unsaturations': 0}, {'unsaturations': 1}]) is False
+
+    def test_no_chains_cannot(self):
+        from pestifer.charmmff.make_pdb_collection import lipid_can_order
+        assert lipid_can_order([]) is False
+
+
 class TestBisectInflation:
     # a synthetic monotone-decreasing order(inflation), mimicking "looser cylinder -> less order"
     @staticmethod

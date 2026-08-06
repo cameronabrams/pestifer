@@ -57,6 +57,20 @@ def phase_order_target(phase):
                          f'{sorted(_PHASE_ORDER_TARGET)}')
 
 
+def lipid_can_order(chain_info) -> bool:
+    """Whether a lipid can be driven to the ordered (Lo) state by the trans bias.
+
+    Only if *every* acyl chain is saturated: a *cis* double bond is a rigid kink, not a rotatable
+    dihedral, so the trans bias can't straighten it and an unsaturated chain clamps near the fluid
+    (Ld) floor -- its "Lo" ensemble is its Ld ensemble.  ``chain_info`` comes from
+    :meth:`lipid_annotate`; each chain records its ``unsaturations`` count.  Empty (no annotated
+    chains, e.g. a detergent) -> treat as not orderable (leave it fluid).
+    """
+    if not chain_info:
+        return False
+    return all(int(c.get('unsaturations', 0)) == 0 for c in chain_info)
+
+
 def _bisect_to_order(order_of, target, bounds, tol=0.02, max_iters=6):
     """Bisect a scalar knob to hit a chain-order ``target`` for a monotonic ``order_of(knob)``.
 
@@ -497,6 +511,15 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             cylinder_apl = auto_cylinder_apl(chain_info, substream=substream)
             logger.info(f'MC {resid}: {len(chain_info)} acyl chain(s) -> auto cylinder_apl '
                         f'{cylinder_apl:.0f} A^2 (inflation {cylinder_inflation:.2f})')
+        # Fallback: an Lo request on a lipid that can't be ordered (any unsaturated chain) yields the
+        # fluid Ld ensemble -- skip the (wasted) trans-bias tuning and just sample at bias 0.  The
+        # entry still caches under its <resid>__Lo key but records phase_effective='Ld'.
+        phase_effective = phase
+        target = phase_order_target(phase)
+        if target is not None and not lipid_can_order(chain_info):
+            logger.info(f'MC {resid}: phase {phase} requested but the lipid is unsaturated and cannot '
+                        f'be ordered by the trans bias; generating the fluid (Ld) ensemble instead')
+            target, phase_effective = None, 'Ld'
         try:
             mc_result = _sample_and_write_mc_conformers(
                 resid, mc_psf, mc_pdb, heads, tails, par, DB,
@@ -504,7 +527,7 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
                 cylinder_inflation=cylinder_inflation, n_equil=mc_n_equil,
                 n_decorr=mc_n_decorr, seed=mc_seed,
                 max_angle=mc_max_angle, radius_scale=mc_radius_scale,
-                target_order=phase_order_target(phase))
+                target_order=target)
             # the tuner resolves a trans-bias strength (0 for Ld) to hit the phase's order target
             torsion_bias = mc_result['torsion_bias']
             chain_order = mc_result['chain_order']
@@ -589,7 +612,8 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
     # cylinder_apl), so a later run can reproduce or audit it.  Written here so both the CLI
     # (make-pdb-collection) and the on-the-fly autocache paths record it identically.
     if sampler == 'mc':
-        info['generation'] = {'sampler': 'mc', 'phase': phase, 'n_chains': len(chain_info),
+        info['generation'] = {'sampler': 'mc', 'phase': phase,
+                              'phase_effective': phase_effective, 'n_chains': len(chain_info),
                               'cylinder_apl': float(cylinder_apl),
                               'cylinder_inflation': float(cylinder_inflation),
                               'torsion_bias': float(torsion_bias), 'chain_order': chain_order,
