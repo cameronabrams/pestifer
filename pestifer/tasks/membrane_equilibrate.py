@@ -27,6 +27,7 @@ values once its autocorrelation is measured -- see the design doc); optional `ar
 per-observable.  Area-per-lipid (APL) is reported when `lipids_per_leaflet` is supplied.
 """
 import logging
+import os
 
 from .equilibrate_base import ChunkedEquilibrateTask, _fmt
 from ..core.artifacts import DataFileArtifact, PNGImageFileArtifact
@@ -389,7 +390,11 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
                            if self._geom is not None else 'APL (A^2/lipid)')
         axes[1].set_xlabel('timestep')
         fig.tight_layout()
-        fn = f'{self.basename}-membrane.png'
+        # keep convergence plots out of the run-dir root, in the mdplots/ subdir the mdplot task
+        # already uses (kept, not swept into the artifacts tarball, so they stay easy to eyeball)
+        output_dir = self.specs.get('output_dir', 'mdplots')
+        os.makedirs(output_dir, exist_ok=True)
+        fn = os.path.join(output_dir, f'{self.basename}-membrane.png')
         fig.savefig(fn, dpi=120)
         plt.close(fig)
         self.register(fn, key='membrane_plot', artifact_type=PNGImageFileArtifact, keep=True)
