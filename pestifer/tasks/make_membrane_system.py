@@ -733,7 +733,9 @@ class MakeMembraneSystemTask(BaseTask):
         """
         self.next_basename(f'grid-{patch_name}')
         output_pdb = f'{self.basename}.pdb'
-        patch.write_grid_pdb(output_pdb, half_mid_zgap=half_mid_zgap, seed=seed)
+        # place lipids only; the chambers are filled by a VMD solvate step in equilibrate_bilayer
+        # (true-liquid water packing, no lattice voids to distort the bilayer during relaxation)
+        patch.write_grid_pdb(output_pdb, half_mid_zgap=half_mid_zgap, seed=seed, place_solvent=False)
         # write_grid_pdb checks out the whole conformer ensemble (via _load_conformer) into the run
         # dir; register every one so the terminate cleanup sweeps them into the artifacts tarball
         # instead of leaving conformers 01..09 loose.  Same-key registrations pile into pipeline
@@ -872,6 +874,15 @@ class MakeMembraneSystemTask(BaseTask):
             profiles.append('pressure')
             timeseries.append('pressure')  # To do: change this to pressureProfile plotting
         tasklist_user = [{'continuation': dict(psf=state.psf.name, pdb=state.pdb.name, xsc=state.xsc.name)}]
+        # Fill the (grid-packer-left-empty) chambers with a tiled, pre-equilibrated water box + salt/
+        # neutralization via VMD solvate/autoionize -- true liquid density with no lattice voids, so
+        # equilibration relaxes the lipids instead of closing water gaps (which distorts the bilayer).
+        # SolvateTask sees the lipid system's xsc and fills exactly that box (no padding); solvate drops
+        # water clashing with the dense lipid slab, leaving water only in the chambers.
+        bs = self.bilayer_specs
+        tasklist_user.append({'solvate': dict(
+            salt_con=bs.get('salt_con', 0.0), cation=bs.get('cation', 'POT'),
+            anion=bs.get('anion', 'CLA'), solvent=bs.get('solvents', 'TIP3'))})
         tasklist_user.extend(guarded_protocol)
         tasklist_user.extend([
             {'mdplot': dict(timeseries=timeseries, profiles=profiles, legend=True, grid=True, basename=self.basename)},

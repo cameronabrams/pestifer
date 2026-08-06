@@ -612,7 +612,7 @@ class Bilayer:
         return coords, lines, head_i, tail_is
 
     def write_grid_pdb(self, output_pdb, half_mid_zgap=1.0, seed=None, jitter=1.5,
-                       clash_cutoff=1.2):
+                       clash_cutoff=1.2, place_solvent=True):
         """Deterministic grid placement of the bilayer patch.
 
         Lipids are dropped onto a per-leaflet 2D lattice (sized by the patch area and
@@ -815,30 +815,37 @@ class Bilayer:
         lipid_tree = placed_tree   # already covers every placed lipid atom
         n_solvent_dropped = 0
 
-        # chamber solvent: 3D lattice
-        for chamber in (self.LC, self.UC):
-            cache, bag = bag_of(chamber)
-            if not bag:
-                continue
-            n = len(bag)
-            zlo, zhi = chamber['z-lo'], chamber['z-hi']
-            Lz = max(zhi - zlo, 1.0)
-            cell = (Lx * Ly * Lz / n) ** (1.0 / 3.0)
-            gx_n, gy_n = max(1, int(round(Lx / cell))), max(1, int(round(Ly / cell)))
-            gz_n = max(1, int(np.ceil(n / (gx_n * gy_n))))
-            sx, sy, sz = Lx / gx_n, Ly / gy_n, Lz / gz_n
-            for k, nm in enumerate(bag):
-                conformers = cache[nm]
-                coords, lines, _h, _t = conformers[rng.integers(len(conformers))]
-                c = zspin(coords.copy())
-                i, j, m = k % gx_n, (k // gx_n) % gy_n, k // (gx_n * gy_n)
-                c[:, 0] += ll[0] + (i + 0.5) * sx + rng.uniform(-jitter, jitter)
-                c[:, 1] += ll[1] + (j + 0.5) * sy + rng.uniform(-jitter, jitter)
-                c[:, 2] += zlo + (m + 0.5) * sz - c[:, 2].mean()
-                if lipid_tree is not None and lipid_tree.query(c)[0].min() < clash_cutoff:
-                    n_solvent_dropped += 1
+        # Chamber solvent (+ ions).  Historically placed here on a jittered 3D lattice -- a solid-like,
+        # layered packing whose voids the barostat then had to close early in equilibration, dragging
+        # and distorting the bilayer.  With place_solvent=False the chambers are left empty and filled
+        # downstream by a VMD `solvate` step (a tiled, pre-equilibrated TIP3 box at true liquid density,
+        # with autoionize adding salt/neutralizing) -- no voids, so equilibration relaxes the lipids
+        # rather than the water.  The box is still sized for the target hydration (spec_out + the abut
+        # above), so solvate fills exactly the chamber slabs.
+        if place_solvent:
+            for chamber in (self.LC, self.UC):
+                cache, bag = bag_of(chamber)
+                if not bag:
                     continue
-                emit(c, lines)
+                n = len(bag)
+                zlo, zhi = chamber['z-lo'], chamber['z-hi']
+                Lz = max(zhi - zlo, 1.0)
+                cell = (Lx * Ly * Lz / n) ** (1.0 / 3.0)
+                gx_n, gy_n = max(1, int(round(Lx / cell))), max(1, int(round(Ly / cell)))
+                gz_n = max(1, int(np.ceil(n / (gx_n * gy_n))))
+                sx, sy, sz = Lx / gx_n, Ly / gy_n, Lz / gz_n
+                for k, nm in enumerate(bag):
+                    conformers = cache[nm]
+                    coords, lines, _h, _t = conformers[rng.integers(len(conformers))]
+                    c = zspin(coords.copy())
+                    i, j, m = k % gx_n, (k // gx_n) % gy_n, k // (gx_n * gy_n)
+                    c[:, 0] += ll[0] + (i + 0.5) * sx + rng.uniform(-jitter, jitter)
+                    c[:, 1] += ll[1] + (j + 0.5) * sy + rng.uniform(-jitter, jitter)
+                    c[:, 2] += zlo + (m + 0.5) * sz - c[:, 2].mean()
+                    if lipid_tree is not None and lipid_tree.query(c)[0].min() < clash_cutoff:
+                        n_solvent_dropped += 1
+                        continue
+                    emit(c, lines)
 
         with open(output_pdb, 'w') as fh:
             fh.writelines(out)
