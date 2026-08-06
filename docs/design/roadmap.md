@@ -129,6 +129,28 @@ what appears here is refined and reprioritized as the project evolves.
         (sterols are phase-independent, forced `single`); finish the ex17 both-`Lo` acceptance build
         (patch-B → quilt → embed → equilibrate) before committing the example.
 
+- [ ] **Compute and plot chain order parameters (Scd) alongside density / box size.** The phase work
+      packs and calibrates leaflets by chain order, but that order is only ever measured on the
+      *single-molecule conformer ensemble* at generation time -- never on the assembled, equilibrating
+      membrane. Make Scd a first-class diagnostic, plotted the way density and box dimensions already
+      are: a **mean-Scd time series** (convergence) and the standard **per-carbon `|S_CD|` vs carbon-
+      number profile**; add **density(z) profiles** where applicable. The numeric core already exists
+      (`athermal_mc.chain_order_parameter` / `tail_carbon_indices` / `ensemble_chain_order`, built for
+      the phase work); the remaining work is coordinate access + plotting.
+  - [ ] **P1 -- Scd in the `membrane_equilibrate` convergence plot (moderate; no new dependency).** That
+        task already tracks density + lateral area per chunk and emits `-membrane.png`, and each chunk
+        leaves a `.coor`/`.pdb`. Read the chunk coords + PSF bonds (`PSFContents`), compute Scd with the
+        existing helper (extended to per-carbon, ~20 lines), and add an Scd-vs-time panel plus a final
+        per-carbon `|S_CD|` profile -- showing the raft leaflet *ordering* alongside density/area, the
+        exact quantity this arc targets.
+  - [ ] **P2 -- Scd + density(z) profiles on the production trajectory (harder).** mdplot reads only
+        scalars from the NAMD log (density, cell) and NAMD's own pressure profile; it never touches
+        coordinates. Scd and density(z) both need the DCD, which pestifer currently handles only via VMD
+        + `catdcd` (no Python trajectory reader). Decide: a VMD script computing/dumping per-frame, vs.
+        adding a lightweight trajectory reader (MDAnalysis would make this -- and any future coordinate
+        analysis -- much easier, at one dependency). Density(z) profiles come nearly for free once
+        trajectory reading exists.
+
 - [ ] **Reconcile the two membrane area-convergence criteria on the calibration path.** When an
       asymmetric build's symmetric **calibration patch** relaxes via a self-terminating
       `membrane_equilibrate` (migrated from the old fixed NPgT ladder), two different area-convergence
