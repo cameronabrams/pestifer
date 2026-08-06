@@ -77,4 +77,4 @@ class TestBranchNumbering(unittest.TestCase):
             t.controller_index = 0
             t.next_basename()
         self.assertEqual([t.basename for t in tl],
-                         ['00-02-00_continuation', '00-03-00_md', '00-04-00_solvate'])
+                         ['00-02-000_continuation', '00-03-000_md', '00-04-000_solvate'])
