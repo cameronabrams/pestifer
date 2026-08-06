@@ -27,11 +27,22 @@ tasks:
   - make_membrane_system:
       bilayer:
         packer: grid
-        SAPL: 60.0
+        # Both leaflets are ~43-47% cholesterol (stress-free APL ~47.6, measured), so seed the grid
+        # near that condensed value for a short calibration relaxation. The orthohexagonal lattice
+        # spreads the lipids uniformly (six equidistant neighbors) so this dense APL grids without the
+        # square-lattice close contacts that made VMD mis-bond and psfgen guess atoms to the origin.
+        # Only the starting guess -- the final grid is sized from the *measured* preferred APL.
+        SAPL: 50.0
         salt_con: 0.154
         cation: POT
         anion: CLA
         composition:
+          # Both leaflets are cholesterol-rich (43-47% CHL1) with saturated lipids (PSM, SOPE) -- a
+          # liquid-ordered (Lo) raft composition, the membrane HIV Env actually sits in. Declaring Lo
+          # packs each leaflet from an ordered (trans-biased) conformer ensemble so the calibration
+          # settles in-phase instead of slowly ordering off a fluid start (the non-converging drift).
+          upper_leaflet_phase: Lo
+          lower_leaflet_phase: Lo
           lower_leaflet:
             - name: POPE
               frac: 0.09
@@ -50,48 +61,48 @@ tasks:
               frac: 0.47
         seed: 270272
         relaxation_protocols:
-          # asymmetric grid: the patch protocol relaxes the two symmetric calibration
-          # patches (one per leaflet composition), the quilt protocol relaxes the gridded
-          # membrane. Long NPT/NPgT stages are auto-split into restarts so the condensing
-          # cell never outgrows NAMD's startup patch grid.
+          # asymmetric grid: the patch protocol relaxes the two symmetric calibration patches (one per
+          # leaflet composition), the quilt protocol relaxes the gridded membrane. The barostatted
+          # relaxation is done entirely by the self-terminating, chunked membrane_equilibrate task; the
+          # bare md stages only minimize and warm the fresh grid.
           patch:
             - md:
                 ensemble: minimize
-                nsteps: 1000
+            # brief hot NVT: melt the lipids off the initial grid lattice (and start the
+            # cholesterol-rich leaflets ordering), then settle at the target temperature
             - md:
                 ensemble: NVT
-                nsteps: 1000
-                temperature: 310
-            - md:
-                ensemble: NPT
-                nsteps: 1000
-                temperature: 410
-                pressure: 10.0
-            - md:
-                ensemble: NPT
                 nsteps: 2000
                 temperature: 410
-                pressure: 10.0
             - md:
-                ensemble: NPT
-                nsteps: 4000
-                temperature: 360
-                pressure: 10.0
-            - md:
-                ensemble: NPT
-                nsteps: 8000
+                ensemble: NVT
+                nsteps: 2000
                 temperature: 310
-                pressure: 10.0
-            - md:
-                ensemble: NPT
-                nsteps: 16000
-                temperature: 310
-                pressure: 4.0
-            - md:
-                ensemble: NPgT
-                nsteps: 40000  # calibration APL must converge -- it sizes the whole grid
+            # calibration APL must converge -- it sizes the whole grid. The two-stage
+            # membrane_equilibrate settles density at constant lateral area then relaxes the tensionless
+            # area. With the head-anchored packing (near-correct density, no voids) this needs no
+            # high-pressure NPT condensation ladder -- that was compensating for the old gappy, under-
+            # dense packing. Gate on the cumulative area PLATEAU (area_plateau_tol 0.005), not just the
+            # local slope: a cholesterol-rich leaflet's area creeps slowly, so the default local gate
+            # would stop while a systematic descent continues -- and the grid-sizing reliability check
+            # (_AREA_CONVERGENCE_TOL 0.005, the same metric) would then reject the calibrated APL. The
+            # larger max_steps ceiling covers the slow cholesterol relaxation.
+            - membrane_equilibrate:
                 temperature: 310
                 pressure: 1.0
+                area_plateau_tol: 0.005
+                max_steps: 800000
+                # the calibration patch has no protein and no preferred aspect; on the orthohexagonal
+                # (non-square) box, locking Lx:Ly makes the tensionless stage over-condense along the
+                # short axis instead of settling.  Let the flexible cell relax x and y independently.
+                constant_ratio: false
+          # The asymmetric quilt is gridded ~15% loose (placement clearance for the rigid,
+          # cholesterol-rich leaflets); a self-terminating two-stage membrane_equilibrate replaces the
+          # fixed NPT-condense + NPgT ladder. Stage 1 settles density at constant lateral area (excess
+          # z-void leaves from z only), then stage 2 relaxes the ~15%-loose lateral area down to the
+          # per-leaflet preferred APL under tensionless NPgT, stopping when both density and the lateral
+          # area have converged. A larger max_steps than the default covers the bigger loose-build
+          # contraction.
           quilt:
             - md:
                 ensemble: minimize
@@ -99,27 +110,9 @@ tasks:
                 ensemble: NVT
                 nsteps: 1000
                 temperature: 310
-                pressure: 1.0
-            - md:
-                ensemble: NPT
-                nsteps: 2000
+            - membrane_equilibrate:
                 temperature: 310
-                pressure: 1.0
-            - md:
-                ensemble: NPT
-                nsteps: 4000
-                temperature: 310
-                pressure: 1.0
-            - md:
-                ensemble: NPT
-                nsteps: 8000
-                temperature: 310
-                pressure: 1.0
-            - md:
-                ensemble: NPgT
-                nsteps: 16000
-                temperature: 310
-                pressure: 1.0
+                max_steps: 800000
       embed:
         xydist: 40
         zdist: 10
@@ -145,13 +138,13 @@ tasks:
             relation: '>='
             value: 1
   # --- post-embed equilibration ---
-  # A brief warm pass fluidizes the lipids around the freshly-embedded protein;
-  # staged isotropic NPT then condenses out the embedding voids (each stage is a
-  # restart, so the shrinking cell never outgrows NAMD's startup patch grid); and
-  # a long, restart-staged NPgT relaxes the lateral area at zero tension -- the
-  # only ensemble that can, and the one that actually sets the equilibrium area.
-  # Weak CA restraints hold the protein steady while the box relaxes and are
-  # released only on the final stage, on which the pressure profile is computed.
+  # A brief warm pass fluidizes the lipids around the freshly-embedded protein; a
+  # self-terminating two-stage membrane_equilibrate then condenses out the embedding
+  # voids (stage 1, constant lateral area) and relaxes the lateral area at zero tension
+  # (stage 2, tensionless NPgT), stopping once both the box density and the lateral area
+  # have converged -- replacing the old fixed NPT-condense + NPgT-area ladder. Weak CA
+  # restraints hold the protein steady while the box relaxes and are released only on the
+  # final stage, on which the pressure profile is computed.
   - md:
       ensemble: NVT
       nsteps: 1000
@@ -166,52 +159,15 @@ tasks:
       constraints:
         k: 1
         atoms: protein and name CA
-  - md:
-      ensemble: NPT
-      nsteps: 2000
+  # A single self-terminating membrane_equilibrate replaces the restrained NPT-condense +
+  # NPgT-area-relax ladder: chunked, two-stage (const-area density then tensionless area),
+  # sized so the condensing cell never outruns NAMD's startup patch grid, stopping when the
+  # box density AND the membrane lateral area have both converged. Larger ceiling than the
+  # schema default: embedding perturbs the preferred area, so density (fast) and the slow
+  # lipid area mode relax sequentially and the area tail needs several 100k steps.
+  - membrane_equilibrate:
       temperature: 310
-      constraints:
-        k: 1
-        atoms: protein and name CA
-  - md:
-      ensemble: NPT
-      nsteps: 4000
-      temperature: 310
-      constraints:
-        k: 1
-        atoms: protein and name CA
-  - md:
-      ensemble: NPT
-      nsteps: 8000
-      temperature: 310
-      constraints:
-        k: 1
-        atoms: protein and name CA
-  - md:
-      ensemble: NPT
-      nsteps: 16000
-      temperature: 310
-      constraints:
-        k: 1
-        atoms: protein and name CA
-  - md:
-      ensemble: NPgT
-      nsteps: 16000
-      temperature: 310
-      constraints:
-        k: 1
-        atoms: protein and name CA
-  - md:
-      ensemble: NPgT
-      nsteps: 32000
-      temperature: 310
-      constraints:
-        k: 1
-        atoms: protein and name CA
-  - md:
-      ensemble: NPgT
-      nsteps: 64000
-      temperature: 310
+      max_steps: 800000
       constraints:
         k: 1
         atoms: protein and name CA
