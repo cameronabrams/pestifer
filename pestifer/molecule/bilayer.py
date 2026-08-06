@@ -20,6 +20,13 @@ sA3_ = _UNITS_['CUBIC-ANGSTROMS']
 
 logger = logging.getLogger(__name__)
 
+# Relative weight of lattice vacancies vs. box-aspect deviation when choosing the orthohexagonal grid
+# (spec_out).  Aspect deviation is measured as |log(aspect/target)|; the vacancy term is (ncells-n)/n.
+# ~1.0 keeps the box near-square while still preferring the fewer-vacancy option among comparably-square
+# lattices; raise it toward the old vacancy-first behavior, lower it to chase squareness harder.
+_GRID_VACANCY_WEIGHT = 1.0
+
+
 def orthohexagonal_cell(a: float, L_star: float, origin: tuple[float, float]=(0.0, 0.0)):
     m = round(L_star / a)  # enforce matching x-side
     cands_n = [max(1, round(m / np.sqrt(3)) + dn) for dn in (-1, 0, 1)]
@@ -511,7 +518,12 @@ class Bilayer:
                 ny += 1
             ncells = nx * ny
             aspect = (ny * np.sqrt(3.0) / 2.0) / nx      # Ly/Lx this integer lattice would give
-            score = (ncells - n, abs(np.log(aspect / xy_aspect_ratio)))  # min vacancies, then aspect
+            # Match the target box aspect FIRST (a near-square box for protein embedding), with only a
+            # mild vacancy penalty.  Vacancies leave relaxable gaps but do NOT change the area
+            # (patch_area = n*SAPL regardless of ncells), so a much squarer box is worth a few percent
+            # of empty cells.  The old vacancy-first ordering could pick a severely elongated box
+            # (aspect ~0.63) merely because it happened to tile with zero vacancies.
+            score = abs(np.log(aspect / xy_aspect_ratio)) + _GRID_VACANCY_WEIGHT * (ncells - n) / n
             if best is None or score < best[0]:
                 best = (score, nx, ny, ncells)
         _, nx, ny, ncells = best
