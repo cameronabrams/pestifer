@@ -41,6 +41,11 @@ _PER_CHAIN_APL = 30.0
 # docs/design/lipid-conformer-generation.md (Phase section).
 _PHASE_ORDER_TARGET = {'Ld': None, 'Lo': 0.30}
 
+# How far below the Lo order target a tuned ensemble may land and still count as ordered.  A lipid
+# whose tuned order clamps more than this below the target could not be ordered (cis-unsaturated
+# chains) and is recorded phase_effective='Ld'.
+_LO_REACHED_MARGIN = 0.05
+
 
 def phase_order_target(phase):
     """Chain-order target for a bilayer ``phase`` (``'Ld'`` | ``'Lo'``), or ``None`` for no tuning.
@@ -57,14 +62,15 @@ def phase_order_target(phase):
                          f'{sorted(_PHASE_ORDER_TARGET)}')
 
 
-def lipid_can_order(chain_info) -> bool:
-    """Whether a lipid can be driven to the ordered (Lo) state by the trans bias.
+def all_chains_saturated(chain_info) -> bool:
+    """Whether every annotated acyl chain has zero C=C unsaturations.
 
-    Only if *every* acyl chain is saturated: a *cis* double bond is a rigid kink, not a rotatable
-    dihedral, so the trans bias can't straighten it and an unsaturated chain clamps near the fluid
-    (Ld) floor -- its "Lo" ensemble is its Ld ensemble.  ``chain_info`` comes from
-    :meth:`lipid_annotate`; each chain records its ``unsaturations`` count.  Empty (no annotated
-    chains, e.g. a detergent) -> treat as not orderable (leave it fluid).
+    ``chain_info`` comes from :meth:`lipid_annotate`.  NOTE this is *not* the same as "can be ordered
+    into Lo": the ``unsaturations`` count does not distinguish cis from trans, so a sphingomyelin
+    (whose sphingosine base carries a *trans* double bond that does NOT kink) reads as unsaturated
+    here yet still orders under the trans bias.  So this is a cheap *candidate pre-filter* only --
+    the authoritative Lo/Ld verdict is the tuned order (phase_effective).  Empty chain_info (e.g. a
+    detergent or sterol) -> False.
     """
     if not chain_info:
         return False
@@ -511,15 +517,8 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             cylinder_apl = auto_cylinder_apl(chain_info, substream=substream)
             logger.info(f'MC {resid}: {len(chain_info)} acyl chain(s) -> auto cylinder_apl '
                         f'{cylinder_apl:.0f} A^2 (inflation {cylinder_inflation:.2f})')
-        # Fallback: an Lo request on a lipid that can't be ordered (any unsaturated chain) yields the
-        # fluid Ld ensemble -- skip the (wasted) trans-bias tuning and just sample at bias 0.  The
-        # entry still caches under its <resid>__Lo key but records phase_effective='Ld'.
         phase_effective = phase
         target = phase_order_target(phase)
-        if target is not None and not lipid_can_order(chain_info):
-            logger.info(f'MC {resid}: phase {phase} requested but the lipid is unsaturated and cannot '
-                        f'be ordered by the trans bias; generating the fluid (Ld) ensemble instead')
-            target, phase_effective = None, 'Ld'
         try:
             mc_result = _sample_and_write_mc_conformers(
                 resid, mc_psf, mc_pdb, heads, tails, par, DB,
@@ -531,6 +530,16 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             # the tuner resolves a trans-bias strength (0 for Ld) to hit the phase's order target
             torsion_bias = mc_result['torsion_bias']
             chain_order = mc_result['chain_order']
+            # Whether the lipid actually ordered is MEASURED, not assumed from structure: a
+            # cis-unsaturated chain clamps near the fluid floor (its Lo ensemble == its Ld one), while
+            # a fully-saturated lipid -- INCLUDING a sphingomyelin, whose sphingosine trans double bond
+            # does not kink -- reaches the target.  A tuned order that fell well short of the Lo target
+            # is really Ld (record it, so downstream can skip shipping a redundant __Lo entry).
+            if target is not None and chain_order is not None and chain_order < target - _LO_REACHED_MARGIN:
+                phase_effective = 'Ld'
+                logger.info(f'MC {resid}: phase {phase} requested but the tuned order '
+                            f'{chain_order:.3f} clamped below target {target:.3f}; effectively Ld '
+                            f'(the chains cannot be ordered by the trans bias)')
         except Exception as exc:
             logger.warning(f'MC conformer generation for {resid} failed: {exc}')
             return -1
