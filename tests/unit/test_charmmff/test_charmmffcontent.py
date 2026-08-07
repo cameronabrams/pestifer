@@ -38,7 +38,8 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertGreaterEqual(len(self.C.pdbrepository.collections), 2)
         self.assertIn('lipid', self.C.pdbrepository.collections)
         self.assertIn('solvent', self.C.pdbrepository.collections)
-        self.assertEqual(len(self.C.pdbrepository.collections['lipid'].info), 219)
+        # 219 base lipid conformers + 47 curated <resname>__Lo phase conformers = 266
+        self.assertEqual(len(self.C.pdbrepository.collections['lipid'].info), 266)
         self.assertEqual(len(self.C.pdbrepository.collections['solvent'].info), 15)
 
     def test_charmmffcontent_restricted_provisioning(self):
