@@ -87,11 +87,24 @@ class PsfgenTask(VMDTask):
         It also handles any necessary coormods and declashing of loops and glycans based on the task specifications.
         The results of the psfgen process are saved as a PSF/PDB fileset, and the state is updated accordingly.
         """
-        if self._incoming_state_without_source():
-            # readpsf-preserve mode: a prior task (continuation/merge) established a STATE and no
-            # SOURCE was fetched, so edit the incoming topology in place rather than rebuilding it
-            # from segments (which would discard its patches / custom residues).
+        incoming = self._incoming_state_without_source()
+        incoming_xsc = None
+        if incoming:
+            _st: StateArtifacts = self.get_current_artifact('state')
+            incoming_xsc = getattr(_st, 'xsc', None) if _st else None
+        if incoming and not self._has_resegmenting_mods():
+            # readpsf-preserve mode (P2): a prior task (continuation/merge) established a STATE and no
+            # SOURCE was fetched, and the requested edits are additive -- so edit the incoming topology
+            # in place rather than rebuilding it from segments (which would discard patches / custom
+            # residues).
             return self._psfgen_preserve()
+        # Build mode: from a fetched SOURCE, or (P3) an incoming STATE carrying a re-segmenting edit
+        # (mutation/deletion/insertion) that requires rebuilding the topology from CHARMM RESIs.  The
+        # incoming-state case reconstructs a Molecule from the prebuilt PSF+coords with the mods.
+        if incoming:
+            # verify re-buildability from the PSF *before* ingesting -- an unknown residue would
+            # otherwise crash the molecule build with a cryptic error rather than a clear one.
+            self._assert_incoming_rebuildable()
         logger.debug('ingesting molecule(s)')
         self.ingest_molecules()
         logger.debug(f'base mol num images {self.base_molecule.num_images()}')
@@ -103,7 +116,65 @@ class PsfgenTask(VMDTask):
         # we now have a full coordinate set, so we can do coormods
         self.coormods()
         self.declash()
+        if incoming and incoming_xsc:
+            # a re-segment reproduces the same cell, so carry the incoming box (xsc) forward -- the
+            # build-mode psfgen registers only psf/pdb, and downstream MD of a boxed system needs it.
+            self._carry_incoming_xsc(incoming_xsc)
         return self.result
+
+    #: seq mods that require rebuilding a segment's topology (they cannot be layered onto a readpsf'd
+    #: system); their presence on an incoming STATE routes psfgen to build-mode re-segmentation (P3).
+    _RESEGMENTING_MODS: ClassVar[tuple] = ('mutations', 'deletions', 'insertions', 'substitutions')
+
+    def _has_resegmenting_mods(self) -> bool:
+        mods = self.specs.get('mods', {}) or {}
+        return any(mods.get(k) for k in self._RESEGMENTING_MODS)
+
+    def _assert_incoming_rebuildable(self):
+        """Hard-error if any residue in the incoming PSF has no CHARMM RESI.
+
+        A re-segmenting edit rebuilds the whole incoming topology from RESIs, so an unknown residue
+        (e.g. a custom ligand psfgen cannot build) would be silently dropped or crash the molecule
+        build -- stop first with a clear, actionable message.  Read the PSF directly (before the
+        molecule ingest) so the check runs regardless of whether the residue also lacks a segtype.
+        """
+        state: StateArtifacts = self.get_current_artifact('state')
+        CC = self.resource_manager.charmmff_content
+        release = getattr(getattr(CC, 'charmmff_path', None), 'name', 'unknown')
+        # Parse resnames straight from the PSF ATOM records (segname, resid, resname = tokens 1,2,3),
+        # deduped -- lightweight and robust to unknown residues (no PSFContents segtype validation).
+        rep = {}   # resname -> representative residue label
+        with open(state.psf.name) as f:
+            in_atoms, remaining = False, 0
+            for line in f:
+                if '!NATOM' in line:
+                    in_atoms, remaining = True, int(line.split()[0])
+                    continue
+                if in_atoms:
+                    t = line.split()
+                    if len(t) >= 4 and t[0].isdigit():
+                        rep.setdefault(t[3], f'{t[1]}{t[2]}')
+                        remaining -= 1
+                    if remaining <= 0:
+                        break
+        # a residue is re-buildable iff some topology/stream file defines its RESI (the same lookup
+        # the build path uses to resolve topologies) -- no provisioning required.
+        unbuildable = {rn: where for rn, where in rep.items() if CC.get_topfile_of_resname(rn) is None}
+        if unbuildable:
+            listing = '; '.join(f'{rn} (e.g. {where})' for rn, where in sorted(unbuildable.items()))
+            raise PestiferBuildError(
+                f'A re-segmenting edit (mutation/deletion/insertion) rebuilds the whole incoming '
+                f'topology from CHARMM RESIs, but {len(unbuildable)} residue name(s) have no RESI in '
+                f'charmmff {release} and cannot be rebuilt: {listing}. Remove the edit, or exclude '
+                f'those residue(s) from the build.')
+
+    def _carry_incoming_xsc(self, incoming_xsc):
+        """Register the incoming STATE's xsc on the rebuilt state (a re-segment preserves the cell)."""
+        current: StateArtifacts = self.get_current_artifact('state')
+        if current is None or getattr(current, 'xsc', None):
+            return
+        self.register(dict(pdb=current.pdb, psf=current.psf, xsc=incoming_xsc),
+                      key='state', artifact_type=StateArtifacts)
 
     def _incoming_state_without_source(self) -> bool:
         """True when a prior task established a STATE (psf+pdb) and no SOURCE was fetched --

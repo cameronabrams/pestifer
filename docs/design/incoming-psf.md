@@ -213,12 +213,42 @@ patches operate on segids/resids directly and don't need the full parse; grafts 
 
 Fetch-metadata mods — `biological_assembly`, `SEQADV` mutations, `REMARK 465` healing,
 `terminal_tails` — are meaningless for a foreign PSF (no source metadata) and **hard-error** in the
-preserve path. Re-segmenting mods (`mutations`/`deletions`/`insertions`) are **P3** (per-chain
-re-segmentation surgery on the preserved topology) and until then error as "not yet supported" rather
-than silently no-op.
+preserve path.
 
-- **P3 — mutating edits.** `mutations`/`deletions`/`insertions` via per-chain re-segmentation surgery;
-  its own design pass.
+## P3 — re-segmenting edits (mutations / deletions / insertions) [DONE, Unreleased]
+
+`readpsf` loads a segment's topology verbatim and it is immutable, so an edit that changes a segment's
+sequence — a **mutation** (`mutate` inside a `segment{}` block), a **deletion** (remove residues from
+the list), or an **insertion** (add residues) — cannot be layered onto a readpsf'd system; it requires
+**rebuilding** the segment. The build path already does exactly this: the seqmod pipeline applies
+during AsymmetricUnit construction (deletions/insertions) and segment building (mutations), and the
+`Molecule` constructor takes the same `objmanager` + `psf` for a prebuilt source as for a fetched one.
+
+**Decisions (chosen):** *full rebuild* (reconstruct the whole `Molecule` from the incoming PSF+coords
+and re-segment everything) and *hard-error on any non-rebuildable residue* (rather than selectively
+preserving segments with custom residues).
+
+**Implementation — mostly routing.** `psfgen.do()` now picks the mode: an incoming STATE with a
+**re-segmenting mod** (`_RESEGMENTING_MODS = mutations/deletions/insertions/substitutions`) takes the
+**build path** (`ingest_molecules()` — whose prebuilt branch reconstructs `Molecule(prebuilt,
+objmanager=mods)` — then `psfgen()` build-mode re-segment), instead of `_psfgen_preserve()`. Before
+ingest, `_assert_incoming_rebuildable()` parses the PSF's resnames directly (lightweight; no PSFContents
+validation) and hard-errors naming any whose `RESI` the release doesn't define
+(`get_topfile_of_resname is None`). After the rebuild, `_carry_incoming_xsc()` re-registers the box so
+downstream MD of a boxed (membrane/solvated) system keeps its cell.
+
+**Preserved through the rebuild:** sequence, coordinates (`coordpdb`; `guesscoord` for new/mutated
+atoms), and standard links/ssbonds re-derived from the PSF. **Cost (accepted):** topology is re-derived
+from `RESI`s, so any non-standard connectivity not expressible as a recognized patch/link is not
+carried, and every residue must be re-buildable (guarded).
+
+Spike + tests (on BPTI `my_6pti`): `A:ASN,24,ALA` re-segments to result 0, changes only residue 24
+(14127→14123 atoms), keeps the other residues, and re-derives all 3 disulfides; `A:56-57` deletion
+drops two residues; a residue renamed to a bogus name hard-errors naming it.
+
+**Follow-on:** replace/extend grafts (P2.5's rejected case) now "just work" via this rebuild path
+(build-mode handles them natively), so routing a downstream-bearing graft to rebuild instead of the
+P2.5 error is a small addition.
 
 ## Open items
 

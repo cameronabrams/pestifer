@@ -173,14 +173,15 @@ class TestPsfgenPreserveMode(unittest.TestCase):
         self.assertIn('P3', msg)
 
     def test_preserve_rejects_unsupported_mod(self):
-        # A mod the preserve path does not yet support (e.g. mutations, which re-segment -- P3) must
-        # hard-error rather than be silently ignored, naming it so the user knows what was dropped.
+        # A mod the preserve path does not support and that does not route to a re-segmenting rebuild
+        # (e.g. ssbondsdelete) must hard-error rather than be silently ignored, naming it. (Re-segmenting
+        # mods like mutations/deletions now route to build-mode rebuild instead -- see the resegment tests.)
         self.controller.reconfigure_tasks(
-            [{'continuation': self._cont()}, {'psfgen': {'mods': {'mutations': ['A:ALA,3,GLY']}}}])
+            [{'continuation': self._cont()}, {'psfgen': {'mods': {'ssbondsdelete': ['A_5-A_55']}}}])
         with self.assertRaises(PestiferBuildError) as ctx:
             self.controller.do_tasks()
         self.assertIn('not yet supported', str(ctx.exception))
-        self.assertIn('mutations', str(ctx.exception))
+        self.assertIn('ssbondsdelete', str(ctx.exception))
 
 
 if __name__ == '__main__':

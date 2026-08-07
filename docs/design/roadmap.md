@@ -531,6 +531,15 @@ what appears here is refined and reprioritized as the project evolves.
               internal V:1301 → P3 error). Fetch-metadata mods (`biological_assembly`, `SEQADV`,
               `REMARK 465`, `terminal_tails`) and re-segmenting mods (mutations/deletions/insertions)
               still hard-error.
-  - [ ] **P3 — mutating edits.** `mutations`/`deletions`/`insertions` via per-chain re-segmentation
-        surgery on the preserved topology; its own design pass.
+  - [x] **P3 — re-segmenting edits: mutations / deletions / insertions (Unreleased).** A segment-editing
+        mod on an incoming PSF can't be layered onto a readpsf'd (immutable) segment, so `psfgen.do()`
+        routes it to build-mode **full rebuild**: reconstruct the `Molecule` from the incoming PSF+coords
+        *with* the mods (the build path's seqmod pipeline already applies mutations/deletions/insertions)
+        and re-segment. A re-buildability guard hard-errors up front, naming any residue whose CHARMM
+        `RESI` the release lacks (chosen over selectively preserving custom-residue segments); the
+        incoming box (xsc) carries forward. Preserves sequence/coords and re-derives standard
+        links/ssbonds; re-derives topology from RESIs (non-standard connectivity not carried).
+        Validated on BPTI: `A:ASN,24,ALA` re-segments (disulfides re-derived), `A:56-57` deletes two
+        residues, a bogus resname hard-errors. Replace/extend grafts now also work via this path
+        (a small follow-on to route them there instead of the P2.5 error).
 - [ ] _(add items here)_
