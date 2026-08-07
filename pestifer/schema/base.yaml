@@ -461,6 +461,17 @@ attributes:
           - name: vel
             text: name of vel file (w/optional .vel extension)
             type: str
+          - name: verify_parameters
+            text: >-
+              If true, parse the incoming PSF once to (a) classify its residues and report a segid
+              inventory plus any unknown residue names, and (b) verify force-field consistency --
+              every atom type and every bond/angle/dihedral/improper type-tuple in the PSF must
+              resolve against the build's CHARMM release, hard-erroring up front (naming the residue
+              and term) on a miss rather than failing cryptically deep in a later NAMD run. Intended
+              for bringing in a foreign PSF (e.g. from CHARMM-GUI); pestifer's own internal
+              continuations set this false to keep the zero-parse fast path.
+            type: bool
+            default: True
       - name: merge
         text: Merge two or more pre-built PSF/PDB systems into a single PSF/PDB system
         type: dict

@@ -873,7 +873,7 @@ class MakeMembraneSystemTask(BaseTask):
         if pp_requested:
             profiles.append('pressure')
             timeseries.append('pressure')  # To do: change this to pressureProfile plotting
-        tasklist_user = [{'continuation': dict(psf=state.psf.name, pdb=state.pdb.name, xsc=state.xsc.name)}]
+        tasklist_user = [{'continuation': dict(psf=state.psf.name, pdb=state.pdb.name, xsc=state.xsc.name, verify_parameters=False)}]
         # Fill the (grid-packer-left-empty) chambers with a tiled, pre-equilibrated water box + salt/
         # neutralization via VMD solvate/autoionize -- true liquid density with no lattice voids, so
         # equilibration relaxes the lipids instead of closing water gaps (which distorts the bilayer).

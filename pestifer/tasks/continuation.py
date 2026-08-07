@@ -5,11 +5,16 @@ Definition of the :class:`ContinuationTask` class for beginning (or resuming) a 
 Usage is described in the :ref:`config_ref tasks continuation` documentation.
 """
 import logging
+import os
 import shutil
 
 from .psfgen import PsfgenTask
 from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
+from ..core.labels import Labels
+from ..psfutil.psfcontents import PSFContents
+from ..charmmff.charmmffprm import CharmmParamFile
+from ..charmmff.psf_param_check import check_psf_parameters, format_missing
 logger = logging.getLogger(__name__)
 
 
@@ -114,5 +119,87 @@ class ContinuationTask(PsfgenTask):
         # common ready-to-run-MD case and would needlessly parse a large system (e.g. one whose
         # PDB carries hexadecimal atom serials).  Any later task that genuinely needs the molecule
         # builds it on demand via BaseTask.ensure_base_molecule().
+        #
+        # verify_parameters (default True) parses the incoming PSF once to report its composition
+        # and hard-error up front if the build's CHARMM release cannot resolve every term -- the
+        # guard that turns an interop workflow (e.g. a CHARMM-GUI system built against a different
+        # CHARMM version) from a cryptic mid-NAMD abort into an actionable message.  pestifer's own
+        # internal continuations pass verify_parameters=False to keep the zero-parse fast path.
+        if self.specs.get('verify_parameters', True):
+            self._verify_incoming_topology(psf, available_streamfiles)
         self.result = 0
         return self.result
+
+    def _verify_incoming_topology(self, psf_name: str, extra_streamfiles: list):
+        """Parse the incoming PSF once to report its composition and verify force-field
+        consistency against the build's CHARMM release (hard-errors on an unresolved term)."""
+        psf = PSFContents(psf_name)
+        CC = self.resource_manager.charmmff_content
+        release = getattr(getattr(CC, 'charmmff_path', None), 'name', 'unknown')
+        self._report_incoming_composition(psf, release)
+
+        # Merge the standard parameter set for this release plus any parameter/stream files the
+        # PSF records (already resolved into the CWD above), then check every term the PSF uses.
+        param_files = list(extra_streamfiles)
+        namd = self.get_scripter('namd')
+        if namd is not None:
+            try:
+                for p in namd.fetch_standard_charmm_parameters():
+                    if p not in param_files:
+                        param_files.append(p)
+            except Exception as exc:
+                logger.warning(f'continuation: could not stage standard parameters for the '
+                               f'consistency check: {exc}')
+        combined = CharmmParamFile()
+        for fname in param_files:
+            if not os.path.exists(fname):
+                continue
+            try:
+                combined.merge(CharmmParamFile.from_file(fname))
+            except Exception as exc:
+                logger.warning(f'continuation: failed to parse parameter file {fname}: {exc}')
+        if not combined.nonbonded:
+            logger.warning('continuation: no nonbonded parameters were loaded; skipping the '
+                           'force-field-consistency check (cannot verify without a parameter set).')
+            return
+        missing = check_psf_parameters(psf, combined)
+        if missing.any():
+            raise PestiferBuildError(format_missing(missing, release))
+        logger.info(f'continuation: force-field-consistency check passed -- '
+                    f'{len(set(a.atomtype for a in psf.atoms))} atom types and all bonded terms '
+                    f'resolve against charmmff {release}.')
+
+    def _report_incoming_composition(self, psf: PSFContents, release: str):
+        """Log a per-segid inventory of the incoming PSF and audit unknown residue names."""
+        seg_of = Labels.segtype_of_resname
+        seen_res = set()
+        inventory = {}   # segid -> {'nres', 'segtypes', 'resnames'}
+        unknown = {}     # resname -> representative '<segid><resid>'
+        for a in psf.atoms:
+            rid = a.resid.resid
+            rkey = (a.segname, rid)
+            if rkey in seen_res:
+                continue
+            seen_res.add(rkey)
+            st = seg_of.get(a.resname, '')
+            d = inventory.setdefault(a.segname, {'nres': 0, 'segtypes': set(), 'resnames': set()})
+            d['nres'] += 1
+            d['segtypes'].add(st or '?')
+            d['resnames'].add(a.resname)
+            if not st:
+                unknown.setdefault(a.resname, f'{a.segname}{rid}')
+        logger.info(f'continuation: incoming PSF has {len(psf.atoms)} atoms in '
+                    f'{len(seen_res)} residues across {len(inventory)} segments '
+                    f'(charmmff {release}):')
+        for segid in sorted(inventory):
+            d = inventory[segid]
+            st = ','.join(sorted(d['segtypes']))
+            sample = ','.join(sorted(d['resnames'])[:6]) + ('...' if len(d['resnames']) > 6 else '')
+            logger.info(f'  segid {segid}: {d["nres"]} residues, segtype [{st}] ({sample})')
+        if unknown:
+            listing = '; '.join(f'{rn} (e.g. {where})' for rn, where in sorted(unknown.items()))
+            logger.warning(f'continuation: {len(unknown)} residue name(s) in the incoming PSF are '
+                           f'unknown to pestifer\'s segtype table and classify as blank segtype, '
+                           f'which weakens downstream selections (protein/lipid/water/ion): {listing}. '
+                           f'The topology is still carried through; register a segtype if a downstream '
+                           f'task needs to select these residues.')

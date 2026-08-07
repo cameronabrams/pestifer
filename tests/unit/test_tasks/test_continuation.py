@@ -7,6 +7,7 @@ from pestifer.tasks.continuation import ContinuationTask
 from pestifer.tasks.terminate import TerminateTask
 from pestifer.molecule.molecule import Molecule
 from pestifer.core.artifacts import StateArtifacts, YAMLFileArtifact
+from pestifer.core.errors import PestiferBuildError
 class TestContinuationTask(unittest.TestCase):
 
     def setUp(self):
@@ -94,6 +95,64 @@ class TestContinuationTask(unittest.TestCase):
         self.assertIsInstance(bm, Molecule)
         self.assertGreater(bm.num_atoms(), 0)
         hex_pdb.unlink()
+
+    def test_verify_parameters_rejects_foreign_atom_type(self):
+        # Give one atom a bogus atom type absent from the build's CHARMM release; the default-on
+        # force-field-consistency preflight must hard-error (naming the term) rather than let the
+        # system through to fail cryptically in a later NAMD run.  Only the PSF text is changed --
+        # the coordinate files still match atom-for-atom, so the check reads the PSF alone.
+        lines = Path('my_6pti.psf').read_text().splitlines()
+        seen_natom = False
+        out = []
+        patched = False
+        for line in lines:
+            if '!NATOM' in line:
+                seen_natom = True
+                out.append(line)
+                continue
+            toks = line.split()
+            if seen_natom and not patched and len(toks) == 9 and toks[0].isdigit():
+                toks[5] = 'QQ9'          # a type no CHARMM release defines
+                line = ' '.join(toks)
+                patched = True
+            out.append(line)
+        self.assertTrue(patched, 'test setup failed to patch an atom type')
+        bad_psf = Path('my_6pti_badtype.psf')
+        bad_psf.write_text('\n'.join(out) + '\n')
+        task_list = [{'continuation': dict(psf=str(bad_psf), pdb='my_6pti.pdb',
+                                           coor='my_6pti.coor', xsc='my_6pti.xsc', vel='my_6pti.vel')}]
+        self.controller.reconfigure_tasks(task_list)
+        with self.assertRaises(PestiferBuildError) as ctx:
+            self.controller.do_tasks()
+        self.assertIn('QQ9', str(ctx.exception))
+        bad_psf.unlink()
+
+    def test_verify_parameters_false_skips_check(self):
+        # The escape hatch pestifer's own internal continuations use: with verify_parameters=False
+        # the same foreign-type PSF passes through untouched (no parse, no check).
+        lines = Path('my_6pti.psf').read_text().splitlines()
+        seen_natom = False
+        out = []
+        patched = False
+        for line in lines:
+            if '!NATOM' in line:
+                seen_natom = True
+                out.append(line)
+                continue
+            toks = line.split()
+            if seen_natom and not patched and len(toks) == 9 and toks[0].isdigit():
+                toks[5] = 'QQ9'
+                line = ' '.join(toks)
+                patched = True
+            out.append(line)
+        bad_psf = Path('my_6pti_badtype2.psf')
+        bad_psf.write_text('\n'.join(out) + '\n')
+        task_list = [{'continuation': dict(psf=str(bad_psf), pdb='my_6pti.pdb', coor='my_6pti.coor',
+                                           xsc='my_6pti.xsc', vel='my_6pti.vel', verify_parameters=False)}]
+        self.controller.reconfigure_tasks(task_list)
+        self.controller.do_tasks()
+        self.assertEqual(self.controller.tasks[0].result, 0)
+        bad_psf.unlink()
 
     def test_termination_task(self):
         task_list = [

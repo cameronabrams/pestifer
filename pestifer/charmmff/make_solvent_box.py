@@ -309,7 +309,7 @@ def make_solvent_box(resname, DB, RM=None, nmol: int = 216, density: float = 1.0
 
     # Controller/config gives us the psfgen + namd scripters and drives the equilibration
     tasklist = [
-        {'continuation': {'psf': f'{resname}-box.psf', 'pdb': f'{resname}-box.pdb', 'xsc': f'{resname}-box.xsc'}},
+        {'continuation': {'psf': f'{resname}-box.psf', 'pdb': f'{resname}-box.pdb', 'xsc': f'{resname}-box.xsc', 'verify_parameters': False}},
         {'md': {'ensemble': 'minimize', 'nsteps': 0, 'minimize': minimize_steps,
                 'dcdfreq': 0, 'xstfreq': 0, 'temperature': temperature}},
         {'md': {'ensemble': 'NPT', 'nsteps': npt_steps, 'dcdfreq': max(npt_steps, 1),

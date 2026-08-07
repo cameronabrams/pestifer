@@ -481,37 +481,31 @@ what appears here is refined and reprioritized as the project evolves.
       single-character-segid workaround is left in place (still the mechanism that *assigns*
       the distinct chains this restore then preserves); relaxing it is a possible follow-up.
       (Unreleased.)
-- [~] **Accept an incoming PSF in the `psfgen` task (build *onto* an existing topology).** Today
-      `psfgen` always builds topology from a fetched source structure (PDB/mmCIF → segments →
-      PSF/PDB). Add a path where it instead **reads an existing PSF** (plus its coordinates) via
-      psfgen's `readpsf`/`coordpdb` and then applies the task's normal operations on top — so a user
-      can bring a **pre-built system** (CHARMM-GUI, a prior pestifer build, another tool) into
-      pestifer's downstream machinery (mods, membrane embedding, equilibration) *without rebuilding*,
-      or **extend** an existing topology later (add a ligand, graft a glycan, mutate, patch) without
-      starting from scratch. Distinct from the `continuation` task (which runs MD on a *fixed* topology
-      from a state fileset) — this lets psfgen *edit* the incoming topology. **Plan written:**
-      `docs/design/incoming-psf.md` — build on the existing **readpsf-preserve** mode (`load_project`,
-      as `merge`/`ligate`/`ring_check` already use), *not* segment-rebuild; the internal `prebuilt`
-      source mode is state-continuation only and re-segments, so it does not preserve a foreign
-      topology. Milestones P1 (ingest + segtype/segid classify + force-field-consistency preflight +
-      pass-through STATE), P2 (additive edits: patches/links/grafts + coord mods), P3 (mutating edits
-      via per-chain re-segmentation).
-  - Decisions to settle:
-    - **Input specification.** How the incoming topology is declared — e.g. `source: {psf, pdb}` (or
-      `psf` + `coor`/`xsc`) as a sibling of the `sourceID`/`model` fetch path — and which coordinate
-      form pairs with the PSF.
-    - **Which operations are meaningful.** Fetch-derived mods (`SEQADV` mutations, `REMARK 465` missing
-      residues, biological-assembly expansion) have no source metadata for an external PSF; decide which
-      of the mod pipeline (grafts, patches, ligations, deletions, explicit mutations) applies to a
-      pre-built topology and error cleanly on the rest.
-    - **Segtype classification.** pestifer classifies segtypes (protein / glycan / lipid / ion / water)
-      from the fetched structure; an incoming PSF must be classified from the PSF itself (segids +
-      resnames), reusing the CHARMM segtype macros.
-    - **Force-field consistency.** The PSF was built against *some* topology set; verify the build's
-      CHARMM release resolves every atom type / parameter (a clear up-front error on a mismatch, not a
-      mid-run NAMD abort) — composes with the on-demand-parameter work.
-    - **Segid / chain reconciliation.** External segid conventions vs. pestifer's expectations, and the
-      chain-ID-persistence machinery above.
-  - Enables round-trip and interop workflows, and is the natural substrate for "modify a finished
-    build" without a from-scratch rebuild.
+- [~] **Bring an incoming (foreign) PSF into the pipeline (build *onto* an existing topology).**
+      Take a **pre-built system** (CHARMM-GUI, a prior pestifer build, another tool) into pestifer's
+      downstream machinery *without rebuilding*, and later *extend* it (ligand, glycan, mutation,
+      patch). **Architecture decided:** state enters through a task that *provides* the `STATE`
+      currency — never a `psfgen` source key (psfgen consumes `SOURCE` and builds; it is not a state
+      door). The contract-correct entry is **`continuation`**, which already reads an external
+      psf+pdb/coor(+xsc/vel) and even resolves a foreign PSF's recorded stream files. Full design:
+      `docs/design/incoming-psf.md`.
+  - [x] **P1 — ingest + classify + force-field-consistency preflight (Unreleased).** A
+        `verify_parameters` flag on `continuation` (default True; pestifer's own internal
+        continuations set it False to keep the zero-parse fast path) parses the incoming PSF once to
+        (a) report a per-segid composition inventory and **warn on resnames unknown to the segtype
+        table**, and (b) **hard-error up front** if the build's CHARMM release cannot resolve every
+        atom type and bond/angle/dihedral/improper term — naming the residue and term — instead of a
+        cryptic mid-NAMD `DIDN'T FIND vdW PARAMETER` abort. New NAMD-free, unit-tested checker
+        `charmmff/psf_param_check.py` (CHARMM-faithful wildcard matching; dedup by type-tuple → cheap
+        on huge systems; **zero false positives on a real BPTI PSF vs. full feb26**). `PSFAtom`
+        resname→segtype lookup made non-crashing (`.get`) so a foreign custom-ligand resname
+        classifies blank rather than `KeyError`-ing the parse. Pass-through interop
+        (`continuation` → `md`/`membrane_equilibrate`/`terminate`) works today.
+  - [ ] **P2 — additive edits.** `patches`/`ssbonds`/`links`/`grafts` + coord mods layered by a
+        downstream `psfgen` consuming the `STATE` via a **readpsf-preserve** mode (`load_project`,
+        `guesscoord=False`/`regenerate=False`), *not* segment-rebuild. Fetch-metadata mods
+        (`biological_assembly`, `SEQADV`, `REMARK 465`, `terminal_tails`) hard-error (no source
+        metadata on a foreign PSF).
+  - [ ] **P3 — mutating edits.** `mutations`/`deletions`/`insertions` via per-chain re-segmentation
+        surgery on the preserved topology; its own design pass.
 - [ ] _(add items here)_

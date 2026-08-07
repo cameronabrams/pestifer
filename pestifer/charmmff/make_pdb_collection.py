@@ -332,7 +332,7 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
     my_logger(f'{os.path.basename(charmm_topfile)}', logger.info, just='^', frame='*', fill='*')
 
     tasklist = [
-        {'continuation': {'psf': f'{resid}-init.psf', 'pdb': f'{resid}-init.pdb'}},
+        {'continuation': {'psf': f'{resid}-init.psf', 'pdb': f'{resid}-init.pdb', 'verify_parameters': False}},
          {'md': {'ensemble': 'minimize', 'nsteps': 0, 'minimize': minimize_steps, 'dcdfreq': 0, 'xstfreq': 0, 'temperature': 100}},
     ]
     heads = []

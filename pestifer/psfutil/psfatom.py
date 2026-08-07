@@ -64,7 +64,11 @@ class PSFAtom(BaseObj):
             atomtype=tokens[5],
             charge=float(tokens[6]),
             atomicwt=float(tokens[7]),
-            segtype=Labels.segtype_of_resname[tokens[3]],
+            # A resname unknown to pestifer's segtype table classifies as blank rather than
+            # crashing the parse: a foreign PSF (e.g. from CHARMM-GUI, carrying a custom ligand)
+            # may legitimately contain such a residue, and its topology is still carried through
+            # (the continuation task audits and reports blank-segtype residues).
+            segtype=Labels.segtype_of_resname.get(tokens[3], ''),
         )
     
     def __hash__(self):
