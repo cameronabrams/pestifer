@@ -37,12 +37,14 @@ tasks:
         cation: POT
         anion: CLA
         composition:
-          # Both leaflets are cholesterol-rich (43-47% CHL1) with saturated lipids (PSM, SOPE) -- a
-          # liquid-ordered (Lo) raft composition, the membrane HIV Env actually sits in. Declaring Lo
-          # packs each leaflet from an ordered (trans-biased) conformer ensemble so the calibration
-          # settles in-phase instead of slowly ordering off a fluid start (the non-converging drift).
+          # Upper leaflet is a saturated, cholesterol-rich raft (PSM + 47% CHL1) -> liquid-ordered
+          # (Lo): declaring Lo packs it from an ordered (trans-biased) conformer ensemble so the
+          # calibration settles in-phase instead of slowly ordering off a fluid start (the drift).
+          # Lower leaflet is unsaturated (SOPE/SOPS/POPE, oleoyl chains) even at 43% CHL1 -- the cis
+          # double bond can't be ordered by the trans bias (its Lo ensemble == its fluid Ld one), so
+          # declare it Ld: same result, and it skips the redundant Lo conformer generation.
           upper_leaflet_phase: Lo
-          lower_leaflet_phase: Lo
+          lower_leaflet_phase: Ld
           lower_leaflet:
             - name: POPE
               frac: 0.09
