@@ -48,14 +48,32 @@ class TestPsfgenPreserveMode(unittest.TestCase):
         # the produced state is a psfgen output, distinct from the incoming file
         self.assertNotEqual(state.psf.name, 'my_6pti.psf')
 
-    def test_preserve_rejects_mods_for_now(self):
-        # Applying mods to a pre-built topology is P2.1+; the preserve path must hard-error rather
-        # than silently ignore them.
+    def test_preserve_applies_patch(self):
+        # P2.1: a `patches` mod is applied to the incoming topology (readpsf + patch + regenerate).
+        # ASPP protonates ASP A:3 (12 atoms) -> adds one proton (13 atoms); the total grows by one.
+        def _asp3_atoms(psf):
+            return [a for a in psf.atoms if a.segname == 'A' and str(a.resid.resid) == '3'
+                    and a.resname.startswith('ASP')]
+        n_before = len(PSFContents('my_6pti.psf').atoms)
+        self.assertEqual(len(_asp3_atoms(PSFContents('my_6pti.psf'))), 12)
         self.controller.reconfigure_tasks(
-            [{'continuation': self._cont()}, {'psfgen': {'mods': {'ssbonds': ['A_5 A_55']}}}])
+            [{'continuation': self._cont()}, {'psfgen': {'mods': {'patches': ['ASPP:A:3']}}}])
+        self.controller.do_tasks()
+        pg = self.controller.tasks[1]
+        self.assertEqual(pg.result, 0)
+        out = PSFContents(pg.get_current_artifact('state').psf.name)
+        self.assertEqual(len(out.atoms), n_before + 1)
+        self.assertEqual(len(_asp3_atoms(out)), 13)
+
+    def test_preserve_rejects_unsupported_mod(self):
+        # A mod the preserve path does not yet support (e.g. ssbonds) must hard-error rather than be
+        # silently ignored -- naming it so the user knows what was dropped.
+        self.controller.reconfigure_tasks(
+            [{'continuation': self._cont()}, {'psfgen': {'mods': {'ssbonds': ['A_5-A_55']}}}])
         with self.assertRaises(PestiferBuildError) as ctx:
             self.controller.do_tasks()
         self.assertIn('not yet supported', str(ctx.exception))
+        self.assertIn('ssbonds', str(ctx.exception))
 
 
 if __name__ == '__main__':

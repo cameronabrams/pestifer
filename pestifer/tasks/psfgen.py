@@ -113,16 +113,9 @@ class PsfgenTask(VMDTask):
         state: StateArtifacts = self.get_current_artifact('state')
         return bool(state and state.psf and state.pdb)
 
-    @staticmethod
-    def _mods_present(mods) -> bool:
-        """True if the mods block has any non-empty leaf (any actual modification requested)."""
-        def nonempty(v):
-            if isinstance(v, dict):
-                return any(nonempty(x) for x in v.values())
-            if isinstance(v, (list, tuple)):
-                return len(v) > 0
-            return bool(v)
-        return nonempty(mods or {})
+    #: mods the readpsf-preserve path can apply today, as (objcat, header) pairs. Additive edits
+    #: are being brought online in stages (P2.1 patches; P2.2 links/ssbonds/grafts + coord mods).
+    _PRESERVE_SUPPORTED_MODS: ClassVar[set] = {('seq', 'patches')}
 
     def _incoming_stream_files(self, psf: str) -> list:
         """Topology stream files the incoming PSF needs, resolved into the CWD.  Prefer the set a
@@ -146,16 +139,28 @@ class PsfgenTask(VMDTask):
         return streamfiles
 
     def _psfgen_preserve(self) -> int:
-        """readpsf-preserve build: carry an incoming STATE through psfgen with its topology intact.
+        """readpsf-preserve build: carry an incoming STATE through psfgen with its topology intact,
+        optionally applying supported additive mods on top.
 
-        P2.0 is a no-op pass-through (readpsf -> writepsf/writepdb, no guesscoord, no regenerate);
-        editing the incoming topology (patches/links/grafts) is P2.1+.
+        Supported mods (see ``_PRESERVE_SUPPORTED_MODS``): ``patches`` (P2.1), emitted as psfgen
+        ``patch`` commands on the loaded project followed by ``regenerate angles dihedrals`` (and
+        ``guesscoord`` to place any atoms a patch adds).  With no mods it is a readpsf pass-through.
+        Any unsupported mod hard-errors rather than being silently dropped.
         """
-        if self._mods_present(self.specs.get('mods', {})):
+        from ..objs.patch import PatchList
+        self.objmanager = ObjManager(self.specs.get('mods', {}))
+        unsupported = sorted({header
+                              for objcat, catdict in self.objmanager.data.items()
+                              for header, objlist in catdict.items()
+                              if len(objlist) > 0 and (objcat, header) not in self._PRESERVE_SUPPORTED_MODS})
+        if unsupported:
             raise PestiferBuildError(
-                'psfgen is editing an incoming topology (readpsf-preserve mode, because a prior task '
-                'established a state with no fetched source), but applying mods to a pre-built topology '
-                'is not yet supported (planned as P2). Remove the mods, or begin from a fetched source.')
+                f'psfgen is editing an incoming topology (readpsf-preserve mode, because a prior task '
+                f'established a state with no fetched source). These requested mods are not yet '
+                f'supported on a pre-built topology: {", ".join(unsupported)}. Currently supported: '
+                f'patches. Remove the unsupported mods, or begin from a fetched source.')
+        patches: PatchList = self.objmanager.data.get('seq', {}).get('patches', PatchList([]))
+
         self.next_basename('build')
         state: StateArtifacts = self.get_current_artifact('state')
         psf, pdb = state.psf.name, state.pdb.name
@@ -163,7 +168,15 @@ class PsfgenTask(VMDTask):
         streamfiles = self._incoming_stream_files(psf)
         pg.newscript(self.basename, additional_topologies=streamfiles)
         pg.load_project(psf, pdb)
-        pg.writescript(self.basename, guesscoord=False, regenerate=False)
+        for p in patches.data:
+            if p.use_after_regenerate:
+                pg.addpostregenerateline(p.return_TcL())
+            else:
+                pg.addline(p.return_TcL())
+        # patches may add atoms (guesscoord) and change connectivity (regenerate); a bare
+        # pass-through needs neither.
+        touch = len(patches) > 0
+        pg.writescript(self.basename, guesscoord=touch, regenerate=touch)
         result = pg.runscript(keep_tempfiles=True)
         if result != 0:
             self.result = result

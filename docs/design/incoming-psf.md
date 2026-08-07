@@ -152,8 +152,13 @@ patches operate on segids/resids directly and don't need the full parse; grafts 
   Verified: `continuation → psfgen` validates and **reproduces the system** atom-for-atom (14127→14127
   on BPTI); build path (fetch→psfgen) unregressed; the old "continuation→psfgen is malformed" contract
   test updated to assert it is now valid. Establishes the contract/branch every later mod rides on.
-- **P2.1 — patches.** Apply `patches` as psfgen `patch` commands on the loaded project, then
-  `regenerate angles dihedrals`. Acceptance: apply a disulfide/protonation patch to an incoming PSF.
+- **P2.1 — patches. [DONE, Unreleased]** `_psfgen_preserve` builds an `ObjManager` from `mods`,
+  emits each `patches` entry via `Patch.return_TcL()` (`patch NAME SEG:RESID`; `use_after_regenerate`
+  patches through `addpostregenerateline`), then `writescript(guesscoord=True, regenerate=True)` so a
+  patch that adds atoms (e.g. a protonation) has them placed and the connectivity rebuilt. Any mod
+  outside `_PRESERVE_SUPPORTED_MODS = {('seq','patches')}` hard-errors, naming it. Verified: `ASPP:A:3`
+  on an incoming BPTI PSF protonates ASP A:3 (12→13 atoms, total +1); an unsupported `ssbonds` mod
+  hard-errors.
 - **P2.2 — links / ssbonds / grafts.** `ssbonds`/`links` as patches; `grafts` via `coordpdb` of the
   donor + patch + regenerate (needs the lazy `MOLECULE`). Coordinate mods (orient/rotate) run in
   numpy on the loaded coords.

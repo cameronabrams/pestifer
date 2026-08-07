@@ -508,8 +508,9 @@ what appears here is refined and reprioritized as the project evolves.
               precedes it — STATE + no SOURCE → preserve, else build) + `PsfgenTask._psfgen_preserve()`
               readpsf pass-through; mods hard-error as "not yet supported". `continuation → psfgen`
               validates and reproduces the system atom-for-atom; build path unregressed.
-        - [ ] **P2.1 — patches.** Apply `patches` as psfgen `patch` commands on the loaded project +
-              `regenerate`.
+        - [x] **P2.1 — patches (Unreleased).** `patches` emitted as psfgen `patch` commands on the
+              loaded project + `regenerate`/`guesscoord`; supported-mod allowlist hard-errors on the
+              rest. Verified: ASPP protonates ASP A:3 on an incoming BPTI PSF (+1 atom).
         - [ ] **P2.2 — links / ssbonds / grafts + coord mods.** Fetch-metadata mods
               (`biological_assembly`, `SEQADV`, `REMARK 465`, `terminal_tails`) hard-error (no source
               metadata on a foreign PSF).
