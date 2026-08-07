@@ -80,6 +80,34 @@ class TestPsfgenPreserveMode(unittest.TestCase):
         self.assertTrue(tcl, 'psfgen build script not found')
         self.assertIn('patch DISU A:5 A:55', Path(tcl[0]).read_text())
 
+    def test_preserve_applies_crotation(self):
+        # P2.3: a coord torsion rotation (irotations) applies on the just-written state via the
+        # lazily-built base molecule. Rotating CHI1 of ASP A:3 pivots the sidechain about CA-CB:
+        # CB (the rotation axis base) stays put; CG/OD1/OD2 swing out. Topology is unchanged.
+        import numpy as np
+        from pestifer.molecule.coordmanip import CoordManipulator
+
+        def sidechain(psf, pdb):
+            names = ['CB', 'CG', 'OD1', 'OD2']
+            cm = CoordManipulator(psf, pdb)
+            atoms = PSFContents(psf).atoms
+            idx = {a.atomname: i for i, a in enumerate(atoms)
+                   if a.segname == 'A' and str(a.resid.resid) == '3' and a.atomname in names}
+            return {n: cm.coords[idx[n]] for n in names}
+
+        before = sidechain('my_6pti.psf', 'my_6pti.pdb')
+        self.controller.reconfigure_tasks(
+            [{'continuation': self._cont()}, {'psfgen': {'mods': {'irotations': ['CHI1,A,3,60.0']}}}])
+        self.controller.do_tasks()
+        pg = self.controller.tasks[1]
+        self.assertEqual(pg.result, 0)
+        out_psf = pg.get_current_artifact('state').psf.name
+        self.assertEqual(len(PSFContents(out_psf).atoms), len(PSFContents('my_6pti.psf').atoms))
+        after = sidechain(out_psf, pg.get_current_artifact('state').pdb.name)
+        # CB is on the CHI1 axis -> essentially fixed; the distal carboxylate swings out.
+        self.assertLess(float(np.linalg.norm(after['CB'] - before['CB'])), 0.05)
+        self.assertGreater(float(np.linalg.norm(after['OD2'] - before['OD2'])), 1.0)
+
     def test_preserve_rejects_unsupported_mod(self):
         # A mod the preserve path does not yet support (e.g. mutations, which re-segment -- P3) must
         # hard-error rather than be silently ignored, naming it so the user knows what was dropped.

@@ -113,11 +113,12 @@ class PsfgenTask(VMDTask):
         state: StateArtifacts = self.get_current_artifact('state')
         return bool(state and state.psf and state.pdb)
 
-    #: mods the readpsf-preserve path can apply today, as (objcat, header) pairs. Additive edits
-    #: are being brought online in stages (P2.1 patches; P2.2 ssbonds; still to come: links/grafts +
-    #: coord mods, which need the (lazily-built) base molecule for IC/patch resolution and assembly
-    #: transforms).
-    _PRESERVE_SUPPORTED_MODS: ClassVar[set] = {('seq', 'patches'), ('topol', 'ssbonds')}
+    #: mods the readpsf-preserve path can apply today, as (objcat, header) pairs. Additive edits are
+    #: being brought online in stages (P2.1 patches; P2.2 ssbonds; P2.3 coord torsion rotations).
+    #: Still to come: links and grafts, which need the base molecule for IC-based patch resolution
+    #: and donor coordinate placement.
+    _PRESERVE_SUPPORTED_MODS: ClassVar[set] = {('seq', 'patches'), ('topol', 'ssbonds'),
+                                               ('coord', 'irotations'), ('coord', 'crotations')}
 
     def _incoming_stream_files(self, psf: str) -> list:
         """Topology stream files the incoming PSF needs, resolved into the CWD.  Prefer the set a
@@ -196,7 +197,15 @@ class PsfgenTask(VMDTask):
             psf=PSFFileArtifact(self.basename, pytestable=True)), key='state', artifact_type=StateArtifacts)
         self.strip_remarks()
         self.result = 0
-        return 0
+        # Supported coordinate mods (torsion rotations) run in numpy on the just-written state via
+        # coormods().  They apply per biological-assembly image, so they need the base molecule --
+        # which continuation deferred; build it lazily now (identity single-image assembly for a
+        # pre-built system).
+        coord = self.objmanager.data.get('coord', {})
+        if any(len(coord.get(h, [])) for h in ('irotations', 'crotations')):
+            self.base_molecule = self.ensure_base_molecule()
+        self.coormods()
+        return self.result
 
     def coormods(self):
         """

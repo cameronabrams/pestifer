@@ -513,11 +513,15 @@ what appears here is refined and reprioritized as the project evolves.
               rest. Verified: ASPP protonates ASP A:3 on an incoming BPTI PSF (+1 atom).
         - [x] **P2.2 — ssbonds (Unreleased).** `ssbonds` route to `patch DISU` on the loaded project;
               allowlist now `{patches, ssbonds}`. Verified on BPTI (routing/acceptance/clean run).
-        - [ ] **P2.3 — links / grafts + coord mods (Molecule-dependent).** Each needs the lazily-built
-              base molecule (links: IC patch resolution; grafts: donor `coordpdb` + activation; coord
-              rotations: assembly transforms); `orient` is molecule-free and the natural first item.
-              Fetch-metadata mods (`biological_assembly`, `SEQADV`, `REMARK 465`, `terminal_tails`)
-              hard-error (no source metadata on a foreign PSF).
+        - [x] **P2.3 — coord torsion rotations (Unreleased).** `irotations`/`crotations` apply via
+              `coormods()`; the preserve path builds the base molecule lazily first
+              (`ensure_base_molecule` → identity assembly) so the per-image rotation has its transforms.
+              Verified: CHI1 on ASP A:3 of an incoming BPTI PSF pivots the sidechain (CB fixed, OD2
+              swings). Establishes the lazy-molecule pattern P2.4 reuses.
+        - [ ] **P2.4 — links / grafts (Molecule-dependent).** links: IC patch resolution; grafts:
+              donor `coordpdb` + activation -- both reuse the lazy base molecule. Fetch-metadata mods
+              (`biological_assembly`, `SEQADV`, `REMARK 465`, `terminal_tails`) hard-error (no source
+              metadata on a foreign PSF).
   - [ ] **P3 — mutating edits.** `mutations`/`deletions`/`insertions` via per-chain re-segmentation
         surgery on the preserved topology; its own design pass.
 - [ ] _(add items here)_

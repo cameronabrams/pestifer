@@ -164,12 +164,18 @@ patches operate on segids/resids directly and don't need the full parse; grafts 
   before `regenerate`. Allowlist now `{('seq','patches'), ('topol','ssbonds')}`. Verified on BPTI
   (routing/acceptance/clean run; its cysteines are already bonded, so a free-thiol formation case would
   need a different fixture).
-- **P2.3 — links / grafts + coord mods (Molecule-dependent).** Deferred because each needs the base
-  molecule the preserve path builds lazily: **links** resolve their patch from residue ICs
+- **P2.3 — coord torsion rotations. [DONE, Unreleased]** `irotations`/`crotations` apply on the
+  just-written state via `coormods()`. They run per biological-assembly image, so the preserve path
+  builds the base molecule lazily first (`ensure_base_molecule()` → identity single-image assembly for
+  a pre-built system) and sets `self.base_molecule`, then `coormods()` routes them through
+  `_apply_python_crotations`. Allowlist gains `('coord','irotations')`, `('coord','crotations')`.
+  Verified: `CHI1,A,3,60.0` on an incoming BPTI PSF pivots the ASP A:3 sidechain about CA–CB (CB
+  fixed <0.05 Å; OD2 swings >1 Å), topology unchanged. This also establishes the lazy-molecule pattern
+  P2.4 reuses. (Note: `orient` is a `manipulate`-task movetype, not a psfgen `mods` key, so it is not
+  applicable here; the psfgen coord mods are the torsion rotations plus VMD `rottrans`.)
+- **P2.4 — links / grafts (Molecule-dependent).** **links** resolve their patch from residue ICs
   (`Link.set_patchname` → `ic_reference_closest`); **grafts** need `coordpdb` of the donor + graft
-  activation against the molecule; **coord rotations** (`crotations`/`irotations`) need the assembly
-  transforms (`base_molecule.active_biological_assembly`). **orient** is molecule-free (operates on the
-  written state via `_apply_python_orient`) and is the natural first item here.
+  activation against the molecule. Both reuse the lazy `base_molecule` from P2.3.
 
 ### Mod routing (allowlist)
 
