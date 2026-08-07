@@ -108,6 +108,29 @@ class TestPsfgenPreserveMode(unittest.TestCase):
         self.assertLess(float(np.linalg.norm(after['CB'] - before['CB'])), 0.05)
         self.assertGreater(float(np.linalg.norm(after['OD2'] - before['OD2'])), 1.0)
 
+    def test_preserve_applies_link(self):
+        # P2.4: a `links` mod's patch is resolved from the residues' geometry (assign_residues ->
+        # set_patchname) using the lazily-built molecule, then emitted. On the committed glycoprotein
+        # fixture, the ASN A:61 -- glycan V:1304 attachment resolves to NGLA and is emitted as
+        # `patch NGLA A:61 V:1304`. (The fixture's glycan is already linked, so this verifies
+        # resolution + emission; the atom-changing mechanism is covered by the patches test.)
+        gdir = Path('../fixtures/cleave_inputs')
+        for ext in ('psf', 'pdb'):
+            dest = Path(f'in.{ext}')
+            if dest.exists() or dest.is_symlink():
+                dest.unlink()
+            os.symlink((gdir / f'in.{ext}').resolve(), dest)
+        self.controller.reconfigure_tasks(
+            [{'continuation': dict(psf='in.psf', pdb='in.pdb', verify_parameters=False)},
+             {'psfgen': {'mods': {'links': ['A_61_ND2-V_1304_C1']}}}])
+        self.controller.do_tasks()
+        pg = self.controller.tasks[1]
+        self.assertEqual(pg.result, 0)
+        import glob
+        tcl = glob.glob('*psfgen-build.tcl')
+        self.assertTrue(tcl, 'psfgen build script not found')
+        self.assertIn('patch NGLA A:61 V:1304', Path(tcl[0]).read_text())
+
     def test_preserve_rejects_unsupported_mod(self):
         # A mod the preserve path does not yet support (e.g. mutations, which re-segment -- P3) must
         # hard-error rather than be silently ignored, naming it so the user knows what was dropped.

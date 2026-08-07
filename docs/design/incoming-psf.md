@@ -173,9 +173,16 @@ patches operate on segids/resids directly and don't need the full parse; grafts 
   fixed <0.05 Å; OD2 swings >1 Å), topology unchanged. This also establishes the lazy-molecule pattern
   P2.4 reuses. (Note: `orient` is a `manipulate`-task movetype, not a psfgen `mods` key, so it is not
   applicable here; the psfgen coord mods are the torsion rotations plus VMD `rottrans`.)
-- **P2.4 — links / grafts (Molecule-dependent).** **links** resolve their patch from residue ICs
-  (`Link.set_patchname` → `ic_reference_closest`); **grafts** need `coordpdb` of the donor + graft
-  activation against the molecule. Both reuse the lazy `base_molecule` from P2.3.
+- **P2.4 — links. [DONE, Unreleased]** A `links` mod (shortcode `C1_R1_A1-C2_R2_A2`, no user patch)
+  has its patch **resolved from residue geometry**: the lazy `base_molecule`'s residues are assigned
+  (`LinkList.assign_residues` → `set_patchname` → `ic_reference_closest` over the ASN/SER/THR–glycan IC
+  patterns), then emitted via the scripter's `write_links` using the identity assembly transform
+  (single-image, so `chainIDmap` is identity). Unresolvable links (residues not found) are warned and
+  skipped. Allowlist gains `('topol','links')`. Verified on a committed glycoprotein fixture: the
+  ASN A:61 – glycan V:1304 attachment resolves to **NGLA** and emits `patch NGLA A:61 V:1304`.
+- **P2.5 — grafts (adds topology).** Unlike the patch-on-existing-topology edits above, a graft **adds**
+  a glycan (donor `segment{}` + `coordpdb` + linkage patch + regenerate/guesscoord), deep in the
+  build-path segment machinery — its own milestone.
 
 ### Mod routing (allowlist)
 

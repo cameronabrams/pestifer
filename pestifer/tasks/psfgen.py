@@ -114,10 +114,9 @@ class PsfgenTask(VMDTask):
         return bool(state and state.psf and state.pdb)
 
     #: mods the readpsf-preserve path can apply today, as (objcat, header) pairs. Additive edits are
-    #: being brought online in stages (P2.1 patches; P2.2 ssbonds; P2.3 coord torsion rotations).
-    #: Still to come: links and grafts, which need the base molecule for IC-based patch resolution
-    #: and donor coordinate placement.
-    _PRESERVE_SUPPORTED_MODS: ClassVar[set] = {('seq', 'patches'), ('topol', 'ssbonds'),
+    #: being brought online in stages (P2.1 patches; P2.2 ssbonds; P2.3 coord torsion rotations; P2.4
+    #: links). Still to come: grafts, which *add* topology (donor segment + coordinate placement).
+    _PRESERVE_SUPPORTED_MODS: ClassVar[set] = {('seq', 'patches'), ('topol', 'ssbonds'), ('topol', 'links'),
                                                ('coord', 'irotations'), ('coord', 'crotations')}
 
     def _incoming_stream_files(self, psf: str) -> list:
@@ -152,6 +151,7 @@ class PsfgenTask(VMDTask):
         """
         from ..objs.patch import PatchList
         from ..objs.ssbond import SSBondList
+        from ..objs.link import LinkList
         self.objmanager = ObjManager(self.specs.get('mods', {}))
         unsupported = sorted({header
                               for objcat, catdict in self.objmanager.data.items()
@@ -162,9 +162,19 @@ class PsfgenTask(VMDTask):
                 f'psfgen is editing an incoming topology (readpsf-preserve mode, because a prior task '
                 f'established a state with no fetched source). These requested mods are not yet '
                 f'supported on a pre-built topology: {", ".join(unsupported)}. Currently supported: '
-                f'patches, ssbonds. Remove the unsupported mods, or begin from a fetched source.')
+                f'patches, ssbonds, links, irotations/crotations. Remove the unsupported mods, or begin '
+                f'from a fetched source.')
         patches: PatchList = self.objmanager.data.get('seq', {}).get('patches', PatchList([]))
         ssbonds: SSBondList = self.objmanager.data.get('topol', {}).get('ssbonds', SSBondList([]))
+        links: LinkList = self.objmanager.data.get('topol', {}).get('links', LinkList([]))
+        coord = self.objmanager.data.get('coord', {})
+
+        # links (their patch is resolved from residue geometry) and coord torsion rotations (applied
+        # per biological-assembly image) both need the base molecule -- which continuation deferred;
+        # build it lazily now (identity single-image assembly for a pre-built system).
+        needs_molecule = len(links) > 0 or any(len(coord.get(h, [])) for h in ('irotations', 'crotations'))
+        if needs_molecule:
+            self.base_molecule = self.ensure_base_molecule()
 
         self.next_basename('build')
         state: StateArtifacts = self.get_current_artifact('state')
@@ -182,9 +192,20 @@ class PsfgenTask(VMDTask):
             # a disulfide is the DISU patch between the two CYS; in preserve mode the ssbond's
             # chainIDs are the PSF segids (no biological-assembly transform to remap through).
             pg.addline(f'patch DISU {S.chainID1}:{S.resid1.resid} {S.chainID2}:{S.resid2.resid}')
-        # patches/ssbonds may add atoms (guesscoord) and change connectivity (regenerate); a bare
-        # pass-through needs neither.
-        touch = len(patches) > 0 or len(ssbonds) > 0
+        if len(links) > 0:
+            # a link's patch (e.g. NGLB for an N-glycan) is resolved from the residues' internal
+            # coordinates; assign the base molecule's residues, then emit via the scripter using the
+            # identity assembly transform (single-image, chainIDmap == identity for a pre-built system).
+            _, ignored_links = links.assign_residues(self.base_molecule.asymmetric_unit.residues)
+            if ignored_links:
+                logger.warning(f'psfgen preserve: {len(ignored_links)} link(s) referenced residues not '
+                               f'found in the incoming structure and were skipped: '
+                               f'{", ".join(str(L) for L in ignored_links)}')
+            identity_transform = self.base_molecule.active_biological_assembly.transforms.data[0]
+            pg.write_links(links, identity_transform)
+        # patches/ssbonds/links may add atoms (guesscoord) and change connectivity (regenerate); a
+        # bare pass-through needs neither.
+        touch = len(patches) > 0 or len(ssbonds) > 0 or len(links) > 0
         pg.writescript(self.basename, guesscoord=touch, regenerate=touch)
         result = pg.runscript(keep_tempfiles=True)
         if result != 0:
@@ -197,13 +218,8 @@ class PsfgenTask(VMDTask):
             psf=PSFFileArtifact(self.basename, pytestable=True)), key='state', artifact_type=StateArtifacts)
         self.strip_remarks()
         self.result = 0
-        # Supported coordinate mods (torsion rotations) run in numpy on the just-written state via
-        # coormods().  They apply per biological-assembly image, so they need the base molecule --
-        # which continuation deferred; build it lazily now (identity single-image assembly for a
-        # pre-built system).
-        coord = self.objmanager.data.get('coord', {})
-        if any(len(coord.get(h, [])) for h in ('irotations', 'crotations')):
-            self.base_molecule = self.ensure_base_molecule()
+        # coord torsion rotations run in numpy on the just-written state via coormods() (base
+        # molecule already built above when present).
         self.coormods()
         return self.result
 
