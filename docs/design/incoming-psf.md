@@ -182,7 +182,23 @@ patches operate on segids/resids directly and don't need the full parse; grafts 
   ASN A:61 – glycan V:1304 attachment resolves to **NGLA** and emits `patch NGLA A:61 V:1304`.
 - **P2.5 — grafts (adds topology).** Unlike the patch-on-existing-topology edits above, a graft **adds**
   a glycan (donor `segment{}` + `coordpdb` + linkage patch + regenerate/guesscoord), deep in the
-  build-path segment machinery — its own milestone.
+  build-path segment machinery — its own milestone. **Feasibility spike (done):**
+  - **The fresh-segment + cross-link mechanism works.** A readpsf'd BPTI + a new `segment GLYX { pdb
+    donor.pdb }` + `coordpdb` + `patch NGLB A:24 GLYX:<resid>` (guesscoord+regenerate) ran to psfgen
+    `result 0`, adding the 27-atom GlcNAc as a linked segment (14127→14154). Since a readpsf'd segment
+    is immutable, the graft goes in a **fresh** segment (not the receiver's, as build mode does) and
+    the linkage is patched across.
+  - **Constraint — additive-only.** `GraftList.assign_residues` **removes base residues downstream of
+    the receiver** (a graft *replaces/extends* an existing glycan). readpsf-preserve can't remove
+    residues from the loaded topology, so only **purely additive** grafts (a bare sequon / a terminal
+    receiver with no downstream group) fit; a graft with a downstream group needs re-segmenting → P3,
+    and must be guarded/rejected.
+  - **Reuse:** `write_graft_presegment` (Kabsch-aligns the donor, writes a wide-glycan-correct PDB)
+    does **not** use its `segment` arg, so it is reusable; donor fetch (RCSB) works; the base molecule
+    comes from the P2.3 lazy build.
+  - **Remaining work for the full feature:** wire donor-fetch + `activate` + additive-guarded
+    `assign_residues` + fresh-segment/resid-promotion emission + cross-link patch into
+    `_psfgen_preserve`; commit a small donor-glycan fixture; test.
 
 ### Mod routing (allowlist)
 
