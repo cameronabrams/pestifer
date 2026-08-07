@@ -501,11 +501,18 @@ what appears here is refined and reprioritized as the project evolves.
         resname→segtype lookup made non-crashing (`.get`) so a foreign custom-ligand resname
         classifies blank rather than `KeyError`-ing the parse. Pass-through interop
         (`continuation` → `md`/`membrane_equilibrate`/`terminate`) works today.
-  - [ ] **P2 — additive edits.** `patches`/`ssbonds`/`links`/`grafts` + coord mods layered by a
-        downstream `psfgen` consuming the `STATE` via a **readpsf-preserve** mode (`load_project`,
-        `guesscoord=False`/`regenerate=False`), *not* segment-rebuild. Fetch-metadata mods
-        (`biological_assembly`, `SEQADV`, `REMARK 465`, `terminal_tails`) hard-error (no source
-        metadata on a foreign PSF).
+  - [~] **P2 — additive edits.** A downstream `psfgen` consuming the `STATE` via a **readpsf-preserve**
+        mode (`load_project`, `guesscoord=False`/`regenerate=False`), *not* segment-rebuild.
+        - [x] **P2.0 — plumbing (Unreleased).** Pipeline-aware contract (`validate_pipeline` passes
+              `available` to contracts that declare it; `psfgen` infers preserve-vs-build from what
+              precedes it — STATE + no SOURCE → preserve, else build) + `PsfgenTask._psfgen_preserve()`
+              readpsf pass-through; mods hard-error as "not yet supported". `continuation → psfgen`
+              validates and reproduces the system atom-for-atom; build path unregressed.
+        - [ ] **P2.1 — patches.** Apply `patches` as psfgen `patch` commands on the loaded project +
+              `regenerate`.
+        - [ ] **P2.2 — links / ssbonds / grafts + coord mods.** Fetch-metadata mods
+              (`biological_assembly`, `SEQADV`, `REMARK 465`, `terminal_tails`) hard-error (no source
+              metadata on a foreign PSF).
   - [ ] **P3 — mutating edits.** `mutations`/`deletions`/`insertions` via per-chain re-segmentation
         surgery on the preserved topology; its own design pass.
 - [ ] _(add items here)_

@@ -62,10 +62,14 @@ class PsfgenTask(VMDTask):
     """
 
     @classmethod
-    def pipeline_contract(cls, specs):
+    def pipeline_contract(cls, specs, available=frozenset()):
         from .pipeline_contract import TaskContract, SOURCE, STATE, MOLECULE
-        # builds a system from fetched source coordinates; running it on top of an existing
-        # state discards that state (it rebuilds from scratch)
+        # Pipeline-aware: with a STATE already established and no fetched SOURCE, psfgen edits the
+        # incoming topology in place (readpsf-preserve) -- it consumes the STATE and does NOT discard
+        # it.  Otherwise it builds a fresh system from a fetched SOURCE (and running that on top of an
+        # existing state would discard it).
+        if SOURCE not in available and STATE in available:
+            return TaskContract(requires=(), provides=(STATE, MOLECULE), discards_state=False)
         return TaskContract(requires=(SOURCE,), provides=(STATE, MOLECULE), discards_state=True)
 
     def provision(self, packet: dict = {}):
@@ -83,6 +87,11 @@ class PsfgenTask(VMDTask):
         It also handles any necessary coormods and declashing of loops and glycans based on the task specifications.
         The results of the psfgen process are saved as a PSF/PDB fileset, and the state is updated accordingly.
         """
+        if self._incoming_state_without_source():
+            # readpsf-preserve mode: a prior task (continuation/merge) established a STATE and no
+            # SOURCE was fetched, so edit the incoming topology in place rather than rebuilding it
+            # from segments (which would discard its patches / custom residues).
+            return self._psfgen_preserve()
         logger.debug('ingesting molecule(s)')
         self.ingest_molecules()
         logger.debug(f'base mol num images {self.base_molecule.num_images()}')
@@ -95,6 +104,78 @@ class PsfgenTask(VMDTask):
         self.coormods()
         self.declash()
         return self.result
+
+    def _incoming_state_without_source(self) -> bool:
+        """True when a prior task established a STATE (psf+pdb) and no SOURCE was fetched --
+        the signal to edit the incoming topology in place (readpsf-preserve) rather than build."""
+        if self.get_current_artifact_path('base_coordinates'):
+            return False
+        state: StateArtifacts = self.get_current_artifact('state')
+        return bool(state and state.psf and state.pdb)
+
+    @staticmethod
+    def _mods_present(mods) -> bool:
+        """True if the mods block has any non-empty leaf (any actual modification requested)."""
+        def nonempty(v):
+            if isinstance(v, dict):
+                return any(nonempty(x) for x in v.values())
+            if isinstance(v, (list, tuple)):
+                return len(v) > 0
+            return bool(v)
+        return nonempty(mods or {})
+
+    def _incoming_stream_files(self, psf: str) -> list:
+        """Topology stream files the incoming PSF needs, resolved into the CWD.  Prefer the set a
+        prior continuation/merge already registered; fall back to parsing the PSF's topology remarks."""
+        arts = self.get_current_artifact('charmmff_streamfiles')
+        if arts:
+            return [fa.name for fa in arts if os.path.exists(fa.name)]
+        CC = self.resource_manager.charmmff_content
+        streamfiles = []
+        with open(psf) as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith('REMARKS topology'):
+                    toponame = os.path.basename(line.split()[-1])
+                    if toponame.endswith('.str') and toponame not in streamfiles:
+                        CC.copy_charmmfile_local(toponame)
+                        if os.path.exists(toponame):
+                            streamfiles.append(toponame)
+                if '!NATOM' in line:
+                    break
+        return streamfiles
+
+    def _psfgen_preserve(self) -> int:
+        """readpsf-preserve build: carry an incoming STATE through psfgen with its topology intact.
+
+        P2.0 is a no-op pass-through (readpsf -> writepsf/writepdb, no guesscoord, no regenerate);
+        editing the incoming topology (patches/links/grafts) is P2.1+.
+        """
+        if self._mods_present(self.specs.get('mods', {})):
+            raise PestiferBuildError(
+                'psfgen is editing an incoming topology (readpsf-preserve mode, because a prior task '
+                'established a state with no fetched source), but applying mods to a pre-built topology '
+                'is not yet supported (planned as P2). Remove the mods, or begin from a fetched source.')
+        self.next_basename('build')
+        state: StateArtifacts = self.get_current_artifact('state')
+        psf, pdb = state.psf.name, state.pdb.name
+        pg: PsfgenScripter = self.scripters['psfgen']
+        streamfiles = self._incoming_stream_files(psf)
+        pg.newscript(self.basename, additional_topologies=streamfiles)
+        pg.load_project(psf, pdb)
+        pg.writescript(self.basename, guesscoord=False, regenerate=False)
+        result = pg.runscript(keep_tempfiles=True)
+        if result != 0:
+            self.result = result
+            return result
+        self.register(self.basename, key='tcl', artifact_type=PsfgenInputScriptArtifact)
+        self.register(self.basename, key='log', artifact_type=PsfgenLogFileArtifact)
+        self.register(dict(
+            pdb=PDBFileArtifact(self.basename, pytestable=True),
+            psf=PSFFileArtifact(self.basename, pytestable=True)), key='state', artifact_type=StateArtifacts)
+        self.strip_remarks()
+        self.result = 0
+        return 0
 
     def coormods(self):
         """

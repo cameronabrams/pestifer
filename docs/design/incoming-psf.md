@@ -101,24 +101,73 @@ tasks:
   runs with the default-on check and passes; a PSF with a bogus atom type hard-errors (naming the
   term); `verify_parameters=False` skips the check.
 
-## P2 / P3 — editing an incoming topology (future)
+## P2 / P3 — editing an incoming topology
 
 Editing stays consistent with the state-through-pipeline principle: `continuation` provides the
-`STATE`, and a downstream `psfgen` consumes that `STATE` and edits it. That requires `psfgen` to gain
-a **readpsf-preserve** consume-a-`STATE` mode (`load_project` → `readpsf`, `guesscoord=False`,
-`regenerate=False`, as `merge`/`ligate`/`ring_check` already use) — *not* the segment-rebuild path,
-which would re-derive topology from the PDB and discard the foreign PSF's patches/custom residues.
-Note the existing internal `prebuilt` reconstruction in `psfgen` *does* re-segment, so it is not the
-basis for this.
+`STATE`, and a downstream `psfgen` consumes that `STATE` and edits it:
 
-- **P2 — additive edits.** `patches`/`ssbonds`/`links`/`grafts` layered via readpsf + patch +
-  `regenerate`; coordinate mods (orient/rotate) in numpy.
-- **P3 — mutating edits.** `mutations`/`deletions`/`insertions` via per-chain re-segmentation surgery
-  on the preserved topology; its own design pass.
+```yaml
+tasks:
+  - continuation: { psf: sys.psf, pdb: sys.pdb }
+  - psfgen:                       # sees STATE, no SOURCE -> readpsf-preserve
+      mods:
+        patches: [ ... ]
+  - md: { ... }
+```
 
-Fetch-metadata mods (`biological_assembly`, `SEQADV` mutations, `REMARK 465` healing,
-`terminal_tails`) are meaningless for a foreign PSF (no source metadata) and should hard-error in the
-edit path.
+`psfgen` gains a **readpsf-preserve** mode (`load_project` → `readpsf`, `guesscoord=False`,
+`regenerate=` only when a mod changed topology) — *not* the segment-rebuild path, which would
+re-derive topology from the PDB and discard the foreign PSF's patches/custom residues. (The existing
+internal `prebuilt` reconstruction *does* re-segment, so it is not the basis for this.)
+
+### Mode selection — infer from the pipeline (decided)
+
+`psfgen` preserves when it follows a `STATE`-provider with **no** `SOURCE`; it rebuilds when it
+follows `fetch`. No new user syntax. This makes the **pipeline contract pipeline-aware**, which today
+it is not: `validate_pipeline` tracks an `available` currency set but calls
+`task.pipeline_contract(specs)` with specs only. The change:
+
+- Thread the `available` set into the contract call. All 17 `pipeline_contract(cls, specs)` methods
+  share one signature; the low-churn route is for `validate_pipeline` to pass `available` **only** to
+  contracts that declare the parameter (`inspect.signature` check), so just `psfgen`'s override gains
+  `available=frozenset()`. (Uniformly updating all 17 is the alternative; more churn, no `inspect`.)
+- `psfgen.pipeline_contract(specs, available)` returns:
+  - **preserve** — `SOURCE ∉ available and STATE ∈ available` →
+    `requires=(), provides=(STATE, MOLECULE), discards_state=False`.
+  - **build** (unchanged) — else → `requires=(SOURCE,), provides=(STATE, MOLECULE),
+    discards_state=True`. Neither present → the existing "no `fetch` precedes" error still fires.
+
+At runtime `psfgen.do()` branches on the same condition (STATE present, no `base_coordinates`
+SOURCE): the preserve branch runs `_psfgen_preserve()` instead of `ingest_molecules()` + segment
+`psfgen()`. `MOLECULE` is built lazily (via `ensure_base_molecule`), as `continuation` already does —
+patches operate on segids/resids directly and don't need the full parse; grafts do and trigger it.
+
+### Staging
+
+- **P2.0 — plumbing (no mods). [DONE, Unreleased]** Pipeline-aware contract (`validate_pipeline`
+  passes `available` to contracts that declare it, via `inspect.signature`; `psfgen.pipeline_contract`
+  branches preserve-vs-build) + `PsfgenTask._psfgen_preserve()` that `load_project`s the incoming
+  PSF/PDB and writes a fresh state (`guesscoord=False, regenerate=False`). `psfgen.do()` branches on
+  `_incoming_state_without_source()`. Mods present in preserve mode hard-error ("not yet supported").
+  Verified: `continuation → psfgen` validates and **reproduces the system** atom-for-atom (14127→14127
+  on BPTI); build path (fetch→psfgen) unregressed; the old "continuation→psfgen is malformed" contract
+  test updated to assert it is now valid. Establishes the contract/branch every later mod rides on.
+- **P2.1 — patches.** Apply `patches` as psfgen `patch` commands on the loaded project, then
+  `regenerate angles dihedrals`. Acceptance: apply a disulfide/protonation patch to an incoming PSF.
+- **P2.2 — links / ssbonds / grafts.** `ssbonds`/`links` as patches; `grafts` via `coordpdb` of the
+  donor + patch + regenerate (needs the lazy `MOLECULE`). Coordinate mods (orient/rotate) run in
+  numpy on the loaded coords.
+
+### Mod routing (allowlist)
+
+Fetch-metadata mods — `biological_assembly`, `SEQADV` mutations, `REMARK 465` healing,
+`terminal_tails` — are meaningless for a foreign PSF (no source metadata) and **hard-error** in the
+preserve path. Re-segmenting mods (`mutations`/`deletions`/`insertions`) are **P3** (per-chain
+re-segmentation surgery on the preserved topology) and until then error as "not yet supported" rather
+than silently no-op.
+
+- **P3 — mutating edits.** `mutations`/`deletions`/`insertions` via per-chain re-segmentation surgery;
+  its own design pass.
 
 ## Open items
 

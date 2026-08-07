@@ -46,10 +46,15 @@ class TestPipelineContract(unittest.TestCase):
         # a protein-free bilayer build needs no preceding state -- it originates one
         self._assert_ok([{'make_membrane_system': {'bilayer': {'packer': 'grid'}}}, {'md': {}}])
 
+    def test_continuation_then_psfgen_is_preserve_mode_ok(self):
+        # A psfgen after a STATE-provider (continuation) with no fetched SOURCE is now VALID:
+        # psfgen edits the incoming topology in place (readpsf-preserve) rather than rebuilding.
+        self._assert_ok([{'continuation': {'psf': 'x.psf', 'pdb': 'x.pdb'}}, {'psfgen': {}}, {'md': {}}])
+
     # ---- missing prerequisite (category A) ----
-    def test_continuation_then_psfgen_is_the_motivating_error(self):
-        self._assert_error([{'continuation': {'psf': 'x.psf', 'pdb': 'x.pdb'}}, {'psfgen': {}}],
-                           "no `fetch` task precedes it")
+    def test_bare_psfgen_needs_source(self):
+        # psfgen with neither a fetched SOURCE nor a prior STATE still errors up front.
+        self._assert_error([{'psfgen': {}}], "no `fetch` task precedes it")
 
     def test_transform_first_needs_state(self):
         self._assert_error([{'md': {}}], "requires an existing molecular system")

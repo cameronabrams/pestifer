@@ -94,11 +94,23 @@ def validate_pipeline(tasks):
     ``tasks`` is any sequence of objects exposing ``index``, ``taskname``,
     ``specs``, and ``pipeline_contract(specs)``.
     """
+    import inspect
     available = set()
     errors, warnings = [], []
     terminal_task = None
     for task in tasks:
-        contract = task.pipeline_contract(task.specs)
+        # Most contracts depend only on the task's own specs, but a pipeline-aware contract may also
+        # need to know what currencies precede it (e.g. psfgen preserves an incoming STATE vs. builds
+        # from a fetched SOURCE).  Pass `available` only to contracts that declare the parameter, so
+        # the common `pipeline_contract(cls, specs)` signature is untouched.
+        try:
+            _accepts_available = 'available' in inspect.signature(task.pipeline_contract).parameters
+        except (TypeError, ValueError):
+            _accepts_available = False
+        if _accepts_available:
+            contract = task.pipeline_contract(task.specs, available=frozenset(available))
+        else:
+            contract = task.pipeline_contract(task.specs)
         label = f"task {task.index:02d} '{task.taskname}'"
         if contract.standalone:
             errors.append(f"{label} is a standalone utility that operates on explicit file inputs "
