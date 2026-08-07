@@ -79,11 +79,15 @@ what appears here is refined and reprioritized as the project evolves.
         `9a316ed5` — the VMD split step needs bond perception; it exploded psfgen 23.6k→2.8M atoms.)
   - [x] **Acceptance test met (DMPC).** Clean control, identical protocol: old rods gel-trap at APL
         50.3; MC conformers reach fluid APL ~67 with 0.5% area drift — the over-packing bug is fixed.
-  - [ ] **Remaining:** (i) **ex16 payoff** — does the fluid start cut post-embed equilibration cost
-        (running now); (ii) **re-tune `membrane_equilibrate` area defaults** for the fluid start;
-        (iii) **multi-lipid smoke test** (POPC/POPE/POPS/POPG, a sphingolipid, a mixture); then
-        (iv) **flip `sampler='mc'` to default.** Deferred: absolute-APL vs literature (force-field /
-        conditions, not conformer generation); Lever 2b (whole-grid MC pre-relax — likely unnecessary).
+  - [~] **Remaining:** (i) **ex16 payoff — DONE.** ex16 rebuilt end-to-end under the new builder
+        (fluid MC conformers + solvate-based hydration): quilt converged step 180090, post-embed
+        `membrane_equilibrate` converged step 288090, final DMPC density 1.0201 g/cc at APL ~61.2 Å²
+        (spot-on for DMPC/310 K), all tasks result 0. The solvate hydration removed the water-void
+        distortion and the fluid start cut the post-embed cost. (ii) **re-tune `membrane_equilibrate`
+        area defaults** for the fluid start; (iii) **multi-lipid smoke test** (POPC/POPE/POPS/POPG, a
+        sphingolipid, a mixture); then (iv) **flip `sampler='mc'` to default.** Deferred: absolute-APL
+        vs literature (force-field / conditions, not conformer generation); Lever 2b (whole-grid MC
+        pre-relax — likely unnecessary).
 
 - [~] **Per-leaflet phase (Lo/Ld) as a build-time input.** Building ex17's 43–47%-cholesterol leaflets
       showed that *fluid* (Ld) conformers cannot calibrate a **raft** leaflet: a cholesterol-rich
@@ -481,7 +485,8 @@ what appears here is refined and reprioritized as the project evolves.
       single-character-segid workaround is left in place (still the mechanism that *assigns*
       the distinct chains this restore then preserves); relaxing it is a possible follow-up.
       (Unreleased.)
-- [~] **Bring an incoming (foreign) PSF into the pipeline (build *onto* an existing topology).**
+- [x] **Bring an incoming (foreign) PSF into the pipeline (build *onto* an existing topology).**
+      *Complete (Unreleased): P1 + P2.0–2.5 + P3 all shipped and pushed.*
       Take a **pre-built system** (CHARMM-GUI, a prior pestifer build, another tool) into pestifer's
       downstream machinery *without rebuilding*, and later *extend* it (ligand, glycan, mutation,
       patch). **Architecture decided:** state enters through a task that *provides* the `STATE`
