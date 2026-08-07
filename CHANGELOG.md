@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.15.0] - 2026-08-07
+
 - feat: **import a foreign PSF and edit it — `continuation` verifies its force field, `psfgen` edits it.**
   A pre-built system (CHARMM-GUI, a prior pestifer build, another tool) now enters the pipeline through
   `continuation` and flows into downstream MD / membrane / packaging, and a following `psfgen` can edit
