@@ -481,7 +481,7 @@ what appears here is refined and reprioritized as the project evolves.
       single-character-segid workaround is left in place (still the mechanism that *assigns*
       the distinct chains this restore then preserves); relaxing it is a possible follow-up.
       (Unreleased.)
-- [ ] **Accept an incoming PSF in the `psfgen` task (build *onto* an existing topology).** Today
+- [~] **Accept an incoming PSF in the `psfgen` task (build *onto* an existing topology).** Today
       `psfgen` always builds topology from a fetched source structure (PDB/mmCIF → segments →
       PSF/PDB). Add a path where it instead **reads an existing PSF** (plus its coordinates) via
       psfgen's `readpsf`/`coordpdb` and then applies the task's normal operations on top — so a user
@@ -489,7 +489,13 @@ what appears here is refined and reprioritized as the project evolves.
       pestifer's downstream machinery (mods, membrane embedding, equilibration) *without rebuilding*,
       or **extend** an existing topology later (add a ligand, graft a glycan, mutate, patch) without
       starting from scratch. Distinct from the `continuation` task (which runs MD on a *fixed* topology
-      from a state fileset) — this lets psfgen *edit* the incoming topology.
+      from a state fileset) — this lets psfgen *edit* the incoming topology. **Plan written:**
+      `docs/design/incoming-psf.md` — build on the existing **readpsf-preserve** mode (`load_project`,
+      as `merge`/`ligate`/`ring_check` already use), *not* segment-rebuild; the internal `prebuilt`
+      source mode is state-continuation only and re-segments, so it does not preserve a foreign
+      topology. Milestones P1 (ingest + segtype/segid classify + force-field-consistency preflight +
+      pass-through STATE), P2 (additive edits: patches/links/grafts + coord mods), P3 (mutating edits
+      via per-chain re-segmentation).
   - Decisions to settle:
     - **Input specification.** How the incoming topology is declared — e.g. `source: {psf, pdb}` (or
       `psf` + `coor`/`xsc`) as a sibling of the `sourceID`/`model` fetch path — and which coordinate
