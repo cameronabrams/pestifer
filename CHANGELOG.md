@@ -4,6 +4,46 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **import a foreign PSF and edit it — `continuation` verifies its force field, `psfgen` edits it.**
+  A pre-built system (CHARMM-GUI, a prior pestifer build, another tool) now enters the pipeline through
+  `continuation` and flows into downstream MD / membrane / packaging, and a following `psfgen` can edit
+  it. **`continuation` gains `verify_parameters`** (default true): it parses the incoming PSF once to
+  report a per-segid composition inventory, warn on residues unknown to the segtype table, and
+  **hard-error up front** if the build's CHARMM release cannot resolve every atom type and
+  bond/angle/dihedral/improper term — turning a cryptic mid-NAMD `DIDN'T FIND vdW PARAMETER` abort into an
+  actionable message (new NAMD-free, unit-tested `charmmff/psf_param_check.py`; internal continuations opt
+  out to keep the zero-parse fast path). **`psfgen` infers its mode from the pipeline** (the task contract
+  is now pipeline-aware): after a fetched source it builds as before; after a STATE with no source it
+  edits the incoming topology. Additive edits are layered by **readpsf-preserve** (topology kept
+  verbatim): `patches`, `ssbonds`, `irotations`/`crotations`, `links` (glycan-linkage patch resolved from
+  geometry), and additive `grafts` (extend a glycan at a terminal residue). Re-segmenting edits —
+  `mutations`/`deletions`/`insertions` — route to a **full rebuild** that reconstructs the molecule from
+  the PSF+coords and re-segments (re-deriving standard links/ssbonds, carrying the box forward), guarded
+  by an up-front check that every residue has a CHARMM RESI. Design: `docs/design/incoming-psf.md`.
+
+- feat: **per-leaflet phase (Lo/Ld) as a build-time input for raft membranes.** A cholesterol-rich
+  saturated leaflet undergoes a liquid-ordered (Lo) transition that `membrane_equilibrate` can't converge
+  (a phase change, not equilibration); since MD can't cross Ld↔Lo on build timescales, the phase is now
+  declared up front and packed with the matching conformer ensemble. New schema
+  `composition.upper/lower_leaflet_phase` (`Ld` default = prior behavior, or `Lo`) routes the packer's
+  conformer lookup through a per-species `conf_key`. **Lo ordering is a tunable trans-bias** in the
+  athermal-MC generator — a torsional Metropolis term auto-tuned to a chain-order (Scd) target, with
+  `bias=0` reproducing the fluid Ld ensemble bit-for-bit — and whether a lipid actually reaches Lo is
+  decided by **measured order, not structure** (so a sphingomyelin's trans double bond doesn't
+  misclassify it). 47 curated `<resname>__Lo` conformer ensembles ship in the lipid repository. Validated
+  on ex17's asymmetric HIV-MPER bilayer (saturated raft leaflet calibrates dense ~APL 46.8, unsaturated
+  leaflet stays fluid ~56). See `docs/design/lipid-conformer-generation.md`.
+
+- change: **membrane water chambers are filled with VMD `solvate` instead of a cubic lattice.** The grid
+  packer now writes lipid-only PDBs; the water is tiled at true liquid density by a `solvate` step after
+  the lipid psfgen, replacing the old cubic water lattice whose voids the barostat closed early —
+  distorting the bilayer. Post-embed equilibration starts near density-equilibrium and converges markedly
+  faster (ex16 post-embed dropped ~3h → ~1h49m), and this sidesteps the >9999-residue water resid-wrap.
+
+- fix: **the orthohexagonal grid search now weights box aspect ratio, giving near-square quilts.** The
+  vacancy-first grid scoring could pick severely elongated boxes (Lx/Ly ~0.67); the score now weights
+  `|log(aspect)|` against vacancy so the quilt comes out ~square (ex17 → 0.98).
+
 - fix: **the membrane grid→psfgen split no longer strands atoms at the origin.** The split
   (`environ.tcl::write_psfgen`, driven by `bilayer_patch.tcl`) grouped atoms into residues by VMD's
   connectivity-derived `residue` attribute -- so a single spurious inter-lipid distance bond (common in a
