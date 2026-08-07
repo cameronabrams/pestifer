@@ -65,15 +65,30 @@ class TestPsfgenPreserveMode(unittest.TestCase):
         self.assertEqual(len(out.atoms), n_before + 1)
         self.assertEqual(len(_asp3_atoms(out)), 13)
 
-    def test_preserve_rejects_unsupported_mod(self):
-        # A mod the preserve path does not yet support (e.g. ssbonds) must hard-error rather than be
-        # silently ignored -- naming it so the user knows what was dropped.
+    def test_preserve_applies_ssbond(self):
+        # P2.2: an `ssbonds` mod routes to a `patch DISU` on the loaded project. BPTI's cysteines are
+        # all already disulfide-bonded (no free thiol to form a NEW bond), so this verifies routing +
+        # acceptance + a clean run: the mod is accepted (not rejected), the DISU patch is emitted, and
+        # psfgen completes. (The atom-changing mechanism itself is covered by test_preserve_applies_patch.)
         self.controller.reconfigure_tasks(
             [{'continuation': self._cont()}, {'psfgen': {'mods': {'ssbonds': ['A_5-A_55']}}}])
+        self.controller.do_tasks()
+        pg = self.controller.tasks[1]
+        self.assertEqual(pg.result, 0)
+        import glob
+        tcl = glob.glob('*psfgen-build.tcl')
+        self.assertTrue(tcl, 'psfgen build script not found')
+        self.assertIn('patch DISU A:5 A:55', Path(tcl[0]).read_text())
+
+    def test_preserve_rejects_unsupported_mod(self):
+        # A mod the preserve path does not yet support (e.g. mutations, which re-segment -- P3) must
+        # hard-error rather than be silently ignored, naming it so the user knows what was dropped.
+        self.controller.reconfigure_tasks(
+            [{'continuation': self._cont()}, {'psfgen': {'mods': {'mutations': ['A:ALA,3,GLY']}}}])
         with self.assertRaises(PestiferBuildError) as ctx:
             self.controller.do_tasks()
         self.assertIn('not yet supported', str(ctx.exception))
-        self.assertIn('ssbonds', str(ctx.exception))
+        self.assertIn('mutations', str(ctx.exception))
 
 
 if __name__ == '__main__':

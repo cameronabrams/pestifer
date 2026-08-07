@@ -114,8 +114,10 @@ class PsfgenTask(VMDTask):
         return bool(state and state.psf and state.pdb)
 
     #: mods the readpsf-preserve path can apply today, as (objcat, header) pairs. Additive edits
-    #: are being brought online in stages (P2.1 patches; P2.2 links/ssbonds/grafts + coord mods).
-    _PRESERVE_SUPPORTED_MODS: ClassVar[set] = {('seq', 'patches')}
+    #: are being brought online in stages (P2.1 patches; P2.2 ssbonds; still to come: links/grafts +
+    #: coord mods, which need the (lazily-built) base molecule for IC/patch resolution and assembly
+    #: transforms).
+    _PRESERVE_SUPPORTED_MODS: ClassVar[set] = {('seq', 'patches'), ('topol', 'ssbonds')}
 
     def _incoming_stream_files(self, psf: str) -> list:
         """Topology stream files the incoming PSF needs, resolved into the CWD.  Prefer the set a
@@ -148,6 +150,7 @@ class PsfgenTask(VMDTask):
         Any unsupported mod hard-errors rather than being silently dropped.
         """
         from ..objs.patch import PatchList
+        from ..objs.ssbond import SSBondList
         self.objmanager = ObjManager(self.specs.get('mods', {}))
         unsupported = sorted({header
                               for objcat, catdict in self.objmanager.data.items()
@@ -158,8 +161,9 @@ class PsfgenTask(VMDTask):
                 f'psfgen is editing an incoming topology (readpsf-preserve mode, because a prior task '
                 f'established a state with no fetched source). These requested mods are not yet '
                 f'supported on a pre-built topology: {", ".join(unsupported)}. Currently supported: '
-                f'patches. Remove the unsupported mods, or begin from a fetched source.')
+                f'patches, ssbonds. Remove the unsupported mods, or begin from a fetched source.')
         patches: PatchList = self.objmanager.data.get('seq', {}).get('patches', PatchList([]))
+        ssbonds: SSBondList = self.objmanager.data.get('topol', {}).get('ssbonds', SSBondList([]))
 
         self.next_basename('build')
         state: StateArtifacts = self.get_current_artifact('state')
@@ -173,9 +177,13 @@ class PsfgenTask(VMDTask):
                 pg.addpostregenerateline(p.return_TcL())
             else:
                 pg.addline(p.return_TcL())
-        # patches may add atoms (guesscoord) and change connectivity (regenerate); a bare
+        for S in ssbonds.data:
+            # a disulfide is the DISU patch between the two CYS; in preserve mode the ssbond's
+            # chainIDs are the PSF segids (no biological-assembly transform to remap through).
+            pg.addline(f'patch DISU {S.chainID1}:{S.resid1.resid} {S.chainID2}:{S.resid2.resid}')
+        # patches/ssbonds may add atoms (guesscoord) and change connectivity (regenerate); a bare
         # pass-through needs neither.
-        touch = len(patches) > 0
+        touch = len(patches) > 0 or len(ssbonds) > 0
         pg.writescript(self.basename, guesscoord=touch, regenerate=touch)
         result = pg.runscript(keep_tempfiles=True)
         if result != 0:

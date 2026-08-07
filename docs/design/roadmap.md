@@ -511,9 +511,13 @@ what appears here is refined and reprioritized as the project evolves.
         - [x] **P2.1 — patches (Unreleased).** `patches` emitted as psfgen `patch` commands on the
               loaded project + `regenerate`/`guesscoord`; supported-mod allowlist hard-errors on the
               rest. Verified: ASPP protonates ASP A:3 on an incoming BPTI PSF (+1 atom).
-        - [ ] **P2.2 — links / ssbonds / grafts + coord mods.** Fetch-metadata mods
-              (`biological_assembly`, `SEQADV`, `REMARK 465`, `terminal_tails`) hard-error (no source
-              metadata on a foreign PSF).
+        - [x] **P2.2 — ssbonds (Unreleased).** `ssbonds` route to `patch DISU` on the loaded project;
+              allowlist now `{patches, ssbonds}`. Verified on BPTI (routing/acceptance/clean run).
+        - [ ] **P2.3 — links / grafts + coord mods (Molecule-dependent).** Each needs the lazily-built
+              base molecule (links: IC patch resolution; grafts: donor `coordpdb` + activation; coord
+              rotations: assembly transforms); `orient` is molecule-free and the natural first item.
+              Fetch-metadata mods (`biological_assembly`, `SEQADV`, `REMARK 465`, `terminal_tails`)
+              hard-error (no source metadata on a foreign PSF).
   - [ ] **P3 — mutating edits.** `mutations`/`deletions`/`insertions` via per-chain re-segmentation
         surgery on the preserved topology; its own design pass.
 - [ ] _(add items here)_

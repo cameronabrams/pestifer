@@ -159,9 +159,17 @@ patches operate on segids/resids directly and don't need the full parse; grafts 
   outside `_PRESERVE_SUPPORTED_MODS = {('seq','patches')}` hard-errors, naming it. Verified: `ASPP:A:3`
   on an incoming BPTI PSF protonates ASP A:3 (12→13 atoms, total +1); an unsupported `ssbonds` mod
   hard-errors.
-- **P2.2 — links / ssbonds / grafts.** `ssbonds`/`links` as patches; `grafts` via `coordpdb` of the
-  donor + patch + regenerate (needs the lazy `MOLECULE`). Coordinate mods (orient/rotate) run in
-  numpy on the loaded coords.
+- **P2.2 — ssbonds. [DONE, Unreleased]** `ssbonds` route to a `patch DISU c1:r1 c2:r2` on the loaded
+  project (the ssbond's chainIDs are the PSF segids in preserve mode — no assembly transform to remap),
+  before `regenerate`. Allowlist now `{('seq','patches'), ('topol','ssbonds')}`. Verified on BPTI
+  (routing/acceptance/clean run; its cysteines are already bonded, so a free-thiol formation case would
+  need a different fixture).
+- **P2.3 — links / grafts + coord mods (Molecule-dependent).** Deferred because each needs the base
+  molecule the preserve path builds lazily: **links** resolve their patch from residue ICs
+  (`Link.set_patchname` → `ic_reference_closest`); **grafts** need `coordpdb` of the donor + graft
+  activation against the molecule; **coord rotations** (`crotations`/`irotations`) need the assembly
+  transforms (`base_molecule.active_biological_assembly`). **orient** is molecule-free (operates on the
+  written state via `_apply_python_orient`) and is the natural first item here.
 
 ### Mod routing (allowlist)
 
