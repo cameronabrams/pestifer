@@ -196,9 +196,18 @@ patches operate on segids/resids directly and don't need the full parse; grafts 
   - **Reuse:** `write_graft_presegment` (Kabsch-aligns the donor, writes a wide-glycan-correct PDB)
     does **not** use its `segment` arg, so it is reusable; donor fetch (RCSB) works; the base molecule
     comes from the P2.3 lazy build.
-  - **Remaining work for the full feature:** wire donor-fetch + `activate` + additive-guarded
-    `assign_residues` + fresh-segment/resid-promotion emission + cross-link patch into
-    `_psfgen_preserve`; commit a small donor-glycan fixture; test.
+  - **[DONE, Unreleased]** `_emit_grafts_preserve` wires it in: fetch/build the donor (local
+    `<pdbid>.pdb` or RCSB) → `activate` → `assign_receiver_residues` → **additive guard** (reject if
+    `outermost.get_down_group()` is non-empty: that graft would *replace* an existing glycan =
+    re-segmenting = P3) → fresh `GRF<i>` segname + `set_internal_resids(1)` → `write_graft_presegment`
+    (aligned donor PDB) → `segment GRF<i> { pdb … }` + `coordpdb` → set the internal + external link
+    segids (donor→`GRF<i>`, receiver→its segment) and emit via `write_links`. One subtlety fixed: the
+    prebuilt base molecule leaves `atom.elem` unset, so the aligner's `tgt_fit` (`elem != 'H'`) kept
+    hydrogens while the donor's `src_fit` (from `from_pdb`) dropped them → Kabsch atom-count mismatch;
+    the graft path now populates `elem` from the atom name on the base residues so both fits exclude H
+    consistently. Validated end-to-end on the `cleave_inputs` glycoprotein + a committed
+    `mannose_donor.pdb` fixture: `V_1314:mannose_donor,C_1-2` extends terminal mannose V:1314
+    (62133→62157 atoms, GRF segment linked); a graft onto internal V:1301 hard-errors as P3.
 
 ### Mod routing (allowlist)
 

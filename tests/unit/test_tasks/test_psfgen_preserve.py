@@ -131,6 +131,47 @@ class TestPsfgenPreserveMode(unittest.TestCase):
         self.assertTrue(tcl, 'psfgen build script not found')
         self.assertIn('patch NGLA A:61 V:1304', Path(tcl[0]).read_text())
 
+    def _setup_glycoprotein(self):
+        gdir = Path('../fixtures/cleave_inputs')
+        for ext in ('psf', 'pdb'):
+            dest = Path(f'in.{ext}')
+            if dest.exists() or dest.is_symlink():
+                dest.unlink()
+            os.symlink((gdir / f'in.{ext}').resolve(), dest)
+        import shutil
+        shutil.copy((Path('../fixtures/graft_inputs/mannose_donor.pdb')).resolve(), 'mannose_donor.pdb')
+
+    def test_preserve_applies_additive_graft(self):
+        # P2.5: an additive graft extends a glycan at a *terminal* receiver (no downstream). The donor's
+        # source-index sugar (mannose_donor C:1) aligns onto terminal mannose V:1314 and its donor
+        # residue (C:2) is carried onto it in a fresh segment, patched across. Result: the glycan grows.
+        self._setup_glycoprotein()
+        self.controller.reconfigure_tasks(
+            [{'continuation': dict(psf='in.psf', pdb='in.pdb', verify_parameters=False)},
+             {'psfgen': {'mods': {'grafts': ['V_1314:mannose_donor,C_1-2']}}}])
+        self.controller.do_tasks()
+        pg = self.controller.tasks[1]
+        self.assertEqual(pg.result, 0)
+        out = PSFContents(pg.get_current_artifact('state').psf.name)
+        base = PSFContents('in.psf')
+        grafted = [a for a in out.atoms if a.segname.startswith('GRF')]
+        self.assertGreater(len(grafted), 0)                       # a fresh graft segment was added
+        self.assertEqual(len(out.atoms), len(base.atoms) + len(grafted))
+
+    def test_preserve_rejects_replace_graft(self):
+        # A graft onto an *internal* glycan residue (V:1301, which has downstream sugars) would
+        # *replace* that glycan -- removing residues, i.e. re-segmenting -- which readpsf-preserve
+        # cannot do. It must hard-error as P3 rather than silently produce a clashing double glycan.
+        self._setup_glycoprotein()
+        self.controller.reconfigure_tasks(
+            [{'continuation': dict(psf='in.psf', pdb='in.pdb', verify_parameters=False)},
+             {'psfgen': {'mods': {'grafts': ['V_1301:mannose_donor,C_1-2']}}}])
+        with self.assertRaises(PestiferBuildError) as ctx:
+            self.controller.do_tasks()
+        msg = str(ctx.exception)
+        self.assertIn('downstream', msg)
+        self.assertIn('P3', msg)
+
     def test_preserve_rejects_unsupported_mod(self):
         # A mod the preserve path does not yet support (e.g. mutations, which re-segment -- P3) must
         # hard-error rather than be silently ignored, naming it so the user knows what was dropped.

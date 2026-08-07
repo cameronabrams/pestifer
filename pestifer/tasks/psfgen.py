@@ -115,9 +115,11 @@ class PsfgenTask(VMDTask):
 
     #: mods the readpsf-preserve path can apply today, as (objcat, header) pairs. Additive edits are
     #: being brought online in stages (P2.1 patches; P2.2 ssbonds; P2.3 coord torsion rotations; P2.4
-    #: links). Still to come: grafts, which *add* topology (donor segment + coordinate placement).
+    #: links; P2.5 grafts). A graft that would *replace* an existing glycan (its receiver has a
+    #: downstream group) is rejected as re-segmenting (P3) -- only additive (terminal-receiver) grafts fit.
     _PRESERVE_SUPPORTED_MODS: ClassVar[set] = {('seq', 'patches'), ('topol', 'ssbonds'), ('topol', 'links'),
-                                               ('coord', 'irotations'), ('coord', 'crotations')}
+                                               ('coord', 'irotations'), ('coord', 'crotations'),
+                                               ('seq', 'grafts')}
 
     def _incoming_stream_files(self, psf: str) -> list:
         """Topology stream files the incoming PSF needs, resolved into the CWD.  Prefer the set a
@@ -152,6 +154,7 @@ class PsfgenTask(VMDTask):
         from ..objs.patch import PatchList
         from ..objs.ssbond import SSBondList
         from ..objs.link import LinkList
+        from ..objs.graft import GraftList
         self.objmanager = ObjManager(self.specs.get('mods', {}))
         unsupported = sorted({header
                               for objcat, catdict in self.objmanager.data.items()
@@ -162,17 +165,20 @@ class PsfgenTask(VMDTask):
                 f'psfgen is editing an incoming topology (readpsf-preserve mode, because a prior task '
                 f'established a state with no fetched source). These requested mods are not yet '
                 f'supported on a pre-built topology: {", ".join(unsupported)}. Currently supported: '
-                f'patches, ssbonds, links, irotations/crotations. Remove the unsupported mods, or begin '
-                f'from a fetched source.')
+                f'patches, ssbonds, links, irotations/crotations, grafts. Remove the unsupported mods, '
+                f'or begin from a fetched source.')
         patches: PatchList = self.objmanager.data.get('seq', {}).get('patches', PatchList([]))
         ssbonds: SSBondList = self.objmanager.data.get('topol', {}).get('ssbonds', SSBondList([]))
         links: LinkList = self.objmanager.data.get('topol', {}).get('links', LinkList([]))
+        grafts: GraftList = self.objmanager.data.get('seq', {}).get('grafts', GraftList([]))
         coord = self.objmanager.data.get('coord', {})
 
-        # links (their patch is resolved from residue geometry) and coord torsion rotations (applied
-        # per biological-assembly image) both need the base molecule -- which continuation deferred;
-        # build it lazily now (identity single-image assembly for a pre-built system).
-        needs_molecule = len(links) > 0 or any(len(coord.get(h, [])) for h in ('irotations', 'crotations'))
+        # links (their patch is resolved from residue geometry), grafts (aligned/linked against the
+        # receiver), and coord torsion rotations (applied per biological-assembly image) all need the
+        # base molecule -- which continuation deferred; build it lazily now (identity single-image
+        # assembly for a pre-built system).
+        needs_molecule = (len(links) > 0 or len(grafts) > 0
+                          or any(len(coord.get(h, [])) for h in ('irotations', 'crotations')))
         if needs_molecule:
             self.base_molecule = self.ensure_base_molecule()
 
@@ -192,6 +198,9 @@ class PsfgenTask(VMDTask):
             # a disulfide is the DISU patch between the two CYS; in preserve mode the ssbond's
             # chainIDs are the PSF segids (no biological-assembly transform to remap through).
             pg.addline(f'patch DISU {S.chainID1}:{S.resid1.resid} {S.chainID2}:{S.resid2.resid}')
+        identity_transform = None
+        if needs_molecule:
+            identity_transform = self.base_molecule.active_biological_assembly.transforms.data[0]
         if len(links) > 0:
             # a link's patch (e.g. NGLB for an N-glycan) is resolved from the residues' internal
             # coordinates; assign the base molecule's residues, then emit via the scripter using the
@@ -201,11 +210,12 @@ class PsfgenTask(VMDTask):
                 logger.warning(f'psfgen preserve: {len(ignored_links)} link(s) referenced residues not '
                                f'found in the incoming structure and were skipped: '
                                f'{", ".join(str(L) for L in ignored_links)}')
-            identity_transform = self.base_molecule.active_biological_assembly.transforms.data[0]
             pg.write_links(links, identity_transform)
-        # patches/ssbonds/links may add atoms (guesscoord) and change connectivity (regenerate); a
-        # bare pass-through needs neither.
-        touch = len(patches) > 0 or len(ssbonds) > 0 or len(links) > 0
+        if len(grafts) > 0:
+            self._emit_grafts_preserve(pg, grafts, identity_transform)
+        # any edit that adds atoms (guesscoord) or changes connectivity (regenerate); a bare
+        # pass-through needs neither.
+        touch = len(patches) > 0 or len(ssbonds) > 0 or len(links) > 0 or len(grafts) > 0
         pg.writescript(self.basename, guesscoord=touch, regenerate=touch)
         result = pg.runscript(keep_tempfiles=True)
         if result != 0:
@@ -222,6 +232,82 @@ class PsfgenTask(VMDTask):
         # molecule already built above when present).
         self.coormods()
         return self.result
+
+    def _emit_grafts_preserve(self, pg, grafts, identity_transform):
+        """Emit additive grafts onto a readpsf-loaded system.
+
+        A graft extends a glycan by aligning its source *index* residues onto the target *receiver*
+        and carrying the source *donor* residues onto it.  In the build path the donor residues join
+        the receiver's segment; a readpsf'd segment is immutable, so here they go into a **fresh
+        segment** and the receiver->graft bond is patched across.  Only *additive* grafts fit: if the
+        receiver has a downstream group in the base, the graft would *replace* it (removing residues =
+        re-segmenting) -- that is rejected as P3.
+        """
+        from copy import deepcopy
+        from ..molecule.molecule import Molecule
+        from ..objs.link import LinkList
+        from ..objs.resid import ResID
+
+        base_residues = self.base_molecule.asymmetric_unit.residues
+        # The prebuilt base molecule (parsed from the PDB) leaves atom.elem unset; the graft aligner
+        # (write_graft_presegment) fits heavy atoms via `elem != 'H'`, and the donor -- loaded fresh
+        # via from_pdb -- does have elem set.  Populate elem from the atom name here so the receiver
+        # (tgt_fit) and donor (src_fit) exclude hydrogens consistently (otherwise the Kabsch fit sees
+        # mismatched atom counts).
+        for r in base_residues.data:
+            for a in r.atoms:
+                if not a.elem:
+                    stripped = a.name.lstrip('0123456789')
+                    a.elem = 'H' if stripped[:1] == 'H' else (stripped[:1] if stripped else '')
+        used_segnames = set(self.base_molecule.asymmetric_unit.segments.segnames)
+        graft_links = LinkList([])
+        for i, g in enumerate(grafts.data):
+            # 1. donor coordinates: use a local <source_pdbid>.pdb if present, else fetch from RCSB
+            if g.source_pdbid not in self.molecules:
+                self.molecules[g.source_pdbid] = Molecule(source={
+                    'source_db': 'rcsb', 'source_id': g.source_pdbid, 'file_format': 'PDB',
+                    'sequence': {'skip_glycan_renaming': True}})
+            g.activate(deepcopy(self.molecules[g.source_pdbid]))
+            # 2. resolve the receiver in the base; guard the additive-only constraint
+            g.assign_receiver_residues(base_residues)
+            outermost = g.residues[-1]
+            downstream, _ = outermost.get_down_group()
+            if downstream:
+                raise PestiferBuildError(
+                    f'Graft {g.shortcode()} targets receiver {g.chainID}:{g.target_root.resid}, which has '
+                    f'{len(downstream)} residue(s) downstream in the incoming structure. Applying it would '
+                    f'*replace* that existing glycan -- removing residues, i.e. re-segmenting, which the '
+                    f'readpsf-preserve path cannot do (planned as P3). Only additive grafts (onto a '
+                    f'terminal receiver with no downstream group) are supported here.')
+            # 3. fresh segment for the donor residues; promote their resids
+            graft_segname = f'GRF{i}'
+            while graft_segname in used_segnames:
+                graft_segname += 'X'
+            used_segnames.add(graft_segname)
+            g.graft_segname = graft_segname
+            g.set_internal_resids(ResID(1))
+            # 4. author the aligned donor PDB (segname == graft_segname; unused `segment` arg -> None)
+            pg.write_graft_presegment(g, None)
+            # 5. build the fresh segment from that PDB and load its coordinates
+            pg.addline(f'segment {graft_segname} ' + '{')
+            pg.addline(f'pdb {g.segfile}', indents=1)
+            pg.addline('}')
+            pg.addline(f'coordpdb {g.segfile} {graft_segname}')
+            # 6. collect the glycan's internal bonds and the receiver->graft bond; set their segids
+            #    (donor side -> the fresh segment; receiver side -> the receiver residue's segment).
+            recv_seg = getattr(g.residues[0], 'segname', None) or g.residues[0].chainID
+            for L in g.donor_internal_links.data:
+                L.segname1 = graft_segname
+                L.segname2 = graft_segname
+            for L in g.donor_external_links.data:
+                if L.residue1 in g.residues.data:
+                    L.segname1, L.segname2 = recv_seg, graft_segname
+                else:
+                    L.segname1, L.segname2 = graft_segname, recv_seg
+            graft_links.data.extend(g.donor_internal_links.data)
+            graft_links.data.extend(g.donor_external_links.data)
+        if len(graft_links) > 0:
+            pg.write_links(graft_links, identity_transform)
 
     def coormods(self):
         """

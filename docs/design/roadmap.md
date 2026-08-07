@@ -522,10 +522,15 @@ what appears here is refined and reprioritized as the project evolves.
               (`assign_residues` → `set_patchname` → `ic_reference_closest`) using the lazy molecule,
               then emitted via `write_links` (identity assembly transform). Verified on a committed
               glycoprotein fixture (ASN61–glycan resolves to NGLA, emits `patch NGLA A:61 V:1304`).
-        - [ ] **P2.5 — grafts (adds topology).** A graft *adds* a glycan (donor `segment{}` +
-              `coordpdb` + linkage patch), deeper build-path integration than the patch-on-existing
-              edits above -- its own milestone. Fetch-metadata mods (`biological_assembly`, `SEQADV`,
-              `REMARK 465`, `terminal_tails`) hard-error (no source metadata on a foreign PSF).
+        - [x] **P2.5 — grafts, additive only (Unreleased).** A graft *adds* a glycan into a fresh
+              segment (`segment{}` + `coordpdb` + cross-link patch) via `_emit_grafts_preserve`. Only
+              **additive** grafts fit: extending a *terminal* receiver. A graft onto an internal
+              residue (has downstream) would *replace* it (remove residues = re-segmenting) and
+              hard-errors as P3. Fixed an `atom.elem`-unset mismatch in the aligner for prebuilt bases.
+              Validated on `cleave_inputs` + a committed `mannose_donor.pdb` (extend terminal V:1314;
+              internal V:1301 → P3 error). Fetch-metadata mods (`biological_assembly`, `SEQADV`,
+              `REMARK 465`, `terminal_tails`) and re-segmenting mods (mutations/deletions/insertions)
+              still hard-error.
   - [ ] **P3 — mutating edits.** `mutations`/`deletions`/`insertions` via per-chain re-segmentation
         surgery on the preserved topology; its own design pass.
 - [ ] _(add items here)_
