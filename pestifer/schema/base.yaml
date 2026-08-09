@@ -1265,10 +1265,12 @@ attributes:
                 type: float
               - name: packer
                 text: >-
-                  How to place the lipids (and chamber solvent). 'grid' (the only supported
-                  packer) places lipids on a per-leaflet 2D lattice (oriented, tails toward
-                  the midplane) and solvent on a 3D lattice, relying on the relaxation MD to
-                  resolve the initial overlaps. (The former 'packmol' packer has been removed.)
+                  How to place the lipids. 'grid' (the only supported packer) places lipids on a
+                  per-leaflet orthohexagonal 2D lattice (oriented, tails toward the midplane),
+                  relying on the relaxation MD to resolve the initial overlaps. The packer writes a
+                  lipid-only system; the extra-membrane water chambers are then filled at true liquid
+                  density by a VMD solvate/autoionize step after the lipid psfgen, not by a lattice.
+                  (The former 'packmol' packer has been removed.)
                 type: str
                 choices: [grid]
                 default: grid
@@ -1488,19 +1490,24 @@ attributes:
                             type: dict
                             attributes:
                               - name: atoms
+                                text: Atoms to be position-constrained expressed as a VMD atomselection string
                                 type: string
                               - name: k
+                                text: Restraint spring constant in kcal/mol/A^2
                                 type: float
                               - name: consfile
+                                text: Name of constraints PDB file to generate (defaults to basename-constraints.pdb)
                                 type: string
                           - name: other_parameters
                             type: dict
                             text: key:value pairs for other namd configuration file statements
                             attributes:
                               - name: useflexiblecell
+                                text: flexible cell flag for NPT
                                 type: bool
                                 default: True
                               - name: useconstantratio
+                                text: constant X:Y ratio for NPT
                                 type: bool
                                 default: True
                   - name: quilt
@@ -1629,19 +1636,24 @@ attributes:
                             type: dict
                             attributes:
                               - name: atoms
+                                text: Atoms to be position-constrained expressed as a VMD atomselection string
                                 type: string
                               - name: k
+                                text: Restraint spring constant in kcal/mol/A^2
                                 type: float
                               - name: consfile
+                                text: Name of constraints PDB file to generate (defaults to basename-constraints.pdb)
                                 type: string
                           - name: other_parameters
                             type: dict
                             text: key:value pairs for other namd configuration file statements
                             attributes:
                               - name: useflexiblecell
+                                text: flexible cell flag for NPT
                                 type: bool
                                 default: True
                               - name: useconstantratio
+                                text: constant X:Y ratio for NPT
                                 type: bool
                                 default: True
           - name: embed
