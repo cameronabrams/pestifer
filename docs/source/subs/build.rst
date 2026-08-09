@@ -37,7 +37,9 @@ to minimization and a short NVT MD simulation, and finally packaging for product
            md:
              ensemble: NPT
 
-``pestifer build`` begins by parsing the configuration file, and then it sets up a ``Controller`` object that manages the tasks.  Before running anything, the controller statically **validates the task list**: each task declares the pipeline "currencies" it requires and provides (a fetched coordinate source, the built ``state`` fileset, the in-memory molecule object, molecular-dynamics output), and the controller checks the hand-offs so malformed pipelines fail immediately with an explanation rather than partway through a long build.  It flags, for example, a transform task with no system to act on, a ``continuation`` followed by ``psfgen`` (which would rebuild from scratch and discard the continued system), an ``mdplot`` with no preceding ``md``, or a task placed after the terminal ``terminate``.  The controller then executes each task in the order specified in the configuration file; if a task fails, the controller stops the build and reports the error.
+``pestifer build`` begins by parsing the configuration file, and then it sets up a ``Controller`` object that manages the tasks.  Before running anything, the controller statically **validates the task list**: each task declares the pipeline "currencies" it requires and provides (a fetched coordinate source, the built ``state`` fileset, the in-memory molecule object, molecular-dynamics output), and the controller checks the hand-offs so malformed pipelines fail immediately with an explanation rather than partway through a long build.  It flags, for example, a transform task with no system to act on, a ``psfgen`` that builds from a fetched source with no preceding ``fetch``, a task that needs the in-memory molecule object (``cleave``/``ligate``/``pdb2pqr``) after a ``continuation`` or ``merge`` (which provide files, but not that object), an ``mdplot`` with no preceding ``md``, or a task placed after the terminal ``terminate``.  The controller then executes each task in the order specified in the configuration file; if a task fails, the controller stops the build and reports the error.
+
+Because the contract is pipeline-aware, ``psfgen`` **infers its mode from what precedes it**: after a ``fetch`` it builds a new topology from the fetched coordinates, while after a ``continuation`` or ``merge`` that established a state with no fetched source, it *edits the incoming topology* instead of rebuilding it.  See :ref:`psfgen <subs_buildtasks_psfgen>` for what that mode can and cannot do.
 
 .. mermaid:: 
    :caption: Execution flow for the pestifer controller
@@ -52,9 +54,31 @@ to minimization and a short NVT MD simulation, and finally packaging for product
       C --> No --> E[End];
       F --> E;
 
+Resuming an interrupted build
+=============================
+
+Long builds -- a membrane system with hours of relaxation MD, say -- can be interrupted by a wall-clock limit, a node failure, or a Ctrl-C.  As it runs, pestifer writes a **run manifest** (``.pestifer-manifest.json``) into the run directory recording, for each task, the spec it was given and the state it produced.  You can resume from it:
+
+.. code-block:: console
+
+  $ pestifer build config.yaml --restart
+
+``--restart`` reads the manifest and resumes from the last **cleanly-completed** task, discarding any partial files the interrupted task left behind.  Tasks are matched by a hash of their specs taken *before* execution, so if you edited the config between runs, the first task whose spec changed becomes the resume point and everything after it re-runs.
+
+.. code-block:: console
+
+  $ pestifer build config.yaml --from make_membrane_system   # resume from a task you name
+  $ pestifer build config.yaml --fresh                       # ignore any manifest; build from scratch
+
+``--from`` takes a task index or task name and overrides the auto-detected resume point (it implies ``--restart``).  ``--fresh`` does the opposite, ignoring an existing manifest entirely.
+
+.. note::
+
+   A resume point must be a clean hand-off of the pipeline ``state``.  Pestifer refuses to resume into a task whose predecessor did not produce a state fileset, rather than silently starting from an incomplete system.
+
 Detailed explanation of some *selected* common tasks you can use is below.
 
-.. toctree:: 
+.. toctree::
    :maxdepth: 1
 
    buildtasks/fetch

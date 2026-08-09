@@ -30,19 +30,61 @@ With this input, pestifer will fetch ``6pti.pdb`` from the RCSB, generate the re
          residue: ["CA CAL"]
          atom: ["CAL CA CAL"]
 
-A common way of iterating with pestifer when a build is not successful is to carefully read the log file, and then edit the ``00-00-00_psfgen-build.tcl`` file to attempt fix the problem. For example, you might need to add a missing patch or modify a residue name. This requires a good working understanding of how to use ``psfgen``, of course.  You can then re-run the ``psfgen`` task by running the following command in a text-only VMD session:
+A common way of iterating with pestifer when a build is not successful is to carefully read the log file, and then edit the ``00-01-000_psfgen-build.tcl`` file to attempt fix the problem. For example, you might need to add a missing patch or modify a residue name. This requires a good working understanding of how to use ``psfgen``, of course.  You can then re-run the ``psfgen`` task by running the following command in a text-only VMD session:
 
 .. code-block:: bash
 
    $ vmd -dispdev text
    VMD> pestifer_init
-   VMD> source 00-00-00_psfgen-build.tcl 
+   VMD> source 00-01-000_psfgen-build.tcl 
 
 Once you have a successful standalone ``psfgen`` run, you can then use the ``pestifer`` command to complete the build by reading in the successfully (and manually) created PSF and PDB files in a ``continuation`` task.  Or, you may figure out how to modify your original config file to fix the problem and then re-run the ``pestifer`` command with the new config file.  This is a common workflow when using pestifer to build systems, and it is preferred if you want to use pestifer in a high-throughput setting.
 
 ``pestifer_init`` is a TcL proc that you should put in your ``~/.vmdrc`` file.  It sets up the environment for pestifer within the VMD session. (See :ref:`use in vmd scripts` for details on how to set up your ``~/.vmdrc`` file to make sure VMD works with pestifer.)
 
-The only two subdirectives under ``psfgen`` are ``source`` and ``mods``. 
+.. _subs_buildtasks_psfgen_modes:
+
+Build mode vs. editing an incoming topology
++++++++++++++++++++++++++++++++++++++++++++
+
+A ``psfgen`` task infers what to do from the tasks that precede it.
+
+**Build mode** is the case above: a :ref:`fetch <subs_buildtasks_fetch>` supplied coordinates, and ``psfgen`` builds a topology from them, segment by segment.
+
+**Edit mode** applies when a :ref:`continuation <subs_buildtasks_continuation>` or :ref:`merge <subs_buildtasks_merge>` established a system state and nothing was fetched.  Here there is already a PSF, and rebuilding it from scratch would throw away whatever it carries -- patches, custom residues, a solvated and equilibrated box.  So ``psfgen`` reads the incoming PSF and layers your requested edits onto it.  This is how you modify a system that pestifer did not build, such as one from CHARMM-GUI:
+
+.. code-block:: yaml
+
+  tasks:
+    - continuation:
+        psf: from_charmm_gui.psf
+        pdb: from_charmm_gui.pdb
+        xsc: from_charmm_gui.xsc
+    - psfgen:
+        mods:
+          ssbonds:
+            - A_42-A_58
+    - ... (more tasks follow)
+
+Which edits are possible depends on whether they disturb the segment topology.
+
+*Additive* edits are layered onto the incoming topology **verbatim** -- pestifer ``readpsf``\ s the structure and never re-derives its segments, so nothing else in the system moves or changes identity.  These are:
+
+  - ``patches``
+  - ``ssbonds``
+  - ``links`` (the glycan-linkage patch is resolved from the geometry)
+  - ``irotations`` and ``crotations``
+  - ``grafts``, provided the graft is *additive* -- it extends a glycan at a terminal receiver residue.  A graft whose receiver already has a downstream group would *replace* an existing glycan, which is a re-segmenting edit, and is rejected.
+
+*Re-segmenting* edits -- ``mutations``, ``deletions``, ``insertions``, and ``substitutions`` -- change what residues a segment contains, so they cannot be layered on.  Requesting one instead routes the task to a **full rebuild**: pestifer reconstructs a molecule from the incoming PSF plus its coordinates, applies the edit, and re-segments from CHARMM RESIs, re-deriving standard links and disulfides and carrying the periodic box (``xsc``) forward.
+
+.. note::
+
+   A rebuild requires that *every* residue in the incoming PSF have a CHARMM RESI in the build's force field, since the whole topology is regenerated from residue templates.  Pestifer checks this up front and hard-errors, naming the offending residues, rather than producing a silently broken system.  A structure with a residue that has no RESI can therefore still take additive edits, but not re-segmenting ones.
+
+If you request a mod that edit mode cannot apply, the build stops with a message naming it and listing what *is* supported, rather than quietly ignoring it.
+
+The only two subdirectives under ``psfgen`` are ``source`` and ``mods``.
 
 .. _subs_buildtasks_psfgen_source:
 
