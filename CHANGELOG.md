@@ -4,6 +4,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **psfgen scripts now run under the same VMD launch conditions as every other VMD script.**
+  The July fix for rlwrap-wrapping VMD launchers (which exit immediately with returncode 0 and no
+  output instead of running their Tcl script) set `new_session=False` + `stdin=/dev/null` in
+  `VMDScripter.runscript`, but `PsfgenScripter.runscript` overrides that method and was missed — so on
+  affected sites *every* psfgen task silently did nothing. `merge` then trusted the returncode-0 and
+  crashed with a `FileNotFoundError` on the structure psfgen never wrote, pointing nowhere near the
+  real failure. `PsfgenScripter.runscript` also now checks that the psf/pdb its script declared were
+  actually written and, if not, reports whether VMD ran at all (empty log) or psfgen failed, instead
+  of returning success.
+
 ## [3.15.0] - 2026-08-07
 
 - feat: **import a foreign PSF and edit it — `continuation` verifies its force field, `psfgen` edits it.**

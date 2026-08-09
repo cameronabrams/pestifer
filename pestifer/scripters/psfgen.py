@@ -2,6 +2,7 @@
 
 import logging
 import os
+import subprocess
 
 import numpy as np
 
@@ -107,6 +108,11 @@ class PsfgenScripter(VMDScripter):
             or 'str' extension files.
         """
         super().newscript(basename=basename, packages=packages)
+        # A scripter instance is reused across tasks; clear the previous script's declared
+        # outputs so runscript's post-processing and its did-psfgen-actually-run guard never
+        # test a stale basename from an earlier task.
+        self._written_psf = None
+        self._written_pdb = None
         self.addline('package require psfgen')
         self.addline('psfcontext mixedcase')
         self.topologies = self.fetch_standard_charmm_topologies()
@@ -837,8 +843,11 @@ class PsfgenScripter(VMDScripter):
         self.logparser = PsfgenLogParser(basename=self.basename)
         logger.debug(f'Log file: {self.logname}')
         clean_options = options.copy()
+        # keep_tempfiles is consumed here, not by VMD; leaving it in would append a bogus
+        # '-keep_tempfiles False' to the command line.
+        clean_options.pop('keep_tempfiles', None)
         for k, v in options.items():
-            if v == '':
+            if v == '' and k in clean_options:
                 clean_options.pop(k)
         c = Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}', **clean_options)
         progress_struct = None
@@ -847,7 +856,11 @@ class PsfgenScripter(VMDScripter):
             self.logparser.enable_progress_bar(progress_struct)
         else:
             logger.debug('Progress bar is disabled for psfgen script')
-        result = c.run(logfile=self.logname, logparser=self.logparser)
+        # Same launch conditions as VMDScripter.runscript: VMD stays in pestifer's session and
+        # gets /dev/null on stdin, or an rlwrap-wrapping VMD launcher exits immediately with
+        # rc 0 and no output, never running the psfgen script (see the guard below).
+        result = c.run(logfile=self.logname, logparser=self.logparser,
+                       new_session=False, stdin=subprocess.DEVNULL)
         logger.debug(f'FileCollector:')
         my_logger(self.F, logger.debug)
         # psfgen writes wide (column-shifted) coordinate records for 6-char CHARMM carbohydrate
@@ -862,6 +875,24 @@ class PsfgenScripter(VMDScripter):
         written_psf = getattr(self, '_written_psf', None)
         if written_psf and os.path.exists(written_psf):
             dedupe_psf_topology(written_psf)
+        # VMD can exit 0 having done nothing at all: an rlwrap-wrapping launcher that bails out
+        # when it has no controlling terminal leaves an empty log and no output files.  Without
+        # this check the caller trusts rc 0 and blows up further downstream trying to open a
+        # structure psfgen never wrote -- a FileNotFoundError that points nowhere near the real
+        # failure.  Checked before the file collector flushes so a swept temp file cannot mask it.
+        declared = [f for f in (written_psf, written_pdb) if f]
+        missing = [f for f in declared if not os.path.exists(f)]
+        if result == 0 and missing:
+            logger.error(f'psfgen script {self.scriptname} exited with returncode 0 but did not '
+                         f'write {", ".join(missing)}.')
+            if not os.path.exists(self.logname) or os.path.getsize(self.logname) == 0:
+                logger.error(f'{self.logname} is empty, so VMD exited without running the script at '
+                             f'all.  Check that "{self.vmd}" is a real VMD binary and not a launcher '
+                             f'wrapper (e.g. rlwrap) that quits when it has no terminal; running '
+                             f'"{c.c}" by hand will show what it does.')
+            else:
+                logger.error(f'See {self.logname} for what psfgen reported.')
+            result = 1
         if not options.get('keep_tempfiles', False):
             self.F.flush()
         if os.path.exists(self.logname):
