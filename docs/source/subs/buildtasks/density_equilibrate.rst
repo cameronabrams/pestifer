@@ -80,8 +80,10 @@ Scope
 =====
 
 This equilibrates the **box density** -- the job the NPT ladder did -- not full conformational
-equilibration; a production run still follows.  It is for isotropic **solvated** boxes; membrane systems
-should keep the ``NPgT`` protocol (anisotropic membrane equilibration is out of scope).
+equilibration; a production run still follows.  It is for isotropic **solvated** boxes.  A membrane
+system needs the anisotropic cell tracked as well, so use its sibling
+:ref:`membrane_equilibrate <subs_buildtasks_membrane_equilibrate>`, which runs NPgT and gates on the
+lateral area alongside the density.
 
 Because it wraps NAMD, the exact stop step is reproducible on a fixed machine/NAMD build with a fixed
 seed, but -- unlike pestifer's offline numpy steps -- it is not bit-identical across platforms (GPU vs
