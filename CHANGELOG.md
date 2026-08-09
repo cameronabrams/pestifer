@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.15.1] - 2026-08-09
+
 - fix: **psfgen scripts now run under the same VMD launch conditions as every other VMD script.**
   The July fix for rlwrap-wrapping VMD launchers (which exit immediately with returncode 0 and no
   output instead of running their Tcl script) set `new_session=False` + `stdin=/dev/null` in
