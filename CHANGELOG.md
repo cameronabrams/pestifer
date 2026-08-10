@@ -4,6 +4,18 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **the released config reference builds again.** Ten schema nodes added during the membrane
+  work carried no `text:` key, and ycleptic's doc generator raises `KeyError: 'text'` on those, so
+  Read the Docs' `pre_build` step (which regenerates the reference) aborted for any build of the
+  v3.15.1 tag. The schema fix itself landed just after v3.15.1 was tagged and so missed that
+  release; this picks it up. `main` was never affected.
+
+- docs: task prose brought up to date with the membrane rework and the incoming-PSF feature —
+  corrected `build`, `make_membrane_system`, `continuation`, `psfgen` and `make-pdb-collection`
+  pages, a new `membrane_equilibrate` task page, and the retired `domainswap` page removed.
+
+- docs: new `scripts/pestifer-snapshot`, a headless VMD renderer for figures of a built system.
+
 ## [3.15.1] - 2026-08-09
 
 - fix: **psfgen scripts now run under the same VMD launch conditions as every other VMD script.**
