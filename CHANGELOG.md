@@ -4,6 +4,11 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: the `pdb2pqr` task's progress spinner is now suppressed when output is redirected. It
+  enabled its spinner unconditionally instead of consulting the `progress-flag` provision that
+  the scripters and `make_membrane_system` already honor, so every carriage-return redraw landed
+  as its own line in a redirected log.
+
 ## [3.15.2] - 2026-08-10
 
 - fix: **the released config reference builds again.** Ten schema nodes added during the membrane

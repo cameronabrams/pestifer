@@ -129,8 +129,12 @@ class PDB2PQRTask(PsfgenTask):
                 "console script is on PATH.")
         c = Command(f'pdb2pqr --ff CHARMM --ffout CHARMM --with-ph {pH} --titration-state-method propka --pdb-output {self.basename}_pqr.pdb {self.basename}_pprep.pdb {self.basename}.pqr')
         self.log_parser = PDB2PQRLogParser(basename=f'{self.basename}_run')
-        PS = PDB2PQRProgress()
-        self.log_parser.enable_progress_bar(PS)
+        # The spinner is a terminal animation redrawn with carriage returns on the same stream
+        # pestifer logs to; redirected to a file, every redraw lands as its own line.  Honor the
+        # same progress-flag provision the scripters and make_membrane_system already use, which
+        # is off whenever stderr is not a TTY or we are under a batch scheduler.
+        if self.provisions.get('progress-flag', True):
+            self.log_parser.enable_progress_bar(PDB2PQRProgress())
 
         c.run(logfile=f'{self.basename}_run.log', log_stderr=True, logparser=self.log_parser)
         self.log_parser.metadata['pka_table']['protonated'] = self.log_parser.metadata['pka_table']['respka'] > pH
