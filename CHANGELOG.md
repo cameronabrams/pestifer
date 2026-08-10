@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.15.2] - 2026-08-10
+
 - fix: **the released config reference builds again.** Ten schema nodes added during the membrane
   work carried no `text:` key, and ycleptic's doc generator raises `KeyError: 'text'` on those, so
   Read the Docs' `pre_build` step (which regenerates the reference) aborted for any build of the
