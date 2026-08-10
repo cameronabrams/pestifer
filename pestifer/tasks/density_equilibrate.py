@@ -12,6 +12,7 @@ track it with the autocorrelation-corrected :class:`DensityConvergenceMonitor`, 
 report + plot).  See ``docs/design/density-equilibrate.md`` and :mod:`pestifer.util.density_convergence`.
 """
 import logging
+import os
 
 from .equilibrate_base import ChunkedEquilibrateTask, _fmt
 from ..core.artifacts import DataFileArtifact, PNGImageFileArtifact
@@ -175,7 +176,11 @@ class DensityEquilibrateTask(ChunkedEquilibrateTask):
         ax.set_title(f'{self.taskname}: box density vs. time')
         ax.legend(fontsize=7, loc='lower right', framealpha=0.9)
         fig.tight_layout()
-        fn = f'{self.basename}-density.png'
+        # keep convergence plots out of the run-dir root, in the mdplots/ subdir the mdplot task
+        # already uses (kept, not swept into the artifacts tarball, so they stay easy to eyeball)
+        output_dir = self.specs.get('output_dir', 'mdplots')
+        os.makedirs(output_dir, exist_ok=True)
+        fn = os.path.join(output_dir, f'{self.basename}-density.png')
         fig.savefig(fn, dpi=120)
         plt.close(fig)
         self.register(fn, key='density_plot', artifact_type=PNGImageFileArtifact, keep=True)
