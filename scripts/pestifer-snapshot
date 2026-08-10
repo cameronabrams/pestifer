@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+#
+# pestifer-snapshot -- render a headless VMD snapshot of a pestifer-built system.
+#
+#   pestifer-snapshot -psf system.psf -coor system.pdb -o figure.png [options]
+#
+# Run with no arguments for the full option list.  This wrapper exists because the Tcl script
+# must be fed to VMD on stdin: with `-e`, VMD runs it before its event loop starts, molecule
+# representations are never built, and every render silently produces an image containing
+# nothing but the corner axes.
+#
+# Environment:
+#   VMD   vmd executable to use (default: vmd)
+
+set -euo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+script="$here/pestifer_snapshot.tcl"
+vmd="${VMD:-vmd}"
+
+if [ ! -f "$script" ]; then
+    echo "pestifer-snapshot: cannot find $script" >&2
+    exit 1
+fi
+if ! command -v "$vmd" >/dev/null 2>&1; then
+    echo "pestifer-snapshot: '$vmd' not on PATH (set VMD=/path/to/vmd)" >&2
+    exit 1
+fi
+if [ "$#" -eq 0 ]; then
+    # print the Tcl file's leading comment block (minus its first line) as the help text;
+    # driven by where the comments stop, so editing the header cannot truncate the options
+    awk 'NR==1 {next} /^#/ {sub(/^# ?/,""); print; next} {exit}' "$script"
+    exit 1
+fi
+
+# VMD returns 0 even when the script calls exit 1, so the Tcl side announces success on its
+# last line and we check for it here.
+out="$("$vmd" -dispdev text -args "$@" < "$script" 2>&1)"
+status=0
+grep -q '^pestifer_snapshot: wrote ' <<<"$out" || status=1
+# echo the script's own notes and any error, but not VMD's startup banner
+grep -E '^pestifer_snapshot:|^ERROR|error' <<<"$out" || true
+if [ "$status" -ne 0 ]; then
+    echo "pestifer-snapshot: render did not complete; full VMD output follows" >&2
+    echo "$out" >&2
+fi
+exit "$status"
