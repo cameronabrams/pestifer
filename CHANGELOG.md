@@ -4,6 +4,11 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: the startup banner now appears at the top of a redirected log. It was printed to stdout
+  while the console log goes to stderr; with both redirected to one file, block-buffered stdout
+  flushed only at exit, so the banner landed at the end (or mid-file once its buffer filled).
+  It now goes to the same line-buffered stream the console log uses.
+
 - fix: the `pdb2pqr` task's progress spinner is now suppressed when output is redirected. It
   enabled its spinner unconditionally instead of consulting the `progress-flag` provision that
   the scripters and `make_membrane_system` already honor, so every carriage-return redraw landed

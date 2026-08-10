@@ -84,7 +84,13 @@ def cli():
     console.setLevel(logging.INFO)
     console.setFormatter(logging.Formatter('%(levelname)s> %(message)s'))
     logging.getLogger('').addHandler(console)
-    banner(print, args)
+    # Emit the banner on the same stream the console log handler uses (stderr), not stdout.
+    # Under `pestifer ... > run.log 2>&1` the two streams share one file, but a redirected
+    # stdout is block-buffered and only flushes at exit, so a banner printed to stdout lands
+    # at the *end* of the log -- or mid-file once its buffer fills -- even though it is written
+    # first.  stderr stays line-buffered when redirected, so writing there keeps the banner at
+    # the top where it belongs.
+    banner(lambda line: print(line, file=console.stream, flush=True), args)
     try:
         args.func(args)
     except PestiferError as e:
