@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.15.3] - 2026-08-11
+
 - fix: `ring_check` can now resolve a **glycan ring speared by a protein side chain**. Its
   dispatch keyed entirely off the *piercee* — aromatic protein rings rotate themselves, and rigid
   rings rotate the *glycan* that speared them — so a glycan ring pierced by a protein bond matched
