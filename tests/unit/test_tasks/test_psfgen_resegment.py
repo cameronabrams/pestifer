@@ -4,6 +4,8 @@ to build-mode re-segmentation (reconstruct a Molecule from the incoming PSF+coor
 rebuild), instead of the readpsf-preserve path."""
 import unittest
 import os
+
+import pytest
 from pathlib import Path
 
 from pestifer.core.controller import Controller
@@ -12,6 +14,9 @@ from pestifer.core.errors import PestiferBuildError
 from pestifer.tasks.psfgen import PsfgenTask
 from pestifer.psfutil.psfcontents import PSFContents
 from pestifer.core.artifacts import StateArtifacts
+
+# drives external VMD/psfgen; skipped when those binaries are not on PATH
+pytestmark = pytest.mark.needs_tools
 
 
 class TestPsfgenResegment(unittest.TestCase):
