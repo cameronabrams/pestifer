@@ -25,7 +25,7 @@
 #   -size WxH        image size in pixels (default: 1600x1200)
 #   -view NAME       xy | xz | yz | auto  (default: auto -- xz for membranes, xy otherwise)
 #   -style NAME      auto | protein | membrane | glycan  (default: auto)
-#   -solvent 0|1     show water and ions (default: 0 -- solute only)
+#   -solvent 0|1     show water, bulk solvent and ions (default: 0 -- solute only)
 #   -bg NAME         background color (default: white)
 #   -renderer NAME   TachyonInternal | TachyonLOptiXInternal | snapshot (default: TachyonInternal)
 #   -fill F          fraction of the frame the geometry should fill (default: 0.92)
@@ -45,6 +45,10 @@ set PS_GLYCAN_RESNAMES {AGLC BGLC AGAL BGAL AMAN BMAN AFUC BFUC AXYL BXYL ANE5AC
 set PS_LIPID_EXTRA {CHL1 CHOL POPC POPE POPS POPI POPA PLPC DMPC DPPC DOPC DLPC DSPC
                     PSM SSM DPSM OSM SAPI TOCL1 TOCL2 LSM}
 set PS_ION_RESNAMES {SOD CLA POT CAL MG ZN2 CES RUB BAR}
+# A species present in at least this many residue copies is bulk solvent, not a ligand.  Real
+# separation is wide -- a non-aqueous solvent box runs to hundreds or thousands of copies while
+# a cofactor comes in ones -- so the exact value is not delicate.
+set PS_BULK_MIN_COPIES 50
 
 proc ps_magick {} {
     foreach cand {magick convert} {
@@ -122,6 +126,25 @@ proc ps_addrep {molid seltext style color {material Opaque}} {
     return 1
 }
 
+# Resnames in *seltext* present in enough residue copies to count as bulk solvent.
+proc ps_bulk_species {molid seltext} {
+    if {[catch {atomselect $molid $seltext} s]} { return {} }
+    if {[$s num] == 0} { $s delete ; return {} }
+    array set resname_of {}
+    foreach rec [$s get {segname resid resname}] {
+        lassign $rec sg rid rn
+        set resname_of($sg:$rid) $rn
+    }
+    $s delete
+    array set copies {}
+    foreach k [array names resname_of] { incr copies($resname_of($k)) }
+    set bulk {}
+    foreach rn [array names copies] {
+        if {$copies($rn) >= $::PS_BULK_MIN_COPIES} { lappend bulk $rn }
+    }
+    return [lsort $bulk]
+}
+
 proc ps_represent {molid style show_solvent} {
     global PS_GLYCAN_RESNAMES PS_LIPID_EXTRA PS_ION_RESNAMES
     set glycan_sel "resname $PS_GLYCAN_RESNAMES"
@@ -166,6 +189,21 @@ proc ps_represent {molid style show_solvent} {
     # catch-all: ligands, cofactors, anything unrecognized, so a snapshot never silently
     # omits part of the system
     set covered "protein or nucleic or water or ($ion_sel) or ($lipid_sel) or ($glycan_sel)"
+    # Whatever remains is either bulk solvent or a ligand, and they want opposite treatment.  A
+    # non-aqueous solvent (DMSO, acetone, acetonitrile) is not matched by VMD's `water` macro, so
+    # without this it falls to the catch-all below and buries the solute under thousands of
+    # licorice molecules -- and drags the view fit out to the whole box.  Telling them apart by
+    # residue copy count needs no list of solvent names, so it holds for any solvent.
+    set bulk [ps_bulk_species $molid "not ($covered)"]
+    if {[llength $bulk] > 0} {
+        set bulk_sel "resname $bulk"
+        set covered "$covered or ($bulk_sel)"
+        if {$show_solvent} {
+            ps_addrep $molid $bulk_sel "Lines 1.000000" Name
+        } else {
+            ps_note "hiding bulk solvent ($bulk); pass -solvent 1 to show it"
+        }
+    }
     if {[ps_addrep $molid "not ($covered)" "Licorice 0.300000 20.000000 20.000000" Name]} {
         ps_note "note: [ps_nsel $molid "not ($covered)"] atoms fell to the catch-all representation"
     }
