@@ -6,6 +6,9 @@ It identifies configurations where a ring is pierced by a bond and resolves each
 
 - an **aromatic** protein side-chain ring (His/Phe/Tyr/Trp) pivots on its own dihedral, so it is swung off the piercing bond by rotating the side chain (chi2, then chi1);
 - a **rigid** ring that cannot itself move -- a **proline** side-chain ring (fused to the backbone) or a **glycan** ring -- when speared by a **glycan** bond is cleared by rotating the *glycan pendant* so the piercing bond is pulled out of the ring;
+- a **glycan** ring speared by a **protein side chain** is cleared by rotating the *glycan branch
+  carrying the pierced ring* off the side chain (the glycan is the model-built partner, so it moves
+  first); failing that, the piercing **side chain** itself is rotated about its chi bonds;
 - a pierced **lipid** ring deletes a segment, chosen by ``delete``: ``piercee``, ``piercer``, ``both`` (the piercee plus the piercer when it too is a lipid, for inter-threaded lipids), or ``none`` (report and stop);
 - anything that no available rotation clears stops the build with the residue named.
 
@@ -32,6 +35,12 @@ logger=logging.getLogger(__name__)
 # aromatic protein residues whose side-chain ring pivots freely on chi2/chi1 (proline is
 # NOT here: its ring is fused into the backbone, so a chi rotation cannot swing it clear)
 _AROMATIC = {'HIS', 'HSD', 'HSE', 'HSP', 'PHE', 'TYR', 'TRP'}
+# Backbone atom names.  Everything else in a residue is its side chain, and restricting the
+# hinge search to that set makes the bond graph pick out exactly the residue's chi bonds -- no
+# per-residue chi table, correct for every residue, and it naturally finds nothing for GLY (no
+# side chain) or PRO (side chain fused to the backbone, so no chi bond is a graph bridge).
+_BACKBONE = {'N', 'HN', 'H', 'HT1', 'HT2', 'HT3', 'CA', 'HA', 'HA1', 'HA2',
+             'C', 'O', 'OT1', 'OT2', 'OXT'}
 # side-chain dihedral rotations tried, in order, to swing an aromatic ring off the bond
 _CHI2_DEGREES = [180, 120, 240, 90, 270, 60, 300]
 _CHI1_DEGREES = [120, 240, 180, 90, 270]
@@ -66,7 +75,10 @@ class RingCheckTask(BaseTask):
         aromatic = piercee['segtype'] == 'protein' and piercee.get('resname') in _AROMATIC
         pendant = (piercee['segtype'] in ('protein', 'glycan')
                    and piercer['segtype'] == 'glycan' and piercer.get('bond_serials'))
-        return bool(aromatic or pendant)
+        # a glycan ring speared by a protein side chain: either partner can move
+        sidechain = (piercee['segtype'] == 'glycan' and piercer['segtype'] == 'protein'
+                     and (piercee.get('ring_serials') or piercer.get('bond_serials')))
+        return bool(aromatic or pendant or sidechain)
 
     def do(self):
         state: StateArtifacts = self.get_current_artifact('state')
@@ -222,6 +234,17 @@ class RingCheckTask(BaseTask):
             if cand is None and piercer['segtype'] == 'glycan' and piercer.get('bond_serials'):
                 cand = self._try_glycan_pendant(checker, working_pdb, base, box, piercer,
                                                 target, self._fmt(piercee), out_prefix)
+            # 3. glycan ring speared by a protein side chain.  Move the glycan first -- it is the
+            #    model-built partner, where the protein side chain generally is not -- by rotating
+            #    the branch that carries the pierced ring.  Only if no glycan hinge clears it do we
+            #    disturb the protein, rotating the piercing side chain instead.
+            if (cand is None and piercee['segtype'] == 'glycan'
+                    and piercer['segtype'] == 'protein'):
+                cand = self._try_pierced_glycan(checker, working_pdb, base, box, piercee,
+                                                target, out_prefix)
+                if cand is None:
+                    cand = self._try_piercer_sidechain(checker, working_pdb, base, box, piercer,
+                                                       target, self._fmt(piercee), out_prefix)
             if cand is None:
                 return None, p
             working_pdb = cand
@@ -264,6 +287,45 @@ class RingCheckTask(BaseTask):
         Returns the winning PDB or ``None``."""
         return try_glycan_pendant(checker, working_pdb, base, box, piercer, target,
                                   f'{out_prefix}-glycan.pdb', piercee_label)
+
+    @staticmethod
+    def _sidechain_serials(checker, segname, resid):
+        """Serials of one residue's side chain (everything that is not backbone)."""
+        return [a.serial for a in checker._atoms
+                if a.segname == segname and str(a.resid.resid) == str(resid)
+                and a.atomname not in _BACKBONE]
+
+    def _try_pierced_glycan(self, checker, working_pdb, base, box, piercee, target, out_prefix):
+        """Swing the *pierced* glycan ring off the bond spearing it, by rotating the glycan
+        branch that carries the ring about an upstream glycosidic bond.
+
+        This is the mirror of :meth:`_try_glycan_pendant`, which rotates the branch carrying the
+        piercing *bond*.  The same engine does both: it moves whichever graph branch the serials
+        it is handed belong to.  A ring is 2-connected, so no bridge can separate its atoms and
+        any two of them identify that branch exactly as a bonded pair does."""
+        ring_serials = piercee.get('ring_serials') or []
+        if len(ring_serials) < 2:
+            return None
+        as_mover = dict(piercee, bond_serials=list(ring_serials[:2]))
+        return try_glycan_pendant(checker, working_pdb, base, box, as_mover, target,
+                                  f'{out_prefix}-pierced-glycan.pdb', self._fmt(piercee),
+                                  mover_kind='pierced glycan')
+
+    def _try_piercer_sidechain(self, checker, working_pdb, base, box, piercer, target,
+                               piercee_label, out_prefix):
+        """Rotate the protein side chain that carries the piercing bond, pulling it out of the
+        ring.  Restricting the eligible hinges to bonds whose moving branch stays inside the side
+        chain leaves exactly that residue's chi bonds, so this works for any residue without a
+        per-residue chi table, and the engine's smallest-branch-first ordering tries the
+        least-disturbing rotation first."""
+        if not piercer.get('bond_serials'):
+            return None
+        movers = self._sidechain_serials(checker, piercer['segname'], piercer['resid'])
+        if not movers:
+            return None
+        return try_glycan_pendant(checker, working_pdb, base, box, piercer, target,
+                                  f'{out_prefix}-sidechain.pdb', piercee_label,
+                                  mover_serials=movers, mover_kind='side chain')
 
     def _write_sidechain_candidates(self, psf, pdb, segname, resid, chi, degrees, out_prefix):
         """Emit one PDB per candidate chi rotation of the residue's side chain

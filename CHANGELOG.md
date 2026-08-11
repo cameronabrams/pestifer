@@ -4,6 +4,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: `ring_check` can now resolve a **glycan ring speared by a protein side chain**. Its
+  dispatch keyed entirely off the *piercee* — aromatic protein rings rotate themselves, and rigid
+  rings rotate the *glycan* that speared them — so a glycan ring pierced by a protein bond matched
+  neither rule and stopped the build as unresolvable, even though both partners were free to move.
+  It now rotates the glycan branch carrying the pierced ring first (the glycan is the model-built
+  partner), falling back to rotating the piercing side chain. Restricting the hinge search to bonds
+  whose moving branch stays inside the side chain leaves exactly that residue's chi bonds, so the
+  fallback works for any residue rather than just the aromatics, with no per-residue chi table.
+
 - fix: the startup banner now appears at the top of a redirected log. It was printed to stdout
   while the console log goes to stderr; with both redirected to one file, block-buffered stdout
   flushed only at exit, so the banner landed at the end (or mid-file once its buffer filled).
