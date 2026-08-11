@@ -13,6 +13,10 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   whose moving branch stays inside the side chain leaves exactly that residue's chi bonds, so the
   fallback works for any residue rather than just the aromatics, with no per-residue chi table.
 
+- fix: `density_equilibrate` writes its convergence plot into `mdplots/` instead of the run-dir
+  root, matching `membrane_equilibrate`. An example run previously ended up with the density PNG
+  loose beside an `mdplots/` directory that held everything else.
+
 - fix: the startup banner now appears at the top of a redirected log. It was printed to stdout
   while the console log goes to stderr; with both redirected to one file, block-buffered stdout
   flushed only at exit, so the banner landed at the end (or mid-file once its buffer filled).
