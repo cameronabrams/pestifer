@@ -155,7 +155,7 @@ what appears here is refined and reprioritized as the project evolves.
         analysis -- much easier, at one dependency). Density(z) profiles come nearly for free once
         trajectory reading exists.
 
-- [ ] **Reconcile the two membrane area-convergence criteria on the calibration path.** When an
+- [x] **Reconcile the two membrane area-convergence criteria on the calibration path.** *Done.* When an
       asymmetric build's symmetric **calibration patch** relaxes via a self-terminating
       `membrane_equilibrate` (migrated from the old fixed NPgT ladder), two different area-convergence
       tests now both apply: `membrane_equilibrate`'s own autocorrelation-corrected gate (default
@@ -169,6 +169,13 @@ what appears here is refined and reprioritized as the project evolves.
       patches. Make `make_membrane_system` **trust a converged `membrane_equilibrate`'s own verdict**
       (skip/relax the cruder re-check when the last patch stage self-terminated), or unify the two on a
       single autocorrelation-corrected criterion, so calibration precision is set in one place.
+      **Resolved by the first option.** `membrane_equilibrate` gained an opt-in cumulative
+      `area_plateau_tol` gate measuring the *same* trailing quarter-over-quarter drift that
+      `_area_convergence` uses, and `make_membrane_system._relaxed_area_drift` now trusts a
+      plateau-gated stage that CONVERGED, returning its own plateau drift and falling back to the
+      post-hoc check only for an `md`-terminated ladder or a stage that hit its ceiling. The two can
+      no longer disagree, and the ex17 workaround (hand-tightening `area_drift_tol`) is retired in
+      favor of `area_plateau_tol: 0.005` on the calibration protocol.
 
 ## Resources / on-demand generation
 
@@ -277,23 +284,23 @@ what appears here is refined and reprioritized as the project evolves.
       (committed alongside the change). `ledger show` lists them; `ledger revert <id>`
       git-reverts a recorded modification on a fresh branch and curates the ledger.
       (v3.2.0.)
-- [ ] **Restart / resume an interrupted build.** A long multi-task build that dies partway —
+- [x] **Restart / resume an interrupted build.** *Done (v3.15.0).* A long multi-task build that dies partway —
       Ctrl-C, a crash, a killed job, a wall-clock timeout — currently has to start over from
       scratch. Add a restart path that resumes from the last completed task instead of re-running
       the whole pipeline. Much of the substrate exists: each task already emits a state fileset
       (`psf`/`pdb`/`coor`/`xsc`/`vel`) as an artifact, the `continuation` task already knows how to
       begin from such a fileset, and the SIGINT/SIGTERM handler now tears children down cleanly on
       interrupt (v3.11.1) — the partial files it warns about are exactly what a restart would key
-      off. Decisions to settle:
-    - **Checkpoint granularity.** Per-task (resume at the first task whose outputs are missing or
-      stale) vs. within-task (finer, but not every task is idempotent) — start per-task.
-    - **Completion detection.** How to know a task finished cleanly and its outputs are current —
-      e.g. a per-task completion manifest keyed by a hash of the task's resolved specs, so a config
-      edit upstream of the resume point correctly invalidates and re-runs the tail.
-    - **Invocation.** `pestifer run --restart` (auto-detect the resume point) vs. an explicit
-      `--from <task>`, and how it composes with the existing `continuation` task.
-    - **Determinism.** Lean on the seeded-RNG work (declash, CCD closure) so a resumed build is
-      reproducible — ideally identical to an uninterrupted run from the resume point onward.
+      off. Every decision below was settled as proposed; see `docs/design/build-restart.md`.
+    - **Checkpoint granularity** — per-task, as suggested.
+    - **Completion detection** — a run manifest (`.pestifer-manifest.json`) records each task's
+      spec hash, taken *before* execution since some tasks mutate their own specs, so editing the
+      config invalidates from the first changed task onward.
+    - **Invocation** — `--restart` auto-detects the resume point, `--from <task>` overrides it,
+      `--fresh` ignores an existing manifest. A resume point must be a clean `STATE` hand-off;
+      pestifer refuses to resume into a task whose predecessor produced no state.
+    - **Determinism** — unchanged from the plan; rests on the existing seeded-RNG work.
+      Documented for users under "Resuming an interrupted build" in the `build` subcommand page.
 - [~] **`density_equilibrate` task — convergence-based post-solvation equilibration.** Replace the
       hand-written ladder of progressively longer NPT runs (`nsteps: 200 → 400 → … → 13200`) with a
       single task that runs NPT in chunks and stops itself when the **box density has converged** or a
@@ -547,4 +554,21 @@ what appears here is refined and reprioritized as the project evolves.
         Validated on BPTI: `A:ASN,24,ALA` re-segments (disulfides re-derived), `A:56-57` deletes two
         residues, a bogus resname hard-errors. Replace/extend grafts now also work via this path
         (a small follow-on to route them there instead of the P2.5 error).
+- [ ] **Special-position dedup is segment-granular.** Generating a biological assembly no longer
+      replicates a segment that its transform maps onto itself — the fix for insulin 2ins, whose two
+      axial zincs (deposited once at 1/3 occupancy on the 3-fold) were tripled into six, adding four
+      spurious Zn(2+) and +8 charge. The invariance test is per *segment*, though, so a segment mixing
+      on-axis and off-axis atoms is not invariant as a whole and is still replicated. In practice
+      special-position atoms sit in their own segment (as in 2ins), so this has not bitten; closing it
+      means testing per atom and filtering the authored PDB rather than skipping the whole segment.
+- [ ] **Decide where `scripts/pestifer-snapshot` belongs.** A headless VMD renderer added for the docs
+      figures: it picks representations from what a system contains (cartoon protein by chain or by
+      secondary structure, licorice glycans, lipids with head-group beads, bulk solvent separated from
+      ligands by residue copy count) and offers `-highlight`, `-face`, `-side`, `-ghost` and `-domains`
+      for composing a specific figure. It lives in `scripts/` and so is repo-only — not installed by
+      pip. Options: leave it as a dev tool, ship it as a `pestifer snapshot` subcommand, or fold the
+      representation logic into a library module the subcommand and the docs build both call. Note the
+      hard-won constraint recorded in its header: the Tcl must reach VMD on **stdin**, never `-e`, or
+      representations are never built and every render silently produces an image containing nothing
+      but the corner axes.
 - [ ] _(add items here)_
