@@ -4,6 +4,17 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **atoms on a crystallographic special position are no longer duplicated when a biological
+  assembly is generated.** An atom lying on a rotation axis is shared by every image of that axis,
+  so a deposited entry holds one copy (conventionally at 1/N occupancy for an N-fold) and applying
+  the assembly's operators to it manufactured N coincident copies of one physical atom. Insulin
+  2ins deposits two zincs on its 3-fold axis at occupancy 0.33; `biological_assembly: 1` turned
+  them into **six**, adding four spurious Zn(2+) and +8 net charge, and minimization drove the
+  coincident copies apart into triangles 6-12 A across, wrecking the axial His coordination.
+  A segment that a transform maps onto itself is now built once, by the identity image. The
+  invariance is measured directly rather than inferred from occupancy, which depositors do not
+  always follow. Affects any assembly with axial ions -- symmetric oligomers, viral capsids.
+
 ## [3.15.3] - 2026-08-11
 
 - fix: `ring_check` can now resolve a **glycan ring speared by a protein side chain**. Its

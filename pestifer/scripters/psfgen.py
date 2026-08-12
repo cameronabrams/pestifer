@@ -39,6 +39,39 @@ from ..util.stringthings import my_logger
 
 logger = logging.getLogger(__name__)
 
+# Tolerance (angstrom) for deciding that a transformed atom lands back on itself.  Crystallographic
+# special positions are exact, so this only needs to absorb rounding in the deposited BIOMT matrix.
+_SPECIAL_POSITION_TOL = 0.5
+# Segments larger than this are never tested: a special position holds an ion, a water or a small
+# ligand, and the pairwise test is not worth running over a whole protein chain.
+_SPECIAL_POSITION_MAX_ATOMS = 200
+
+
+def _segment_on_special_position(segment, transform):
+    """True if *transform* maps *segment* onto itself, i.e. the segment sits on the symmetry
+    element the transform describes.
+
+    An atom on a rotation axis is shared by every image of that axis, so the deposited entry holds
+    one copy (conventionally at 1/N occupancy for an N-fold) and applying the assembly's operators
+    to it manufactures N copies of a single physical atom -- e.g. the two axial zincs of insulin
+    2ins become six, adding four spurious Zn(2+).  Detecting the invariance directly is more robust
+    than trusting the occupancy convention to have been followed.
+    """
+    if transform is None:
+        return False
+    T = np.asarray(transform.tmat, dtype=float)
+    if T.shape != (4, 4) or np.allclose(T, np.eye(4), atol=1e-8):
+        return False   # identity image is the one we keep
+    coords = np.array([[a.x, a.y, a.z]
+                       for r in segment.residues.data for a in r.atoms.data], dtype=float)
+    if coords.shape[0] == 0 or coords.shape[0] > _SPECIAL_POSITION_MAX_ATOMS:
+        return False
+    image = coords @ T[:3, :3].T + T[:3, 3]
+    # every imaged atom must land on some original atom of the same segment
+    d = np.linalg.norm(image[:, None, :] - coords[None, :, :], axis=-1).min(axis=1)
+    return bool(np.all(d < _SPECIAL_POSITION_TOL))
+
+
 class PsfgenScripter(VMDScripter):
     """
     This class extends the VMDScripter class to provide functionality for creating and managing psfgen scripts.
@@ -205,6 +238,14 @@ class PsfgenScripter(VMDScripter):
 
     def write_segments(self, segments: SegmentList, transform: Transform = None):
         for segment in segments.data:
+            if _segment_on_special_position(segment, transform):
+                # already emitted by the identity image; replicating it would duplicate one
+                # physical atom into N coincident copies
+                logger.debug(f'segment {segment.segname} lies on the symmetry element of '
+                             f'transform {getattr(transform, "index", "?")}; not replicated')
+                self.comment(f'Segment {segment.segname} lies on this transform\'s symmetry '
+                             f'element; already built by the identity image')
+                continue
             self.comment(f'Segment {segment.segname} begins')
             self.write_segment(segment, transform)
             self.comment(f'Segment {segment.segname} ends')
