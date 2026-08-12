@@ -4,6 +4,24 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **`mdplot` histograms are implemented.** The option existed in the schema but the task
+  logged "not yet implemented" and drew nothing; its description also promised a profile along z,
+  which `profiles` and the `density-profile` subcommand already cover. It now does what the name
+  says: one distribution figure per quantity, built from the trailing `histogram-tail` fraction
+  (default 0.5) so the approach to equilibrium does not make the distribution bimodal, annotated
+  with mean, standard deviation, and sample count. A timeseries shows whether a quantity settled;
+  this shows what it settled at and how tightly.
+
+- feat: **`mdplot` derives cell geometry from the xst series.** `area`, `volume`, and `aspect` are
+  now ordinary traces, computed with the exact vector forms (`|a×b|`, `|a·(b×c)|`) so a triclinic
+  cell is not silently wrong. With `lipids-per-leaflet` set, `apl` (area per lipid) joins them —
+  no NAMD log records a lipid count, so it has to be supplied. Because these are ordinary columns
+  they work with units, block averaging, and stage markers.
+
+- fix: histograms and timeseries now share one unit resolution. A histogram previously ignored the
+  `units` spec, so a density distribution was labeled in raw amu/Å³ (0.62) while the timeseries
+  beside it read g/cc (1.03) — the same quantity in two different units in one figure set.
+
 - fix: **`pestifer mdplot` was unusable.** Its `--figsize` default was a tuple, and ycleptic
   concatenates schema defaults onto a list, so every invocation that did not pass `--figsize`
   explicitly died with `TypeError: can only concatenate list (not "tuple") to list`. This matters

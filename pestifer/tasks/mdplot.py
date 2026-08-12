@@ -126,6 +126,112 @@ class MDPlotTask(BaseTask):
 
 
 
+
+
+    def _resolve_units(self, name, df_of_column):
+        """``(column_key, dataframe, multiplier, unit_label)`` for a requested quantity.
+
+        Shared by the timeseries and histogram paths: a histogram that ignored the unit spec would
+        label a density axis 0.62 (raw amu/A^3) where the timeseries beside it reads 1.03 g/cc, and
+        the same number would appear in two different units in one figure set.
+        """
+        units = 1.0
+        unitspec = self.specs.get('units', {}).get(name, '*')
+        if unitspec == '*':
+            unitspec = _NAMD_DEFAULT_UNITS.get(name.upper(), '*')
+            units = 1.0
+        elif name == 'density':
+            if unitspec in ['g_per_cc', 'g/cc', 'g_per_cm3', 'g/cm3']:
+                units = g_per_amu * A3_per_cm3
+            else:
+                logger.debug(f'Unitspec "{unitspec}" not recognized.')
+                units = 1.0
+        key = name.upper()
+        df = df_of_column.get(key, None)
+        if df is None:
+            key = name.lower()
+            df = df_of_column.get(key, None)
+        if df is not None and unitspec == 'kcal/mol' and df[key].abs().max() > 1000:
+            units = 1e-3
+            unitspec = '1000 kcal/mol'
+        return key, df, units, unitspec
+
+    def _add_derived_columns(self):
+        """Add cell-geometry columns that the xst series implies but does not carry.
+
+        NAMD logs the three cell vectors; what a membrane build actually wants to look at is the
+        lateral area, the volume, and -- given a lipid count, which no log records -- the area per
+        lipid.  Computing them here makes them ordinary traces, so they work with every existing
+        option (units, block averaging, stage markers) instead of needing bespoke plotting.
+
+        Uses the exact vector forms, |a x b| and |a . (b x c)|, rather than a_x*b_y and its
+        product: those agree only for an orthorhombic cell, and a triclinic one would be silently
+        wrong.
+        """
+        df = self.dataframes.get('xst')
+        if df is None or df.empty:
+            return
+        needed = ('a_x', 'a_y', 'a_z', 'b_x', 'b_y', 'b_z', 'c_x', 'c_y', 'c_z')
+        if not all(c in df.columns for c in needed):
+            logger.debug('xst series lacks full cell vectors; skipping derived cell columns')
+            return
+        a = df[['a_x', 'a_y', 'a_z']].to_numpy(dtype=float)
+        b = df[['b_x', 'b_y', 'b_z']].to_numpy(dtype=float)
+        c = df[['c_x', 'c_y', 'c_z']].to_numpy(dtype=float)
+        axb = np.cross(a, b)
+        df['area'] = np.linalg.norm(axb, axis=1)
+        df['volume'] = np.abs(np.einsum('ij,ij->i', axb, c))
+        with np.errstate(divide='ignore', invalid='ignore'):
+            df['aspect'] = np.divide(np.linalg.norm(a, axis=1), np.linalg.norm(b, axis=1))
+        added = ['area', 'volume', 'aspect']
+        n_lipids = int(self.specs.get('lipids-per-leaflet', 0) or 0)
+        if n_lipids > 0:
+            df['apl'] = df['area'] / n_lipids
+            added.append('apl')
+        self.dataframes['xst'] = df
+        logger.debug(f'{self.taskname}: derived cell columns available as traces: {added}')
+
+    def _plot_histograms(self, histograms, df_of_column, output_dir):
+        """One distribution figure per named quantity, built from the equilibrated tail.
+
+        A timeseries shows whether a quantity settled; this shows what it settled at and how
+        tightly.  The early part of a run is the approach to equilibrium, and including it makes
+        the distribution bimodal and its mean meaningless, so only the trailing fraction is used.
+        """
+        tail_frac = float(self.specs.get('histogram-tail', 0.5))
+        tail_frac = min(max(tail_frac, 0.0), 1.0)
+        figsize = self.specs.get('figsize') or (9, 6)
+        axis_labels = self.specs.get('axis-labels', {})
+        for name in histograms:
+            key, df, units, unitspec = self._resolve_units(name, df_of_column)
+            if df is None:
+                logger.debug(f'No data found for histogram {name}. Skipping...')
+                continue
+            values = (df[key] * units).dropna()
+            if len(values) < 4:
+                logger.debug(f'Too few samples ({len(values)}) to histogram {name}. Skipping...')
+                continue
+            tail = values.iloc[int(len(values) * (1.0 - tail_frac)):]
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+            nbins = max(10, min(int(np.sqrt(len(tail))), 60))
+            ax.hist(tail, bins=nbins, color=self.colormap(0.5), edgecolor='white', linewidth=0.4)
+            mean, sd = float(tail.mean()), float(tail.std(ddof=1)) if len(tail) > 1 else 0.0
+            ax.axvline(mean, color='0.25', linestyle='-', linewidth=1.2)
+            ax.axvspan(mean - sd, mean + sd, color='0.4', alpha=0.15, linewidth=0)
+            label = to_latex_math(axis_labels.get(name, name))
+            ax.set_xlabel(label + (f' ({unitspec})' if unitspec and unitspec != '*' else ''))
+            ax.set_ylabel('count')
+            ax.set_title(f'{label}: '
+                         f'mean {mean:.4g} $\\pm$ {sd:.3g} over the trailing '
+                         f'{tail_frac:.0%} ({len(tail)} samples)', fontsize=9)
+            if self.specs.get('grid', False):
+                ax.grid(True, axis='y')
+            png_path = os.path.join(output_dir, f'{self.basename}-{name}-hist.png')
+            plt.savefig(png_path, bbox_inches='tight')
+            self.register(png_path, key=f'{name}-histogram-plot', artifact_type=PNGImageFileArtifact, keep=True)
+            plt.clf()
+            logger.debug(f'{self.taskname}: histogram of {name} -> {png_path}')
+
     def _draw_stage_markers(self, ax, key, df, x_values):
         """Draw a labeled vertical rule where each simulation stage begins.
 
@@ -333,6 +439,8 @@ class MDPlotTask(BaseTask):
             df_e['time_ps'] = np.cumsum(dt_arr * delta_ts / 1000.0)
             self.dataframes['energy'] = df_e
 
+        self._add_derived_columns()
+
         # build a dictionary of column headings:dataframe pairs
         df_of_column = {}
         for key, df in self.dataframes.items():
@@ -369,7 +477,7 @@ class MDPlotTask(BaseTask):
         block_average = int(self.specs.get('block-average', -1))
         grid = self.specs.get('grid', False)
         if histograms:
-            logger.debug(f'Histograms are not yet implemented in the mdplot task.')
+            self._plot_histograms(histograms, df_of_column, output_dir)
         logger.debug(f'Timeseries to plot: {timeseries}')
         for trace in timeseries:
             unitspecs = []
@@ -409,27 +517,7 @@ class MDPlotTask(BaseTask):
 
             boundary_series = None
             for idx, t_i in enumerate(tracelist):
-                units = 1.0
-                unitspec = self.specs.get('units', {}).get(t_i, '*')
-                if unitspec == '*':
-                    unitspec = _NAMD_DEFAULT_UNITS.get(t_i.upper(), '*')
-                    units = 1.0
-                else:
-                    if t_i == 'density':
-                        if unitspec in ['g_per_cc', 'g/cc', 'g_per_cm3', 'g/cm3']:
-                            units = g_per_amu * A3_per_cm3
-                        else:
-                            logger.debug(f'Unitspec "{unitspec}" not recognized.')
-                            units = 1.0
-                key = t_i.upper()
-                df = df_of_column.get(key, None)
-                if df is None:
-                    key = t_i.lower()
-                    df = df_of_column.get(key, None)
-                if df is not None and unitspec == 'kcal/mol':
-                    if df[key].abs().max() > 1000:
-                        units = 1e-3
-                        unitspec = '1000 kcal/mol'
+                key, df, units, unitspec = self._resolve_units(t_i, df_of_column)
                 unitspecs.append(unitspec)
                 if df is None:
                     logger.debug(f'No data found for trace {t_i}. Skipping...')

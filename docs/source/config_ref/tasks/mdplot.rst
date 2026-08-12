@@ -14,7 +14,11 @@ Single-valued attributes:
 
   * ``profiles-per-block``: Number of profiles to average per block (default: 100)
 
-  * ``histograms``: List of histogram quantities to plot vs distance along z-axis
+  * ``histograms``: Quantities whose distribution to plot, one figure each. A timeseries answers "did it settle"; a histogram answers "what value did it settle at, and how tightly" -- the natural companion for a fluctuating observable. Only the trailing `histogram-tail` fraction of the series is used, since including the approach to equilibrium makes the distribution bimodal and its mean meaningless. Mean, standard deviation, and sample count are annotated.
+
+  * ``histogram-tail``: Trailing fraction of each series a histogram is built from (default 0.5), the part taken to be equilibrated. (default: 0.5)
+
+  * ``lipids-per-leaflet``: Lipids in one leaflet, used to report the derived `apl` (area per lipid) trace. Left at 0 the area is still available as `area`, just not per lipid; nothing in a NAMD log records the lipid count, so it has to be supplied here. (default: 0)
 
   * ``colormap``: matplotlib colormap for multiple traces on a single plot (default: tab10)
 

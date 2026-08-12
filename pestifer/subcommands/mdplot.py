@@ -52,6 +52,9 @@ class MDPlotSubcommand(Subcommand):
                         # know about every flag the parser happens to define
                         'stage-markers': not getattr(args, 'no_stage_markers', False),
                         'block-average': getattr(args, 'block_average', -1),
+                        'histograms': getattr(args, 'histograms', []) or [],
+                        'histogram-tail': getattr(args, 'histogram_tail', 0.5),
+                        'lipids-per-leaflet': getattr(args, 'lipids_per_leaflet', 0),
                         'units': {
                             'density': 'g/cc',
                             'a_x': 'Å',
@@ -96,4 +99,11 @@ class MDPlotSubcommand(Subcommand):
                                       'with the raw trace faint behind it (default: off)')
         self.parser.add_argument('--no-stage-markers', default=False, action='store_true',
                                  help='do not mark the boundaries between simulation stages')
+        self.parser.add_argument('--histograms', type=str, default=[], nargs='+', metavar='NAME',
+                                 help='quantities whose distribution to plot, one figure each')
+        self.parser.add_argument('--histogram-tail', type=float, default=0.5, metavar='FRAC',
+                                 help='trailing fraction of each series a histogram uses '
+                                      '(default: %(default)s)')
+        self.parser.add_argument('--lipids-per-leaflet', type=int, default=0, metavar='N',
+                                 help='lipids per leaflet, enabling the derived apl trace')
         return self.parser

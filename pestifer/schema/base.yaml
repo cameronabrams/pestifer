@@ -971,7 +971,26 @@ attributes:
             default: 100
           - name: histograms
             type: list
-            text: List of histogram quantities to plot vs distance along z-axis
+            text: >-
+              Quantities whose distribution to plot, one figure each. A timeseries answers "did it
+              settle"; a histogram answers "what value did it settle at, and how tightly" -- the
+              natural companion for a fluctuating observable. Only the trailing `histogram-tail`
+              fraction of the series is used, since including the approach to equilibrium makes the
+              distribution bimodal and its mean meaningless. Mean, standard deviation, and sample
+              count are annotated.
+          - name: histogram-tail
+            text: >-
+              Trailing fraction of each series a histogram is built from (default 0.5), the part
+              taken to be equilibrated.
+            type: float
+            default: 0.5
+          - name: lipids-per-leaflet
+            text: >-
+              Lipids in one leaflet, used to report the derived `apl` (area per lipid) trace. Left
+              at 0 the area is still available as `area`, just not per lipid; nothing in a NAMD log
+              records the lipid count, so it has to be supplied here.
+            type: int
+            default: 0
           - name: units
             type: dict
             text: user-specified units for plots
