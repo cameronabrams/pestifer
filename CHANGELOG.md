@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.15.4] - 2026-08-12
+
 - change: **examples 23-27 now package a production system and stop double-plotting density.**
   Each gains a distinct system basename and a `package` block, so a run yields both
   `my_<name>-artifacts.tar.gz` and a `prod_<name>.tar.gz` ready for production MD. The `density`
