@@ -4,6 +4,12 @@ Defines the PDBInput class for representing PDB files used as inputs for grid-pa
 Defines the PDBCollection class for managing the collection of said PDBs.
 """
 from collections import UserDict
+
+# Suffix marking a residue's liquid-ordered conformer ensemble in a PDB collection, and the
+# markers used to fold it onto the residue's own listing entry.
+_LO_SUFFIX = '__Lo'
+_LO_BOTH_MARK = '*'
+_LO_ONLY_MARK = '^'
 import os
 import logging
 from pathlib import Path
@@ -384,26 +390,74 @@ class PDBCollection:
             If `fullnames` is True, it will include the full names (synonyms) of the residues; otherwise, it will just list the resnames.
 
         """
+        # A '<resname>__Lo' key is not a distinct residue: it is the same residue's
+        # liquid-ordered conformer ensemble.  Listing both forms side by side nearly doubled the
+        # lipid listing (266 entries for 219 residues) and interleaved every name with its own
+        # near-duplicate, so the phase is folded into a marker on the residue instead.
+        entries = self._display_entries()
+        n_both = sum(1 for _, m in entries if m == _LO_BOTH_MARK)
+        n_lo_only = sum(1 for _, m in entries if m == _LO_ONLY_MARK)
+        counts = f'contains {len(entries)} residues'
+        notes = []
+        if n_both:
+            notes.append(f'{n_both} with an Lo conformer ensemble')
+        if n_lo_only:
+            notes.append(f'{n_lo_only} Lo ensembles only')
+        if notes:
+            counts += ' (' + '; '.join(notes) + ')'
+
         retstr = f'PDBCollection(registered_at={self.registration_place}'
         retstr += f', streamID=\'{self.streamID}\''
         retstr += f', path=\'{self.path_or_tarball}\''
-        retstr += f', contains {len(self.info)} resnames)\n'
+        retstr += f', {counts})\n'
+        if n_both or n_lo_only:
+            legend = []
+            if n_both:
+                legend.append(f'{_LO_BOTH_MARK} also has a liquid-ordered (Lo) conformer ensemble')
+            if n_lo_only:
+                legend.append(f'{_LO_ONLY_MARK} Lo conformer ensemble only (base conformers come from another collection)')
+            retstr += '  ' + '; '.join(legend) + '\n'
+
         if fullnames:
-            pass
-            for resname in sorted(self.info.keys()):
-                fullname = self.info[resname].get('synonym', '')
+            for resname, mark in entries:
+                fullname = self.info.get(resname, {}).get('synonym', '')
+                if not fullname:
+                    fullname = self.info.get(resname + _LO_SUFFIX, {}).get('synonym', '')
                 if not fullname:
                     fullname = missing_fullnames.get(resname, '')
-                retstr += f'  {fullname:>66s} ({resname})\n'
+                retstr += f'  {fullname:>66s} ({resname}{mark})\n'
         else:
-            pass
-            for i, resname in enumerate(sorted(self.info.keys())):
-                retstr += f'{resname:>6s}'
-                if i < len(self.info) - 1:
+            width = max((len(r) + len(m) for r, m in entries), default=6)
+            for i, (resname, mark) in enumerate(entries):
+                retstr += f'{resname + mark:>{width}s}'
+                if i < len(entries) - 1:
                     retstr += ', '
                 if (i + 1) % 7 == 0:
                     retstr += '\n'
         return retstr
+
+    def _display_entries(self) -> list:
+        """``(resname, marker)`` pairs for display, one per residue rather than one per key.
+
+        Keys ending in ``__Lo`` carry a residue's liquid-ordered conformer ensemble, so they are
+        folded onto the residue itself.  The two markers are kept distinct because a collection can
+        hold an Lo ensemble *without* the base conformers -- the on-demand user cache is exactly
+        that -- and marking those the same way would imply the collection provides a residue it
+        does not.
+        """
+        keys = set(self.info.keys())
+        lo_keys = {k for k in keys if k.endswith(_LO_SUFFIX)}
+        base = keys - lo_keys
+        lo_bases = {k[:-len(_LO_SUFFIX)] for k in lo_keys}
+        out = []
+        for resname in sorted(base | lo_bases):
+            if resname in base and resname in lo_bases:
+                out.append((resname, _LO_BOTH_MARK))
+            elif resname in base:
+                out.append((resname, ''))
+            else:
+                out.append((resname, _LO_ONLY_MARK))
+        return out
 
     def __contains__(self, resname: str) -> bool:
         """ 

@@ -4,6 +4,13 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: `show-resources pdb-repo` lists one entry per *residue* instead of one per repository key.
+  A `<resname>__Lo` key is the same residue's liquid-ordered conformer ensemble, not a distinct
+  residue, and listing both forms interleaved every lipid with its own near-duplicate — the bundled
+  lipid collection reported 266 entries for 219 residues. The phase is now a marker on the residue:
+  `*` when the collection also has an Lo ensemble, `^` when it has *only* the Lo ensemble (which is
+  what the on-demand user cache holds), with a legend and counts to match.
+
 ## [3.15.4] - 2026-08-12
 
 - change: **examples 23-27 now package a production system and stop double-plotting density.**
