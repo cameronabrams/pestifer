@@ -4,6 +4,26 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **`pestifer mdplot` was unusable.** Its `--figsize` default was a tuple, and ycleptic
+  concatenates schema defaults onto a list, so every invocation that did not pass `--figsize`
+  explicitly died with `TypeError: can only concatenate list (not "tuple") to list`. This matters
+  beyond the subcommand: it is the path that regenerates plots from archived NAMD logs, so
+  refreshing a figure meant re-running the build. Two related mismatches fixed alongside it —
+  `profiles-per-block` was read under an underscored name, so a user's value was silently ignored,
+  and the `legend` fallback in code contradicted the schema default.
+
+- feat: **`mdplot` marks the boundaries between simulation stages.** A plot normally concatenates
+  several NAMD runs — a minimization, a warm-up, a self-terminating equilibration — into one curve,
+  with nothing to say which part is which. Boundaries are now drawn as labeled vertical rules,
+  derived from the run basenames so they work both in a build and when re-plotting from logs.
+  Labels are placed only where there is room, since stage lengths are wildly uneven. Off via
+  `stage-markers: false`.
+
+- feat: **`mdplot` can block-average a trace.** `block-average: N` draws a rolling mean over N
+  samples with a ±1σ band and the raw series faint behind it. An instantaneous NAMD observable like
+  PRESSURE fluctuates far more than it drifts — swinging ±1000 bar around a mean near zero — so the
+  raw trace hides exactly the behavior one is looking for. Also on the CLI as `--block-average`.
+
 - change: **`mdplot` now selects its data from a recorded MD history rather than by walking back
   through adjacent tasks.** Every NAMD run appends an entry — task, basename, ensemble, CSV keys,
   and the system's atom count — to a new `md_history` pipeline artifact, the first artifact whose

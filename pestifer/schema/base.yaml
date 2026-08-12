@@ -1002,6 +1002,23 @@ attributes:
             text: include a legend
             type: bool
             default: True
+          - name: stage-markers
+            text: >-
+              Mark the boundaries between simulation stages on each timeseries plot with a labeled
+              vertical rule. A plot usually spans several NAMD runs -- a minimization, a warm-up, a
+              self-terminating equilibration -- concatenated into one curve, and without the
+              boundaries a reader cannot tell which part of the trace is which. Labels are taken
+              from the task and ensemble that produced each stage.
+            type: bool
+            default: True
+          - name: block-average
+            text: >-
+              Rolling-average window, in samples, drawn over each trace (0 = off). An instantaneous
+              NAMD observable such as PRESSURE fluctuates far more than it drifts, so the raw trace
+              can hide the behavior being looked for; with this set the raw series is drawn faintly
+              behind a bold rolling mean and a +/- one standard deviation band.
+            type: int
+            default: 0
           - name: grid
             text: include a grid
             type: bool

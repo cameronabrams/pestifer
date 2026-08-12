@@ -13,6 +13,7 @@ Usage as a task in a build workflow is described in the :ref:`config_ref tasks m
 """
 import logging
 import os
+import re
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -29,6 +30,11 @@ from ..util.stringthings import to_latex_math
 from ..core.artifacts import *
 
 logger = logging.getLogger(__name__)
+
+# beyond this many stages the labels overlap into noise; the rules alone still carry the story
+_MAX_LABELED_STAGES = 8
+# a label needs this fraction of the x range clear of the previous one to stay readable
+_MIN_LABEL_GAP_FRAC = 0.05
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 _NAMD_DEFAULT_UNITS = {
@@ -40,6 +46,23 @@ _NAMD_DEFAULT_UNITS = {
     'PRESSURE': 'bar', 'GPRESSURE': 'bar', 'PRESSAVG': 'bar', 'GPRESSAVG': 'bar',
     'VOLUME': 'Å³',
 }
+
+
+
+# '<controller>-<task>-<run>_<label>' is the basename every NAMD run writes its files under, so a
+# stage -- one task's contiguous series of runs -- is recoverable from the filename alone.  Doing
+# it this way rather than from the recorded MD history is deliberate: the standalone re-plot path
+# (`pestifer mdplot --logs ...`) has no pipeline and hence no history, and stage boundaries are
+# exactly as meaningful there.
+_STAGE_RE = re.compile(r'^(?P<controller>\d+)-(?P<task>\d+)-(?P<run>\d+)_(?P<label>.*)$')
+
+
+def stage_of(csv_basename: str):
+    """``(stage_key, label)`` for a run's basename, or ``(None, None)`` if it does not parse."""
+    m = _STAGE_RE.match(csv_basename)
+    if not m:
+        return None, None
+    return f"{m.group('controller')}-{m.group('task')}", m.group('label')
 
 
 def select_commensurable_runs(entries: list, natoms: int | None) -> list:
@@ -83,6 +106,55 @@ class MDPlotTask(BaseTask):
         # plots molecular-dynamics output; needs an md task to have run
         return TaskContract(requires=(MD_OUTPUT,), provides=())
 
+
+
+    def _draw_stage_markers(self, ax, key, df, x_values):
+        """Draw a labeled vertical rule where each simulation stage begins.
+
+        A plot normally spans several NAMD runs concatenated into one curve -- a minimization, a
+        warm-up, a self-terminating equilibration -- and without the boundaries a reader cannot
+        tell which part of the trace is which, or that a discontinuity is a change of ensemble
+        rather than a physical event.
+
+        Boundaries were recorded as row indices while the series was assembled, so they map onto
+        whichever x axis is in use.  The first stage is skipped (its rule would sit on the axis)
+        and labels are dropped when there are too many stages to read, which is the usual case for
+        a chunked task -- there the boundaries themselves are the useful signal.
+        """
+        series_key = None
+        for name in self.dataframes:
+            if self.dataframes[name] is df:
+                series_key = name
+                break
+        boundaries = self.stage_boundaries.get(series_key, [])
+        if len(boundaries) < 2:
+            return
+        xv = list(x_values)
+        label_them = len(boundaries) <= _MAX_LABELED_STAGES
+        ymin, ymax = ax.get_ylim()
+        # Stages are wildly uneven in length -- a 1 ps minimization sits beside a 160 ps
+        # equilibration -- so labeling every boundary piles them on top of each other at the left
+        # edge.  Label only where there is room; the rules still mark every boundary.
+        x_span = (max(xv) - min(xv)) if len(xv) > 1 else 0.0
+        min_gap = _MIN_LABEL_GAP_FRAC * x_span
+        last_labeled_x = None
+        n_marked = n_labeled = 0
+        for row, label in boundaries[1:]:                 # the first stage starts at the axis
+            if row <= 0 or row >= len(xv):
+                continue
+            x = xv[row]
+            ax.axvline(x, color='0.55', linestyle='--', linewidth=0.8, zorder=0)
+            n_marked += 1
+            if not label_them:
+                continue
+            if last_labeled_x is not None and x_span > 0 and (x - last_labeled_x) < min_gap:
+                continue
+            ax.annotate(label, xy=(x, ymax), xytext=(2, -2), textcoords='offset points',
+                        rotation=90, va='top', ha='left', fontsize=6, color='0.35', zorder=0)
+            last_labeled_x = x
+            n_labeled += 1
+        logger.debug(f'{self.taskname}: marked {n_marked} stage boundary/boundaries on the '
+                     f'{series_key} plot ({n_labeled} labeled)')
 
     def _collect_from_md_history(self) -> bool:
         """Fill ``self.csvartifacts`` from the pipeline's MD history.  Returns False if there is
@@ -133,6 +205,8 @@ class MDPlotTask(BaseTask):
         self.explicit_logs = self.specs.get('logs', [])
         self.running_sums = self.specs.get('running_sums', ['cpu_time', 'wall_time'])
         self.dataframes: dict[str, pd.DataFrame] = {}
+        # series name -> [(row index where a stage starts, label), ...]
+        self.stage_boundaries: dict[str, list] = {}
         self.colormapname = self.specs.get('colormap', 'tab10')
         self.colormap = cmaps.get(self.colormapname, cmaps['tab10'])
         self.colormap_direction = self.specs.get('colormap-direction', 1)
@@ -189,9 +263,19 @@ class MDPlotTask(BaseTask):
             if len(csv_artifact_collection) == 0:
                 logger.debug(f'No CSV artifact found for {tst}. Skipping...')
                 continue
+            last_stage = None
             for csvartifact in csv_artifact_collection:
                 logger.debug(f'Collecting data from CSV file {csvartifact.path.name}')
                 csvname = csvartifact.path.name
+                # note where each stage starts, as a row index into the series being assembled;
+                # row indices survive the later conversion of the x axis to simulation time
+                stage_key, stage_label = stage_of(csvartifact.name[:-len(f'-{tst}.csv')]
+                                                  if csvartifact.name.endswith(f'-{tst}.csv')
+                                                  else csvartifact.name)
+                if stage_key is not None and stage_key != last_stage:
+                    self.stage_boundaries.setdefault(tst, []).append(
+                        (len(self.dataframes[tst]), stage_label))
+                    last_stage = stage_key
                 try:
                     newdf = pd.read_csv(csvname, header=0, index_col=None)
                 except:
@@ -261,8 +345,10 @@ class MDPlotTask(BaseTask):
                     pp = self.dataframes[f'{profiles[0]}profile']
                     pp['c_z'] = dp[dp['TS'].isin(pp['TS'])]['c_z'].values
                     self.dataframes[f'{profiles[0]}profile'] = pp
-        profiles_per_block = self.specs.get('profiles_per_block', 100)
-        legend = self.specs.get('legend', False)
+        profiles_per_block = self.specs.get('profiles-per-block', 100)
+        legend = self.specs.get('legend', True)
+        stage_markers = self.specs.get('stage-markers', True)
+        block_average = int(self.specs.get('block-average', 0) or 0)
         grid = self.specs.get('grid', False)
         if histograms:
             logger.debug(f'Histograms are not yet implemented in the mdplot task.')
@@ -303,6 +389,7 @@ class MDPlotTask(BaseTask):
                         eff_dt_scaled = eff_dt_ps * time_scale
                     break
 
+            boundary_series = None
             for idx, t_i in enumerate(tracelist):
                 units = 1.0
                 unitspec = self.specs.get('units', {}).get(t_i, '*')
@@ -347,7 +434,24 @@ class MDPlotTask(BaseTask):
                 label = key
                 if label.endswith('_time'):
                     label = label.replace('_time', ' time')
-                ax.plot(x_values, df[key] * units, label=label.title() if '_' not in label else r'$'+label+r'$', color=color)
+                plot_label = label.title() if '_' not in label else r'$'+label+r'$'
+                y_values = df[key] * units
+                if block_average > 1 and len(y_values) > block_average:
+                    # the raw series stays visible but recedes; the eye follows the mean, and the
+                    # band shows the fluctuation the mean was taken over
+                    rolled = y_values.rolling(block_average, center=True, min_periods=1)
+                    mean, sd = rolled.mean(), rolled.std().fillna(0.0)
+                    ax.plot(x_values, y_values, color=color, alpha=0.25, linewidth=0.8)
+                    ax.fill_between(x_values, mean - sd, mean + sd, color=color, alpha=0.20,
+                                    linewidth=0)
+                    ax.plot(x_values, mean, label=plot_label, color=color, linewidth=1.6)
+                else:
+                    ax.plot(x_values, y_values, label=plot_label, color=color)
+                if stage_markers and boundary_series is None:
+                    boundary_series = (key, df, x_values)
+
+            if stage_markers and boundary_series is not None:
+                self._draw_stage_markers(ax, *boundary_series)
 
             if time_unit is not None:
                 ax.set_xlabel(f'simulation time ({time_unit})')
