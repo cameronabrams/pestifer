@@ -18,17 +18,17 @@ tasks:
     ensemble: minimize
 - md:
     ensemble: nvt
-# Self-terminating NPT density equilibration (replaces the old NPT ladder): runs
-# stability-bounded short restarts and stops when the box density has converged.
-# Writes its own convergence report + density-vs-time plot.
 - density_equilibrate:
 - mdplot:
     basename: solvated
     grid: true
     timeseries:
-    - density
     - - a_x
       - b_y
       - c_z
 - terminate:
-    cleanup: true
+    basename: my_1scd_dmso
+    package:
+      basename: prod_1scd_dmso
+      namd:
+        ensemble: NPT

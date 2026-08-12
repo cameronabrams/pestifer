@@ -4,6 +4,14 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: **examples 23-27 now package a production system and stop double-plotting density.**
+  Each gains a distinct system basename and a `package` block, so a run yields both
+  `my_<name>-artifacts.tar.gz` and a `prod_<name>.tar.gz` ready for production MD. The `density`
+  trace is dropped from their `mdplot` tasks (example 25 drops `mdplot` entirely) because
+  `density_equilibrate` already writes its own density plot; the subtilisins and the ubiquitin-GFP
+  fusion now plot the cell dimensions instead. Stale comments describing the NPT-ladder migration
+  are removed.
+
 - fix: subcommands that report success by returning `True` no longer exit nonzero. `bool` is a
   subclass of `int`, so the exit-status change below read `True` as an exit code and made
   `show-resources`, `wheretcl`, `config-default`, `cache` and the other bool-returning
