@@ -25,7 +25,11 @@
 #   -size WxH        image size in pixels (default: 1600x1200)
 #   -view NAME       xy | xz | yz | auto  (default: auto -- xz for membranes, xy otherwise)
 #   -style NAME      auto | protein | membrane | glycan  (default: auto)
-#   -solvent 0|1     show water, bulk solvent and ions (default: 0 -- solute only)
+#   -solvent MODE    off|0 (default), or how to draw water/bulk solvent: points|lines|licorice
+#                    (1 == points).  Hydrogens are never drawn on solvent.  Ions come with it.
+#   -highlight SELS  ';'-separated VMD selections drawn as thick licorice in contrasting
+#                    colors on top of everything else, e.g. "resid 11 13; resid 5 55"
+#   -ss 0|1          draw cysteine sulfurs as spheres (default: 0), so disulfides read at a glance
 #   -bg NAME         background color (default: white)
 #   -renderer NAME   TachyonInternal | TachyonLOptiXInternal | snapshot (default: TachyonInternal)
 #   -fill F          fraction of the frame the geometry should fill (default: 0.92)
@@ -49,6 +53,9 @@ set PS_ION_RESNAMES {SOD CLA POT CAL MG ZN2 CES RUB BAR}
 # separation is wide -- a non-aqueous solvent box runs to hundreds or thousands of copies while
 # a cofactor comes in ones -- so the exact value is not delicate.
 set PS_BULK_MIN_COPIES 50
+# ColorIDs for -highlight, picked to contrast with the NewCartoon Structure palette
+# (purple/yellow/cyan/white/blue) so a highlighted residue never blends into the ribbon
+set PS_HIGHLIGHT_COLORS {1 3 7 9 5}
 
 proc ps_magick {} {
     foreach cand {magick convert} {
@@ -78,6 +85,7 @@ proc ps_parse_args {argv} {
     array set opt {
         psf "" coor "" frame -1 o "snapshot.png" size "1600x1200" view auto
         style auto solvent 0 bg white renderer TachyonInternal zoom 1.0 rot "" fill 0.92
+        highlight "" ss 0
     }
     for {set i 0} {$i < [llength $argv]} {incr i} {
         set a [lindex $argv $i]
@@ -116,14 +124,38 @@ proc ps_load {molid_var psf coor frame} {
     ps_note "loaded [molinfo $molid get numatoms] atoms; rendering frame $frame of $nframes"
 }
 
+# Adds a representation and returns its index, or -1 if the selection is empty.
 proc ps_addrep {molid seltext style color {material Opaque}} {
-    if {[ps_nsel $molid $seltext] == 0} { return 0 }
+    if {[ps_nsel $molid $seltext] == 0} { return -1 }
     mol representation $style
     mol color $color
     mol selection $seltext
     mol material $material
     mol addrep $molid
-    return 1
+    return [expr {[molinfo $molid get numreps] - 1}]
+}
+
+# Map a -solvent mode onto a representation.  "1" is accepted as a synonym for points so the
+# old boolean spelling keeps working.
+# Indices of the representations holding solvent, so they can be hidden while the view is fitted.
+proc ps_solvent_reps {} {
+    if {![info exists ::PS_SOLVENT_REPS]} { return {} }
+    return $::PS_SOLVENT_REPS
+}
+
+proc ps_solvent_style {mode} {
+    switch -- $mode {
+        1 - points   { return "Points 3.000000" }
+        lines        { return "Lines 1.000000" }
+        licorice     { return "Licorice 0.100000 12.000000 12.000000" }
+        default      { return "Points 3.000000" }
+    }
+}
+
+# Normalize -solvent into "off" or a mode name, so callers can test it as a string.
+proc ps_solvent_mode {v} {
+    if {$v eq "" || $v eq "0" || $v eq "off" || $v eq "no" || $v eq "false"} { return "off" }
+    return $v
 }
 
 # Resnames in *seltext* present in enough residue copies to count as bulk solvent.
@@ -145,8 +177,8 @@ proc ps_bulk_species {molid seltext} {
     return [lsort $bulk]
 }
 
-proc ps_represent {molid style show_solvent} {
-    global PS_GLYCAN_RESNAMES PS_LIPID_EXTRA PS_ION_RESNAMES
+proc ps_represent {molid style show_solvent highlight show_ss} {
+    global PS_GLYCAN_RESNAMES PS_LIPID_EXTRA PS_ION_RESNAMES PS_HIGHLIGHT_COLORS
     set glycan_sel "resname $PS_GLYCAN_RESNAMES"
     set lipid_sel  "lipid or resname $PS_LIPID_EXTRA"
     set ion_sel    "ion or resname $PS_ION_RESNAMES"
@@ -181,9 +213,17 @@ proc ps_represent {molid style show_solvent} {
     }
     # Ions travel with the solvent: counterions scattered through a water box read as stray dots
     # around the solute and, worse, stretch the view fit to the whole box.  They come back with it.
-    if {$show_solvent} {
-        ps_addrep $molid "water" "Lines 1.000000" Name
-        ps_addrep $molid $ion_sel "VDW 0.500000 16.000000" ResName
+    # Solvent is drawn without hydrogens -- at box scale they add a haze of geometry that obscures
+    # the solute and costs render time without conveying anything.
+    if {$show_solvent ne "off"} {
+        set wstyle [ps_solvent_style $show_solvent]
+        set ::PS_SOLVENT_REPS {}
+        # neutral gray: solvent is context, and coloring it by element puts a field of red
+        # oxygens in competition with the highlights
+        foreach r [list [ps_addrep $molid "water and noh" $wstyle "ColorID 6"] \
+                        [ps_addrep $molid $ion_sel "VDW 0.500000 16.000000" ResName]] {
+            if {$r >= 0} { lappend ::PS_SOLVENT_REPS $r }
+        }
     }
 
     # catch-all: ligands, cofactors, anything unrecognized, so a snapshot never silently
@@ -194,18 +234,42 @@ proc ps_represent {molid style show_solvent} {
     # without this it falls to the catch-all below and buries the solute under thousands of
     # licorice molecules -- and drags the view fit out to the whole box.  Telling them apart by
     # residue copy count needs no list of solvent names, so it holds for any solvent.
+    set bulk_sel ""
     set bulk [ps_bulk_species $molid "not ($covered)"]
     if {[llength $bulk] > 0} {
         set bulk_sel "resname $bulk"
         set covered "$covered or ($bulk_sel)"
-        if {$show_solvent} {
-            ps_addrep $molid $bulk_sel "Lines 1.000000" Name
+        if {$show_solvent ne "off"} {
+            set r [ps_addrep $molid "($bulk_sel) and noh" [ps_solvent_style $show_solvent] "ColorID 6"]
+            if {$r >= 0} { lappend ::PS_SOLVENT_REPS $r }
         } else {
-            ps_note "hiding bulk solvent ($bulk); pass -solvent 1 to show it"
+            ps_note "hiding bulk solvent ($bulk); pass -solvent points to show it"
         }
     }
-    if {[ps_addrep $molid "not ($covered)" "Licorice 0.300000 20.000000 20.000000" Name]} {
+    if {[ps_addrep $molid "not ($covered)" "Licorice 0.300000 20.000000 20.000000" Name] >= 0} {
         ps_note "note: [ps_nsel $molid "not ($covered)"] atoms fell to the catch-all representation"
+    }
+
+    # Cysteine sulfurs as spheres: on a disulfide-rich protein this is what makes the bonding
+    # pattern (and a missing or added one) legible without hunting through the ribbon.
+    if {$show_ss && [ps_nsel $molid "resname CYS and name SG"] > 0} {
+        ps_addrep $molid "resname CYS and name SG" "VDW 0.400000 16.000000" "ColorID 4"
+    }
+
+    # Highlights last so they draw over the ribbon; each selection gets its own contrasting color.
+    set hi 0
+    foreach sel [split $highlight ";"] {
+        set sel [string trim $sel]
+        if {$sel eq ""} continue
+        set color [lindex $PS_HIGHLIGHT_COLORS [expr {$hi % [llength $PS_HIGHLIGHT_COLORS]}]]
+        set n [ps_nsel $molid $sel]
+        if {$n == 0} {
+            ps_note "WARNING: -highlight selection matched no atoms: $sel"
+            continue
+        }
+        ps_addrep $molid $sel "Licorice 0.300000 20.000000 20.000000" "ColorID $color"
+        ps_note "highlight [expr {$hi + 1}] (ColorID $color): $n atoms -- $sel"
+        incr hi
     }
 
     # union of everything actually drawn, for the view fit
@@ -214,7 +278,15 @@ proc ps_represent {molid style show_solvent} {
         lappend vis "([lindex [molinfo $molid get "{selection $i}"] 0])"
     }
     if {[llength $vis] == 0} { return "all" }
-    return [join $vis " or "]
+    set vis [join $vis " or "]
+    # Frame on the solute even when solvent is drawn: fitting to the water box shrinks the thing
+    # the figure is about, whereas letting the solvent run past the edge keeps it as context.
+    if {$show_solvent ne "off"} {
+        set solvent_sel "water or ($ion_sel)"
+        if {[llength $bulk] > 0} { set solvent_sel "$solvent_sel or ($bulk_sel)" }
+        set vis "($vis) and not ($solvent_sel)"
+    }
+    return $vis
 }
 
 # Centre the view on the *visible* atoms.  `display resetview` frames every atom in the
@@ -248,20 +320,29 @@ proc ps_autoscale {molid renderer fill w h} {
     set ph [expr {int(500.0 * $h / $w)}]
     if {$ph < 1} { set ph 1 }
     set tmp "_pssnap_preview.tga"
+    # Measure the solute alone: the scale should frame what the figure is about, and including
+    # the solvent's ink would shrink it back to a speck in the middle of the box.
+    set hidden {}
+    foreach r [ps_solvent_reps] {
+        if {$r < [molinfo $molid get numreps]} { mol showrep $molid $r 0 ; lappend hidden $r }
+    }
     display resize $pw $ph
     display update
     if {[catch {render $renderer $tmp} e]} {
         ps_note "WARNING: preview render failed ($e); skipping the fill-the-frame scaling"
+        foreach r $hidden { mol showrep $molid $r 1 }
         display resize $w $h
         return
     }
     if {[catch {exec $magick $tmp -fuzz 2% -trim -format "%w %h" info:} bbox]} {
         ps_note "WARNING: could not measure the preview ($bbox); skipping the scaling"
         file delete $tmp
+        foreach r $hidden { mol showrep $molid $r 1 }
         display resize $w $h
         return
     }
     file delete $tmp
+    foreach r $hidden { mol showrep $molid $r 1 }
     lassign $bbox iw ih
     display resize $w $h
     if {![string is integer -strict $iw] || ![string is integer -strict $ih] || $iw < 1 || $ih < 1} {
@@ -375,7 +456,8 @@ proc ps_main {argv} {
         ps_note "view: auto -> $opt(view)"
     }
 
-    set visible [ps_represent $molid $opt(style) $opt(solvent)]
+    set opt(solvent) [ps_solvent_mode $opt(solvent)]
+    set visible [ps_represent $molid $opt(style) $opt(solvent) $opt(highlight) $opt(ss)]
     ps_view $molid $visible $opt(view) $opt(rot) $opt(zoom) $opt(bg) $w $h $opt(renderer) $opt(fill)
     set written [ps_render $opt(renderer) $opt(o) $w $h $opt(bg)]
     ps_note "wrote $written"
