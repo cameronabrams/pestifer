@@ -17,6 +17,7 @@ from ..core.errors import PestiferBuildError
 
 from ..scripters.namd import NAMDScripter
 from ..scripters.namd_colvar_input import NAMDColvarInputScripter
+from ..util.density_convergence import total_atoms
 from ..util.util import is_periodic
 
 logger = logging.getLogger(__name__)
@@ -92,6 +93,41 @@ class MDTask(VMDTask):
         """
         self.result = self.namdrun()
         return self.result
+
+    def record_md_run(self, ensemble: str, psf, csv_keys: list):
+        """Append this NAMD run to the pipeline's chronological MD history.
+
+        One entry per NAMD invocation, so a chunked task contributes one per chunk; entries
+        sharing a ``(controller, task_index)`` are one logical stage.
+
+        ``natoms`` is the point of the record.  A consumer needs to know which earlier dynamics
+        describe *the system it is holding now*, and the answer is not "the tasks adjacent to me":
+        a `solvate` between two MD stages makes the earlier one incommensurable, while a `validate`
+        or a `ring_check` between them changes nothing.  Recording the atom count lets that be
+        decided from the data instead of from task adjacency.
+        """
+        try:
+            natoms = total_atoms(psf.path) if psf is not None else None
+        except Exception as e:                      # a malformed/unreadable PSF must not kill the run
+            logger.debug(f'{self.taskname}: could not count atoms for the MD history ({e})')
+            natoms = None
+        entry = dict(controller=getattr(self.pipeline, 'controller_index', 0),
+                     task_index=self.index,
+                     taskname=self.taskname,
+                     basename=self.basename,
+                     ensemble=ensemble,
+                     natoms=natoms,
+                     csv_keys=list(csv_keys),
+                     csv_basename=self.basename)
+        history = self.get_current_artifact('md_history')
+        if history is None:
+            self.register([entry], key='md_history', artifact_type=MDHistoryArtifact)
+        else:
+            # mutate in place and re-register: register() sees the same list object, so it stamps
+            # the existing artifact rather than superseding it into the pipeline's own history
+            history.data.append(entry)
+            self.register(history.data, key='md_history', artifact_type=MDHistoryArtifact)
+        logger.debug(f'{self.taskname}: MD history now holds {len(self.get_current_artifact("md_history").data)} run(s)')
 
     def namdrun(self, baselabel='', extras={}, script_only=False, **kwargs):
         """
@@ -285,9 +321,12 @@ class MDTask(VMDTask):
         other_files = glob.glob(f'FFTW*txt')
         for f in other_files:
             self.register(f, artifact_type=TXTFileArtifact, key='NAMD FFTW warmup')
+        csv_keys = []
         if hasattr(na.logparser, 'dataframes'):
             for key in na.logparser.dataframes:
                 self.register(f'{self.basename}-{key}', artifact_type=CSVDataFileArtifact, key=f'{key}-csv')
+                csv_keys.append(key)
+        self.record_md_run(ensemble=ens, psf=state.psf, csv_keys=csv_keys)
         if result != 0:
             return -1
 

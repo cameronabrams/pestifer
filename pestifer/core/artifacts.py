@@ -149,6 +149,23 @@ class DataArtifact(Artifact):
     description: str | None = None
 
 @dataclass
+class MDHistoryArtifact(DataArtifact):
+    """The pipeline's record of every NAMD run performed so far, in chronological order.
+
+    Every other artifact belongs to the single task that produced it; this one accumulates
+    *across* tasks, which is what lets a consumer such as ``mdplot`` ask "which dynamics led to
+    the system I am holding now?" without walking the task list and guessing where the answer
+    stops.  ``data`` is a list of plain dicts (see
+    :meth:`~pestifer.tasks.mdtask.MDTask.record_md_run` for the fields); dicts rather than
+    artifacts because the entries are metadata *about* runs, not files to be collected.
+
+    One entry is appended per NAMD invocation, so a chunked task (``density_equilibrate``,
+    ``membrane_equilibrate``) contributes one entry per chunk; entries sharing a
+    ``(controller, task_index)`` are one logical stage.
+    """
+    description: str | None = 'chronological record of NAMD runs in this pipeline'
+
+@dataclass
 class ArtifactList(Artifact):
     """
     A list of Artifacts.

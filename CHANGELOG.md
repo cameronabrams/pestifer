@@ -4,6 +4,18 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: **`mdplot` now selects its data from a recorded MD history rather than by walking back
+  through adjacent tasks.** Every NAMD run appends an entry — task, basename, ensemble, CSV keys,
+  and the system's atom count — to a new `md_history` pipeline artifact, the first artifact whose
+  identity spans tasks rather than belonging to the one task that produced it. `mdplot` walks that
+  history backwards while the atom count matches the system it holds. The old rule collected while
+  the preceding task was an `md`-family task and stopped at the first that was not, which conflated
+  "not an MD task" with "invalidated the earlier data": correct for a `solvate` between MD stages,
+  wrong for a `validate` or `ring_check`. Every bundled example was truncated by it, examples 16 and
+  17 spuriously — those two now plot stages that were previously dropped without warning. No
+  configuration changes: this is internal plumbing, and a pipeline with no recorded history still
+  falls back to the old walk.
+
 - change: `show-resources pdb-repo` lists one entry per *residue* instead of one per repository key.
   A `<resname>__Lo` key is the same residue's liquid-ordered conformer ensemble, not a distinct
   residue, and listing both forms interleaved every lipid with its own near-duplicate — the bundled

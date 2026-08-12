@@ -22,6 +22,7 @@ from matplotlib import colormaps as cmaps
 from .basetask import BaseTask
 from .mdtask import MDTask
 from ..core.errors import PestiferBuildError
+from ..util.density_convergence import total_atoms
 from ..util.units import g_per_amu, A3_per_cm3
 from ..logparsers import NAMDLogParser
 from ..util.stringthings import to_latex_math
@@ -40,6 +41,31 @@ _NAMD_DEFAULT_UNITS = {
     'VOLUME': 'Å³',
 }
 
+
+def select_commensurable_runs(entries: list, natoms: int | None) -> list:
+    """The trailing run of MD history entries describing a system of ``natoms`` atoms.
+
+    Walks backwards from the most recent run and stops at the first one describing a different
+    system, which is what separates "dynamics on the system I am holding" from dynamics on an
+    earlier, different one.  A `solvate` between two MD stages changes the atom count and so ends
+    the span; a `validate` or a `ring_check` does not and so does not.
+
+    Entries with no recorded count are kept rather than treated as a boundary: an unknown count is
+    not evidence of a different system, and treating it as one would silently truncate the plot --
+    the exact failure this replaces.  With ``natoms`` unknown, every entry is kept.
+    """
+    if natoms is None:
+        return list(entries)
+    keep = []
+    for entry in reversed(entries):
+        recorded = entry.get('natoms')
+        if recorded is not None and recorded != natoms:
+            break
+        keep.append(entry)
+    keep.reverse()
+    return keep
+
+
 class MDPlotTask(BaseTask):
     """ 
     A class for making plots of energy-like quantities from a series of one or more NAMD 
@@ -56,6 +82,47 @@ class MDPlotTask(BaseTask):
         from .pipeline_contract import TaskContract, MD_OUTPUT
         # plots molecular-dynamics output; needs an md task to have run
         return TaskContract(requires=(MD_OUTPUT,), provides=())
+
+
+    def _collect_from_md_history(self) -> bool:
+        """Fill ``self.csvartifacts`` from the pipeline's MD history.  Returns False if there is
+        no history to read, leaving the caller to fall back to the old prior-task walk.
+
+        The history is every NAMD run in order, so the question this answers is *where to start*:
+        which runs describe the system we are holding now.  That is decided by atom count, not by
+        task adjacency -- a `solvate` between two MD stages makes everything before it a different
+        system, while a `validate` or a `ring_check` between them changes nothing.  Walking the
+        history backwards while the atom count matches gets the first case right (the pre-solvation
+        minimize is correctly dropped) and, unlike the adjacency rule it replaces, the second one
+        too (an intervening non-MD task no longer truncates the plot).
+        """
+        history = self.get_current_artifact('md_history')
+        if history is None or not history.data:
+            return False
+        entries = list(history.data)
+        state: StateArtifacts = self.get_current_artifact('state')
+        natoms = None
+        if state is not None and getattr(state, 'psf', None) is not None:
+            try:
+                natoms = total_atoms(state.psf.path)
+            except Exception as e:
+                logger.debug(f'{self.taskname}: could not count atoms of the current state ({e})')
+        keep = select_commensurable_runs(entries, natoms)
+        if not keep:
+            return False
+        dropped = len(entries) - len(keep)
+        stages = {(e['controller'], e['task_index']) for e in keep}
+        logger.debug(f'MD history: {len(keep)} run(s) across {len(stages)} stage(s) match the '
+                     f'current system ({natoms} atoms)'
+                     + (f'; {dropped} earlier run(s) describe a different system' if dropped else ''))
+        for entry in keep:
+            for key in entry.get('csv_keys', []):
+                artifact = CSVDataFileArtifact(f"{entry['csv_basename']}-{key}", key=f'{key}-csv')
+                if artifact.exists():
+                    self.csvartifacts.append(artifact)
+                else:
+                    logger.debug(f'MD history references a missing CSV: {artifact.name}')
+        return len(self.csvartifacts) > 0
 
     def do(self):
         self.next_basename()
@@ -93,8 +160,13 @@ class MDPlotTask(BaseTask):
                         else:
                             self.csvartifacts.append(artifact)
                     namdlog_objs.append(the_log)
+        elif self._collect_from_md_history():
+            pass
         elif len(self.priortasklist) > 0:
-            logger.debug(f'Extracting data from prior tasks: {[pt.index for pt in self.priortasklist]}')
+            # fallback for a pipeline with no recorded history (e.g. artifacts carried in from an
+            # older run): the original adjacency walk, which stops at the first non-MD task
+            logger.debug(f'No MD history recorded; falling back to the prior-task walk: '
+                         f'{[pt.index for pt in self.priortasklist]}')
             for pt in self.priortasklist:
                 logger.debug(f'Extracting data from prior task {pt.taskname}-{pt.index}')
                 artifactfile_collection = list(pt.get_my_artifactfile_collection().filter_by_artifact_type(CSVDataFileArtifact))
