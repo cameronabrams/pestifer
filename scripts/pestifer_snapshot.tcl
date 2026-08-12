@@ -35,6 +35,11 @@
 #   -ghost 0|1       draw the bulk cartoon translucent (default: 0), so a feature enclosed by
 #                    the structure -- DNA threaded through a polymerase, a buried cofactor --
 #                    is visible through it.  Highlights stay opaque.
+#   -side SEL        rotate so this selection sits to one side, in the image plane -- what you
+#                    want for a two-domain construct, where -face would stack them front-to-back
+#   -domains SELS    ';'-separated selections, each drawn as its own cartoon in a distinct color
+#                    (replaces the single protein cartoon).  For fusions and multi-domain builds,
+#                    where one color per chain says nothing because it is all one chain.
 #   -bg NAME         background color (default: white)
 #   -renderer NAME   TachyonInternal | TachyonLOptiXInternal | snapshot (default: TachyonInternal)
 #   -fill F          fraction of the frame the geometry should fill (default: 0.92)
@@ -66,6 +71,8 @@ set PS_BULK_MIN_COPIES 50
 # ColorIDs for -highlight, picked to contrast with the NewCartoon Structure palette
 # (purple/yellow/cyan/white/blue) so a highlighted residue never blends into the ribbon
 set PS_HIGHLIGHT_COLORS {1 3 7 9 5}
+# Cartoon colors for -domains; well separated from each other at a glance
+set PS_DOMAIN_COLORS {0 1 7 3 11 9}
 
 proc ps_magick {} {
     foreach cand {magick convert} {
@@ -95,7 +102,7 @@ proc ps_parse_args {argv} {
     array set opt {
         psf "" coor "" frame -1 o "snapshot.png" size "1600x1200" view auto
         style auto solvent 0 bg white renderer TachyonInternal zoom 1.0 rot "" fill 0.92
-        highlight "" ss 0 face "" ghost 0
+        highlight "" ss 0 face "" ghost 0 side "" domains ""
     }
     for {set i 0} {$i < [llength $argv]} {incr i} {
         set a [lindex $argv $i]
@@ -187,8 +194,8 @@ proc ps_bulk_species {molid seltext} {
     return [lsort $bulk]
 }
 
-proc ps_represent {molid style show_solvent highlight show_ss ghost} {
-    global PS_GLYCAN_RESNAMES PS_LIPID_EXTRA PS_ION_RESNAMES PS_METAL_RESNAMES PS_HIGHLIGHT_COLORS
+proc ps_represent {molid style show_solvent highlight show_ss ghost domains} {
+    global PS_GLYCAN_RESNAMES PS_LIPID_EXTRA PS_ION_RESNAMES PS_METAL_RESNAMES PS_HIGHLIGHT_COLORS PS_DOMAIN_COLORS
     set glycan_sel "resname $PS_GLYCAN_RESNAMES"
     set lipid_sel  "lipid or resname $PS_LIPID_EXTRA"
     set ion_sel    "resname $PS_ION_RESNAMES"
@@ -206,7 +213,29 @@ proc ps_represent {molid style show_solvent highlight show_ss ghost} {
         if {$nchain > 1} { set protcolor Chain }
     }
     set bulk_material [expr {$ghost ? "Transparent" : "Opaque"}]
-    ps_addrep $molid "protein" "NewCartoon 0.300000 20.000000 3.000000 0" $protcolor $bulk_material
+    # -domains replaces the single protein cartoon with one cartoon per named selection, each in
+    # its own color.  Anything not claimed by a domain still gets a cartoon, so no residue is
+    # dropped just because the domain list is incomplete.
+    set domain_sels {}
+    foreach d [split $domains ";"] {
+        set d [string trim $d]
+        if {$d ne ""} { lappend domain_sels $d }
+    }
+    if {[llength $domain_sels] > 0} {
+        set di 0
+        foreach d $domain_sels {
+            set n [ps_nsel $molid $d]
+            if {$n == 0} { ps_note "WARNING: -domains selection matched no atoms: $d" ; continue }
+            set c [lindex $PS_DOMAIN_COLORS [expr {$di % [llength $PS_DOMAIN_COLORS]}]]
+            ps_addrep $molid $d "NewCartoon 0.300000 20.000000 3.000000 0" "ColorID $c" $bulk_material
+            ps_note "domain [expr {$di + 1}] (ColorID $c): $n atoms -- $d"
+            incr di
+        }
+        set rest "protein and not ([join $domain_sels ") and not ("])"
+        ps_addrep $molid $rest "NewCartoon 0.300000 20.000000 3.000000 0" $protcolor $bulk_material
+    } else {
+        ps_addrep $molid "protein" "NewCartoon 0.300000 20.000000 3.000000 0" $protcolor $bulk_material
+    }
     ps_addrep $molid "nucleic" "NewCartoon 0.300000 20.000000 3.000000 0" Chain $bulk_material
     ps_addrep $molid $glycan_sel "Licorice 0.250000 20.000000 20.000000" Name
     ps_addrep $molid $metal_sel "VDW 0.600000 20.000000" ResName
@@ -373,20 +402,28 @@ proc ps_autoscale {molid renderer fill w h} {
 }
 
 
-# Rotate the view so *seltext* sits nearest the camera.
+# Any unit vector perpendicular to v, for the degenerate 180-degree case.
+proc ps_perp {v} {
+    lassign $v x y z
+    if {abs($x) < 0.9} { return [vecnorm [veccross $v {1 0 0}]] }
+    return [vecnorm [veccross $v {0 1 0}]]
+}
+
+# Rotate the view so *seltext* lies along *target* in the view frame ({0 0 1} = toward the
+# camera, {1 0 0} = off to the side).
 #
 # The camera looks down -z, so +z is toward the viewer: we want the vector from the whole
 # structure's centre to the feature's centre pointing along +z *after* the current view
 # rotation.  Composing the correction onto the existing rotate_matrix (rather than replacing
 # it) keeps whatever -view/-rot already established, so this refines an orientation instead
 # of discarding it.
-proc ps_face {molid seltext fitsel} {
+proc ps_orient {molid seltext fitsel target what} {
     if {$seltext eq ""} return
     if {[catch {atomselect $molid $seltext} f]} {
-        ps_note "WARNING: -face selection is invalid: $seltext" ; return
+        ps_note "WARNING: -$what selection is invalid: $seltext" ; return
     }
     if {[$f num] == 0} {
-        ps_note "WARNING: -face selection matched no atoms: $seltext" ; $f delete ; return
+        ps_note "WARNING: -$what selection matched no atoms: $seltext" ; $f delete ; return
     }
     if {[catch {atomselect $molid $fitsel} a]} { set a [atomselect $molid all] }
     set cf [measure center $f]
@@ -394,7 +431,7 @@ proc ps_face {molid seltext fitsel} {
     $f delete ; $a delete
     set v [vecsub $cf $ca]
     if {[veclength $v] < 1e-6} {
-        ps_note "note: -face selection is concentric with the structure; leaving the view as is"
+        ps_note "note: -$what selection is concentric with the structure; leaving the view as is"
         return
     }
     set R0 [lindex [molinfo $molid get rotate_matrix] 0]
@@ -404,20 +441,20 @@ proc ps_face {molid seltext fitsel} {
     # matrix has none, but be explicit so a stray translation cannot skew the direction
     set o [coordtrans $R0 {0 0 0}]
     set vv [vecnorm [vecsub [coordtrans $R0 $v] $o]]
-    set z {0 0 1}
+    set z $target
     set dot [vecdot $vv $z]
     if {$dot > 0.9999} { return }
     if {$dot < -0.9999} {
-        set axis {0 1 0} ; set ang 180.0
+        set axis [ps_perp $z] ; set ang 180.0
     } else {
         set axis [vecnorm [veccross $vv $z]]
         set ang [expr {57.2957795130823 * acos($dot)}]
     }
     molinfo $molid set rotate_matrix [list [transmult [transabout $axis $ang] $R0]]
-    ps_note [format "face: rotated %.1f deg to bring the -face selection forward" $ang]
+    ps_note [format "$what: rotated %.1f deg" $ang]
 }
 
-proc ps_view {molid visible view rot zoom bg w h renderer fill face} {
+proc ps_view {molid visible view rot zoom bg w h renderer fill face side} {
     color Display Background $bg
     axes location Off
     display projection Orthographic
@@ -442,7 +479,8 @@ proc ps_view {molid visible view rot zoom bg w h renderer fill face} {
             if {$deg ne "" && $deg != 0} { rotate $axis by $deg }
         }
     }
-    ps_face $molid $face $visible
+    ps_orient $molid $face $visible {0 0 1} face
+    ps_orient $molid $side $visible {1 0 0} side
     # autoscale after the rotations, so the fit is measured on the orientation being rendered
     display update
     ps_autoscale $molid $renderer $fill $w $h
@@ -519,8 +557,8 @@ proc ps_main {argv} {
     }
 
     set opt(solvent) [ps_solvent_mode $opt(solvent)]
-    set visible [ps_represent $molid $opt(style) $opt(solvent) $opt(highlight) $opt(ss) $opt(ghost)]
-    ps_view $molid $visible $opt(view) $opt(rot) $opt(zoom) $opt(bg) $w $h $opt(renderer) $opt(fill) $opt(face)
+    set visible [ps_represent $molid $opt(style) $opt(solvent) $opt(highlight) $opt(ss) $opt(ghost) $opt(domains)]
+    ps_view $molid $visible $opt(view) $opt(rot) $opt(zoom) $opt(bg) $w $h $opt(renderer) $opt(fill) $opt(face) $opt(side)
     set written [ps_render $opt(renderer) $opt(o) $w $h $opt(bg)]
     ps_note "wrote $written"
 }
