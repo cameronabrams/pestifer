@@ -51,7 +51,7 @@ class MDPlotSubcommand(Subcommand):
                         # getattr: programmatic callers build a Namespace by hand and need not
                         # know about every flag the parser happens to define
                         'stage-markers': not getattr(args, 'no_stage_markers', False),
-                        'block-average': getattr(args, 'block_average', 0),
+                        'block-average': getattr(args, 'block_average', -1),
                         'units': {
                             'density': 'g/cc',
                             'a_x': 'Å',
@@ -91,7 +91,7 @@ class MDPlotSubcommand(Subcommand):
         self.parser.add_argument('--profiles-per-block', type=int, default=100, help='number of profiles to plot per block (default: %(default)s)')
         self.parser.add_argument('--colormap', type=str, default='viridis', help='matplotlib colormap for multiple traces on a single plot (default: %(default)s)')
         self.parser.add_argument('--colormap-direction', type=int, choices=[1,-1], default=1, help='direction of colormap (1 or -1) (default: %(default)s)')
-        self.parser.add_argument('--block-average', type=int, default=0, metavar='N',
+        self.parser.add_argument('--block-average', type=int, default=-1, metavar='N',
                                  help='draw a rolling mean over N samples with a +/- 1 sigma band, '
                                       'with the raw trace faint behind it (default: off)')
         self.parser.add_argument('--no-stage-markers', default=False, action='store_true',

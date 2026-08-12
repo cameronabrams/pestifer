@@ -19,10 +19,14 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   Labels are placed only where there is room, since stage lengths are wildly uneven. Off via
   `stage-markers: false`.
 
-- feat: **`mdplot` can block-average a trace.** `block-average: N` draws a rolling mean over N
-  samples with a ±1σ band and the raw series faint behind it. An instantaneous NAMD observable like
-  PRESSURE fluctuates far more than it drifts — swinging ±1000 bar around a mean near zero — so the
-  raw trace hides exactly the behavior one is looking for. Also on the CLI as `--block-average`.
+- feat: **`mdplot` block-averages noisy traces, automatically by default.** A rolling mean with a
+  ±1σ band is drawn over the faint raw series. The default (`block-average: -1`) smooths only those
+  observables whose fluctuations dwarf their drift — the instantaneous pressures, which swing ±1000
+  bar about a mean near zero and are unreadable raw — sizing the window from the series length.
+  `0` never smooths; a positive value smooths every trace with that window. NAMD's already-averaged
+  PRESSAVG/GPRESSAVG and well-behaved observables like DENSITY are left alone, and the raw series
+  is always drawn underneath so a smoothed plot never hides the data behind it. Also on the CLI as
+  `--block-average`.
 
 - change: **`mdplot` now selects its data from a recorded MD history rather than by walking back
   through adjacent tasks.** Every NAMD run appends an entry — task, basename, ensemble, CSV keys,

@@ -61,3 +61,29 @@ class TestSelectCommensurableRuns(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestAutoBlockAverage(unittest.TestCase):
+    """Automatic smoothing targets only observables whose fluctuations dwarf their drift."""
+
+    def test_instantaneous_pressures_are_smoothed(self):
+        from pestifer.tasks.mdplot import auto_block_average
+        self.assertGreater(auto_block_average('PRESSURE', 800), 0)
+        self.assertGreater(auto_block_average('GPRESSURE', 800), 0)
+
+    def test_well_behaved_observables_are_left_alone(self):
+        from pestifer.tasks.mdplot import auto_block_average
+        # DENSITY and TEMP read fine raw; PRESSAVG/GPRESSAVG are already NAMD running averages,
+        # so smoothing them would average an average
+        for col in ('DENSITY', 'TEMP', 'PRESSAVG', 'GPRESSAVG', 'TOTAL', 'VOLUME'):
+            with self.subTest(column=col):
+                self.assertEqual(auto_block_average(col, 800), 0)
+
+    def test_window_scales_with_series_length(self):
+        from pestifer.tasks.mdplot import auto_block_average
+        self.assertLess(auto_block_average('PRESSURE', 400), auto_block_average('PRESSURE', 4000))
+
+    def test_short_series_is_not_smoothed_away(self):
+        from pestifer.tasks.mdplot import auto_block_average
+        # a window comparable to the series would flatten it into a single value
+        self.assertEqual(auto_block_average('PRESSURE', 8), 0)

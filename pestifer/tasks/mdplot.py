@@ -35,6 +35,24 @@ logger = logging.getLogger(__name__)
 _MAX_LABELED_STAGES = 8
 # a label needs this fraction of the x range clear of the previous one to stay readable
 _MIN_LABEL_GAP_FRAC = 0.05
+# Observables whose fluctuation amplitude dwarfs the signal, so a raw trace hides the behavior
+# being looked for.  NAMD's PRESSAVG/GPRESSAVG are already running averages and are left alone;
+# TEMP is thermostatted and stays legible raw.
+_AUTO_SMOOTH_COLUMNS = {'PRESSURE', 'GPRESSURE'}
+_AUTO_SMOOTH_DIVISOR = 40      # window ~ 1/40 of the series
+_AUTO_SMOOTH_MIN = 5
+_AUTO_SMOOTH_MAX = 200
+
+
+def auto_block_average(column: str, n_samples: int) -> int:
+    """Window to smooth *column* with when `block-average` is left on automatic, or 0.
+
+    Scaled to the series so a short warm-up is not flattened and a long production run is not
+    left ragged."""
+    if column.upper() not in _AUTO_SMOOTH_COLUMNS:
+        return 0
+    window = max(_AUTO_SMOOTH_MIN, min(n_samples // _AUTO_SMOOTH_DIVISOR, _AUTO_SMOOTH_MAX))
+    return window if n_samples > 2 * window else 0
 logging.getLogger("matplotlib").setLevel(logging.WARNING)
 
 _NAMD_DEFAULT_UNITS = {
@@ -348,7 +366,7 @@ class MDPlotTask(BaseTask):
         profiles_per_block = self.specs.get('profiles-per-block', 100)
         legend = self.specs.get('legend', True)
         stage_markers = self.specs.get('stage-markers', True)
-        block_average = int(self.specs.get('block-average', 0) or 0)
+        block_average = int(self.specs.get('block-average', -1))
         grid = self.specs.get('grid', False)
         if histograms:
             logger.debug(f'Histograms are not yet implemented in the mdplot task.')
@@ -436,10 +454,16 @@ class MDPlotTask(BaseTask):
                     label = label.replace('_time', ' time')
                 plot_label = label.title() if '_' not in label else r'$'+label+r'$'
                 y_values = df[key] * units
-                if block_average > 1 and len(y_values) > block_average:
+                window = block_average
+                if window < 0:                      # automatic: smooth only the noisy observables
+                    window = auto_block_average(key, len(y_values))
+                    if window:
+                        logger.debug(f'{self.taskname}: {key} is smoothed automatically over '
+                                     f'{window} samples (raw series kept visible)')
+                if window > 1 and len(y_values) > window:
                     # the raw series stays visible but recedes; the eye follows the mean, and the
                     # band shows the fluctuation the mean was taken over
-                    rolled = y_values.rolling(block_average, center=True, min_periods=1)
+                    rolled = y_values.rolling(window, center=True, min_periods=1)
                     mean, sd = rolled.mean(), rolled.std().fillna(0.0)
                     ax.plot(x_values, y_values, color=color, alpha=0.25, linewidth=0.8)
                     ax.fill_between(x_values, mean - sd, mean + sd, color=color, alpha=0.20,

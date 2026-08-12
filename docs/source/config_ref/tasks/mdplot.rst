@@ -24,7 +24,7 @@ Single-valued attributes:
 
   * ``stage-markers``: Mark the boundaries between simulation stages on each timeseries plot with a labeled vertical rule. A plot usually spans several NAMD runs -- a minimization, a warm-up, a self-terminating equilibration -- concatenated into one curve, and without the boundaries a reader cannot tell which part of the trace is which. Labels are taken from the task and ensemble that produced each stage. (default: True)
 
-  * ``block-average``: Rolling-average window, in samples, drawn over each trace (0 = off). An instantaneous NAMD observable such as PRESSURE fluctuates far more than it drifts, so the raw trace can hide the behavior being looked for; with this set the raw series is drawn faintly behind a bold rolling mean and a +/- one standard deviation band. (default: 0)
+  * ``block-average``: Rolling-average window in samples, drawn as a bold mean with a +/- one standard deviation band over the faint raw series. -1 (the default) smooths only those observables whose fluctuations dwarf their drift -- the instantaneous pressures, which swing by ~1000 bar about a mean near zero and are unreadable raw -- choosing the window from the series length; 0 never smooths; a positive value smooths every trace with that window. The raw series is always drawn underneath, so a smoothed plot never hides the data it was computed from. (default: -1)
 
   * ``grid``: include a grid (default: False)
 
