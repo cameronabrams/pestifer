@@ -379,7 +379,7 @@ proc ps_autoscale {molid renderer fill w h} {
         display resize $w $h
         return
     }
-    if {[catch {exec $magick $tmp -fuzz 2% -trim -format "%w %h" info:} bbox]} {
+    if {[catch {exec $magick $tmp -fuzz 2% -trim -format "%w %h %X %Y" info:} bbox]} {
         ps_note "WARNING: could not measure the preview ($bbox); skipping the scaling"
         file delete $tmp
         foreach r $hidden { mol showrep $molid $r 1 }
@@ -388,17 +388,30 @@ proc ps_autoscale {molid renderer fill w h} {
     }
     file delete $tmp
     foreach r $hidden { mol showrep $molid $r 1 }
-    lassign $bbox iw ih
+    lassign $bbox iw ih ix iy
     display resize $w $h
     if {![string is integer -strict $iw] || ![string is integer -strict $ih] || $iw < 1 || $ih < 1} {
         ps_note "WARNING: preview contained no geometry; skipping the fill-the-frame scaling"
         return
     }
-    set fx [expr {$fill * double($pw) / $iw}]
-    set fy [expr {$fill * double($ph) / $ih}]
+    # Scaling happens about the view centre, not the centre of the ink, so an off-centre object
+    # (a two-domain fusion whose centroid sits inside the larger domain) grows *past* the frame
+    # edge on its long side and gets clipped -- and clipped pixels are gone, the trim-and-recentre
+    # afterwards cannot recover them.  Fit the ink's greatest distance from the centre instead of
+    # its width, which bounds the far edge whatever the asymmetry; the recentring then removes the
+    # slack that leaves on the near side.
+    set ix [expr {[string is integer -strict $ix] ? $ix : 0}]
+    set iy [expr {[string is integer -strict $iy] ? $iy : 0}]
+    set cx [expr {$pw / 2.0}] ; set cy [expr {$ph / 2.0}]
+    set dx [expr {max(abs($ix - $cx), abs($ix + $iw - $cx))}]
+    set dy [expr {max(abs($iy - $cy), abs($iy + $ih - $cy))}]
+    if {$dx <= 0 || $dy <= 0} { return }
+    set fx [expr {$fill * $cx / $dx}]
+    set fy [expr {$fill * $cy / $dy}]
     set f  [expr {$fx < $fy ? $fx : $fy}]
     scale by $f
-    ps_note [format "fit: preview ink %dx%d of %dx%d px -> scale by %.3f" $iw $ih $pw $ph $f]
+    ps_note [format "fit: ink %dx%d at +%d+%d of %dx%d px (max offset %.0f,%.0f) -> scale by %.3f" \
+                 $iw $ih $ix $iy $pw $ph $dx $dy $f]
 }
 
 
