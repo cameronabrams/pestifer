@@ -221,24 +221,48 @@ class PsfgenScripter(VMDScripter):
         ssbonds: SSBondList = topomods.get('ssbonds', [])
         links: LinkList = topomods.get('links', [])
         ba: BioAssemb = mol.active_biological_assembly
+        identity_transform = next(
+            (t for t in ba.transforms.data
+             if np.allclose(np.asarray(t.tmat, dtype=float), np.eye(4), atol=1e-8)),
+            ba.transforms.data[0])
+        identity_map = identity_transform.chainIDmap or {}
         for transform in ba.transforms.data:
             self.banner(f'Transform {transform.index} begins')
             self.banner('The following mappings of A.U. asym ids is used:')
             for k,v in transform.chainIDmap.items():
                 self.comment(f'A.U. chain {k}: Image chain {v}')
             self.banner('Segments follow')
-            self.write_segments(segments, transform)
-            self.banner('DISU patches follow')
-            if ssbonds:
-                self.write_ssbonds(ssbonds, transform)
-            self.banner('LINK patches follow')
-            if links:
-                self.write_links(links, transform)
+            special = {S.segname for S in segments.data
+                       if _segment_on_special_position(S, transform)}
+            self.write_segments(segments, transform, special=special)
+            # A segment on the symmetry element is built only once, by the identity image, so
+            # this image's patches must point at that copy -- otherwise every link from a
+            # non-identity image (each HisB10 reaching the shared axial zinc) names a segment
+            # that was never built and is silently dropped, leaving the retained ion with a
+            # single ligand instead of the full coordination.
+            saved_map = transform.chainIDmap
+            if special:
+                effective = dict(saved_map)
+                for segname in special:
+                    effective[segname] = identity_map.get(segname, segname)
+                transform.chainIDmap = effective
+            try:
+                self.banner('DISU patches follow')
+                if ssbonds:
+                    self.write_ssbonds(ssbonds, transform)
+                self.banner('LINK patches follow')
+                if links:
+                    self.write_links(links, transform)
+            finally:
+                transform.chainIDmap = saved_map
             self.banner(f'Transform {transform.index} ends')
 
-    def write_segments(self, segments: SegmentList, transform: Transform = None):
+    def write_segments(self, segments: SegmentList, transform: Transform = None, special=None):
+        if special is None:
+            special = {S.segname for S in segments.data
+                       if _segment_on_special_position(S, transform)}
         for segment in segments.data:
-            if _segment_on_special_position(segment, transform):
+            if segment.segname in special:
                 # already emitted by the identity image; replicating it would duplicate one
                 # physical atom into N coincident copies
                 logger.debug(f'segment {segment.segname} lies on the symmetry element of '

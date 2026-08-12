@@ -11,7 +11,10 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   2ins deposits two zincs on its 3-fold axis at occupancy 0.33; `biological_assembly: 1` turned
   them into **six**, adding four spurious Zn(2+) and +8 net charge, and minimization drove the
   coincident copies apart into triangles 6-12 A across, wrecking the axial His coordination.
-  A segment that a transform maps onto itself is now built once, by the identity image. The
+  A segment that a transform maps onto itself is now built once, by the identity image, and every
+  other image's patches are redirected onto that copy -- otherwise each HisB10 reaching the shared
+  axial zinc would name a segment that was never built, leaving the ion with one ligand instead of
+  three. The
   invariance is measured directly rather than inferred from occupancy, which depositors do not
   always follow. Affects any assembly with axial ions -- symmetric oligomers, viral capsids.
 
