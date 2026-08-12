@@ -4,6 +4,13 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a build whose task fails now exits nonzero.** The CLI discarded whatever a subcommand
+  returned, so `pestifer build` and `pestifer build-example` exited 0 even when a task failed and
+  the controller aborted -- so any caller keying off the exit status, `scripts/run_all_examples_local.sh`
+  among them, recorded an aborted build as a success. The controller now carries an `exit_code` and
+  the CLI honors it (and honors a plain int return). `build-example` additionally stops when an
+  auxiliary helper script fails, instead of running the main script against a missing or stale input.
+
 - fix: **atoms on a crystallographic special position are no longer duplicated when a biological
   assembly is generated.** An atom lying on a rotation axis is shared by every image of that axis,
   so a deposited entry holds one copy (conventionally at 1/N occupancy for an N-fold) and applying

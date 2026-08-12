@@ -55,6 +55,9 @@ class Controller:
         self.index = 0
         self.config = None
         self.tasks = None
+        # Nonzero once any task has failed, so a caller (the CLI) can exit nonzero instead of
+        # reporting success for an aborted build.
+        self.exit_code = 0
         self.pipeline = None
         self.parent = None
         self.restart = False   # --restart: resume from the last cleanly-completed task
@@ -171,6 +174,7 @@ class Controller:
             task_durations += task.duration
             if task.result != 0:
                 logger.warning(f'Task {task.taskname} failed; task.result {task.result} returned result {returned_result} controller is aborted.')
+                self.exit_code = task.result if isinstance(task.result, int) and task.result != 0 else 1
                 break
             if manifest is not None:
                 manifest.record(task, self.pipeline, task_spec_hash=pre_hash)   # durable resume point

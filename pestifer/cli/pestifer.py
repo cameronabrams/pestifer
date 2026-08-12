@@ -92,7 +92,15 @@ def cli():
     # the top where it belongs.
     banner(lambda line: print(line, file=console.stream, flush=True), args)
     try:
-        args.func(args)
+        result = args.func(args)
     except PestiferError as e:
         logger.error(str(e))
         sys.exit(1)
+    # A subcommand that ran tasks reports failure either as an int or on the object it returns
+    # (the Controller).  Without this the process exited 0 for an aborted build, so any caller
+    # keying off the exit status -- scripts/run_all_examples_local.sh among them -- recorded a
+    # build whose task failed as a success.
+    exit_code = result if isinstance(result, int) else getattr(result, 'exit_code', 0)
+    if exit_code:
+        logger.error(f'pestifer exiting with code {exit_code}')
+        sys.exit(exit_code)

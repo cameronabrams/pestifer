@@ -47,7 +47,15 @@ class RunExampleSubcommand(RunSubcommand):
             logger.info(f'Example {args.example_id}: running auxiliary helper script {aux}')
             aux_args = copy.copy(args)
             aux_args.config = aux
-            RunSubcommand.func(aux_args, **kwargs)
+            aux_controller = RunSubcommand.func(aux_args, **kwargs)
+            # A helper builds an input the main script consumes, so carrying on after one fails
+            # only produces a second, more confusing failure -- or worse, a build resting on a
+            # stale artifact from a previous run.
+            aux_rc = getattr(aux_controller, 'exit_code', 0)
+            if aux_rc:
+                logger.error(f'Example {args.example_id}: auxiliary script {aux} failed; '
+                             f'not running the main script')
+                return aux_rc
         args.config = config
         controller = RunSubcommand.func(args, **kwargs)
         # test the testable artifacts against gold standards if they exist
