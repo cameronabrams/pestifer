@@ -12,7 +12,11 @@ behavior that no longer existed.
 - **Tier 2 (prose corrections): DONE, committed** (`6e0e00a0`).
 - **Tier 3 (new pages): DONE for `membrane_equilibrate`;** the optional "importing a pre-built
   system" narrative page is still open.
-- **Tier 4 (examples + README): NOT STARTED.**
+- **Tier 4 (examples + README): DONE.** ex17 and ex16 refreshed with figures from the clean
+  2026-08-11 sweep run (including the `membrane_equilibrate` convergence plots, which did not
+  exist when those pages were written) and prose brought onto the current membrane path; README
+  "Key capabilities" gained the phase/self-terminating-equilibration detail plus new
+  incoming-PSF and restartable-build bullets.
 
 Verified after Tier 3: `make config-ref` is idempotent against the committed tree (only the footer
 date stamp changes), and `sphinx-build` emits **zero** non-autodoc warnings — the `domainswap`
@@ -119,10 +123,16 @@ Both resolved on 2026-08-09:
 - `README.md` "Key capabilities" (included verbatim into `index.md`): the membrane bullet has no
   phase or self-terminating-equilibration story, and there is no incoming-PSF or restart bullet.
 
-**Figure regeneration is the open question for ex17.** Its figures (`17-patchA-density.png`,
-`17-quilt-*`, etc.) came from the pre-rework build. Regenerating them means re-running the example —
-hours of MD. Suggested: update the ex17 prose now, and harvest fresh figures from the next clean
-ex17 run.
+**Figure regeneration: resolved.** The 2026-08-11 sweep ran all 27 examples clean, so ex16 and ex17
+figures were harvested from it (ex17 8.8 h, ex16 5.2 h). Density profiles were regenerated from each
+run's production system with `pestifer density-profile`. The one figure deliberately *not*
+regenerated is `my_6e8w_viral.png` (and ex16's `my_6e8w_pc.png`): hand-composed VMD renders whose
+captions document specific per-species colors, which the automatic snapshot renderer does not
+reproduce.
+
+The `membrane_equilibrate` plot titles were clipped at both ends (the task name plus description
+overran the figure width); fixed at the source to a two-line, smaller title, and the already-rendered
+figures were cropped for the docs.
 
 ## Reproducing the verification
 

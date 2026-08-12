@@ -173,7 +173,7 @@ class DensityEquilibrateTask(ChunkedEquilibrateTask):
         ax.set_xlim(t0, t1)
         ax.set_xlabel('timestep')
         ax.set_ylabel('density (g/cc)')
-        ax.set_title(f'{self.taskname}: box density vs. time')
+        ax.set_title(f'{self.taskname}\nbox density vs. time', fontsize=9)
         ax.legend(fontsize=7, loc='lower right', framealpha=0.9)
         fig.tight_layout()
         # keep convergence plots out of the run-dir root, in the mdplots/ subdir the mdplot task

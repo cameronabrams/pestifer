@@ -15,13 +15,15 @@ Pestifer is a fully automated simulation-ready MD system preparation tool, requi
 
 - **Fully local & reproducible** — a single YAML config plus a pinned pestifer version is a complete record of how a system was built; no data ever leaves your machine.
 - **Broad structure input** — build from RCSB PDB IDs, local PDB/mmCIF files, or AlphaFold models, with automatic construction of biological assemblies.
+- **Import & edit an existing system** — bring in a PSF built elsewhere (CHARMM-GUI, another tool, an earlier run) and check every atom type and bonded term against the build's CHARMM release before any MD runs, then edit it in place — patches, disulfides, links, glycan grafts — or re-segment and rebuild it for mutations, insertions, and deletions.
 - **Simulation-ready CHARMM36 output** — generate PSF/PDB/xsc for NAMD from the bundled CHARMM36 force field, including glycoproteins and nucleic acids.
 - **Sequence & structure edits** — mutations, insertions, deletions, substitutions, residue patches, chain cleavage and relabeling, fusions, and arbitrary backbone/side-chain rotations.
 - **Loop & gap modeling** — build unresolved internal loops and ligate chain breaks.
 - **Glycan grafting** — transplant glycans from a donor structure with automatic clash and ring-piercing resolution.
-- **Membrane building** — fast grid-based bilayers and protein embedding with any lipid that has a PDB, oriented to the membrane normal, with pierced-ring resolution.
+- **Membrane building** — fast grid-based bilayers on an orthohexagonal lattice and protein embedding with any lipid that has a PDB, oriented to the membrane normal, with pierced-ring resolution. Asymmetric leaflets are calibrated one composition at a time, each leaflet's phase (liquid-ordered or liquid-disordered) is a build-time input rather than something the MD has to discover, and every barostatted stage stops on measured density and area convergence instead of a fixed step count.
 - **Solvation & ionization** — TIP3P water or non-water solvents, with on-demand generation and caching of missing solvent boxes and lipid conformers.
 - **Custom ligands** — use CGenFF-parameterized small molecules, plus a workflow to contribute your own residue definitions.
+- **Restartable builds** — a run manifest records each task's spec and the state it produced, so an interrupted build resumes from the last cleanly-completed task; change the config and it re-runs from the first task whose spec changed.
 - **Merge & package** — combine pre-built systems (auto-resolving segment/chain collisions) and emit ready-to-run NAMD configs, SLURM restart scripts, solvent-stripped PSF/DCD, and plots of NAMD-log time series.
 
 ## Installation

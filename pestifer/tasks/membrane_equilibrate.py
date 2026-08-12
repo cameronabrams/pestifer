@@ -376,8 +376,12 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
                 ax.axvline(self._phase2_start_step, ls='--', color='#aa6633', lw=1.0)
             ax.set_ylabel(ylabel)
             ax.set_xlim(t0, t1)
-        axes[0].set_title(f'{self.taskname}: density + lateral area vs. time'
-                          + (f' — converged @ {conv_step:.0f}' if conv_step is not None else ''))
+        # Two lines at a smaller size: a task name like
+        # '01-10-060_make_membrane_system-membrane_equilibrate-patchA' plus the description runs
+        # wider than the figure on one line and gets clipped at both ends.
+        axes[0].set_title(f'{self.taskname}\ndensity + lateral area vs. time'
+                          + (f' — converged @ {conv_step:.0f}' if conv_step is not None else ''),
+                          fontsize=9)
         # Secondary APL axis: mean protein-corrected APL is affine in area, so a linear twin axis with
         # limits mapped through _apl_mean is exact.  (Falls back to naive area/lipids if geometry is
         # unmeasured but a spec count was given.)
