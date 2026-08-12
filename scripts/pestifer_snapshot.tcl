@@ -30,6 +30,11 @@
 #   -highlight SELS  ';'-separated VMD selections drawn as thick licorice in contrasting
 #                    colors on top of everything else, e.g. "resid 11 13; resid 5 55"
 #   -ss 0|1          draw cysteine sulfurs as spheres (default: 0), so disulfides read at a glance
+#   -face SEL        rotate so this selection faces the camera, i.e. sits in the foreground
+#                    rather than behind the bulk of the structure
+#   -ghost 0|1       draw the bulk cartoon translucent (default: 0), so a feature enclosed by
+#                    the structure -- DNA threaded through a polymerase, a buried cofactor --
+#                    is visible through it.  Highlights stay opaque.
 #   -bg NAME         background color (default: white)
 #   -renderer NAME   TachyonInternal | TachyonLOptiXInternal | snapshot (default: TachyonInternal)
 #   -fill F          fraction of the frame the geometry should fill (default: 0.92)
@@ -48,7 +53,12 @@ set PS_GLYCAN_RESNAMES {AGLC BGLC AGAL BGAL AMAN BMAN AFUC BFUC AXYL BXYL ANE5AC
 # `lipid` is a VMD macro but misses the CHARMM36 names pestifer builds with
 set PS_LIPID_EXTRA {CHL1 CHOL POPC POPE POPS POPI POPA PLPC DMPC DPPC DOPC DLPC DSPC
                     PSM SSM DPSM OSM SAPI TOCL1 TOCL2 LSM}
-set PS_ION_RESNAMES {SOD CLA POT CAL MG ZN2 CES RUB BAR}
+# Counterions added by solvation: they belong with the solvent and are hidden with it.
+set PS_ION_RESNAMES {SOD CLA POT CES RUB}
+# Structural/bound metals: always drawn.  A zinc in an active site or a magnesium on a
+# nucleotide is part of the structure, not part of the bath, and hiding it with the solvent
+# silently drops the thing an active-site figure is usually about.
+set PS_METAL_RESNAMES {ZN ZN2 MG MGA CAL CA MN MN2 FE FE2 CU CU1 NI CO CD HG K2}
 # A species present in at least this many residue copies is bulk solvent, not a ligand.  Real
 # separation is wide -- a non-aqueous solvent box runs to hundreds or thousands of copies while
 # a cofactor comes in ones -- so the exact value is not delicate.
@@ -85,7 +95,7 @@ proc ps_parse_args {argv} {
     array set opt {
         psf "" coor "" frame -1 o "snapshot.png" size "1600x1200" view auto
         style auto solvent 0 bg white renderer TachyonInternal zoom 1.0 rot "" fill 0.92
-        highlight "" ss 0
+        highlight "" ss 0 face "" ghost 0
     }
     for {set i 0} {$i < [llength $argv]} {incr i} {
         set a [lindex $argv $i]
@@ -177,11 +187,12 @@ proc ps_bulk_species {molid seltext} {
     return [lsort $bulk]
 }
 
-proc ps_represent {molid style show_solvent highlight show_ss} {
-    global PS_GLYCAN_RESNAMES PS_LIPID_EXTRA PS_ION_RESNAMES PS_HIGHLIGHT_COLORS
+proc ps_represent {molid style show_solvent highlight show_ss ghost} {
+    global PS_GLYCAN_RESNAMES PS_LIPID_EXTRA PS_ION_RESNAMES PS_METAL_RESNAMES PS_HIGHLIGHT_COLORS
     set glycan_sel "resname $PS_GLYCAN_RESNAMES"
     set lipid_sel  "lipid or resname $PS_LIPID_EXTRA"
-    set ion_sel    "ion or resname $PS_ION_RESNAMES"
+    set ion_sel    "resname $PS_ION_RESNAMES"
+    set metal_sel  "resname $PS_METAL_RESNAMES"
 
     mol delrep 0 $molid
 
@@ -194,9 +205,11 @@ proc ps_represent {molid style show_solvent highlight show_ss} {
         $s delete
         if {$nchain > 1} { set protcolor Chain }
     }
-    ps_addrep $molid "protein" "NewCartoon 0.300000 20.000000 3.000000 0" $protcolor
-    ps_addrep $molid "nucleic" "NewCartoon 0.300000 20.000000 3.000000 0" Chain
+    set bulk_material [expr {$ghost ? "Transparent" : "Opaque"}]
+    ps_addrep $molid "protein" "NewCartoon 0.300000 20.000000 3.000000 0" $protcolor $bulk_material
+    ps_addrep $molid "nucleic" "NewCartoon 0.300000 20.000000 3.000000 0" Chain $bulk_material
     ps_addrep $molid $glycan_sel "Licorice 0.250000 20.000000 20.000000" Name
+    ps_addrep $molid $metal_sel "VDW 0.600000 20.000000" ResName
 
     if {$style eq "membrane"} {
         # Thin licorice keeps the tails from swamping the protein; the phosphorus beads mark the
@@ -228,7 +241,7 @@ proc ps_represent {molid style show_solvent highlight show_ss} {
 
     # catch-all: ligands, cofactors, anything unrecognized, so a snapshot never silently
     # omits part of the system
-    set covered "protein or nucleic or water or ($ion_sel) or ($lipid_sel) or ($glycan_sel)"
+    set covered "protein or nucleic or water or ($ion_sel) or ($metal_sel) or ($lipid_sel) or ($glycan_sel)"
     # Whatever remains is either bulk solvent or a ligand, and they want opposite treatment.  A
     # non-aqueous solvent (DMSO, acetone, acetonitrile) is not matched by VMD's `water` macro, so
     # without this it falls to the catch-all below and buries the solute under thousands of
@@ -240,7 +253,10 @@ proc ps_represent {molid style show_solvent highlight show_ss} {
         set bulk_sel "resname $bulk"
         set covered "$covered or ($bulk_sel)"
         if {$show_solvent ne "off"} {
-            set r [ps_addrep $molid "($bulk_sel) and noh" [ps_solvent_style $show_solvent] "ColorID 6"]
+            # Element colors here, unlike water: after dropping hydrogens water is a field of
+            # identical oxygens, but a non-aqueous solvent has chemistry worth seeing -- and it
+            # is what distinguishes otherwise identical builds (DMSO vs acetone vs acetonitrile).
+            set r [ps_addrep $molid "($bulk_sel) and noh" [ps_solvent_style $show_solvent] Name]
             if {$r >= 0} { lappend ::PS_SOLVENT_REPS $r }
         } else {
             ps_note "hiding bulk solvent ($bulk); pass -solvent points to show it"
@@ -356,7 +372,52 @@ proc ps_autoscale {molid renderer fill w h} {
     ps_note [format "fit: preview ink %dx%d of %dx%d px -> scale by %.3f" $iw $ih $pw $ph $f]
 }
 
-proc ps_view {molid visible view rot zoom bg w h renderer fill} {
+
+# Rotate the view so *seltext* sits nearest the camera.
+#
+# The camera looks down -z, so +z is toward the viewer: we want the vector from the whole
+# structure's centre to the feature's centre pointing along +z *after* the current view
+# rotation.  Composing the correction onto the existing rotate_matrix (rather than replacing
+# it) keeps whatever -view/-rot already established, so this refines an orientation instead
+# of discarding it.
+proc ps_face {molid seltext fitsel} {
+    if {$seltext eq ""} return
+    if {[catch {atomselect $molid $seltext} f]} {
+        ps_note "WARNING: -face selection is invalid: $seltext" ; return
+    }
+    if {[$f num] == 0} {
+        ps_note "WARNING: -face selection matched no atoms: $seltext" ; $f delete ; return
+    }
+    if {[catch {atomselect $molid $fitsel} a]} { set a [atomselect $molid all] }
+    set cf [measure center $f]
+    set ca [measure center $a]
+    $f delete ; $a delete
+    set v [vecsub $cf $ca]
+    if {[veclength $v] < 1e-6} {
+        ps_note "note: -face selection is concentric with the structure; leaving the view as is"
+        return
+    }
+    set R0 [lindex [molinfo $molid get rotate_matrix] 0]
+    # direction in the *current* view frame
+    set vv [vecnorm [coordtrans $R0 $v]]
+    # subtract the origin's image: coordtrans applies translation too, and a pure rotation
+    # matrix has none, but be explicit so a stray translation cannot skew the direction
+    set o [coordtrans $R0 {0 0 0}]
+    set vv [vecnorm [vecsub [coordtrans $R0 $v] $o]]
+    set z {0 0 1}
+    set dot [vecdot $vv $z]
+    if {$dot > 0.9999} { return }
+    if {$dot < -0.9999} {
+        set axis {0 1 0} ; set ang 180.0
+    } else {
+        set axis [vecnorm [veccross $vv $z]]
+        set ang [expr {57.2957795130823 * acos($dot)}]
+    }
+    molinfo $molid set rotate_matrix [list [transmult [transabout $axis $ang] $R0]]
+    ps_note [format "face: rotated %.1f deg to bring the -face selection forward" $ang]
+}
+
+proc ps_view {molid visible view rot zoom bg w h renderer fill face} {
     color Display Background $bg
     axes location Off
     display projection Orthographic
@@ -381,6 +442,7 @@ proc ps_view {molid visible view rot zoom bg w h renderer fill} {
             if {$deg ne "" && $deg != 0} { rotate $axis by $deg }
         }
     }
+    ps_face $molid $face $visible
     # autoscale after the rotations, so the fit is measured on the orientation being rendered
     display update
     ps_autoscale $molid $renderer $fill $w $h
@@ -457,8 +519,8 @@ proc ps_main {argv} {
     }
 
     set opt(solvent) [ps_solvent_mode $opt(solvent)]
-    set visible [ps_represent $molid $opt(style) $opt(solvent) $opt(highlight) $opt(ss)]
-    ps_view $molid $visible $opt(view) $opt(rot) $opt(zoom) $opt(bg) $w $h $opt(renderer) $opt(fill)
+    set visible [ps_represent $molid $opt(style) $opt(solvent) $opt(highlight) $opt(ss) $opt(ghost)]
+    ps_view $molid $visible $opt(view) $opt(rot) $opt(zoom) $opt(bg) $w $h $opt(renderer) $opt(fill) $opt(face)
     set written [ps_render $opt(renderer) $opt(o) $w $h $opt(bg)]
     ps_note "wrote $written"
 }
