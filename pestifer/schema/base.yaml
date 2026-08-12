@@ -978,6 +978,31 @@ attributes:
               fraction of the series is used, since including the approach to equilibrium makes the
               distribution bimodal and its mean meaningless. Mean, standard deviation, and sample
               count are annotated.
+          - name: panels
+            text: >-
+              Stacked panels sharing one time axis, given as a list of traces (or lists of traces,
+              to overlay several in one panel). Density, area and temperature read together tell a
+              story that three separate figures do not, because the eye cannot align three x axes;
+              this is also the shape the equilibration tasks draw by hand.
+            type: list
+            default: []
+          - name: overlay
+            text: >-
+              Other runs to draw alongside this one for comparison, each a dict with a `label` and
+              a list of `logs`. One figure per plotted quantity with one curve per run. Comparing
+              builds that differ in a single respect -- the same protein in three solvents, or a
+              parameter changed -- is otherwise a matter of holding two figures side by side and
+              guessing whether the axes match.
+            type: list
+            default: []
+          - name: summary-table
+            text: >-
+              Write a per-stage summary (`<basename>-summary.csv`) listing each simulation stage
+              with its ensemble, step range, wall-clock time, and the mean and standard deviation
+              of every plotted quantity over the stage. The numbers a figure is usually read to
+              extract, in a form that can be pasted or diffed.
+            type: bool
+            default: False
           - name: histogram-tail
             text: >-
               Trailing fraction of each series a histogram is built from (default 0.5), the part

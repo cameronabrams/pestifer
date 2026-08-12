@@ -191,6 +191,227 @@ class MDPlotTask(BaseTask):
         self.dataframes['xst'] = df
         logger.debug(f'{self.taskname}: derived cell columns available as traces: {added}')
 
+
+
+    def _series_from_logs(self, logs: list) -> dict:
+        """Parse NAMD logs into concatenated dataframes, without writing CSVs.
+
+        Used for overlay sources, which are read only to be drawn: writing their CSVs would
+        scatter files named after another run through this run's directory.
+        """
+        from ..logparsers import NAMDLogParser
+        series = {}
+        for f in logs:
+            try:
+                parsed = NAMDLogParser.from_file(f)
+            except Exception as e:
+                logger.debug(f'overlay: could not parse {f} ({e})')
+                continue
+            for key, df in getattr(parsed, 'dataframes', {}).items():
+                if df is None or df.empty:
+                    continue
+                if key not in series:
+                    series[key] = df.copy()
+                    continue
+                prev = series[key]
+                if not prev.empty and not df.empty and prev.iloc[-1, 0] == df.iloc[0, 0]:
+                    df = df.iloc[1:, :]        # same boundary timestep as the previous chunk
+                series[key] = pd.concat([prev, df], ignore_index=True)
+        for key, df in series.items():
+            if 'dt_fs' in df.columns and 'TS' in df.columns:
+                ts = df['TS'].values.astype(float)
+                df['time_ps'] = np.cumsum(df['dt_fs'].values * np.diff(ts, prepend=ts[0]) / 1000.0)
+                series[key] = df
+        return series
+
+    def _plot_overlays(self, overlays, quantities, df_of_column, output_dir, block_average, grid):
+        """One figure per quantity, one curve per run.
+
+        Stage markers are deliberately omitted here: the runs being compared have their own,
+        differing stage structures, and drawing several sets of boundaries on one axes says less
+        than it obscures.
+        """
+        sources = [('this run', df_of_column)]
+        for entry in overlays:
+            if not isinstance(entry, dict):
+                logger.debug(f'overlay entry {entry!r} is not a dict; skipping')
+                continue
+            label, logs = entry.get('label'), entry.get('logs', [])
+            if not logs:
+                logger.debug(f'overlay {label!r} names no logs; skipping')
+                continue
+            series = self._series_from_logs(logs)
+            if not series:
+                logger.debug(f'overlay {label!r} yielded no data; skipping')
+                continue
+            columns = {}
+            for df in series.values():
+                for col in df.columns[1:]:
+                    columns.setdefault(col, df)
+            sources.append((label or 'overlay', columns))
+        if len(sources) < 2:
+            logger.debug('no usable overlay sources; skipping overlay figures')
+            return
+        axis_labels = self.specs.get('axis-labels', {})
+        for name in quantities:
+            figsize = self.specs.get('figsize') or (9, 6)
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+            drawn, unitspec_seen = 0, '*'
+            for i, (label, columns) in enumerate(sources):
+                key, df, units, unitspec = self._resolve_units(name, columns)
+                if df is None:
+                    logger.debug(f'overlay: {label} has no {name}')
+                    continue
+                x_values, x_desc = self._x_axis_for(df)
+                if x_values is None:
+                    continue
+                y_values = df[key] * units
+                window = block_average if block_average >= 0 else auto_block_average(key, len(y_values))
+                color = self.colormap(i / max(1, len(sources) - 1))
+                if window > 1 and len(y_values) > window:
+                    y_values = y_values.rolling(window, center=True, min_periods=1).mean()
+                ax.plot(x_values, y_values, label=label, color=color, linewidth=1.3)
+                unitspec_seen = unitspec if unitspec != '*' else unitspec_seen
+                drawn += 1
+            if drawn < 2:
+                plt.close(fig)
+                logger.debug(f'overlay for {name}: fewer than two runs had data; skipping')
+                continue
+            ax.set_xlabel(x_desc or 'time step')
+            lbl = to_latex_math(axis_labels.get(name, name))
+            ax.set_ylabel(lbl + (f' ({unitspec_seen})' if unitspec_seen != '*' else ''))
+            ax.legend()
+            if grid:
+                ax.grid(True)
+            png_path = os.path.join(output_dir, f'{self.basename}-{name}-overlay.png')
+            fig.savefig(png_path, bbox_inches='tight')
+            self.register(png_path, key=f'{name}-overlay-plot', artifact_type=PNGImageFileArtifact, keep=True)
+            plt.close(fig)
+            logger.debug(f'{self.taskname}: overlay of {name} across {drawn} runs -> {png_path}')
+
+    def _plot_panels(self, panels, df_of_column, output_dir, block_average, stage_markers,
+                     legend, grid):
+        """Stacked panels sharing one x axis.
+
+        Three quantities in three figures cannot be read together -- the eye cannot align three
+        separate x axes -- so a shared-axis stack is what makes a claim like "the area kept
+        relaxing after the density had settled" visible at all.  Each entry is one panel; a list
+        entry overlays several traces in that panel.
+        """
+        groups = [p if isinstance(p, list) else [p] for p in panels]
+        groups = [g for g in groups if g]
+        if not groups:
+            return
+        figsize = self.specs.get('figsize') or (9, 2.6 * len(groups) + 1.2)
+        fig, axes = plt.subplots(len(groups), 1, figsize=figsize, sharex=True, squeeze=False)
+        axes = [a[0] for a in axes]
+        axis_labels = self.specs.get('axis-labels', {})
+        x_desc = None
+        drawn = 0
+        for ax, group in zip(axes, groups):
+            unitspecs, boundary = [], None
+            for idx, name in enumerate(group):
+                key, df, units, unitspec = self._resolve_units(name, df_of_column)
+                if df is None:
+                    logger.debug(f'No data found for panel trace {name}. Skipping...')
+                    unitspecs.append(unitspec)
+                    continue
+                x_values, this_desc = self._x_axis_for(df)
+                if x_values is None:
+                    continue
+                x_desc = x_desc or this_desc
+                y_values = df[key] * units
+                window = block_average
+                if window < 0:
+                    window = auto_block_average(key, len(y_values))
+                color = self.colormap(idx / max(1, len(group) - 1))
+                if window > 1 and len(y_values) > window:
+                    rolled = y_values.rolling(window, center=True, min_periods=1)
+                    mean, sd = rolled.mean(), rolled.std().fillna(0.0)
+                    ax.plot(x_values, y_values, color=color, alpha=0.25, linewidth=0.8)
+                    ax.fill_between(x_values, mean - sd, mean + sd, color=color, alpha=0.20,
+                                    linewidth=0)
+                    ax.plot(x_values, mean, label=key, color=color, linewidth=1.6)
+                else:
+                    ax.plot(x_values, y_values, label=key, color=color)
+                unitspecs.append(unitspec)
+                boundary = boundary or (key, df, x_values)
+                drawn += 1
+            ylabel = ', '.join(to_latex_math(axis_labels.get(n, n)) +
+                               (f' ({u})' if u and u != '*' else '')
+                               for n, u in zip(group, unitspecs))
+            ax.set_ylabel(ylabel, fontsize=9)
+            if grid:
+                ax.grid(True)
+            if legend and len(group) > 1:
+                ax.legend(fontsize=8)
+            if stage_markers and boundary is not None:
+                self._draw_stage_markers(ax, *boundary)
+        if not drawn:
+            plt.close(fig)
+            logger.debug('no panel traces had data; skipping the panel figure')
+            return
+        axes[-1].set_xlabel(x_desc or 'time step')
+        fig.align_ylabels(axes)
+        fig.tight_layout()
+        name = '_'.join('-'.join(g) for g in groups)
+        png_path = os.path.join(output_dir, f'{self.basename}-panels-{name}.png')
+        fig.savefig(png_path, bbox_inches='tight')
+        self.register(png_path, key='panels-plot', artifact_type=PNGImageFileArtifact, keep=True)
+        plt.close(fig)
+        logger.debug(f'{self.taskname}: {len(groups)}-panel figure -> {png_path}')
+
+    def _x_axis_for(self, df):
+        """``(x values, axis label)`` for a dataframe: simulation time when it carries one."""
+        if 'time_ps' in df.columns:
+            max_ps = float(df['time_ps'].max())
+            if max_ps >= 1000.0:
+                return df['time_ps'] * 1e-3, 'simulation time (ns)'
+            return df['time_ps'], 'simulation time (ps)'
+        for tcn in self.specs.get('time_step_column_names', ['TS', 'step', 'steps']):
+            if tcn in df.columns:
+                return df[tcn], 'time step'
+        return None, None
+
+    def _write_summary_table(self, quantities, df_of_column, output_dir):
+        """Per-stage summary: what a reader usually squints at a figure to extract.
+
+        One row per simulation stage with its step range and, for each plotted quantity, the mean
+        and standard deviation over that stage -- so "the density settled at 1.03 during the NPT
+        stage" is a number that can be pasted or diffed rather than eyeballed off a curve.
+        """
+        rows = []
+        for name in quantities:
+            key, df, units, unitspec = self._resolve_units(name, df_of_column)
+            if df is None:
+                continue
+            series_key = next((k for k, v in self.dataframes.items() if v is df), None)
+            boundaries = self.stage_boundaries.get(series_key, [])
+            if not boundaries:
+                boundaries = [(0, series_key or 'all')]
+            values = df[key] * units
+            step_col = next((c for c in ('TS', 'step', 'steps') if c in df.columns), None)
+            for i, (start, label) in enumerate(boundaries):
+                end = boundaries[i + 1][0] if i + 1 < len(boundaries) else len(values)
+                chunk = values.iloc[start:end].dropna()
+                if chunk.empty:
+                    continue
+                row = dict(stage=label, quantity=name, units=unitspec,
+                           samples=len(chunk), mean=float(chunk.mean()),
+                           std=float(chunk.std(ddof=1)) if len(chunk) > 1 else 0.0)
+                if step_col is not None:
+                    row['first_step'] = int(df[step_col].iloc[start])
+                    row['last_step'] = int(df[step_col].iloc[min(end, len(df)) - 1])
+                rows.append(row)
+        if not rows:
+            logger.debug('no data for a summary table; skipping')
+            return
+        table = pd.DataFrame(rows)
+        csvname = os.path.join(output_dir, f'{self.basename}-summary.csv')
+        table.to_csv(csvname, index=False)
+        self.register(csvname, key='summary-csv', artifact_type=CSVDataFileArtifact, keep=True)
+        logger.info(f'{self.taskname}: per-stage summary ({len(rows)} rows) -> {csvname}')
+
     def _plot_histograms(self, histograms, df_of_column, output_dir):
         """One distribution figure per named quantity, built from the equilibrated tail.
 
@@ -590,6 +811,26 @@ class MDPlotTask(BaseTask):
             plt.savefig(png_path, bbox_inches='tight')
             self.register(png_path, key=f'{tracename}-timeseries-plot', artifact_type=PNGImageFileArtifact, keep=True)
             plt.clf()
+        panels = self.specs.get('panels', [])
+        if panels:
+            self._plot_panels(panels, df_of_column, output_dir, block_average, stage_markers,
+                              legend, grid)
+        overlays = self.specs.get('overlay', [])
+        if overlays:
+            flat = []
+            for t in timeseries:
+                flat.extend(t if isinstance(t, list) else [t])
+            self._plot_overlays(overlays, list(dict.fromkeys(flat)), df_of_column, output_dir,
+                                block_average, grid)
+
+        if self.specs.get('summary-table', False):
+            summarized = []
+            for t in timeseries:
+                summarized.extend(t if isinstance(t, list) else [t])
+            for p_ in panels:
+                summarized.extend(p_ if isinstance(p_, list) else [p_])
+            self._write_summary_table(list(dict.fromkeys(summarized)), df_of_column, output_dir)
+
         for profile in profiles:
             if profile == 'pressure':
                 df = self.dataframes.get('pressureprofile', None)

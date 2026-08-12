@@ -17,6 +17,30 @@ from ..core.config import Config
 
 logger = logging.getLogger(__name__)
 
+
+def _parse_overlays(items: list) -> list:
+    """``LABEL=PATTERN`` arguments into the task's overlay spec.
+
+    PATTERN is a glob or a comma-separated list; globs are sorted so chunked runs concatenate in
+    chronological order rather than the arbitrary order the filesystem returns.
+    """
+    import glob as _glob
+    out = []
+    for item in items:
+        label, _, pattern = item.partition('=')
+        if not pattern:
+            logger.warning(f'--overlay {item!r} is not LABEL=PATTERN; skipping')
+            continue
+        logs = []
+        for part in pattern.split(','):
+            logs.extend(sorted(_glob.glob(part)) if any(c in part for c in '*?[') else [part])
+        if not logs:
+            logger.warning(f'--overlay {label!r} matched no logs ({pattern!r}); skipping')
+            continue
+        out.append({'label': label, 'logs': logs})
+    return out
+
+
 @dataclass
 class MDPlotSubcommand(Subcommand):
     name: str = 'mdplot'
@@ -55,6 +79,10 @@ class MDPlotSubcommand(Subcommand):
                         'histograms': getattr(args, 'histograms', []) or [],
                         'histogram-tail': getattr(args, 'histogram_tail', 0.5),
                         'lipids-per-leaflet': getattr(args, 'lipids_per_leaflet', 0),
+                        'panels': [p.split(',') if ',' in p else p
+                                   for p in (getattr(args, 'panels', []) or [])],
+                        'summary-table': getattr(args, 'summary_table', False),
+                        'overlay': _parse_overlays(getattr(args, 'overlay', []) or []),
                         'units': {
                             'density': 'g/cc',
                             'a_x': 'Å',
@@ -106,4 +134,13 @@ class MDPlotSubcommand(Subcommand):
                                       '(default: %(default)s)')
         self.parser.add_argument('--lipids-per-leaflet', type=int, default=0, metavar='N',
                                  help='lipids per leaflet, enabling the derived apl trace')
+        self.parser.add_argument('--panels', type=str, default=[], nargs='+', metavar='TRACES',
+                                 help='stacked panels sharing one time axis, one argument per '
+                                      'panel; comma-separate to overlay traces in a panel')
+        self.parser.add_argument('--summary-table', default=False, action='store_true',
+                                 help='also write a per-stage summary CSV')
+        self.parser.add_argument('--overlay', type=str, default=[], nargs='+', metavar='LABEL=LOGS',
+                                 help='another run to draw alongside this one, as LABEL=PATTERN '
+                                      'where PATTERN is a glob or comma-separated list of NAMD '
+                                      'logs; repeatable')
         return self.parser

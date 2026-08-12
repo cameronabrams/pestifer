@@ -87,3 +87,35 @@ class TestAutoBlockAverage(unittest.TestCase):
         from pestifer.tasks.mdplot import auto_block_average
         # a window comparable to the series would flatten it into a single value
         self.assertEqual(auto_block_average('PRESSURE', 8), 0)
+
+
+class TestOverlayArgParsing(unittest.TestCase):
+    """LABEL=PATTERN overlay arguments."""
+
+    def setUp(self):
+        import tempfile, os
+        self.dir = tempfile.mkdtemp()
+        for n in ('b.log', 'a.log', 'c.log'):
+            open(os.path.join(self.dir, n), 'w').close()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def test_glob_expands_sorted(self):
+        # chunked runs must concatenate chronologically, not in filesystem order
+        from pestifer.subcommands.mdplot import _parse_overlays
+        out = _parse_overlays([f'run one={self.dir}/*.log'])
+        self.assertEqual(len(out), 1)
+        self.assertEqual(out[0]['label'], 'run one')
+        self.assertEqual([p.split('/')[-1] for p in out[0]['logs']], ['a.log', 'b.log', 'c.log'])
+
+    def test_comma_separated_list_is_kept_in_order(self):
+        from pestifer.subcommands.mdplot import _parse_overlays
+        out = _parse_overlays([f'x={self.dir}/c.log,{self.dir}/a.log'])
+        self.assertEqual([p.split('/')[-1] for p in out[0]['logs']], ['c.log', 'a.log'])
+
+    def test_malformed_and_empty_are_skipped_not_fatal(self):
+        from pestifer.subcommands.mdplot import _parse_overlays
+        self.assertEqual(_parse_overlays(['no-equals-sign']), [])
+        self.assertEqual(_parse_overlays([f'empty={self.dir}/nothing-*.log']), [])

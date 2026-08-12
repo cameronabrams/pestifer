@@ -4,6 +4,23 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **`mdplot` draws stacked multi-panel figures.** `panels:` takes a list of traces (or lists,
+  to overlay within a panel) and stacks them on one shared time axis, with stage markers and block
+  averaging on each. Three quantities in three separate figures cannot be read together, because
+  the eye cannot align three x axes — so "the area kept relaxing after the density had settled" is
+  a claim a stack makes visible and separate figures do not.
+
+- feat: **`mdplot` overlays other runs for comparison.** `overlay:` names other runs by label and
+  logs, drawing one curve per run per quantity. Comparing builds that differ in one respect — the
+  same protein in three solvents — was otherwise a matter of holding two figures side by side and
+  hoping the axes matched. Also `--overlay LABEL=PATTERN` on the CLI, where PATTERN is a glob
+  (sorted, so chunked runs concatenate chronologically) or a comma-separated list.
+
+- feat: **`mdplot` can write a per-stage summary table.** `summary-table: true` emits
+  `<basename>-summary.csv` with one row per stage per quantity: ensemble, step range, sample count,
+  mean and standard deviation. The numbers a figure is usually read to extract, in a form that can
+  be pasted into a document or diffed between runs.
+
 - feat: **`mdplot` histograms are implemented.** The option existed in the schema but the task
   logged "not yet implemented" and drew nothing; its description also promised a profile along z,
   which `profiles` and the `density-profile` subcommand already cover. It now does what the name
