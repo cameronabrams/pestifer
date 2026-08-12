@@ -29,6 +29,28 @@ class NiceHelpFormatter(ap.HelpFormatter):
     def __init__(self, prog):
         super().__init__(prog, max_help_position=40, width=100)
 
+def subcommand_exit_code(result) -> int:
+    """Exit status implied by whatever a subcommand returned.
+
+    A subcommand that ran tasks reports failure either as an int or via an ``exit_code``
+    attribute on the object it returns (the Controller); without honoring that, the process
+    exited 0 for an aborted build and any caller keying off the exit status recorded it as a
+    success.
+
+    Most subcommands, though, return ``True`` to mean "done" -- and ``bool`` is a subclass of
+    ``int``, so treating a bare int as a status turned every one of those into exit 1.  Booleans
+    are therefore success, and only a genuine int (or a genuine int ``exit_code``) is a status.
+    """
+    if result is None or isinstance(result, bool):
+        return 0
+    if isinstance(result, int):
+        return result
+    code = getattr(result, 'exit_code', 0)
+    if isinstance(code, bool) or not isinstance(code, int):
+        return 0
+    return code
+
+
 def cli():
     """
     Command-line interface for pestifer.
@@ -96,11 +118,7 @@ def cli():
     except PestiferError as e:
         logger.error(str(e))
         sys.exit(1)
-    # A subcommand that ran tasks reports failure either as an int or on the object it returns
-    # (the Controller).  Without this the process exited 0 for an aborted build, so any caller
-    # keying off the exit status -- scripts/run_all_examples_local.sh among them -- recorded a
-    # build whose task failed as a success.
-    exit_code = result if isinstance(result, int) else getattr(result, 'exit_code', 0)
+    exit_code = subcommand_exit_code(result)
     if exit_code:
         logger.error(f'pestifer exiting with code {exit_code}')
         sys.exit(exit_code)

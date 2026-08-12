@@ -4,6 +4,12 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: subcommands that report success by returning `True` no longer exit nonzero. `bool` is a
+  subclass of `int`, so the exit-status change below read `True` as an exit code and made
+  `show-resources`, `wheretcl`, `config-default`, `cache` and the other bool-returning
+  subcommands fail with `ERROR> pestifer exiting with code True`. Booleans are success; only a
+  genuine int is a status. Covered by `tests/unit/test_core/test_cli_exit_code.py`.
+
 - fix: **a build whose task fails now exits nonzero.** The CLI discarded whatever a subcommand
   returned, so `pestifer build` and `pestifer build-example` exited 0 even when a task failed and
   the controller aborted -- so any caller keying off the exit status, `scripts/run_all_examples_local.sh`
