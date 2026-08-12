@@ -10,8 +10,9 @@ behavior that no longer existed.
 
 - **Tier 1 (generated trees): DONE, committed** (`27f70da3`).
 - **Tier 2 (prose corrections): DONE, committed** (`6e0e00a0`).
-- **Tier 3 (new pages): DONE for `membrane_equilibrate`;** the optional "importing a pre-built
-  system" narrative page is still open.
+- **Tier 3 (new pages): DONE.** `membrane_equilibrate` task page, plus the "importing a pre-built
+  system" narrative page (`docs/source/importing-systems.rst`, in the top-level toctree after
+  `usage`).
 - **Tier 4 (examples + README): DONE.** ex17 and ex16 refreshed with figures from the clean
   2026-08-11 sweep run (including the `membrane_equilibrate` convergence plots, which did not
   exist when those pages were written) and prose brought onto the current membrane path; README
@@ -111,9 +112,14 @@ Both resolved on 2026-08-09:
   Listed in `build.rst`'s toctree after `density_equilibrate`. Also fixed the now-stale closing
   sentence of `density_equilibrate.rst`, which told membrane users to keep a hand-written NPgT
   protocol; it now points at the sibling task.
-- Still open (optional): a short "importing a pre-built system" narrative page tying `continuation`
-  and `psfgen` together. The incoming-PSF feature is the one most likely to be missed by someone
-  scanning task pages.
+- ~~"importing a pre-built system" narrative page~~ **Done** as `docs/source/importing-systems.rst`,
+  a top-level page alongside `charmmff-customizations`. It is a walkthrough, not a duplicate: state
+  enters through `continuation` (there is deliberately no psfgen source key for a foreign PSF), the
+  `verify_parameters` preflight, then the additive-vs-re-segmenting split with what each preserves
+  and costs, and the fetch-metadata mods that hard-error. Option lists stay on the task pages, which
+  it links to.
+
+**The refresh is complete.** All four tiers are done and committed.
 
 ### Tier 4 — examples and front matter
 
