@@ -17,3 +17,64 @@
     margin-top: 2em;
     text-align: center;
 }
+
+/* --- Figure, table and listing captions --------------------------------
+   Furo gives <figcaption> no styling of its own, so a caption renders at
+   body size in body color.  Several of ours run three or four sentences
+   directly under an image, where that reads as just another paragraph of
+   prose.  Set them apart: smaller, muted, hung off an accent rule, and
+   led by a bold "Figure N." label.
+
+   The label is a CSS counter rather than Sphinx's numfig because numfig
+   numbers continuously across the whole doc set -- example 13 would open
+   on a solitary "Fig. 21".  Readers arrive on these pages individually,
+   so the count resets per page.  Nothing uses :numref: (which would need
+   numfig back); if that changes, this trade has to be revisited.
+
+   Every color is a Furo variable, so light and dark themes both track;
+   the rule uses foreground-border because background-border (#eeebee)
+   is effectively invisible against a light page.                          */
+
+body {
+    counter-reset: pf-figure pf-table pf-listing;
+}
+
+figure > figcaption {
+    margin-top: 0.7rem;
+    padding-left: 0.9rem;
+    border-left: 3px solid var(--color-foreground-border);
+    font-size: 0.86em;
+    line-height: 1.55;
+    color: var(--color-foreground-secondary);
+    text-align: left;   /* centered figures still get left-read captions */
+}
+
+/* Attach the label to the inner <p>, not to figcaption itself: figcaption's
+   child is a block, so a ::before there would sit on its own line. */
+figure > figcaption > p:first-of-type::before {
+    counter-increment: pf-figure;
+    content: "Figure " counter(pf-figure) ". ";
+    font-weight: 600;
+    color: var(--color-foreground-primary);
+}
+
+table > caption > .caption-text::before {
+    counter-increment: pf-table;
+    content: "Table " counter(pf-table) ". ";
+    font-weight: 600;
+    color: var(--color-foreground-primary);
+}
+
+.code-block-caption > .caption-text::before {
+    counter-increment: pf-listing;
+    content: "Listing " counter(pf-listing) ". ";
+    font-weight: 600;
+    color: var(--color-foreground-primary);
+}
+
+table > caption,
+.code-block-caption {
+    font-size: 0.86em;
+    color: var(--color-foreground-secondary);
+    text-align: left;
+}
