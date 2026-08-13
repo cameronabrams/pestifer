@@ -10,6 +10,15 @@ This is the same as Example 1, except we delete the phosphate ion.
 
 .. task-table:: ../../../../pestifer/resources/examples/02/inputs/bpti2.yaml
 
+.. figure:: 6pti-solvated.png
+    :width: 70%
+    :align: center
+
+    The Example 2 build, in the same style and viewpoint as :ref:`Example 1 <example bpti1>`.
+    The phosphate is gone, and the box carries 0.154 M NaCl -- 13 sodium and 19 chloride ions
+    among 4,385 waters -- where Example 1 had only the five chlorides needed to neutralize the
+    protein.  All three native disulfides are intact.
+
 
 Note the ``exclude`` subdirective under ``source``.  You remember how you can learn about it?  Using ``config-help``: 
 

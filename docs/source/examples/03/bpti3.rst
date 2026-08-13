@@ -10,6 +10,15 @@ Building on Example 2, here we show how to introduce point mutations and how to 
 
 .. task-table:: ../../../../pestifer/resources/examples/03/inputs/bpti3.yaml
 
+.. figure:: 6pti-solvated.png
+    :width: 70%
+    :align: center
+
+    The Example 3 build, in the same style and viewpoint as :ref:`Example 1 <example bpti1>`.
+    The mutations are in place and one of the three native disulfides has been reduced, so this
+    system has **two** S-S bonds where the others have three; the freed cysteine sulfurs are the
+    yellow atoms no longer paired.
+
 
 First, note the ``mutations`` list.  Each element specifies one particular point mutation using a *shortcode*.  There are two allowable shortcodes for a point mutation:
 

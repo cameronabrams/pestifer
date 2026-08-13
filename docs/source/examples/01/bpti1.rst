@@ -17,12 +17,12 @@ You can check the :ref:`config_ref` for a complete reference to Pestifer config 
     :width: 70%
     :align: center
 
-    The system this pipeline produces.  BPTI is drawn as a cartoon coloured by secondary
-    structure, with the sulfurs of its three disulfides as yellow spheres.  The dihydrogen
-    phosphate (``H2PO4``) carried over from the 6PTI entry is in licorice at the left --
-    :ref:`Example 2 <example bpti2>` is the same build with that ion excluded.  The five green
-    spheres are the chlorides added to neutralize the protein's net charge, and water is drawn
-    as faint points so it does not obscure the solute.
+    The system this pipeline produces: BPTI as a secondary-structure cartoon with every protein
+    atom drawn as well, sitting in the 4,412-water box that ``density_equilibrate`` settled.
+    Water and the five neutralizing chlorides are fine glassy lines, so the cell reads as filled
+    without hiding the solute.  This build keeps all three of BPTI's native disulfides -- their
+    sulfurs are the yellow atoms -- and retains the dihydrogen phosphate from the 6PTI entry.
+    Examples 2 to 4 vary exactly those two things.
 
 There are three ways to launch this build.  **They are alternatives — pick one, and
 run it in a clean directory.**  All three run the same configuration; they differ only

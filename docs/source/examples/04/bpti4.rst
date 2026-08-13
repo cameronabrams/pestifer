@@ -10,6 +10,14 @@ Using the ``mods`` subdirective, one can introduce new disulfides into an existi
 
 .. task-table:: ../../../../pestifer/resources/examples/04/inputs/bpti4.yaml
 
+.. figure:: 6pti-solvated.png
+    :width: 70%
+    :align: center
+
+    The Example 4 build, in the same style and viewpoint as :ref:`Example 1 <example bpti1>`.
+    Residues 11 and 34 have been mutated to cysteine and cross-linked, so this system carries
+    eight cysteines and **four** S-S bonds against the native three.
+
 
 Note that this required first mutating the residues at positions 11 and 34 to cysteines, and *then* introducing the disulfide mod.
 
