@@ -3,14 +3,12 @@
 Defines the command-line interface for pestifer
 """
 import argparse as ap
-import importlib.metadata
 import logging
 import os
 import shutil
 import sys
 
-__pestifer_version__ = importlib.metadata.version("pestifer")
-from ..util.stringthings import banner
+from ..util.stringthings import banner, __pestifer_version__
 from ..subcommands import _subcommands
 from ..core.errors import PestiferError
 

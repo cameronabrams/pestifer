@@ -22,8 +22,37 @@ from typing import Callable
 logger = logging.getLogger(__name__)
 
 import importlib.metadata
+import tomllib
 
-__pestifer_version__ = importlib.metadata.version("pestifer")
+
+def _resolve_version() -> str:
+    """Return pestifer's version, preferring a source tree over install metadata.
+
+    ``importlib.metadata`` reports the version recorded when the distribution was
+    installed.  For an editable install that value is frozen at install time, so every
+    release bump leaves ``pestifer --version`` reporting whatever happened to be current
+    when the editable install was made -- and, less visibly, leaves
+    :attr:`CacheableObject.APP_VERSION` keying caches to that stale value.  When pestifer
+    is being imported out of a working tree, that tree's ``pyproject.toml`` is the truth,
+    so prefer it.  An ordinary wheel install has no ``pyproject.toml`` beside the package
+    and falls through to the metadata unchanged.
+    """
+    try:
+        installed = importlib.metadata.version('pestifer')
+    except importlib.metadata.PackageNotFoundError:
+        installed = '0.0.0+unknown'
+    pyproject = Path(__file__).resolve().parents[2] / 'pyproject.toml'
+    try:
+        with open(pyproject, 'rb') as f:
+            project = tomllib.load(f).get('project', {})
+        if project.get('name') == 'pestifer' and project.get('version'):
+            return str(project['version'])
+    except (OSError, tomllib.TOMLDecodeError, AttributeError):
+        pass
+    return installed
+
+
+__pestifer_version__ = _resolve_version()
 
 _banner_message="""
     Pestifer v. {pestifer_version}

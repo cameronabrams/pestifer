@@ -4,6 +4,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **`pestifer --version` follows the source tree, not stale install metadata.** The version came
+  from `importlib.metadata`, which reports what was recorded when the distribution was installed.
+  For an editable install that is frozen at install time, so every release bump left the CLI
+  reporting the old number until someone reinstalled -- three local installs were reporting 3.15.1,
+  3.15.4 and 3.11.0 while running 3.16.0 code. Less visibly, `CacheableObject.APP_VERSION` keys
+  caches on that value, so a stale version meant caches were not invalidated across a release. When
+  pestifer is imported from a working tree, its `pyproject.toml` is now the source of truth; a wheel
+  install has no `pyproject.toml` beside the package and falls through to metadata as before. The
+  CLI also stops duplicating the lookup and imports the one constant.
+
 ## [3.16.0] - 2026-08-13
 
 - change: **pestifer now requires ycleptic 2.3.0.** 2.3.0 reports base-spec declarations ycleptic
