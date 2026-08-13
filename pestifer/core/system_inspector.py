@@ -579,12 +579,14 @@ def build_findings(db_id, source_format, missing_pairs, seqadv_tuples, resolved_
 
     Parameters
     ----------
-    missing_pairs : list[(chain, resseqnum)]
-        Every unresolved residue.
-    seqadv_tuples : list[(chain, resseqnum, resname, dbres, typekey)]
-        Every SEQADV entry (``resseqnum`` may be ``None`` -> skipped).
-    resolved_ranges : dict[chain, (lo, hi)]
-        The min/max resolved sequence number per chain (empty/absent -> a run is treated interior).
+    missing_pairs : list of tuple
+        Every unresolved residue, as ``(chain, resseqnum)``.
+    seqadv_tuples : list of tuple
+        Every SEQADV entry, as ``(chain, resseqnum, resname, dbres, typekey)``
+        (``resseqnum`` may be ``None`` -> skipped).
+    resolved_ranges : dict
+        The min/max resolved sequence number per chain, as ``{chain: (lo, hi)}``
+        (empty/absent -> a run is treated interior).
     """
     findings = Findings(db_id=db_id, source_format=source_format,
                         chains=list(chains), assemblies=list(assemblies))

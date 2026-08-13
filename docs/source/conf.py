@@ -94,8 +94,28 @@ epub_show_urls = 'footnote'
 
 mermaid_params = ['--theme', 'dark', '--width', '600']
 
+
+def _skip_package_reexports(app, what, name, obj, skip, options):
+    """Don't document a package member that really lives in one of its submodules.
+
+    A package that re-exports names in ``__all__`` (e.g. charmmff.ligand_paramgen) makes
+    autodoc document those objects twice: once on the package page under the package-qualified
+    name, once on the submodule page under its own.  viewcode then builds its "[docs]" back-link
+    from the source module page using the *package* name, which is not an anchor that page has,
+    so the link dangles.  Documenting each object once, where it is defined, fixes both.
+    """
+    if skip or what != 'module':
+        return None
+    current = app.env.temp_data.get('autodoc:module')
+    owner = getattr(obj, '__module__', None)
+    if current and owner and owner != current and owner.startswith(current + '.'):
+        return True
+    return None
+
+
 def setup(app):
     print("✅ Setting up custom directives...")
+    app.connect('autodoc-skip-member', _skip_package_reexports)
     app.add_css_file("css/custom.css")
     from pestifer.sphinxext.tclscript import TclScriptDirective
     app.add_directive("tclscript", TclScriptDirective)
