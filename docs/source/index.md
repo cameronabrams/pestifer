@@ -31,6 +31,7 @@ Pestifer is under active development.  Pestifer development is supported in part
 introduction
 installation
 usage
+guides
 examples
 config_ref
 API <api/API>

@@ -132,6 +132,12 @@ A few things worth knowing:
 
 See :ref:`config_ref charmmff user_custom` for the full reference.
 
+.. seealso::
+
+   That ``searchpath`` route keeps the definition local to one build.  To make a
+   residue available to *every* build instead, it has to go into pestifer's own
+   bundled force field; see :ref:`charmmff_customizations`.
+
 .. _use in vmd scripts:
 
 Use in VMD scripts
@@ -168,15 +174,3 @@ environments, simply re-run ``pestifer setup-vmd`` to regenerate
 Once set up, VMD automatically loads pestifer's Tcl library on startup, including
 extended definitions of the ``glycan`` and ``lipid`` atomselect macros and all
 PestiferUtil procedures.
-
-Guides
-------
-
-Longer walkthroughs that cut across several tasks, rather than documenting one
-subcommand:
-
-.. toctree::
-   :maxdepth: 1
-
-   importing-systems
-   charmmff-customizations
