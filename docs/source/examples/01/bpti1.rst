@@ -13,6 +13,17 @@ The ``psfgen`` `user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen
 
 You can check the :ref:`config_ref` for a complete reference to Pestifer config files.
 
+.. figure:: 6pti-solvated.png
+    :width: 70%
+    :align: center
+
+    The system this pipeline produces.  BPTI is drawn as a cartoon coloured by secondary
+    structure, with the sulfurs of its three disulfides as yellow spheres.  The dihydrogen
+    phosphate (``H2PO4``) carried over from the 6PTI entry is in licorice at the left --
+    :ref:`Example 2 <example bpti2>` is the same build with that ion excluded.  The five green
+    spheres are the chlorides added to neutralize the protein's net charge, and water is drawn
+    as faint points so it does not obscure the solute.
+
 There are three ways to launch this build.  **They are alternatives — pick one, and
 run it in a clean directory.**  All three run the same configuration; they differ only
 in how the config file gets into that directory, and whether you get a chance to edit
@@ -81,7 +92,18 @@ The ``mdplot`` task then plots the same quantity across *all* the post-solvation
 
     Density vs. timestep for the BPTI system post-solvation, across every simulation stage.  The dashed vertical rules mark the boundaries between stages, so the jump as the barostat engages reads as a change of ensemble rather than as a physical event.
 
-Between the two, nothing about the equilibration has to be assumed: the first figure shows the criterion that ended the run, and the second shows that criterion in the context of everything that came before it.
+Between them, nothing about the equilibration has to be assumed: the convergence plot shows the criterion that ended the run, and the stage plot shows that criterion in the context of everything that came before it.
+
+The same ``mdplot`` task also records what the run cost, which is the other thing worth knowing
+before scaling a protocol up:
+
+.. figure:: solvated-cpu_time-wall_time.png
+
+    CPU and wall time accumulated across the post-solvation dynamics.  The two traces sit almost
+    on top of each other -- this run was not waiting on I/O or contending for cores -- and both
+    are straight, so throughput held constant even as the cell shrank and the patch grid was
+    rebuilt at each restart.  The whole equilibration of this small system took about six
+    minutes.
 
 Finally, we see a ``terminate`` task, whose main role is to generate some informative output and to provide a set of NAMD input files (PSF, PDB, xsc, coor, and vel) that all have a common base file name.  The ``package`` subdirective creates a tarball named for its own ``basename`` (here ``prod_6pti.tar.gz``) containing all input files necessary to execute a NAMD run, ready for transfer to the HPC resource of your choice.  Inside the tarball the files sit under a single directory also named for the package ``basename`` (``prod_6pti/``); the state files keep the terminate ``basename`` (``my_6pti``) while the generated NAMD config uses the package ``basename``.  The ``namd`` attribute of the ``package`` subdirective lets you specify any NAMD configuration options for the production config file; here we simply request the default parameters for an NPT run.
 
