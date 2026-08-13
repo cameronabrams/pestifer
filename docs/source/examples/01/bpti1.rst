@@ -16,29 +16,44 @@ The ``psfgen`` `user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen
 
 You can check the :ref:`config_ref` for a complete reference to Pestifer config files.
 
-This build can be performed (preferably in a clean directory) using this command:
+There are three ways to launch this build.  **They are alternatives — pick one, and
+run it in a clean directory.**  All three run the same configuration; they differ only
+in how the config file gets into that directory, and whether you get a chance to edit
+it first.
+
+**Option 1 — build the packaged example in one step**
 
 .. code-block:: bash
 
    $ pestifer build-example 1
 
-The first thing ``pestifer`` does with ``build-example`` is to copy the YAML config file for that example into the local directory.  In this case, the file copied is named ``bpti1.yaml``, and contains what you see above.  Or, alternatively, pasting that content into a local file ``myconfig.yaml``:
+``build-example`` copies the example's config file into the current directory as
+``bpti1.yaml`` — exactly what you see above — and immediately builds it.  Nothing to
+edit, nothing to name.
+
+**Option 2 — supply your own config file**
+
+Paste the YAML above into a local file and build that instead.  This is the route you
+will use for your own systems:
 
 .. code-block:: bash
 
    $ pestifer build myconfig.yaml
 
-Alternatively, you could also use ``fetch-example`` to get the config file and then run it:
+**Option 3 — fetch the config first, then build it**
+
+``fetch-example`` copies the example's config file *without* building, so you can read
+or edit it before committing to a run:
 
 .. code-block:: bash
 
-  $ ls
-  $ pestifer fetch-example 1
-  $ ls
-  bpti1.yaml
-  $ pestifer build bpti1
+   $ pestifer fetch-example 1
+   $ ls
+   bpti1.yaml
+   $ pestifer build bpti1
 
-(If there is no extension on the argument of build, pestifer assumes one of ``.yaml``, ``.yml``, or ``.ym``.)
+(If there is no extension on the argument of ``build``, pestifer assumes one of
+``.yaml``, ``.yml``, or ``.ym``.)
 
 ``bpti1.yaml`` is a YAML-format text file, and the keywords (of course) have particular meanings.  This is also an example of a "minimal" configuration file; ``pestifer`` has many more controls that can be set in a configuration file than are shown here.  Here, this configuration file contains two topmost directives: ``title`` and :ref:`config_ref tasks`.  The value of ``title`` is the string ``Bovine Pancreatic Trypsin Inhibitor (BPTI)`` and the value of ``tasks`` is a *list*.  Each element in the list of tasks is itself a directive describing a task, and ``pestifer`` in general executes tasks in the order they appear in the ``tasks`` list.
 
@@ -141,7 +156,7 @@ In the config file for this example, we specify on the the ``sourceID`` as 6pti;
 
 We can return to ``config-help`` to explore the ``psfgen`` task, which is the next task in the list.  We can do this by:
 
-.. code-block::bash
+.. code-block:: bash
 
   $ pestifer config-help tasks psfgen
 
