@@ -223,19 +223,29 @@ And so on.  Let's return to the example.  After the ``psfgen`` and ``validate`` 
 The Input Configuration (Continued)
 ===================================
 
-So let's return to the example.  After the first ``md`` task is the ``solvate`` task.  Notice that it has no subdirectives; in this case default values are used for any subdirectives. After this task has finished, we have a run-ready *nonequilibrated* system.  We equilibrate here using first another minimization via an ``md`` task, then an NVT equilibration in another ``md`` task, and then a series of progressively longer NPT equilibrations in yet more ``md`` tasks.  These "chained-together" NPT runs avoid the common issue that, after solvation, the density of the initial water box is a bit too low, so under pressure control the volume shrinks.  It can shrink so quickly that NAMD's internal data structures for distributing the computational load among processing units becomes invalid, which causes NAMD to die.  The easiest way to reset those internal data structures is just to restart NAMD from the result of the previous run.
+So let's return to the example.  After the first ``md`` task is the ``solvate`` task.  Notice that it has no subdirectives; in this case default values are used for any subdirectives.  After this task has finished, we have a run-ready *nonequilibrated* system.  Equilibration here is three tasks: another minimization, a short NVT ``md`` task to bring the system to temperature, and then a single :ref:`density_equilibrate <subs_buildtasks_density_equilibrate>` task that settles the box density under NPT.
 
-The ``mdplot`` task generates a plot of system density (in g/cc) vs time step for the series of MD simulations that occur after solvation.  If you are monitoring a run in real time, this file will be called ``solvated-density.png``.  This is a quick way to check that enough NPT equilibration has been performed.  For this example, the plot looks like this:
+That last task replaces what used to be written by hand as a ladder of progressively longer NPT ``md`` tasks (``nsteps: 200``, then 400, then 800, and so on).  Why such runs have to be broken into pieces at all is worth knowing, because it is a property of NAMD rather than of the chemistry: after solvation the initial water box is slightly too sparse, so under pressure control the cell shrinks.  NAMD fixes its spatial decomposition at the *start* of each run, and if a cell dimension shrinks past the patch margin partway through, the run dies with *"periodic cell has become too small for the patch grid"*.  Restarting resets that decomposition, so the equilibration has to proceed in restarts.  ``density_equilibrate`` does that for you, and sizes each chunk from the shrink rate it has just measured rather than from a guessed schedule.
+
+**Deciding when the system is equilibrated is the task's job, not yours.**  It runs until the box density is *measurably* stationary and then stops on its own.  The test is not "the curve looks flat": density fluctuates intrinsically under NPT and those fluctuations are correlated in time, so the task estimates the integrated autocorrelation time of the series, uses it to compute an honest standard error of the mean, and requires that error to be small compared with the drift tolerance before it will even test for drift.  Only then does it ask whether the trend across the averaging window is below tolerance, and it must answer yes several times in a row.  A small, noisy box therefore runs longer than a large quiet one without anyone tuning a step count.
+
+The task writes its own convergence plot, which shows the reasoning rather than only the trace:
+
+.. figure:: density-convergence.png
+
+    Box density vs. timestep for the BPTI system, as reported by ``density_equilibrate``.  The grey band at the left is the burn-in discarded as the barostat transient; the green band is the trailing window the convergence test is evaluated over; the red points are per-chunk means of that window; and the marker at the right is the step at which the run decided it was finished.  The final density is stated on the plot.
+
+The ``mdplot`` task then plots the same quantity across *all* the post-solvation dynamics -- the minimization and the NVT warm-up as well as the NPT stage -- which is the wider view rather than the convergence argument:
 
 .. figure:: solvated-density.png
 
-    Density vs. timestep for the BPTI system post-solvation.
+    Density vs. timestep for the BPTI system post-solvation, across every simulation stage.  The dashed vertical rules mark the boundaries between stages, so the jump as the barostat engages reads as a change of ensemble rather than as a physical event.
 
-Since the density has plateaued, we can reasonably assume that the system density is equilibrated.
+Between the two, nothing about the equilibration has to be assumed: the first figure shows the criterion that ended the run, and the second shows that criterion in the context of everything that came before it.
 
 Finally, we see a ``terminate`` task, whose main role is to generate some informative output and to provide a set of NAMD input files (PSF, PDB, xsc, coor, and vel) that all have a common base file name.  The ``package`` subdirective creates a tarball named for its own ``basename`` (here ``prod_6pti.tar.gz``) containing all input files necessary to execute a NAMD run, ready for transfer to the HPC resource of your choice.  Inside the tarball the files sit under a single directory also named for the package ``basename`` (``prod_6pti/``); the state files keep the terminate ``basename`` (``my_6pti``) while the generated NAMD config uses the package ``basename``.  The ``namd`` attribute of the ``package`` subdirective lets you specify any NAMD configuration options for the production config file; here we simply request the default parameters for an NPT run.
 
-The ``artifacts`` attribute names a second tarball (here ``artifacts.tar.gz``) into which the ``terminate`` task archives all other working files from the build. (The PNG images of any plots generated by an ``mdplot`` task can be found in this tarball.)
+The ``terminate`` task also archives the build's other working files into a second tarball, named from the terminate ``basename`` (here ``my_6pti-artifacts.tar.gz``); the ``artifacts`` attribute can override that name.  Plot images are deliberately *not* swept into it -- they stay in the ``mdplots/`` subdirectory of the run, where they are easy to look at without unpacking anything.
 
 Listing the contents of the state tarball:
 
@@ -279,9 +289,11 @@ Intermediate files generated by pestifer during a build typically conform to a c
 
 .. code-block:: bash
 
-   CC-MT-ST-TASKNAME.ext
+   CC-MT-SSS_TASKNAME.ext
 
-Here ``CC`` is the 2-digit identification of the run *controller* (e.g., ``00`` for the first controller), ``MT`` is the 2-digit identification of the *main task* of that controller (e.g., ``02`` is the *third* task), and ``ST`` is the 2-digit identification of the *subtask*  of that task(e.g., ``00`` for the first subtasks). ``TASKNAME`` is the name of the task as it appears in the yaml file. ``ext`` is the file extension.  For example, ``00-04-00_solvate.psf`` is the PSF file generated by the ``solvate`` task (the *fifth* task, index ``04``) in this example.
+Here ``CC`` is the 2-digit identification of the run *controller* (``00`` for the first controller), ``MT`` is the 2-digit identification of the *main task* of that controller (``02`` is the *third* task), and ``SSS`` is the 3-digit identification of the *subtask* within that task (``000`` for the first).  ``TASKNAME`` is the name of the task as it appears in the yaml file, and ``ext`` is the file extension.  For example, ``00-04-000_solvate.psf`` is the PSF file generated by the ``solvate`` task -- the *fifth* task, index ``04`` -- in this example.
+
+The subtask counter is what makes a task like ``density_equilibrate`` legible in a directory listing: because it restarts NAMD once per chunk, it produces a numbered series such as ``00-07-000_density_equilibrate-NPT.log`` through ``00-07-019_...``, all belonging to the one task at index ``07``.  A trailing label after the task name records the ensemble or the role of that particular run.
 
 Some tasks may spawn *subcontrollers*, which typically acquire a controller ID derived from that of the parent controller.  In the current version of pestifer, this occurs when building a membrane bilayer, in which a series of MD simulations are launched by a subcontroller the the ``make_membrane_system`` task.
 
