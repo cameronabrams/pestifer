@@ -121,6 +121,28 @@ def _membrane_details(specs: dict) -> str:
     return ', '.join(sorted(lipids)) if lipids else '—'
 
 
+
+def _equilibrate_details(name: str, specs: dict) -> str:
+    """Summarize a self-terminating equilibration.
+
+    What distinguishes these from an ``md`` task is that no step count was chosen: the run stops
+    on a measured criterion, so the summary names the observables it converges rather than a
+    duration.  ``max_steps`` is a ceiling it is not expected to reach, and is shown as such.
+    """
+    specs = specs or {}
+    if name == 'membrane_equilibrate':
+        what = 'NPgT until density + lateral area converge'
+        if specs.get('two_stage', True):
+            what += ' (const-area settle, then tensionless)'
+    else:
+        what = 'NPT until box density converges'
+    bits = [f'self-terminating {what}']
+    ceiling = specs.get('max_steps')
+    if ceiling:
+        bits.append(f'ceiling {int(ceiling):,} steps')
+    return '; '.join(bits)
+
+
 def _single_task_details(name: str, specs: dict) -> str:
     if name == 'fetch':
         return _fetch_details(specs)
@@ -154,6 +176,8 @@ def _single_task_details(name: str, specs: dict) -> str:
         return f'protonate at pH {pH}' if pH is not None else 'protonate (pdb2pqr)'
     if name == 'ring_check':
         return 'check for ring-threading defects'
+    if name in ('density_equilibrate', 'membrane_equilibrate'):
+        return _equilibrate_details(name, specs)
     if name == 'manipulate':
         return _manipulate_details(specs)
     if name == 'terminate':
