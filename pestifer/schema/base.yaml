@@ -432,7 +432,7 @@ attributes:
           - name: source
             text: Source for the initial coordinate file; one of ``rcsb`` (for the RCSB PDB), ``alphafold`` (for the AlphaFold DB), ``opm`` (for the OPM database), or ``local`` (for a local file)
             type: str
-            options: [rcsb, alphafold, opm, local]
+            choices: [rcsb, alphafold, opm, local]
             default: rcsb
           - name: sourceID
             text: ID of the source file; if source is ``local``, a file ``sourceID.pdb`` or ``sourceID.cif`` must exist in the working directory

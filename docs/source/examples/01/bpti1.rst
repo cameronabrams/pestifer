@@ -114,6 +114,7 @@ Let's use this second feature to explore the ``fetch`` task.  (You can visit the
           PDB), ``alphafold`` (for the AlphaFold DB), ``opm`` (for the OPM
           database), or ``local`` (for a local file)
         default: rcsb
+        allowed values: rcsb, alphafold, opm, local
 
     All subattributes at the same level as 'source':
 
