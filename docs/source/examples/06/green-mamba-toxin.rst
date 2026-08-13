@@ -10,6 +10,17 @@ Example 6: Fasciculin 1 at pH 7.0
 
 .. task-table:: ../../../../pestifer/resources/examples/06/inputs/green-mamba-toxin.yaml
 
+.. figure:: 1fas-solvated.png
+    :width: 70%
+    :align: center
+
+    The finished system, in the same style as the :ref:`BPTI series <example bpti1>`: fasciculin 1
+    as a secondary-structure cartoon with every protein atom drawn, in a box of 4,356 waters and
+    0.154 M NaCl (13 Na\ :sup:`+`, 17 Cl\ :sup:`-`).  The yellow strands are the three-finger
+    toxin's β-sheet fingers, and the four disulfides that staple the fold together are the yellow
+    sulfur atoms.  Every ionizable side chain here was protonated by ``pdb2pqr`` at pH 7.0 rather
+    than left at psfgen's defaults.
+
 
 Note that the ``pdb2pqr`` task is invoked after the ``psfgen`` task (following a brief energy minimization) but *before* the ``solvate`` task. The ``pdb2pqr`` task is documented at :ref:`subs_buildtasks_pdb2pqr`.
 
