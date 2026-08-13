@@ -414,9 +414,9 @@ def parse_patch_grid(log_text):
 @dataclass
 class ConvergenceParams:
     """Tunables for the density-convergence criterion (see the design doc's Parameters table)."""
-    drift_tol: float = 2e-3      #: converged when the *upper confidence bound* on |drift| < this (~0.2%)
+    drift_tol: float = 2e-3      #: converged when the *upper confidence bound* on ``|drift|`` < this (~0.2%)
     precision_p: float = 3.0     #: precision gate: require SEM/mean < drift_tol / precision_p
-    drift_conf: float = 0.0      #: sigmas added to |drift| for its upper bound; 0 = point estimate
+    drift_conf: float = 0.0      #: sigmas added to ``|drift|`` for its upper bound; 0 = point estimate
                                  #: (the honest precision gate already guards against premature passes,
                                  #: so the bound is redundant; raise it only for extra trend rigor)
     burn_in: int = 2000          #: leading steps discarded before assessing the trend
@@ -440,9 +440,9 @@ class ConvergenceReport:
     """Verdict + diagnostics from one :meth:`DensityConvergenceMonitor.check` call."""
     converged: bool = False
     passes: int = 0              #: consecutive passing checks accumulated so far
-    drift: float | None = None   #: fractional drift *magnitude* over the window (|slope|*span/mean)
+    drift: float | None = None   #: fractional drift *magnitude* over the window (``|slope|*span/mean``)
     signed_drift: float | None = None  #: signed fractional drift (slope*span/mean); <0 = shrinking
-    drift_hi: float | None = None  #: upper confidence bound on |drift| (|drift| + drift_conf*SE)
+    drift_hi: float | None = None  #: upper confidence bound on ``|drift|`` (``|drift| + drift_conf*SE``)
     sem_over_mean: float | None = None
     precision_met: bool = False
     mean_density: float | None = None

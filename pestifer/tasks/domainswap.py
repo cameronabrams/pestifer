@@ -7,7 +7,8 @@ using the NAMD molecular dynamics engine.
 It generates the necessary input files for a domain swap operation, runs NAMD to execute the swap,
 and saves the resulting state of the simulation.
 
-It uses the :ref:`tcl-domainswap` Tcl script.  Usage is described in the :ref:`config_ref tasks domainswap` documentation.
+It uses the :ref:`tcl-domainswap` Tcl script.  This task is not currently exposed in the
+configuration schema, so it has no entry in the configuration reference.
 """
 
 import logging

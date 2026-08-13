@@ -7,7 +7,7 @@ pestifer's ``Atom`` is built *from* pidibble records, so a pestifer-own PDB writ
 second, independent encoding of the PDB column layout that must agree with pidibble's forever --
 exactly the drift that produced the wide-resname column corruption (see
 :func:`pestifer.util.coord.standardize_pdb_columns`).  Instead we reconstruct lightweight record
-objects from our ``Atom``s and hand them to :class:`pidibble.pdbwrite.PDBWriter`, so there is a
+objects from our ``Atom`` instances and hand them to :class:`pidibble.pdbwrite.PDBWriter`, so there is a
 single source of truth for the column model.
 
 We default to pidibble's **CHARMM dialect**, which widens ``resName`` to six columns (so
