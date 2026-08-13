@@ -19,83 +19,13 @@ Because it imports the class :class:`~ycleptic.yclept.Yclept` from `Ycleptic <ht
        ! quit
    pestifer-help:
 
-This command ends at a prompt (``pestifer-help:``) that allows you to drill down into the help system.  The help system is organized around the topics that are allowed in a config file, which appear in the list above.  Any item with an arrow after it can be drilled down into.  Double-dot (``..``) takes you up, and bang (``!``) quits.  For example, in the case above, if you type ``tasks``, you will get a list of the tasks that can be performed in a config file:
+
+This command ends at a prompt (``pestifer-help:``) that allows you to drill down into the help system.  The help system is organized around the topics that are allowed in a config file, which appear in the list above.  Any item with an arrow after it can be drilled down into.  Double-dot (``..``) takes you up, and bang (``!``) quits.
+
+Any directive can also be reached directly by naming it on the command line, which prints that one entry and leaves you at the prompt:
 
 .. code-block:: bash
 
-   pestifer-help: tasks
+   $ pestifer config-help tasks psfgen source exclude
 
-   tasks:
-       Specifies the tasks to be performed serially in a pestifer run
-
-   base|tasks
-       fetch ->
-       continuation ->
-       merge ->
-       psfgen ->
-       ligate ->
-       pdb2pqr ->
-       mdplot ->
-       cleave ->
-       solvate ->
-       desolvate ->
-       ring_check ->
-       make_membrane_system ->
-       md ->
-       density_equilibrate ->
-       membrane_equilibrate ->
-       manipulate ->
-       terminate ->
-       validate ->
-       .. up
-       ! quit
-   pestifer-help:
-
-Continuing to drill down is easy -- just add the next directive to the interactive-help command line:
-
-.. code-block:: bash
-
-   pestifer-help: make_membrane_system
-
-   make_membrane_system:
-       Parameters to build a lipid bilayer (grid packer) and optionally embed
-         a protein in it
-
-   base|tasks->make_membrane_system
-       requires_subcontroller
-       compute_pressure_profile ->
-       diagnose_differential_stress ->
-       bilayer ->
-       embed ->
-       .. up
-       ! quit
-   pestifer-help: bilayer
-
-   bilayer:
-       Parameters controlling bilayer generation
-
-   base|tasks->make_membrane_system->bilayer
-       prebuilt ->
-       lipids
-       lipid_conformers
-       mole_fractions
-       patch_nlipids ->
-       composition ->
-       half_mid_zgap
-       solvents
-       solvent_mole_fractions
-       solvent_to_lipid_ratio
-       SAPL
-       dims
-       npatch
-       solution_gcc
-       cation
-       anion
-       salt_con
-       packer
-       quilt_grid_slack
-       seed
-       relaxation_protocols ->
-       .. up
-       ! quit
-   pestifer-help:
+For a worked walkthrough of exploring a config file this way -- and of how the same content reaches the :ref:`config_ref` -- see :ref:`exploring_config_schema`.
