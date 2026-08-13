@@ -8,6 +8,12 @@
 [![Downloads](https://static.pepy.tech/badge/pestifer)](https://pepy.tech/projects/pestifer)
 [![DOI](https://img.shields.io/badge/DOI-10.5281%2Fzenodo.16051498-blue)](https://doi.org/10.5281/zenodo.16051498)
 
+```{image} pestifer-poster.jpg
+:alt: A plague doctor at a market stall holds out a glowing simulation cell containing a glycosylated protein embedded in a lipid bilayer. Signboards read "Pestifer -- prepare better, simulate with confidence; MD systems built automatically so you may focus on discovery"; an INPUT board lists a PDB ID, an mmCIF file, an AlphaFold ID and a few parameters; labelled bottles hold proteins, glycans, lipids, and water and ions; an OUTPUT board reads "NAMD-ready -- PSF, PDB, XSC, built on CHARMM36"; a further board lists mutations and patches, loop modeling, glycan grafting, membranes, solvation and ions, custom ligands, merge and package, and analysis tools.
+:width: 100%
+:align: center
+```
+
 **Pestifer** is a versatile system-preparation tool that facilitates the use of the [VMD](https://www.ks.uiuc.edu/Research/vmd/) tool [psfgen](https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen/ug.pdf) to generate CHARMM-force-field compatible PSF and PDB files for use in the MD simulation package [NAMD](https://www.ks.uiuc.edu/Research/namd/).  Pestifer automates and extends the standard `psfgen/VMD` workflow using a simple YAML interface to provide a versatile and user-friendly way to set up molecular dynamics simulations.
 
 Pestifer includes the CHARMM36 force field files from the [MacKerell Lab](https://mackerell.umaryland.edu/charmm_ff.shtml) (February 2026 release).
