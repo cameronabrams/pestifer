@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.16.0] - 2026-08-13
+
 - change: **pestifer now requires ycleptic 2.3.0.** 2.3.0 reports base-spec declarations ycleptic
   silently ignores, which is how the schema problems below were found, and it fixes a traceback
   when the interactive help reaches end-of-input (`pestifer config-help tasks </dev/null`).
