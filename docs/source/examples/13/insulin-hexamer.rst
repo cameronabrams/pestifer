@@ -10,6 +10,14 @@ Example 13: DES-PHE B1 Bovine Insulin Hexamer
 
 .. task-table:: ../../../../pestifer/resources/examples/13/inputs/insulin-hexamer.yaml
 
+.. figure:: 2ins-solvated.png
+    :width: 70%
+    :align: center
+
+    The assembled hexamer as built, in the :ref:`BPTI series <example bpti1>` style.  27,175 atoms
+    in 7,545 waters.  The two zinc ions sit on the crystallographic three-fold axis -- exactly two,
+    not the six that occupancy-blind expansion of the biological assembly would place there.
+
 
 .. figure:: ins6.png
     :width: 400px

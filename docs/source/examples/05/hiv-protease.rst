@@ -12,6 +12,16 @@ Here, we removed the ligand, and protonate the active-site aspartates (Asp25).  
 
 .. task-table:: ../../../../pestifer/resources/examples/05/inputs/hiv-protease.yaml
 
+.. figure:: 1f7a-solvated.png
+    :width: 70%
+    :align: center
+
+    The run-ready system, in the same style as the :ref:`BPTI series <example bpti1>`: protein as a
+    secondary-structure cartoon over all-atom detail, solvent as fine glassy lines.  The six
+    acetates are orange -- they are the ``ACT`` ligands of the PDB entry, renamed to CHARMM's
+    ``ACET`` and remapped atom by atom, and nothing else in the box is neither protein nor
+    solvent.  25,359 atoms in 7,399 waters.
+
 
 Note that this required first mutating the residues at positions 25 from asparagine to asparate. This PDB entry was a catalytically inactive construct with an inhibitor mimic bound, so the catalytic aspartates were mutated to asparagines.
 

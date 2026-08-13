@@ -10,6 +10,14 @@ Example 20: Mitochondrial methylmalonyl-CoA mutase (Alphafold P22033)
 
 .. task-table:: ../../../../pestifer/resources/examples/20/inputs/methylmalonyl-coa-mutase.yaml
 
+.. figure:: mcm-solvated.png
+    :width: 70%
+    :align: center
+
+    The largest of the globular examples in this style: 92,742 atoms, 26,951 waters, and 76 Na\ :sup:`+`
+    / 80 Cl\ :sup:`-`.  Protein is drawn as a cartoon over all-atom detail and solvent as fine glassy
+    lines, the same recipe as the :ref:`BPTI series <example bpti1>`.
+
 
 .. raw:: html
 

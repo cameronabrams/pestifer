@@ -11,9 +11,14 @@ Example 22: Ferredoxin-NADP(H) Reductase from Rhodobacter capsulatus
 .. task-table:: ../../../../pestifer/resources/examples/22/inputs/ferredoxin-fad.yaml
 
 
-.. figure:: 2bgj.png
+.. figure:: 2bgj-solvated.png
+    :width: 70%
+    :align: center
 
-    The ferredoxin-NADP(H) reductase from *Rhodobacter capsulatus*, as built by Pestifer.  This system has 32,240 atoms and its equilibrated box is roughly 72 x 71 x 61 Å.
+    The ferredoxin-NADP(H) reductase from *Rhodobacter capsulatus* as built, in the
+    :ref:`BPTI series <example bpti1>` style: 32,240 atoms in 9,344 waters, equilibrated box
+    roughly 72 x 71 x 61 Å.  The FAD cofactor is orange, lying in the cleft between the
+    beta-barrel and the helical NADP-binding domain.
 
 
 Reference

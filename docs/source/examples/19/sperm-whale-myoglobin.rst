@@ -10,6 +10,15 @@ Example 19: Sperm whale myoglobin
 
 .. task-table:: ../../../../pestifer/resources/examples/19/inputs/sperm-whale-myoglobin.yaml
 
+.. figure:: 1mob-solvated.png
+    :width: 70%
+    :align: center
+
+    The solvated system in the :ref:`BPTI series <example bpti1>` style, 23,033 atoms in 6,816
+    waters.  Orange marks everything that is neither protein nor solvent: the heme deep in its
+    pocket, and the single sulfate carried over from the crystal.  The fold is almost entirely
+    helical, which is why the cartoon is nearly all magenta.
+
 
 .. figure:: 1mob.png
    :alt: 1mob structure
