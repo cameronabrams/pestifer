@@ -250,9 +250,8 @@ attributes:
       text: These are specifications for NAMD3, including default input configuration parameters for various classes of simulations.
     attributes:
       - name: namd-version
-        text: version of NAMD to run
+        text: version of NAMD to run (2 or 3)
         type: int
-        choices: [2, 3]
         default: 3
       - name: processor-type
         text: >-
@@ -483,7 +482,7 @@ attributes:
             text: How to resolve segment name collisions across systems; 'enumerate' renames each colliding segment to a fresh single-character segid (which doubles as a unique, regeneration-stable chainID), 'error' aborts on the first collision
             type: str
             default: enumerate
-            options: ['enumerate', 'error']
+            choices: ['enumerate', 'error']
       - name: psfgen
         text: Parameters controlling a specific psfgen run on an input molecule
         type: dict
@@ -825,13 +824,13 @@ attributes:
                 attributes:
                   - name: atoms
                     text: Atoms to be position-constrained expressed as a VMD atomselection string
-                    type: string
+                    type: str
                   - name: k
                     text: Restraint spring constant in kcal/mol/A^2
                     type: float
                   - name: consfile
                     text: Name of constraints PDB file to generate (defaults to basename-constraints.pdb)
-                    type: string
+                    type: str
           - name: connect
             text: Specifies parameters of the psfgen run that patches in the new backbone bonds
             type: dict
@@ -1106,12 +1105,10 @@ attributes:
             default: True
           - name: cation
             text: name of cation
-            type: string
-            options: [SOD, MG, POT, CES, CAL, ZN2]
+            type: str
           - name: anion
             text: name of anion
-            type: string
-            options: [CLA]
+            type: str
       - name: desolvate
         type: dict
         text: single-shot desolvation (no inheritance)
@@ -1151,9 +1148,9 @@ attributes:
         attributes:
           - name: delete
             text: "for a pierced LIPID ring, which segment(s) to delete: 'piercee' (the ring's segment), 'piercer' (the threading bond's segment), 'both' (piercee plus the piercer when it too is a lipid -- robust for inter-threaded lipids, which strain both molecules), or 'none' (no deletion; the piercing is reported and the build stops). Does not apply to glycan or protein piercings"
-            type: string
+            type: str
             default: piercee
-            options: ['piercee','piercer','both','none']
+            choices: ['piercee','piercer','both','none']
           - name: cutoff
             text: "candidate search radius (Å) between a bond midpoint and a ring COM; only candidates within this distance are tested for piercing. Any value >= the piercing gate (3.5 Å, in PSFRing.pierced_by) gives identical results, so the default is kept just above it to prune candidates and keep the whole-system scan fast on large membranes"
             type: float
@@ -1555,13 +1552,13 @@ attributes:
                             attributes:
                               - name: atoms
                                 text: Atoms to be position-constrained expressed as a VMD atomselection string
-                                type: string
+                                type: str
                               - name: k
                                 text: Restraint spring constant in kcal/mol/A^2
                                 type: float
                               - name: consfile
                                 text: Name of constraints PDB file to generate (defaults to basename-constraints.pdb)
-                                type: string
+                                type: str
                           - name: other_parameters
                             type: dict
                             text: key:value pairs for other namd configuration file statements
@@ -1701,13 +1698,13 @@ attributes:
                             attributes:
                               - name: atoms
                                 text: Atoms to be position-constrained expressed as a VMD atomselection string
-                                type: string
+                                type: str
                               - name: k
                                 text: Restraint spring constant in kcal/mol/A^2
                                 type: float
                               - name: consfile
                                 text: Name of constraints PDB file to generate (defaults to basename-constraints.pdb)
-                                type: string
+                                type: str
                           - name: other_parameters
                             type: dict
                             text: key:value pairs for other namd configuration file statements
@@ -1763,7 +1760,7 @@ attributes:
               - name: z_ref_group
                 text: VMD atomselect string defining a center of mass at a specific z
                 type: dict
-                attribute:
+                attributes:
                   - name: z_value
                     type: float
                     text: value of z at COM of this group relative to apparent bilayer midplane z-value (Å) (default 0)
@@ -1785,7 +1782,7 @@ attributes:
             default: False
           - name: vacuum
             text: if true, namd will run on a single node even if multiple nodes are allocated
-            type: boolean
+            type: bool
             default: False
           - name: ensemble
             text: Name of ensemble to run in; note that NPT can only be performed on a solvated system
@@ -1830,13 +1827,13 @@ attributes:
             attributes:
               - name: atoms
                 text: Atoms to be position-constrained expressed as a VMD atomselection
-                type: string
+                type: str
               - name: k
                 text: Restraint spring constant in kcal/mol/A^2
                 type: float
               - name: consfile
                 text: Name of constraints PDB file (defaults to basename-constraints.pdb)
-                type: string
+                type: str
           - name: ssrestraints
             text: Secondary-structure restraints generated by the VMD ssrestraints plugin and applied via NAMD's extraBonds facility. Opt-in via the `enabled` attribute (off by default, since it only makes sense for protein/nucleic systems -- a bare membrane has no secondary structure to restrain)
             type: dict
@@ -1864,7 +1861,6 @@ attributes:
               - name: na
                 text: "Nucleic-acid restraint mode: 0=all-residue dihedrals; 1=base-paired-residue dihedrals; 2=base-pair bonds; 3=both 1 and 2"
                 type: int
-                choices: [0, 1, 2, 3]
                 default: 3
               - name: ideal
                 text: Use ideal phi/psi for alpha/3-10 helix and beta strand instead of measured values
@@ -2008,13 +2004,13 @@ attributes:
             attributes:
               - name: atoms
                 text: Atoms to be position-constrained expressed as a VMD atomselection
-                type: string
+                type: str
               - name: k
                 text: Restraint spring constant in kcal/mol/A^2
                 type: float
               - name: consfile
                 text: Name of constraints PDB file (defaults to basename-constraints.pdb)
-                type: string
+                type: str
       - name: membrane_equilibrate
         text: >-
           Self-terminating NPgT membrane equilibration -- the anisotropic sibling of
@@ -2190,13 +2186,13 @@ attributes:
             attributes:
               - name: atoms
                 text: Atoms to be position-constrained expressed as a VMD atomselection
-                type: string
+                type: str
               - name: k
                 text: Restraint spring constant in kcal/mol/A^2
                 type: float
               - name: consfile
                 text: Name of constraints PDB file (defaults to basename-constraints.pdb)
-                type: string
+                type: str
       - name: manipulate
         text: Direct manipulation of atom positions
         type: dict
@@ -2219,7 +2215,7 @@ attributes:
                 type: list
               - name: orient
                 text: orient structure along principal axes
-                type: text
+                type: str
               - name: align
                 text: rigidly align the pipeline system to a reference coordinate file
                 type: list
@@ -2318,13 +2314,13 @@ attributes:
                   attributes:
                     - name: atoms
                       text: Atoms to be position-constrained expressed as a VMD atomselection
-                      type: string
+                      type: str
                     - name: k
                       text: Restraint spring constant in kcal/mol/A^2
                       type: float
                     - name: consfile
                       text: Name of constraints PDB file (defaults to basename-constraints.pdb)
-                      type: string
+                      type: str
       - name: validate
         text: Task enables VMD-based validation of PDB and PSF files
         type: list
@@ -2342,16 +2338,16 @@ attributes:
                 attributes:
                   - name: name
                     text: User-selected name of this selection test
-                    type: string
+                    type: str
                   - name: selection
                     text: VMD atomselection string defining the selection to be tested
-                    type: string
+                    type: str
                   - name: attribute
                     text: The VMD atom attribute to query
-                    type: string
+                    type: str
                   - name: value
                     text: The expected value for the attribute
-                    type: string
+                    type: str
                   - name: value_count
                     text: The expected number of atoms matching the attribute (will default to 1)
                     type: int
@@ -2370,13 +2366,13 @@ attributes:
                 attributes:
                   - name: name
                     text: User-selected name of this connection test
-                    type: string
+                    type: str
                   - name: selection
                     text: VMD atomselection string defining the selection to be tested
-                    type: string
+                    type: str
                   - name: connection_type
                     text: The type of connection to validate; interresidue, disulfide, or glycosylation
-                    type: string
+                    type: str
                     choices: [interresidue, disulfide, glycosylation]
                   - name: connection_count
                     text: The expected number of connections in the selection
@@ -2387,16 +2383,16 @@ attributes:
                 attributes:
                   - name: name
                     text: User-selected name of this residue test
-                    type: string
+                    type: str
                   - name: selection
                     text: VMD atomselection string defining the selection to be tested
-                    type: string
+                    type: str
                   - name: measure
                     text: Measure to apply to the selection; atom_count or residue_count
-                    type: string
-                    options: ['atom_count', 'residue_count']
+                    type: str
+                    choices: ['atom_count', 'residue_count']
                   - name: relation 
-                    type: string
+                    type: str
                     text: binary relational operator to relate measured value and expected value (defaults to ==)
                   - name: value
                     text: Expected value for the measure

@@ -189,8 +189,8 @@ class ResidueTest:
                 vt.addline(f'}} else {{')
                 vt.addline(f'   vmdcon "{fail_msg}"')
                 vt.addline(f'}}')
-            case '_':
-                logger.debug(f'Unsupported measure type: {self.measure}')
+            case _:
+                logger.error(f'Unsupported measure type: {self.measure!r}; test emits no check')
 
 class ValidateTask(VMDTask):
     """
