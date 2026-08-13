@@ -18,7 +18,7 @@ Many structures in the RCSB are only available in mmCIF format, rather than the 
     :align: center
     :alt: 4tvp
 
-    Structure of HIV-1 BG505 SOSIP.664 trimer (PDB ID 4tvp) with Fab ligands deleted from a complete Pestifer build.  Glycans are shown in pink stick representation.  The run-ready system has approx. 290,000 atoms and is approx. 149 x 197 x 129 Angstroms in size.
+    Structure of HIV-1 BG505 SOSIP.664 trimer (PDB ID 4tvp) with Fab ligands deleted from a complete Pestifer build.  Glycans are shown in pink stick representation.  The run-ready system has approx. 270,000 atoms in an equilibrated cell of roughly 144 x 141 x 131 Angstroms.
 
 .. raw:: html
 

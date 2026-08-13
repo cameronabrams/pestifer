@@ -13,7 +13,7 @@ Example 22: Ferredoxin-NADP(H) Reductase from Rhodobacter capsulatus
 
 .. figure:: 2bgj.png
 
-    The ferredoxin-NADP(H) reductase from *Rhodobacter capsulatus*, as built by Pestifer.  This system has 32,240 atoms and its box dimensions are  72.2 x 71.2 x 61.3 Å.
+    The ferredoxin-NADP(H) reductase from *Rhodobacter capsulatus*, as built by Pestifer.  This system has 32,240 atoms and its equilibrated box is roughly 72 x 71 x 61 Å.
 
 
 Reference
