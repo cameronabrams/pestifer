@@ -71,6 +71,10 @@ class ExampleManager:
                         shortname=shortname,
                         db_id=db_id
                     ))
+        # Path.iterdir() yields filesystem order, so sort by the numeric id: the listing
+        # is presented as an ordered table, and downstream iteration over self.examples
+        # (copy_from, report_examples) should not depend on directory layout.
+        self.examples.sort(by=['example_id'])
         if docs_source_path:
             # create the SphinxExampleManager instance if docs_source_path is provided
             self.sphinx_example_manager = SphinxExampleManager(docs_source_path=Path(docs_source_path).absolute())
