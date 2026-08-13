@@ -8,16 +8,16 @@ Because it imports the class :class:`~ycleptic.yclept.Yclept` from `Ycleptic <ht
 .. code-block:: bash
 
    $ pestifer config-help
-   Help on user-provided configuration file format
-      charmmff ->
-      psfgen ->
-      namd2 ->
-      title
-      paths ->
-      tasks ->
-      .. up
-      ! quit
-   pestifer-help: 
+
+       charmmff ->
+       psfgen ->
+       namd ->
+       title
+       paths ->
+       tasks ->
+       .. up
+       ! quit
+   pestifer-help:
 
 This command ends at a prompt (``pestifer-help:``) that allows you to drill down into the help system.  The help system is organized around the topics that are allowed in a config file, which appear in the list above.  Any item with an arrow after it can be drilled down into.  Double-dot (``..``) takes you up, and bang (``!``) quits.  For example, in the case above, if you type ``tasks``, you will get a list of the tasks that can be performed in a config file:
 
@@ -29,9 +29,12 @@ This command ends at a prompt (``pestifer-help:``) that allows you to drill down
        Specifies the tasks to be performed serially in a pestifer run
 
    base|tasks
-       restart ->
+       fetch ->
+       continuation ->
+       merge ->
        psfgen ->
        ligate ->
+       pdb2pqr ->
        mdplot ->
        cleave ->
        solvate ->
@@ -39,8 +42,11 @@ This command ends at a prompt (``pestifer-help:``) that allows you to drill down
        ring_check ->
        make_membrane_system ->
        md ->
+       density_equilibrate ->
+       membrane_equilibrate ->
        manipulate ->
        terminate ->
+       validate ->
        .. up
        ! quit
    pestifer-help:
@@ -52,10 +58,13 @@ Continuing to drill down is easy -- just add the next directive to the interacti
    pestifer-help: make_membrane_system
 
    make_membrane_system:
-       Parameters to build a lipid bilayer (grid packer) and
-         optionally embed a protein in it
+       Parameters to build a lipid bilayer (grid packer) and optionally embed
+         a protein in it
 
    base|tasks->make_membrane_system
+       requires_subcontroller
+       compute_pressure_profile ->
+       diagnose_differential_stress ->
        bilayer ->
        embed ->
        .. up
@@ -63,27 +72,30 @@ Continuing to drill down is easy -- just add the next directive to the interacti
    pestifer-help: bilayer
 
    bilayer:
-      Parameters controlling bilayer generation
+       Parameters controlling bilayer generation
 
    base|tasks->make_membrane_system->bilayer
-      prebuilt ->
-      lipids
-      lipid_conformers
-      mole_fractions
-      patch_nlipids ->
-      composition ->
-      half_mid_zgap
-      solvents
-      solvent_mole_fractions
-      solvent_to_lipid_ratio
-      SAPL
-      dims
-      npatch
-      solution_gcc
-      cation
-      anion
-      salt_con
-      seed
-      relaxation_protocols ->
-      .. up
-      ! quit
+       prebuilt ->
+       lipids
+       lipid_conformers
+       mole_fractions
+       patch_nlipids ->
+       composition ->
+       half_mid_zgap
+       solvents
+       solvent_mole_fractions
+       solvent_to_lipid_ratio
+       SAPL
+       dims
+       npatch
+       solution_gcc
+       cation
+       anion
+       salt_con
+       packer
+       quilt_grid_slack
+       seed
+       relaxation_protocols ->
+       .. up
+       ! quit
+   pestifer-help:

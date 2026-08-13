@@ -18,8 +18,8 @@ Note the ``exclude`` subdirective under ``source``.  You remember how you can le
   $ pestifer --no-banner config-help tasks psfgen source exclude
 
     exclude:
-        Logical expressions involving atom attributess used in parallel to
-        specify those atoms to be excluded
+        List of logical expressions involving atom attributes used in parallel
+          to specify those atoms to be excluded
 
     All subattributes at the same level as 'exclude':
 

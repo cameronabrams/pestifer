@@ -77,6 +77,7 @@ Let's use this second feature to explore the ``fetch`` task.  (You can visit the
     base|tasks
         fetch ->
         continuation ->
+        merge ->
         psfgen ->
         ligate ->
         pdb2pqr ->
@@ -87,16 +88,18 @@ Let's use this second feature to explore the ``fetch`` task.  (You can visit the
         ring_check ->
         make_membrane_system ->
         md ->
+        density_equilibrate ->
+        membrane_equilibrate ->
         manipulate ->
         terminate ->
         validate ->
         .. up
         ! quit
-    pestifer-help:  fetch
+    pestifer-help: fetch
 
     fetch:
         Fetch task; its only job is to fetch any external data file (e.g.,
-        PDB).
+          PDB).
 
     base|tasks->fetch
         source
@@ -107,10 +110,10 @@ Let's use this second feature to explore the ``fetch`` task.  (You can visit the
     pestifer-help: source
 
     source:
-        Source for the initial coordinate file; one of 'pdb' (for the RCSB
-        PDB), 'alphafold' (for the AlphaFold DB), or 'local' (for a
-        local file)
-        default: pdb
+        Source for the initial coordinate file; one of ``rcsb`` (for the RCSB
+          PDB), ``alphafold`` (for the AlphaFold DB), ``opm`` (for the OPM
+          database), or ``local`` (for a local file)
+        default: rcsb
 
     All subattributes at the same level as 'source':
 
@@ -123,8 +126,8 @@ Let's use this second feature to explore the ``fetch`` task.  (You can visit the
     pestifer-help: sourceID
 
     sourceID:
-        ID of the source file; if source is 'local', a file 'sourceID.pdb' or
-        'sourceID.cif' must exist in the working directory
+        ID of the source file; if source is ``local``, a file ``sourceID.pdb``
+          or ``sourceID.cif`` must exist in the working directory
 
     All subattributes at the same level as 'sourceID':
 
@@ -137,7 +140,7 @@ Let's use this second feature to explore the ``fetch`` task.  (You can visit the
     pestifer-help: source_format
 
     source_format:
-        Format of the source file; this should be 'pdb' or 'cif'
+        Format of the source file; this should be ``pdb`` or ``cif``
         default: pdb
         allowed values: pdb, cif
 
@@ -167,12 +170,12 @@ We can return to ``config-help`` to explore the ``psfgen`` task, which is the ne
         source ->
         mods ->
         .. up
-        ! quit 
-    pesifer-help: source
+        ! quit
+    pestifer-help: source
 
     source:
         Specifies the processing and interpretation of the initial source
-        coordinate file
+          coordinate file
 
     base|tasks->psfgen->source
         biological_assembly
@@ -190,7 +193,7 @@ We can return to ``config-help`` to explore the ``psfgen`` task, which is the ne
 
     biological_assembly:
         integer index of the biological assembly to construct; default is 0,
-        signifying that the asymmetric unit is to be used
+          signifying that the asymmetric unit is to be used
         default: 0
 
     All subattributes at the same level as 'biological_assembly':
@@ -207,7 +210,7 @@ We can return to ``config-help`` to explore the ``psfgen`` task, which is the ne
         sequence ->
         .. up
         ! quit
-
+    pestifer-help:
 
 And so on.  Let's return to the example.  After the ``psfgen`` and ``validate`` tasks we declare an ``md`` task, and the subdirective ``ensemble`` is set to ``minimize``.  There are no other subdirectives explicitly listed.  This task will use ``namd3`` to run an energy minimization.  Let's have a look at the possible subdirectives for an ``md`` task.  We can do this by:
 
