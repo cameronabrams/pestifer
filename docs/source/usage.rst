@@ -168,3 +168,15 @@ environments, simply re-run ``pestifer setup-vmd`` to regenerate
 Once set up, VMD automatically loads pestifer's Tcl library on startup, including
 extended definitions of the ``glycan`` and ``lipid`` atomselect macros and all
 PestiferUtil procedures.
+
+Guides
+------
+
+Longer walkthroughs that cut across several tasks, rather than documenting one
+subcommand:
+
+.. toctree::
+   :maxdepth: 1
+
+   importing-systems
+   charmmff-customizations

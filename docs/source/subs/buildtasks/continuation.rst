@@ -5,6 +5,12 @@ continuation
 
 A ``continuation`` task allows you begin the run from an already prepared system state, represented by PDB, PSF, and XSC files.
 
+.. seealso::
+
+   :ref:`importing_systems` walks through bringing in a system built elsewhere
+   -- CHARMM-GUI or another toolchain -- end to end, including the force-field
+   preflight and what can be edited afterward.
+
 For example, to begin a run from a state represented by ``my_6pti.psf``, ``my_6pti.pdb``, and ``my_6pti.xsc``, your first
 task would look like this:
 

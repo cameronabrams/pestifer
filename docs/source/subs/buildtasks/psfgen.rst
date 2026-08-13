@@ -7,6 +7,11 @@ A ``psfgen`` task's  basic functionality is to set up and conduct the first ``ps
 
 A traditional ``psfgen`` workflow using VMD begins with the preprocessing the downloaded structure file (if necessary), and then writing a running a ``psfgen`` script.  Pestifer's ``psfgen`` task handles all preprocessing, and additionally can perform several types of modifications to the source structure on its way to creating simulation-ready PSF and PDB files.
 
+.. seealso::
+
+   A ``psfgen`` task placed after an imported state edits that system rather than
+   building one; see :ref:`importing_systems`.
+
 An example Pestifer input that specifies fetching and processing the 6PTI structure might look like this:
 
 .. code-block:: yaml
