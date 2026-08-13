@@ -37,7 +37,7 @@ dependencies = [
   "pyyaml>=6",
   "scipy",
   "unidiff",
-  "ycleptic>=2.0.6"
+  "ycleptic>=2.2.1"
 ]
 
 [project.optional-dependencies]
