@@ -22,7 +22,11 @@ The rest of the build is identical to the DMSO example: the equilibrated acetone
 
 .. figure:: solvated-a_x-b_y-c_z.png
 
-    Cell dimensions over the equilibration of the acetone-solvated system, condensing from the loosely tiled solvent box to their equilibrium values.  Density is reported separately by the ``density_equilibrate`` task, which writes its own convergence plot.
+    Cell dimensions over the equilibration of the acetone-solvated system, condensing from the loosely tiled solvent box to their equilibrium values.  Density is reported separately, below.
+
+.. figure:: density-convergence.png
+
+    Density of the acetone-solvated system through equilibration, as reported by the self-terminating ``density_equilibrate`` task.  The shaded regions are the discarded burn-in and the trailing window the convergence test is evaluated over; the run stops once the drift in that window falls below tolerance, so the stopping point is measured rather than chosen in advance.
 
 .. raw:: html
 

@@ -75,11 +75,11 @@ Because it consumes pre-built structure files, this example is run as a sequence
 
 The merged, unsolvated complex is a ~60,000-atom system: the Env trimer with its glycans, three sCD4, and three complete 17b Fabs, with the gp120–17b interfaces preserved exactly from 5vn3.
 
-.. figure:: solvated-density.png
+.. figure:: density-convergence.png
     :width: 80%
     :align: center
 
-    System density through equilibration.  The flat opening segment is the cold, small-timestep warmup, which runs at constant volume; density then climbs and plateaus once the NPT schedule begins, confirming the solvated complex has equilibrated.
+    System density through equilibration, as reported by the self-terminating ``density_equilibrate`` task.  Density climbs steeply once the NPT schedule begins and then plateaus; the shaded regions are the discarded burn-in and the trailing window the convergence test is evaluated over, and the run stops of its own accord once the drift in that window falls below tolerance -- here at a final density of 1.03 g/cc.
 
 .. raw:: html
 

@@ -69,8 +69,11 @@ cleanly.
 .. figure:: solvated-a_x-b_y-c_z.png
 
     Cell dimensions over the equilibration of the solvated fusion construct.
-    Density is reported separately by the ``density_equilibrate`` task, which
-    writes its own convergence plot.
+    Density is reported separately, below.
+
+.. figure:: density-convergence.png
+
+    Density of the solvated fusion construct through equilibration, as reported by the self-terminating ``density_equilibrate`` task.  The shaded regions are the discarded burn-in and the trailing window the convergence test is evaluated over; the run stops once the drift in that window falls below tolerance, so the stopping point is measured rather than chosen in advance.
 
 .. raw:: html
 
