@@ -56,7 +56,9 @@ class MDPlotSubcommand(Subcommand):
         if args.timeseries:
             timeseries += args.timeseries
         if args.timecoseries:
-            timeseries += [args.timecoseries]
+            # action='append' with nargs='+' gives a list of groups, so several co-plotted sets
+            # can be requested; a single --timecoseries still yields exactly one group
+            timeseries += [g for g in args.timecoseries if g]
         C = Controller().configure(
             config, userspecs={
                 'tasks': [{
@@ -116,7 +118,10 @@ class MDPlotSubcommand(Subcommand):
         self.parser.add_argument('--basename', type=str, default='mdplot', help='basename of output files')
         self.parser.add_argument('--figsize', type=int, nargs=2, default=[9, 6],
                                  help='figure size in inches (default: %(default)s)')
-        self.parser.add_argument('--timecoseries', type=str, default=[], nargs='+', help='timeseries to plot on same axes')
+        self.parser.add_argument('--timecoseries', type=str, default=[], nargs='+', action='append',
+                                 metavar='TRACE',
+                                 help='traces to plot together on one axes; repeat the option for '
+                                      'several such groups')
         self.parser.add_argument('--timeseries', type=str, default=['density'], nargs='+', help='timeseries to plot')
         self.parser.add_argument('--profiles', type=str, default=[], nargs='*', help='profiles (along z) to plot')
         self.parser.add_argument('--profiles-per-block', type=int, default=100, help='number of profiles to plot per block (default: %(default)s)')

@@ -22,9 +22,9 @@ Rather than water, the ``solvate`` task is given ``solvent: DMSO``.  Pestifer ti
 
     Subtilisin Carlsberg (green cartoon) solvated in DMSO, as built by Pestifer -- 22,488 atoms (1,834 DMSO molecules) in a box of roughly 62 x 61 x 68 Å.  Rendered with `mdview <https://github.com/cameronabrams/mdview>`_.
 
-.. figure:: solvated-density.png
+.. figure:: solvated-a_x-b_y-c_z.png
 
-    Density over the progressive-NPT equilibration of the system, which settles near the bulk value for DMSO.
+    Cell dimensions over the equilibration of the DMSO-solvated system, condensing from the loosely tiled solvent box to their equilibrium values.  Density is reported separately by the ``density_equilibrate`` task, which writes its own convergence plot, so plotting it again here would duplicate that figure.
 
 .. raw:: html
 

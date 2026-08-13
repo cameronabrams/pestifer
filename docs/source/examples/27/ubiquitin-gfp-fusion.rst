@@ -66,10 +66,11 @@ cleanly.
     peptide bond to the GFP β-barrel (green), with the chromophore ``CRO`` shown
     in space-filling representation (orange) at the center of the barrel.
 
-.. figure:: solvated-density.png
+.. figure:: solvated-a_x-b_y-c_z.png
 
-    Density over the progressive-NPT equilibration of the solvated fusion
-    construct, settling near the bulk value for water.
+    Cell dimensions over the equilibration of the solvated fusion construct.
+    Density is reported separately by the ``density_equilibrate`` task, which
+    writes its own convergence plot.
 
 .. raw:: html
 
