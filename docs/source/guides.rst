@@ -11,5 +11,7 @@ pages are about how the pieces fit together for a particular job.
 .. toctree::
    :maxdepth: 1
 
+   exploring-the-config-schema
+   file-naming-conventions
    importing-systems
    charmmff-customizations

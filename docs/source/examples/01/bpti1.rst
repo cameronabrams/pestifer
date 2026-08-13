@@ -57,192 +57,16 @@ or edit it before committing to a run:
 
 ``bpti1.yaml`` is a YAML-format text file, and the keywords (of course) have particular meanings.  This is also an example of a "minimal" configuration file; ``pestifer`` has many more controls that can be set in a configuration file than are shown here.  Here, this configuration file contains two topmost directives: ``title`` and :ref:`config_ref tasks`.  The value of ``title`` is the string ``Bovine Pancreatic Trypsin Inhibitor (BPTI)`` and the value of ``tasks`` is a *list*.  Each element in the list of tasks is itself a directive describing a task, and ``pestifer`` in general executes tasks in the order they appear in the ``tasks`` list.
 
-Digression: Interactive Help 
-============================
+Pestifer's configuration schema documents itself: every task and subdirective can be
+explored from the command line with ``config-help``, and the same content is published
+in the :ref:`config_ref`.  If you want to know what else a task accepts, see
+:ref:`exploring_config_schema`.
 
-``pestifer`` uses the general-purpose package ``ycleptic`` (`pypi <https://pypi.org/project/ycleptic/>`_) to manage its input configurations.  A package developer using ``ycleptic`` specifies a "pattern" file describing the configuration file syntax they would like their package to have.  ``ycleptic`` provides two useful features:
+After the ``psfgen`` and ``validate`` tasks we declare an ``md`` task, with the
+subdirective ``ensemble`` set to ``minimize`` and nothing else listed, so this task runs
+an energy minimization under ``namd3`` with defaults for everything else.
 
-1. Automatic generaton of a hierarchical arrangement of RST files for documentation of all configuration parameters; in these pages, this is rooted at :ref:`config_ref`.
-2. Automatic acquisition of a command-line interactive help feature that allows package users to explore the configuration file format specified by the package developers.  
-
-Let's use this second feature to explore the ``fetch`` task.  (You can visit the :ref:`config_ref tasks` page to view the same info in the online documentation.) 
-
-.. code-block:: bash
-
-  $ pestifer --no-banner config-help tasks
-
-    tasks:
-        Specifies the tasks to be performed serially in a pestifer run
-
-    base|tasks
-        fetch ->
-        continuation ->
-        merge ->
-        psfgen ->
-        ligate ->
-        pdb2pqr ->
-        mdplot ->
-        cleave ->
-        solvate ->
-        desolvate ->
-        ring_check ->
-        make_membrane_system ->
-        md ->
-        density_equilibrate ->
-        membrane_equilibrate ->
-        manipulate ->
-        terminate ->
-        validate ->
-        .. up
-        ! quit
-    pestifer-help: fetch
-
-    fetch:
-        Fetch task; its only job is to fetch any external data file (e.g.,
-          PDB).
-
-    base|tasks->fetch
-        source
-        sourceID
-        source_format
-        .. up
-        ! quit
-    pestifer-help: source
-
-    source:
-        Source for the initial coordinate file; one of ``rcsb`` (for the RCSB
-          PDB), ``alphafold`` (for the AlphaFold DB), ``opm`` (for the OPM
-          database), or ``local`` (for a local file)
-        default: rcsb
-        allowed values: rcsb, alphafold, opm, local
-
-    All subattributes at the same level as 'source':
-
-    base|tasks->fetch
-        source
-        sourceID
-        source_format
-        .. up
-        ! quit
-    pestifer-help: sourceID
-
-    sourceID:
-        ID of the source file; if source is ``local``, a file ``sourceID.pdb``
-          or ``sourceID.cif`` must exist in the working directory
-
-    All subattributes at the same level as 'sourceID':
-
-    base|tasks->fetch
-        source
-        sourceID
-        source_format
-        .. up
-        ! quit
-    pestifer-help: source_format
-
-    source_format:
-        Format of the source file; this should be ``pdb`` or ``cif``
-        default: pdb
-        allowed values: pdb, cif
-
-    All subattributes at the same level as 'source_format':
-
-    base|tasks->fetch
-        source
-        sourceID
-        source_format
-        .. up
-        ! quit
-    pestifer-help: !
-  $
-
-In the config file for this example, we specify on the the ``sourceID`` as 6pti; the other source attributes take their default values.  This causes ``pestifer`` to fetch the file ``6pti.pdb`` from the RCSB PDB (if ``6pti.pdb`` does not already exist in the current working directory).
-
-We can return to ``config-help`` to explore the ``psfgen`` task, which is the next task in the list.  We can do this by:
-
-.. code-block:: bash
-
-  $ pestifer config-help tasks psfgen
-
-    psfgen:
-        Parameters controlling a specific psfgen run on an input molecule
-
-    base|tasks->psfgen
-        source ->
-        mods ->
-        .. up
-        ! quit
-    pestifer-help: source
-
-    source:
-        Specifies the processing and interpretation of the initial source
-          coordinate file
-
-    base|tasks->psfgen->source
-        biological_assembly
-        transform_reserves
-        remap_chainIDs
-        reserialize
-        model
-        cif_residue_map_file
-        include
-        exclude
-        sequence ->
-        .. up
-        ! quit
-    pestifer-help: biological_assembly
-
-    biological_assembly:
-        integer index of the biological assembly to construct; default is 0,
-          signifying that the asymmetric unit is to be used
-        default: 0
-
-    All subattributes at the same level as 'biological_assembly':
-
-    base|tasks->psfgen->source
-        biological_assembly
-        transform_reserves
-        remap_chainIDs
-        reserialize
-        model
-        cif_residue_map_file
-        include
-        exclude
-        sequence ->
-        .. up
-        ! quit
-    pestifer-help:
-
-And so on.  Let's return to the example.  After the ``psfgen`` and ``validate`` tasks we declare an ``md`` task, and the subdirective ``ensemble`` is set to ``minimize``.  There are no other subdirectives explicitly listed.  This task will use ``namd3`` to run an energy minimization.  Let's have a look at the possible subdirectives for an ``md`` task.  We can do this by:
-
-.. code-block:: bash
-
-  $ pestifer console-help tasks md
-
-    md:
-        Parameters controlling a NAMD run
-
-    base|tasks->md
-        cpu-override
-        vacuum
-        ensemble
-        minimize
-        nsteps
-        dcdfreq
-        xstfreq
-        temperature
-        pressure
-        addl_paramfiles
-        other_parameters
-        constraints ->
-        .. up
-        ! quit
-    pestifer-help:
-
-The Input Configuration (Continued)
-===================================
-
-So let's return to the example.  After the first ``md`` task is the ``solvate`` task.  Notice that it has no subdirectives; in this case default values are used for any subdirectives.  After this task has finished, we have a run-ready *nonequilibrated* system.  Equilibration here is three tasks: another minimization, a short NVT ``md`` task to bring the system to temperature, and then a single :ref:`density_equilibrate <subs_buildtasks_density_equilibrate>` task that settles the box density under NPT.
+After the first ``md`` task is the ``solvate`` task.  Notice that it has no subdirectives; in this case default values are used for any subdirectives.  After this task has finished, we have a run-ready *nonequilibrated* system.  Equilibration here is three tasks: another minimization, a short NVT ``md`` task to bring the system to temperature, and then a single :ref:`density_equilibrate <subs_buildtasks_density_equilibrate>` task that settles the box density under NPT.
 
 That last task replaces what used to be written by hand as a ladder of progressively longer NPT ``md`` tasks (``nsteps: 200``, then 400, then 800, and so on).  Why such runs have to be broken into pieces at all is worth knowing, because it is a property of NAMD rather than of the chemistry: after solvation the initial water box is slightly too sparse, so under pressure control the cell shrinks.  NAMD fixes its spatial decomposition at the *start* of each run, and if a cell dimension shrinks past the patch margin partway through, the run dies with *"periodic cell has become too small for the patch grid"*.  Restarting resets that decomposition, so the equilibration has to proceed in restarts.  ``density_equilibrate`` does that for you, and sizes each chunk from the shrink rate it has just measured rather than from a guessed schedule.
 
@@ -299,22 +123,8 @@ You should note the presence of CHARMM force-field files in the current director
 
 The archive tarball contains all intermediate files used in the build but which are not necessary for production MD runs.  These files can be useful for debugging or for understanding the build process.
 
-.. _file name conventions:
-
-Digression: On File Name Conventions
-====================================
-
-Intermediate files generated by pestifer during a build typically conform to a common naming convention:
-
-.. code-block:: bash
-
-   CC-MT-SSS_TASKNAME.ext
-
-Here ``CC`` is the 2-digit identification of the run *controller* (``00`` for the first controller), ``MT`` is the 2-digit identification of the *main task* of that controller (``02`` is the *third* task), and ``SSS`` is the 3-digit identification of the *subtask* within that task (``000`` for the first).  ``TASKNAME`` is the name of the task as it appears in the yaml file, and ``ext`` is the file extension.  For example, ``00-04-000_solvate.psf`` is the PSF file generated by the ``solvate`` task -- the *fifth* task, index ``04`` -- in this example.
-
-The subtask counter is what makes a task like ``density_equilibrate`` legible in a directory listing: because it restarts NAMD once per chunk, it produces a numbered series such as ``00-07-000_density_equilibrate-NPT.log`` through ``00-07-019_...``, all belonging to the one task at index ``07``.  A trailing label after the task name records the ensemble or the role of that particular run.
-
-Some tasks may spawn *subcontrollers*, which typically acquire a controller ID derived from that of the parent controller.  In the current version of pestifer, this occurs when building a membrane bilayer, in which a series of MD simulations are launched by a subcontroller the the ``make_membrane_system`` task.
+Intermediate files are named by a fixed convention (``CC-MT-SSS_TASKNAME.ext``) that is
+worth knowing when you read a build directory; see :ref:`file name conventions`.
 
 .. raw:: html
 
