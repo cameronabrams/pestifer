@@ -117,7 +117,7 @@ Chains default to **included**.  Declining a chain adds it to ``exclude:`` and *
 
 The resulting ``psfgen`` task then carries a real ``source:`` block (chosen ``biological_assembly:`` and an ``exclude:`` list of omitted chains), a ``sequence:`` block (built tails), a ``mods:`` block (chosen mutation reverts, loop stub ``substitutions``, and deletions), and an active ``ligate`` task -- ready to run, with no manual editing.  Pressing Enter accepts the shown default (upper-cased in the ``[y/N]`` / ``[Y/n]`` prompt).
 
-Interior missing loops are built and closed by default; declining "in full" offers a short built **stub** in place of the full disordered sequence, and prompts for the stub's one-letter sequence (default ``GGG``, but you may enter any short sequence -- e.g. ``GSGSG``) -- emitted as ``substitutions: [G:400-410,GSGSG]``.  (Leaving a genuine capped chain break where a loop would go is not yet supported -- it needs a build-side chain-split-and-cap capability; it is on the roadmap.)
+Interior missing loops are built and closed by default; declining "in full" offers a short built **stub** in place of the full disordered sequence, and prompts for the stub's one-letter sequence (default ``GGG``, but you may enter any short sequence -- e.g. ``GSGSG``) -- emitted as ``substitutions: [G:400-410,GSGSG]``.  (Leaving a genuine capped chain break where a loop would go is not yet supported -- it needs a build-side chain-split-and-cap capability.)
 
 After the structure choices, ``--interactive`` also walks through the **post-psfgen build pipeline**, so the whole YAML is assembled interactively rather than pulled from the ``--full`` template.  Each stage is an optional yes/no with a sensible default:
 

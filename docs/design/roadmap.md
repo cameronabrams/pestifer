@@ -414,6 +414,14 @@ what appears here is refined and reprioritized as the project evolves.
       and apply default terminal patches — after which `new-system --interactive` can offer it as
       the third interior-loop option (build / stub / cap-and-break).
 
+- [ ] **`--kick-ass` loses the banner's provenance lines.** The hidden `--kick-ass` flag swaps
+      the plain banner for the block-art logo, but `_enhanced_banner_message` carries no
+      `pestifer_version` or `charmmff_version` placeholders, so a run logged with it drops the
+      two facts the ordinary banner records: which pestifer built the system, and which CHARMM
+      force-field release it drew on. That makes the flag a trade of provenance for style, when
+      it should be a trade of nothing. Setting the version and force-field lines beneath the
+      logo would make the two banners interchangeable.
+
 ## Ring-piercing
 
 - [x] **Lower the `ring_check.cutoff` schema default** (10.0 → 4.0 Å) toward the
