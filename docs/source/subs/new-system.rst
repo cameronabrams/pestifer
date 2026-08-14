@@ -128,9 +128,9 @@ After the structure choices, ``--interactive`` also walks through the **post-psf
        Vacuum MD (NVT) equilibration? [y/N] n
        Solvate (water box + neutralizing ions)? [Y/n] y
          Solvated minimization? [Y/n] y
-         Solvated MD equilibration (NVT then NPT)? [Y/n] y
+         NVT warm-up before density equilibration? [Y/n] y
+         NPT density equilibration (self-terminating)? [Y/n] y
          Longer NPT production run? [y/N] n
-         Density plot (mdplot)? [y/N] n
        Terminate task (package the built system)? [Y/n] y
 
 The chosen tasks are appended after ``fetch``/``psfgen``/``ligate`` (the solvated stages appear only if you solvate), and a standard ``terminate`` packages the result.  ``nsteps`` use conservative defaults you can edit in the emitted YAML.
