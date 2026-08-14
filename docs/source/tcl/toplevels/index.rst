@@ -3,8 +3,12 @@
 Top-level scripts
 =================
 
-These are Tcl scripts that are always run when VMD is started within a Pestifer workflow.  They can also be run manually from the VMD console using the ``pestifer_init`` Tcl command, provided you have defined that ``proc`` in your own VMD startup script (e.g., ``~/.vmdrc``).  See the :ref:`use in vmd scripts` section of the :ref:`usage` documentation for more information.
+These are the Tcl scripts that run when VMD is started within a Pestifer workflow.
+``vmdrc.tcl`` puts pestifer's packages on VMD's ``auto_path``, loads ``PestiferUtil``, and
+sources ``macros.tcl`` to extend VMD's atomselect macros.
 
+To get the same environment in your own interactive VMD sessions, run ``pestifer setup-vmd``
+once; see :ref:`subs_setup_vmd` and :ref:`use in vmd scripts`.
 
 .. tclscript:: pestifer/resources/tcl/vmdrc.tcl
 

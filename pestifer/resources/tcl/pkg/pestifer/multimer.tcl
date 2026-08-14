@@ -1,4 +1,10 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+## **Retained for reference only.**  Nothing in pestifer loads this package -- no Python
+## module and no other Tcl script does ``package require PestiferMultimer``.  It is kept in the
+## tree so the algorithm is not lost, and it remains loadable by hand from your own VMD
+## scripts, but it is not part of any pestifer workflow and is not maintained.
+#
 ## ``PestiferMultimer`` -- This is a Pestifer Tcl package for VMD that provides tools for
 ## computing geometric properties of multimers, such as opening angles and rotation matrices.
 ## It allows for the calculation of opening angles between protomer selections

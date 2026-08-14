@@ -1,4 +1,12 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+## **Retained for reference only.**  Nothing in pestifer loads this package -- no Python
+## module and no other Tcl script does ``package require PestiferDeclash``.  It is kept in the
+## tree so the algorithm is not lost, and it remains loadable by hand from your own VMD
+## scripts, but it is not part of any pestifer workflow and is not maintained.
+## Its work is now done by the numpy declashers in ``pestifer/psfutil/declash.py``,
+## which replaced it when the coordinate transforms were ported out of VMD/Tcl.
+#
 ## ``PestiferDeclash`` -- This is a Pestifer Tcl package for VMD that provides tools for
 ## declashing protein loops and pendant groups.
 ## It allows for the minimization of steric clashes in protein structures

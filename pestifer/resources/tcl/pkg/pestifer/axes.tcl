@@ -1,4 +1,10 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
+#
+## **Retained for reference only.**  Nothing in pestifer loads this package -- no Python
+## module and no other Tcl script does ``package require PestiferAxes``.  It is kept in the
+## tree so the algorithm is not lost, and it remains loadable by hand from your own VMD
+## scripts, but it is not part of any pestifer workflow and is not maintained.
+#
 ## ``PestiferAxes`` -- This is a Pestifer Tcl package for VMD that provides tools for
 ## computing approximate symmetry axes of macromolecular complexes.
 ## It allows for the generation of an approximate axis around which protomers are arranged,

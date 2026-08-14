@@ -7,7 +7,10 @@ import os
 from docutils import nodes
 from docutils.parsers.rst import Directive
 from docutils.statemachine import ViewList
+from sphinx.util import logging as sphinx_logging
 from sphinx.util.nodes import nested_parse_with_titles
+
+logger = sphinx_logging.getLogger(__name__)
 
 class TclScriptDirective(Directive):
     required_arguments = 1
@@ -21,7 +24,12 @@ class TclScriptDirective(Directive):
         full_path = os.path.normpath(os.path.join(repo_root, script_path))
 
         if not os.path.isfile(full_path):
-            return [nodes.paragraph(text=f"ERROR: File not found: {full_path}")]
+            # Emit a real build warning rather than rendering the error into the page: a
+            # silently-published "ERROR: File not found: <builder's absolute path>" is how a
+            # script deleted from the tree stayed referenced here long after it was gone.
+            logger.warning(f'tclscript: file not found: {full_path}',
+                           location=(self.state.document.settings.env.docname, self.lineno))
+            return []
 
         # Track this file as a dependency for rebuilds
         env = self.state.document.settings.env
