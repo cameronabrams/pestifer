@@ -4,6 +4,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: **the GPU-not-elected warning is now a plain status line.** On a GPU host running
+  CPU-only, pestifer emitted a WARNING that named the GPU-resident NAMD binary it had found and
+  advised setting `paths.namd3gpu`. Nothing is wrong in that situation, so nothing should be
+  flagged: it is now `INFO> GPU mode is OFF.`, sitting under the hardware-detection line, which
+  reports what the host has where this reports what pestifer will use. It also no longer depends
+  on finding a conventionally-named GPU binary on PATH or on *why* CPU mode was chosen -- it
+  states the fact whenever a GPU is present and MD will run on the CPU, whether that was declined
+  deliberately (`namd.processor-type: cpu`) or simply never elected. `_resolve_namd_type` loses
+  the return element that existed only to trigger the old warning.
+
 - fix: **the startup log and the run manifest reported a stale version.** 3.16.1 routed
   `--version` and the splash banner through the source-tree resolver but missed two call sites
   that looked the version up for themselves, so a 3.16.1 splash was followed by

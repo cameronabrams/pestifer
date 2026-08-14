@@ -68,14 +68,6 @@ class Config(Yclept):
         Optional name of the Ycleptic-format base file
     """
 
-    _gpu_namd_candidates = ('namd3gpu',)
-    """
-    Conventional names for a *separate* GPU-resident NAMD3 binary, searched on PATH only to
-    decide whether to warn that an available GPU is going unused (see
-    :meth:`_warn_gpu_not_elected`).  Never used to select the executable -- that is always
-    driven by ``paths.namd3gpu``.
-    """
-
     def __init__(self, userfile='', userdict={}, quiet=False, RM: ResourceManager = None, basefile: str = '', ncpus_override: int = 0):
         self.userfile = userfile
         self.userdict = userdict
@@ -283,14 +275,13 @@ class Config(Yclept):
         if processor_type not in ('auto', 'cpu', 'gpu'):
             logger.warning(f'namd.processor-type {processor_type!r} not recognized; using \'auto\'.')
             processor_type = 'auto'
-        self.namd_type, self.shell_commands['namd3gpu'], warn_gpu_not_elected = \
+        self.namd_type, self.shell_commands['namd3gpu'] = \
             self._resolve_namd_type(processor_type, namd3_path, namd3gpu_path)
         if self.namd_type == 'gpu' and verify_access:
             namd3gpu_resolved = shutil.which(self.shell_commands['namd3gpu'])
             if namd3gpu_resolved:
                 assert os.access(namd3gpu_resolved, os.X_OK), f'You do not have permission to execute {namd3gpu_resolved}'
-        if warn_gpu_not_elected:
-            self._warn_gpu_not_elected(namd3_path, namd3gpu_path)
+        self._report_gpu_mode()
         self.namd_deprecates = self['user']['namd']['deprecated3']
 
     def _resolve_namd_type(self, processor_type: str, namd3_path: str, namd3gpu_path: str):
@@ -305,64 +296,44 @@ class Config(Yclept):
         - ``'auto'`` -- elect GPU only when ``paths.namd3gpu`` names a *separate* binary
           that resolves; otherwise CPU. This is the historical path-inequality behavior.
 
-        Returns ``(namd_type, namd3gpu_command, warn_gpu_not_elected)``, where the last is
-        True only in the auto single-binary case that :meth:`_warn_gpu_not_elected` covers.
-        Logs at most one warning; performs no assertions and mutates no state.
+        Returns ``(namd_type, namd3gpu_command)``.  Logs at most one warning; performs no
+        assertions and mutates no state.
         """
         if processor_type == 'cpu':
-            return 'cpu', namd3_path, False
+            return 'cpu', namd3_path
         if processor_type == 'gpu':
             if shutil.which(namd3gpu_path):
-                return 'gpu', namd3gpu_path, False
+                return 'gpu', namd3gpu_path
             # No separate GPU binary resolves -- run GPU mode with the namd3 binary. This is
             # the single-binary build (paths equal), or a misconfigured distinct path (warn).
             if namd3gpu_path != namd3_path:
                 logger.warning(f'namd3gpu {namd3gpu_path!r} not found; running GPU mode with {namd3_path!r}.')
-            return 'gpu', namd3_path, False
+            return 'gpu', namd3_path
         # auto
         if namd3gpu_path != namd3_path:
             if shutil.which(namd3gpu_path):
-                return 'gpu', namd3gpu_path, False
+                return 'gpu', namd3gpu_path
             logger.warning(f'namd3gpu {namd3gpu_path!r} not found; falling back to CPU mode')
-            return 'cpu', namd3_path, False
-        return 'cpu', namd3_path, True
+            return 'cpu', namd3_path
+        return 'cpu', namd3_path
 
-    def _warn_gpu_not_elected(self, namd3_path: str, namd3gpu_path: str):
+    def _report_gpu_mode(self):
         """
-        Warn when the host looks GPU-capable but GPU-resident NAMD was not elected.
+        State that GPU mode is off, when the host has a GPU and MD will nonetheless run on
+        the CPU.
 
-        GPU mode is enabled only when ``paths.namd3gpu`` differs from ``paths.namd3``
-        (see :meth:`_set_shell_commands`).  Both default to ``namd3``, so on a host whose
-        GPU-resident build is a *separate* binary the GPU is silently left unused and every
-        MD task runs CPU-only.  This is easy to miss, so warn when all three hold:
+        This is a status line, not a diagnostic: it pairs with the hardware-detection line
+        above it, which reports what the host *has*, by reporting what pestifer will *use*.
+        Whether GPU mode was declined deliberately (``namd.processor-type: cpu``) or simply
+        never elected (``paths.namd3gpu`` left at the default) does not change the fact being
+        reported, so this does not distinguish them and offers no advice.
 
-        1. at least one GPU is present,
-        2. a conventionally-named GPU-resident NAMD build is on PATH, and
-        3. ``paths.namd3gpu`` still points at the CPU binary (i.e. the user has evidently
-           not elected GPU mode).
-
-        Says nothing when the host has no GPU, has no separate GPU build, or when the two
-        paths already resolve to the same binary (the single-binary case the default is
-        meant for).
+        Silent when the host has no GPU (nothing to report) and when GPU mode is on (the run
+        already shows it).
         """
-        if self.quiet or self.ngpus < 1:
+        if self.quiet or self.ngpus < 1 or self.namd_type != 'cpu':
             return
-        candidate = None
-        for name in self._gpu_namd_candidates:
-            candidate = shutil.which(name)
-            if candidate:
-                break
-        if not candidate:
-            return
-        namd3_resolved = shutil.which(namd3_path)
-        if namd3_resolved and os.path.realpath(candidate) == os.path.realpath(namd3_resolved):
-            # single binary handling both modes; nothing to elect
-            return
-        logger.warning(
-            f'{self.ngpus} GPU(s) detected and a GPU-resident NAMD build appears to be '
-            f'available at {candidate!r}, but GPU mode is OFF: paths.namd3gpu is '
-            f'{namd3gpu_path!r}, the same as paths.namd3, so MD will run CPU-only. '
-            f'To use the GPU, set paths.namd3gpu to {candidate!r} in your config.')
+        logger.info('GPU mode is OFF.')
 
     def _set_internal_shortcuts(self):
         # Progress bars are a terminal animation (carriage-return redraws) rendered by

@@ -259,7 +259,7 @@ what appears here is refined and reprioritized as the project evolves.
 - [x] **GPU mode detection shouldn't hinge on path inequality.** The `namd.processor-type`
       schema entry (formerly deprecated-and-ignored) is now a functional `auto|cpu|gpu` control
       (default `auto`). `auto` keeps the historical path-inequality detection (+ the
-      `_warn_gpu_not_elected` warning); `gpu` **forces GPU mode even in the single-binary case**
+      `_report_gpu_mode` status line); `gpu` **forces GPU mode even in the single-binary case**
       (`paths.namd3gpu == paths.namd3`), which the auto path could never elect — so a
       GPU-capable host with one binary serving both modes can now elect GPU via config instead
       of the fragile distinct-path-string workaround; `cpu` forces CPU. The decision is factored
