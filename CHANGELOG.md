@@ -4,6 +4,53 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **`pestifer build --check` validates a config without running it.** Until now the only
+  way to learn that a config was malformed was to run it, and a run is minutes. Everything that
+  makes a build fail in its first seconds was already being detected before execution -- schema
+  validation and the resolving/access-checking of `vmd`, `namd3`, `charmrun` and `catdcd` by
+  `Config.configure_new`, and the static task hand-off check by `Controller.configure` -- so
+  `--check` runs exactly those, reports what they found alongside the resolved toolchain and the
+  task plan, and stops short of `do_tasks`. It exits 0 when the build would start and 1 when it
+  would not, so it can gate a batch script, and `--json` writes the report to stdout as a
+  structured object while the ordinary log stays on stderr. An input file named in the config but
+  absent from the working directory, and a working directory that already holds other files, are
+  reported as warnings rather than errors.
+
+- feat: **`pestifer setup-claude` installs a Claude Code skill for driving pestifer.** Someone who
+  installs pestifer from PyPI and hands its operation to a coding agent had no guidance at all:
+  the repository is not part of the wheel, so a `CLAUDE.md` never reaches them. The skill now
+  ships inside the package and installs to `~/.claude/skills/pestifer/` the way `setup-vmd`
+  installs the Tcl hook (`--skills-dir` scopes it to one project; `--force` overwrites). It
+  carries the operating knowledge that is not in the reference documentation and that an agent
+  otherwise discovers by failing: check before building, adapt a worked example rather than
+  composing YAML from scratch, `new-system --interactive` and bare `config-help` both prompt on
+  stdin and will stall a non-interactive caller, builds must be backgrounded, one clean directory
+  per build, and the outputs end up inside tarballs rather than loose on disk. The example catalog
+  and the schema are reached through `show-resources` and `config-help` rather than duplicated.
+
+- docs: **a Quick start page.** A new user's first path ran from the introduction through the full
+  subcommand reference with no short route from a database ID to a built system. The new top-level
+  page walks one through `new-system --interactive` on 12ER -- the BCMA-targeting Fab arm of
+  teclistamab bound to BCMA -- whose five chains, disordered termini and expression tag each
+  become a question the walkthrough answers. Its transcript, emitted YAML, timing table and figure
+  are taken from an actual run. A companion guide covers driving pestifer with an agent.
+
+- docs: **the Tcl section no longer describes a tree that has moved on.** `bilayer_quilt.tcl`,
+  deleted when the packmol packer was removed, was still documented -- and because the `tclscript`
+  directive returned a paragraph instead of raising on a missing file, the page published the text
+  `ERROR: File not found:` followed by the builder's absolute path. The directive now emits a
+  Sphinx warning and no node, so a `-W` build fails rather than shipping the error. Five packages
+  (`autools`, `axes`, `getlinks`, `multimer`, `declash`) that nothing in pestifer loads are now
+  marked retained-for-reference at the top of their own sources, which is what the docs render;
+  `declash` names the numpy declashers that replaced it. `ionize.tcl` and `bilayer_orient.tcl`,
+  both in use, were undocumented and are now listed, and the instruction to invoke a
+  `pestifer_init` command that exists nowhere in the tree is replaced by a pointer to `setup-vmd`.
+
+- docs: **the local docs build reported a stale version.** `conf.py` read
+  `importlib.metadata.version` directly, which for an editable install is frozen at install time,
+  so a working tree at 3.16.2 built docs advertising 3.15.1. It now uses the same source-tree
+  resolver as the CLI. Read the Docs installs the package non-editably and was already correct.
+
 ## [3.16.2] - 2026-08-14
 
 - change: **the GPU-not-elected warning is now a plain status line.** On a GPU host running
