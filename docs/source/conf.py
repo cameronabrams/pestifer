@@ -56,6 +56,13 @@ templates_path = ['_templates']
 # html_theme = 'sphinx_rtd_theme'
 html_theme = 'furo'
 
+# One asset serves both themes: the artwork sits on an opaque white disc with a
+# transparent surround, so it reads on the light page and as a badge on the dark one.
+html_logo = '_static/pestifer-icon.png'
+# Multi-resolution .ico so the browser picks its own size rather than downscaling one
+# bitmap; at 16px the line work inside the disc goes to texture, but the silhouette reads.
+html_favicon = '_static/pestifer-favicon.ico'
+
 html_theme_options = {
     "light_css_variables": {
         "color-icon": "#000000"  # Black for light mode

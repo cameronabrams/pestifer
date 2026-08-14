@@ -46,6 +46,13 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   both in use, were undocumented and are now listed, and the instruction to invoke a
   `pestifer_init` command that exists nowhere in the tree is replaced by a pointer to `setup-vmd`.
 
+- docs: **the documentation has a logo and a favicon.** The plague-doctor mark now sits at the top
+  of the sidebar on every page, and a multi-resolution `.ico` supplies the browser tab. One logo
+  asset serves both themes: the artwork is on an opaque white disc with a transparent surround, so
+  it reads as line art on the light page and as a badge on the dark one. The favicon is cropped to
+  the hat-and-beak silhouette rather than the whole disc, which at tab size is the difference
+  between a recognizable shape and a grey smudge.
+
 - docs: **the `terminate` page described outputs the task does not produce.** It named the package
   `prod_system.tgz` (tarballs are written `.tar.gz`), listed the final system files as though they
   are left in the run directory when a `package` block moves them into the tarball and deletes
