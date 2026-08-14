@@ -36,6 +36,7 @@ Pestifer is under active development.  Pestifer development is supported in part
 
 introduction
 installation
+quickstart
 usage
 guides
 examples
