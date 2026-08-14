@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.16.2] - 2026-08-14
+
 - change: **the GPU-not-elected warning is now a plain status line.** On a GPU host running
   CPU-only, pestifer emitted a WARNING that named the GPU-resident NAMD binary it had found and
   advised setting `paths.namd3gpu`. Nothing is wrong in that situation, so nothing should be
