@@ -200,12 +200,10 @@ class Controller:
             return None, 0
         from .run_manifest import RunManifest, tasks_fingerprint, MANIFEST_NAME
         path = os.path.join(os.getcwd(), MANIFEST_NAME)
-        version = ''
-        try:
-            from importlib.metadata import version as _pkg_version
-            version = _pkg_version('pestifer')
-        except Exception:
-            pass
+        # the manifest stamps which pestifer built the system, so it must be the resolved
+        # version (source tree wins over frozen install metadata), not importlib.metadata
+        from ..util.stringthings import __pestifer_version__
+        version = __pestifer_version__
         try:
             fingerprint = tasks_fingerprint(self.tasks)
         except Exception as exc:

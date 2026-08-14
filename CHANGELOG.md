@@ -4,6 +4,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **the startup log and the run manifest reported a stale version.** 3.16.1 routed
+  `--version` and the splash banner through the source-tree resolver but missed two call sites
+  that looked the version up for themselves, so a 3.16.1 splash was followed by
+  `INFO> pestifer v. 3.15.1`. The second one mattered more than the cosmetics: the run manifest
+  stamps `pestifer_version` into every build's provenance record, which is the field that answers
+  "which pestifer built this system" for a published result. Both now import the one resolved
+  constant, and a test asserts no module resolves pestifer's own version for itself -- the earlier
+  tests checked the two call sites that had been fixed, which is why they could not see a third.
+
 ## [3.16.1] - 2026-08-14
 
 - fix: **the shipped lipid collection no longer carries autocache build artifacts.** A collection

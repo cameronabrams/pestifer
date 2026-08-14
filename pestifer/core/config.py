@@ -20,7 +20,7 @@ from ycleptic import Yclept
 from .errors import PestiferError
 from .resourcemanager import ResourceManager
 from ..tasks.taskcollections import TaskList
-from ..util.stringthings import my_logger
+from ..util.stringthings import my_logger, __pestifer_version__
 from ..scripters import PsfgenScripter, NAMDColvarInputScripter, VMDScripter, GenericScripter
 from ..scripters.namd import NAMDScripter
 
@@ -88,7 +88,7 @@ class Config(Yclept):
 
     def configure_new(self):
         if not self.quiet:
-            vrep = f'pestifer v. {version("pestifer")}\n  ycleptic v. {version("ycleptic")}\n  pidibble v. {version("pidibble")}'
+            vrep = f'pestifer v. {__pestifer_version__}\n  ycleptic v. {version("ycleptic")}\n  pidibble v. {version("pidibble")}'
             my_logger(vrep, logger.info, just='<', frame='*', fill='', no_indent=True)
         return self.configure()
 
