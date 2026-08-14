@@ -54,6 +54,65 @@ Because the contract is pipeline-aware, ``psfgen`` **infers its mode from what p
       C --> No --> E[End];
       F --> E;
 
+Checking a config before building
+=================================
+
+Everything the controller validates before it runs anything -- the config parses, every key is
+one the schema defines, ``vmd``/``namd3``/``charmrun``/``catdcd`` resolve on your PATH and are
+executable, the task hand-offs are sound -- can be checked without starting a build:
+
+.. code-block:: console
+
+  $ pestifer build config.yaml --check
+
+This reports the resolved toolchain, the CHARMM force-field release, the NAMD mode and
+processor count, and the task plan the controller would execute, then exits.  It runs in about
+a second, fetches nothing, and writes nothing:
+
+.. code-block:: text
+
+   pestifer 3.16.2 build --check: 12er.yaml
+
+     title       New template pestifer config for id 12er (PDB)
+     charmmff    feb26
+     namd        cpu mode, 24 PEs
+     charmrun    /usr/local/bin/charmrun
+     namd3       /usr/local/bin/namd3
+     vmd         /usr/local/bin/vmd
+     catdcd      /usr/local/bin/catdcd
+
+     task plan (8 tasks):
+        0  fetch
+        1  psfgen
+        2  md
+        3  solvate
+        4  md
+        5  md
+        6  density_equilibrate
+        7  terminate
+
+   check passed; this config would build
+
+The exit status is 0 when the build would start and 1 when it would not, so ``--check`` can gate
+a batch script.  A mistyped directive is reported with the alternatives the schema does accept:
+
+.. code-block:: text
+
+   ERROR: Attribute 'mutationz' invalid; expecting one of ['mutations', 'ssbonds',
+   'ssbondsdelete', 'links', 'deletions', 'substitutions', ...] under 'mods'.
+
+   check FAILED; the build would not start
+
+Two conditions are reported as **warnings** rather than failures: a config value that names an
+input file not present in the working directory, and a working directory that already contains
+other files (a build writes a great many, and expects a directory of its own).  Neither stops
+the build.
+
+Adding ``--json`` writes the same report to standard output as a JSON object -- the resolved
+executables, the task list, and the ``warnings`` and ``errors`` arrays -- while the ordinary log
+output stays on standard error.  This is the form to use when a script or an agent is driving
+pestifer; see :ref:`agent_driven_builds`.
+
 Resuming an interrupted build
 =============================
 

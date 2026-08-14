@@ -51,6 +51,7 @@ Subcommands
    subs/mdplot
    subs/modify-package
    subs/setup-vmd
+   subs/setup-claude
    subs/cache
 
 The ``fetch-example`` subcommand (:ref:`fetch-example <sub_fetch_example>`) is
