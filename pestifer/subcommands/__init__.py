@@ -19,6 +19,7 @@ from .cache import CacheSubcommand
 from .mdplot import MDPlotSubcommand
 from .density_profile import DensityProfileSubcommand
 from .setup_vmd import SetupVMDSubcommand
+from .setup_claude import SetupClaudeSubcommand
 
 package_path = Path(__file__).resolve().parent.parent.parent
 is_source_package_with_git = os.path.isdir(os.path.join(package_path, '.git'))
@@ -41,6 +42,7 @@ _subcommands: list[Subcommand] = [
     CacheSubcommand(),
     FollowNAMDLogSubcommand(),
     SetupVMDSubcommand(),
+    SetupClaudeSubcommand(),
     ]
 
 if is_source_package_with_git:
