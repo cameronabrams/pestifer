@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.16.1] - 2026-08-14
+
 - fix: **the shipped lipid collection no longer carries autocache build artifacts.** A collection
   directory doubles as the on-demand generation cache, which parks an fcntl lock
   (`.<RESI>.lock`) and an isolated build tree (`.<RESI>.work`) beside the entries. Those reached
