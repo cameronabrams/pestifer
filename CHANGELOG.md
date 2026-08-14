@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.17.0] - 2026-08-14
+
 - feat: **`pestifer build --check` validates a config without running it.** Until now the only
   way to learn that a config was malformed was to run it, and a run is minutes. Everything that
   makes a build fail in its first seconds was already being detected before execution -- schema
