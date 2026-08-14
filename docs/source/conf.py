@@ -1,10 +1,16 @@
 import os
 import sys
-import importlib.metadata
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
 
 project = 'pestifer'
-release = importlib.metadata.version(project)
+# Use pestifer's own version resolver rather than importlib.metadata directly: for an
+# editable install the metadata version is frozen at install time, so a local docs build
+# out of a working tree would advertise whatever release happened to be current when that
+# editable install was made.  The resolver prefers the tree's pyproject.toml and falls
+# back to install metadata, so this matches both the CLI and the Read the Docs build
+# (which installs the package non-editably).
+from pestifer.util.stringthings import __pestifer_version__
+release = __pestifer_version__
 version = '.'.join(release.split('.')[:2])  # major.minor
 
 # Configuration file for the Sphinx documentation builder.
