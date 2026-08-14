@@ -279,6 +279,58 @@ what appears here is refined and reprioritized as the project evolves.
       Validated by a golden AsymmetricUnit oracle on 4zmj/6pti (diffs to only the sym delta), the full
       unit suite, and an all-examples runthrough (the CIF/glycan/assembly builds — 7–12, 14, 15, 18,
       21 — all pass). Design doc: `docs/design/mmcif-offload.md`.
+- [ ] **Split the stable CHARMM resources into a separate data package.** The bundled force
+      field and PDB repository are *data*, versioned on CHARMM's release cadence, but they live in
+      the code repo and ride every pestifer release. Three costs, all measured rather than
+      supposed:
+    - **PyPI quota.** The size preflight in `scripts/release.sh` reports **5.91 GB of PyPI's
+      10 GB per-project limit already consumed**, at ~50 MB per release, of which the force field
+      is the dominant share (`pestifer/resources/charmmff` is 9.4 MB of a 25 MB package, and it
+      does not compress further — it is already tarballs). At the current release cadence that
+      is a wall pestifer will actually reach, not a theoretical one, and it cannot be reclaimed:
+      published files count forever.
+    - **Git history.** Force-field paths account for **212 MB of the 818 MB packed history**, and
+      **155 MB of that is just 88 blobs** — the `pdbrepository`/`toppar` tarballs, each of which
+      is rewritten *whole* on every regeneration because a tarball has no delta. Rebuilding the
+      lipid collection with a new sampler costs another full copy forever. Every clone pays it.
+    - **Coupling.** A force-field fix and a code fix are the same event today: correcting a
+      vendored stream (see the sterol `BOND` audit above) requires a pestifer release, and a
+      pestifer patch release re-ships an unchanged 9.4 MB force field.
+
+    The natural seam already exists. A release directory is self-contained and release-keyed
+    (`charmmff/<key>/` = `toppar_c36_<key>.tgz` + `pdbrepository/` + `patches/`, keyed by
+    `charmmff_version_key`), the config already selects a release (`charmmff.version`), and the
+    autocache already treats `~/.pestifer/pdbrepository/<release>/` as a first-class *external*
+    source of the same content. So pestifer already knows how to consume this data from
+    somewhere other than its own package directory.
+
+    Decisions to settle:
+    - **Distribution mechanism.** A companion PyPI package (`pestifer-charmmff`) pinned as a
+      normal dependency — simplest, keeps `pip install pestifer` a one-liner, but each release
+      still consumes quota, just in a *separate* project with its own 10 GB. Versus fetch-on-first-
+      use into `~/.pestifer/` from a data repo or Zenodo record — unbounded, content-addressable,
+      citable (a paper can cite the exact FF release DOI), but makes the first run network-
+      dependent and needs an offline/air-gapped story for HPC. The autocache's existing
+      lock + atomic-publish machinery is the substrate for the second.
+    - **Granularity.** One package per CHARMM release (`pestifer-charmmff-feb26`), letting a user
+      hold several and switch with `charmmff.version`, versus one package tracking the latest.
+      Per-release matches how the code already keys things and makes reproducing an old build a
+      matter of installing an old data package.
+    - **Where local patches live.** `patches/` and `custom/` are pestifer's own corrections and
+      additions on top of vendored CHARMM, not upstream content. They probably stay with the
+      code (they change on pestifer's cadence, and the CHARMM-release ingestion item below is
+      supposed to *reapply* them across a release bump) — but then the data package is pure
+      upstream, and the split has to survive `modify-package charmmff regenerate-*` and the
+      `modifications.jsonl` ledger, which currently assume one writable tree.
+    - **Generated vs. vendored.** `pdbrepository` is *derived* (conformers pestifer generated),
+      while `toppar` is vendored. They have different provenance and different rebuild triggers,
+      so they may deserve separate packages rather than one bundle.
+
+    Composes with **"Automatic update to a new CHARMM force-field release"** below: that item
+    automates *producing* a release directory, and this one decides where the product is
+    published. Doing this one first would make that one's output a data-package release rather
+    than a commit to the code repo.
+
 - [x] **Ledger for `modify-package`.** Append-only record at
       `pestifer/resources/modifications.jsonl`; every mutating command records an entry
       (committed alongside the change). `ledger show` lists them; `ledger revert <id>`
