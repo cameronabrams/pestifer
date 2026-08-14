@@ -281,16 +281,20 @@ what appears here is refined and reprioritized as the project evolves.
       21 — all pass). Design doc: `docs/design/mmcif-offload.md`.
 - [ ] **Split the stable CHARMM resources into a separate data package.** The bundled force
       field and PDB repository are *data*, versioned on CHARMM's release cadence, but they live in
-      the code repo and ride every pestifer release. Three costs, all measured rather than
-      supposed:
-    - **PyPI quota.** The size preflight in `scripts/release.sh` reports **5.91 GB of PyPI's
-      10 GB per-project limit already consumed**, at ~50 MB per release, of which the force field
-      is the dominant share (`pestifer/resources/charmmff` is 9.4 MB of a 25 MB package, and it
-      does not compress further — it is already tarballs). At the current release cadence that
-      is a wall pestifer will actually reach, not a theoretical one, and it cannot be reclaimed:
-      published files count forever.
-    - **Git history.** Force-field paths account for **212 MB of the 818 MB packed history**, and
-      **155 MB of that is just 88 blobs** — the `pdbrepository`/`toppar` tarballs, each of which
+      the code repo and ride every pestifer release. The costs, measured rather than supposed:
+    - **PyPI quota — real but no longer pressing.** This was the original motivation, when the
+      preflight in `scripts/release.sh` reported 5.91 GB of PyPI's 10 GB per-project limit
+      consumed. Deleting the pre-3.7 releases (~100 MB each, from before `tests/**` was excluded
+      from the sdist) brought that to **3.56 GB across 49 published versions**, and current
+      releases are ~24 MB, so there is headroom for **~270 more** — not a wall. Two caveats keep
+      it on the list rather than off: published files count forever unless manually deleted, and
+      deleting them breaks reproducibility for anyone pinning an old version, so trading history
+      for headroom has a cost. The force field is still the dominant share of each release
+      (`pestifer/resources/charmmff` is 9.4 MB of a 25 MB package) and does not compress further —
+      it is already tarballs.
+    - **Git history — the strongest argument.** Force-field paths account for **212 MB of the
+      818 MB packed history**, and **155 MB of that is just 88 blobs** — the
+      `pdbrepository`/`toppar` tarballs, each of which
       is rewritten *whole* on every regeneration because a tarball has no delta. Rebuilding the
       lipid collection with a new sampler costs another full copy forever. Every clone pays it.
     - **Coupling.** A force-field fix and a code fix are the same event today: correcting a
