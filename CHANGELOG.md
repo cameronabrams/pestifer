@@ -46,6 +46,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   both in use, were undocumented and are now listed, and the instruction to invoke a
   `pestifer_init` command that exists nowhere in the tree is replaced by a pointer to `setup-vmd`.
 
+- docs: **the `terminate` page described outputs the task does not produce.** It named the package
+  `prod_system.tgz` (tarballs are written `.tar.gz`), listed the final system files as though they
+  are left in the run directory when a `package` block moves them into the tarball and deletes
+  them, omitted `.vel` and the consolidated `_minimal.prm` from that list, and described the
+  package as carrying "all necessary charmmff parameter/stream files copied from the default
+  toppar directory" when `make_package` deliberately replaces those with the single minimal
+  parameter file so the emitted NAMD config needs one `parameters` line. The `chainmapfile` entry
+  said the file is written "if specified" when it has a default and is written on every build,
+  then archived by `cleanup`.
+
 - docs: **the local docs build reported a stale version.** `conf.py` read
   `importlib.metadata.version` directly, which for an editable install is frozen at install time,
   so a working tree at 3.16.2 built docs advertising 3.15.1. It now uses the same source-tree
