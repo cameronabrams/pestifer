@@ -454,6 +454,21 @@ class ResourceManager:
                         raise PestiferError(f'{resname} already present in collection {collection!r}; use force=True to overwrite')
                     shutil.rmtree(dest)
                 shutil.copytree(entry_path, dest)
+            # Drop autocache bookkeeping before repacking.  A collection directory doubles as the
+            # on-demand generation cache, which parks its fcntl lock ('.<RESI>.lock') and isolated
+            # build tree ('.<RESI>.work') alongside the entries.  Those are dot-prefixed by
+            # construction; repository content never is -- entries are '<RESI>/' directories, and
+            # the solvent collection's solo ion entries are bare '<RESI>.pdb' files, so this must
+            # filter on the leading dot and not on "is a file".  Without it, cruft that reaches a
+            # tarball once survives every later extract/repack pass.
+            for stray in staging.iterdir():
+                if not stray.name.startswith('.'):
+                    continue
+                logger.debug(f'{collection}: dropping autocache artifact {stray.name}')
+                if stray.is_dir():
+                    shutil.rmtree(stray)
+                else:
+                    stray.unlink()
             with tarfile.open(tarball, 'w:gz') as tf:
                 tf.add(staging, arcname=collection)
         return tarball, created

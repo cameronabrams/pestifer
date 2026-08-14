@@ -4,6 +4,18 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **the shipped lipid collection no longer carries autocache build artifacts.** A collection
+  directory doubles as the on-demand generation cache, which parks an fcntl lock
+  (`.<RESI>.lock`) and an isolated build tree (`.<RESI>.work`) beside the entries. Those reached
+  `lipid.tgz` during the mc-sampler rebuild and then survived indefinitely, because the
+  extract/repack pass that installs a new entry re-tars whatever it finds -- so every user was
+  shipped 219 stale lock files and an 11 MB work tree holding a *failed* CHM1 build. The repack
+  now drops dot-prefixed members, which is the distinction that matters: repository content is
+  never dot-prefixed, and the filter cannot be "drop files" because the solvent collection's ion
+  entries are legitimately bare `<RESI>.pdb` files. The collection is unchanged otherwise -- all
+  266 entries and 3,661 files are byte-identical -- and the tarball falls from 5.9 MB to 4.0 MB.
+  A test asserts every shipped collection stays clean.
+
 - fix: **`pestifer --version` follows the source tree, not stale install metadata.** The version came
   from `importlib.metadata`, which reports what was recorded when the distribution was installed.
   For an editable install that is frozen at install time, so every release bump left the CLI

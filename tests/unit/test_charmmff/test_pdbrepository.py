@@ -61,6 +61,30 @@ class TestPDBCollection(unittest.TestCase):
         self.assertIsNone(mol.get_box_edge())
         self.assertIsNone(mol.get_box_psf())
 
+class TestShippedCollections(unittest.TestCase):
+
+    def test_shipped_tarballs_carry_no_autocache_artifacts(self):
+        """A shipped collection must contain repository content only.
+
+        A collection directory doubles as the on-demand generation cache, so a build parks
+        '.<RESI>.lock' and '.<RESI>.work' beside the entries.  Those once reached lipid.tgz and
+        then survived every extract/repack pass, shipping 219 stale locks and an 11 MB failed
+        CHM1 build tree to every user.  Entries are '<RESI>/' directories (or bare '<RESI>.pdb'
+        solo entries, as in the solvent collection); neither is ever dot-prefixed.
+        """
+        import tarfile
+        repo_root = Path(resources.__file__).parent / 'charmmff'
+        tarballs = sorted(repo_root.glob('*/pdbrepository/*.tgz'))
+        self.assertTrue(tarballs, f'no shipped collections found under {repo_root}')
+        for tb in tarballs:
+            with tarfile.open(tb, 'r:gz') as tf:
+                names = tf.getnames()
+            # every member lives under the single top-level directory named for the stream
+            stray = sorted({n.split('/')[1] for n in names
+                            if len(n.split('/')) > 1 and n.split('/')[1].startswith('.')})
+            self.assertEqual(stray, [], f'{tb.name} ships autocache artifacts: {stray[:5]}')
+
+
 class TestPDBRepository(unittest.TestCase):
     
     def setUp(self):
