@@ -1,0 +1,42 @@
+name: docs
+
+# Build the docs on every push to main.
+#
+# This does the job the GitHub -> Read the Docs webhook used to do.  That webhook points at an
+# RTD integration that no longer exists, so every delivery returns 404 and ordinary pushes stop
+# reaching RTD; only releases rebuilt the docs, because release.yaml triggers RTD through its
+# API instead.  Rather than depend on a webhook that can be silently deleted on the RTD side,
+# use the same API call here, with the RTD_SECRET token the release workflow already uses.
+#
+# Only the `latest` version is built.  `stable` tracks the most recent tag and is rebuilt by
+# release.yaml when a release is cut, which is the only time its content can change.
+
+on:
+  push:
+    branches:
+      - main
+
+# A push that lands while a build is already queued supersedes it: RTD builds the tip of the
+# branch either way, so the older request would only duplicate work.
+concurrency:
+  group: rtd-latest
+  cancel-in-progress: true
+
+jobs:
+  trigger-rtd:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger a Read the Docs build of `latest`
+        env:
+          RTD_TOKEN: ${{ secrets.RTD_SECRET }}
+        run: |
+          if [ -z "${RTD_TOKEN}" ]; then
+            echo "RTD_SECRET is not set; cannot trigger a docs build" >&2
+            exit 1
+          fi
+          # --fail-with-body so an auth or slug problem fails the job loudly instead of being a
+          # green tick over a 401 -- a silently-not-building docs site is what this replaces.
+          curl --silent --show-error --fail-with-body \
+            --request POST \
+            --header "Authorization: Token ${RTD_TOKEN}" \
+            https://readthedocs.org/api/v3/projects/pestifer/versions/latest/builds/
