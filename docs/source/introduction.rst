@@ -12,6 +12,8 @@ Pestifer provides an easy way to generate lots of system replicas using *exactly
 
 In addition to enhancing reproducibilty in system preparation, Pestifer also provides for data security.  You never need to upload any data to a web-based application, like `Charmm-GUI <https://charmm-gui.org>`_, to prepare a system.  Pestifer runs entirely on your local machine, so you can prepare simulation systems based on non-publicly-available PDB structures or other data that you do not (yet) want to share with the world.
 
+A more recent reason, and one I did not anticipate when I started: the same properties that make Pestifer reproducible make it a good tool to hand to an AI coding assistant.  A build is described by a single declarative file, the configuration schema documents itself, and ``pestifer build --check`` settles in about a second whether a given configuration would run at all--so an assistant can correct a mistake immediately instead of discovering it several minutes into a build.  Running ``pestifer setup-claude`` installs a skill that teaches `Claude Code <https://claude.com/claude-code>`_ how to drive Pestifer properly, and :ref:`agent_driven_builds` describes what that skill covers and the reasoning behind it.  None of this is required to use Pestifer, and nothing about the tool assumes you want it.
+
 Why YAML?
 ---------
 `YAML <https://yaml.org/>`_ is a human-readable data format.  Like JSON, it maps neatly to Python containers, but 

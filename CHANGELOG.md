@@ -4,6 +4,13 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- docs: **"Why Pestifer?" mentions the Claude Code skill.** The introduction made the case for
+  reproducibility and for keeping data off a web service, but said nothing about the newer reason
+  the same design pays off: a single declarative input, a self-documenting schema and a
+  one-second `--check` are what let an AI assistant drive the tool without waiting on a build to
+  find a typo.
+
+
 ## [3.17.0] - 2026-08-14
 
 - feat: **`pestifer build --check` validates a config without running it.** Until now the only
