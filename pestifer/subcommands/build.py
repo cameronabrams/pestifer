@@ -81,7 +81,9 @@ def _preflight(configname, args, **kwargs):
     }
 
     try:
-        config = Config(userfile=configname, ncpus_override=args.ncpus, **kwargs).configure_new()
+        config = Config(userfile=configname, ncpus_override=args.ncpus,
+                        processor_type_override=('gpu' if getattr(args, 'gpu', False) else ''),
+                        **kwargs).configure_new()
     except PestiferError as e:
         report['errors'].append(str(e))
         return report
@@ -241,15 +243,13 @@ class RunSubcommand(Subcommand):
                 os.chdir(exec_dir)
             return 0 if report['ok'] else 1
 
-        config = Config(userfile=configname, ncpus_override=args.ncpus, **kwargs).configure_new()
+        config = Config(userfile=configname, ncpus_override=args.ncpus,
+                        processor_type_override=('gpu' if getattr(args, 'gpu', False) else ''),
+                        **kwargs).configure_new()
         C = Controller().configure(config)
         C.restart = getattr(args, 'restart', False)
         C.fresh = getattr(args, 'fresh', False)
         C.from_task = getattr(args, 'from_task', None)
-        if args.gpu:
-            C.config.namd_type = 'gpu'
-            C.config.scripters['namd'].namd_type = 'gpu'
-
         if args.complete_config:
             C.write_complete_config(f'{cbase}-complete.yaml')
         report = C.do_tasks()

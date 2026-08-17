@@ -44,6 +44,7 @@ Third-party packages
 --------------------
 
 Pestifer also ships two packages it did not write and does not document here: ``La`` (linear
-algebra) and ``Orient``.  ``bilayer_orient.tcl`` requires ``Orient``, which in turn requires
-``La``, so both are load-bearing rather than vestigial.  They live under
-``pestifer/resources/tcl/pkg/``.
+algebra) and ``Orient``.  They live under ``pestifer/resources/tcl/pkg/``.  No pestifer workflow
+loads them: their only consumer is ``bilayer_orient.tcl``, which was retired when orientation
+moved into Python and is now itself exercised only by the regression test that pins the Python
+path to the coordinates the Tcl path produced.

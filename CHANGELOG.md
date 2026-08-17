@@ -4,6 +4,34 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **`--gpu` now elects an actual GPU binary, and `--check` sees it.** Two defects made the
+  flag unusable on a workstation whose CUDA build is a separate executable. `paths.namd3gpu`
+  defaults to `namd3`, so forcing GPU mode resolved the *CPU* binary, and NAMD then refused the
+  run outright (`Can't modify CUDASOAintegrate when that mode was never enabled`); when
+  `namd.processor-type` is `gpu` and that path is still at its default, pestifer now looks for a
+  conventionally-named `namd3gpu` on PATH before falling back to `namd3`. Single-binary
+  installations, where `namd3` is itself the CUDA build, are unaffected, and `auto` is
+  deliberately unchanged. Separately, `build --check` returned before the `--gpu` override was
+  applied, so the one command meant to preflight a run always reported CPU mode. The flag is now
+  expressed as what the schema already defines it to be -- `namd.processor-type: gpu` -- and is
+  written into the user config before shell commands resolve and the scripters are built, so the
+  real run and the preflight take one path. This replaces a post-hoc mutation that patched
+  `namd_type` on the config and on a single scripter after construction, and it means the
+  override propagates through `taskless_subconfig` to the relaxation MD inside
+  `make_membrane_system`.
+
+- docs: **Corrected three stale claims about the Tcl tree.** `00PESTIFER-README.txt` listed four
+  scripts (`loop_closure.tcl`, `memb.tcl`, `tg.tcl`, `tmd_prep.tcl`) that no longer exist, omitted
+  `PestiferEnviron` and `PestiferIonize`, and did not distinguish the packages a workflow actually
+  loads from those it does not. The Tcl-scripts page listed `bilayer_orient.tcl` among the scripts
+  `make_membrane_system` sources, which it has not done since orientation moved into Python; it
+  and the third-party `La`/`Orient` packages it requires survive only as the oracle for the
+  regression test that pins the Python path to the coordinates the Tcl path produced, and the
+  documentation now says so rather than calling them "load-bearing". Finally, the `cpu-override`
+  schema text still asserted that GPU-resident NAMD "cannot handle restraints (yet)"; NAMD 3.0.2
+  can -- a GPU-resident run reports `HARMONIC CONSTRAINTS ACTIVE` -- so the key is documented as
+  a compatibility escape hatch rather than a hard requirement.
+
 - docs: **"Why Pestifer?" mentions the Claude Code skill.** The introduction made the case for
   reproducibility and for keeping data off a web service, but said nothing about the newer reason
   the same design pays off: a single declarative input, a self-documenting schema and a

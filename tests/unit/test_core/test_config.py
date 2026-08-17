@@ -141,6 +141,39 @@ class TestConfig(unittest.TestCase):
             self.assertEqual(c._resolve_namd_type('gpu', 'namd3', 'namd3gpu'),
                              ('gpu', 'namd3gpu'))
 
+    def test_resolve_gpu_finds_conventional_binary_when_path_unset(self):
+        # paths.namd3gpu left at its default (== paths.namd3), but the CUDA build is a
+        # separate executable on PATH: 'gpu' must elect it rather than handing GPU-resident
+        # directives to the CPU binary, which NAMD rejects outright.
+        c = Config.__new__(Config)
+        which = self._which({'namd3': '/usr/local/bin/namd3',
+                             'namd3gpu': '/usr/local/bin/namd3gpu'})
+        with mock.patch('pestifer.core.config.shutil.which', side_effect=which):
+            self.assertEqual(c._resolve_namd_type('gpu', 'namd3', 'namd3'),
+                             ('gpu', 'namd3gpu'))
+
+    def test_resolve_gpu_path_unset_same_file_stays_single_binary(self):
+        # namd3gpu resolving to the same file as namd3 is the single-binary build; keep namd3
+        c = Config.__new__(Config)
+        which = self._which({'namd3': '/usr/local/bin/namd3',
+                             'namd3gpu': '/usr/local/bin/namd3'})
+        with mock.patch('pestifer.core.config.shutil.which', side_effect=which):
+            self.assertEqual(c._resolve_namd_type('gpu', 'namd3', 'namd3'),
+                             ('gpu', 'namd3'))
+
+    def test_processor_type_override_lands_in_user_config(self):
+        # the CLI --gpu flag is defined to be equivalent to namd.processor-type: gpu, so it
+        # must be written into the user config -- that is what carries it to the scripters,
+        # to --complete-config, and to any taskless_subconfig
+        c = Config(userdict={}, quiet=True, RM=self.RM,
+                   processor_type_override='gpu').configure()
+        self.assertEqual(c['user']['namd']['processor-type'], 'gpu')
+        self.assertEqual(c.taskless_subconfig()['user']['namd']['processor-type'], 'gpu')
+
+    def test_no_processor_type_override_leaves_default(self):
+        c = Config(userdict={}, quiet=True, RM=self.RM).configure()
+        self.assertEqual(c['user']['namd']['processor-type'], 'auto')
+
     def test_resolve_cpu_forces_cpu_ignoring_gpu_binary(self):
         c = Config.__new__(Config)
         which = self._which({'namd3': '/usr/local/bin/namd3',

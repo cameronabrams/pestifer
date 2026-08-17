@@ -777,7 +777,12 @@ attributes:
             type: dict
             attributes:
               - name: cpu-override
-                text: Override namd3 processor type since GPUresident namd3 cannot handle restraints (yet)
+                text: >-
+                  Force this steered-MD run onto the CPU even when the build is running in GPU
+                  mode.  This dates from a NAMD 3 release whose GPU-resident integrator could not
+                  apply harmonic restraints; NAMD 3.0.2 can (a GPU-resident run reports "HARMONIC
+                  CONSTRAINTS ACTIVE"), so the override is retained for older NAMD builds and as an
+                  escape hatch rather than as a hard requirement.
                 type: bool
                 default: True
               - name: ensemble

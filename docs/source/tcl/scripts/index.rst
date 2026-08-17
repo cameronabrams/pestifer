@@ -9,12 +9,19 @@ to be run directly by users, but rather are used by Pestifer's Tcl API.
 In use
 ------
 
-These three are sourced by the :ref:`make_membrane_system <subs_buildtasks_make_membrane_system>`
+These two are sourced by the :ref:`make_membrane_system <subs_buildtasks_make_membrane_system>`
 task as it builds and embeds a bilayer.
 
 .. tclscript:: pestifer/resources/tcl/scripts/bilayer_embed.tcl
-.. tclscript:: pestifer/resources/tcl/scripts/bilayer_orient.tcl
 .. tclscript:: pestifer/resources/tcl/scripts/bilayer_patch.tcl
+
+``bilayer_orient.tcl`` was formerly sourced here as well.  Orientation now happens in Python
+(:class:`~pestifer.objs.rottrans.RotTrans`, via
+``MakeMembraneSystemTask._orientation_align``), so no pestifer workflow runs it; it is retained
+only as the oracle for the regression test that pins the Python path to the coordinates the Tcl
+path produced.
+
+.. tclscript:: pestifer/resources/tcl/scripts/bilayer_orient.tcl
 
 Retained for reference
 ----------------------

@@ -66,15 +66,22 @@ class Config(Yclept):
         An instance of the ResourceManager class, which manages access to the contents of Pestifer's resources.
     basefile : str
         Optional name of the Ycleptic-format base file
+    processor_type_override : str
+        Optional 'cpu'/'gpu' override for ``namd.processor-type``, expressing a CLI flag
+        (``run --gpu``) as the config key it is defined to be equivalent to.  Applied to
+        the user config itself, so it reaches the scripters, ``--complete-config`` output,
+        and any subconfiguration derived via :meth:`taskless_subconfig`.
     """
 
-    def __init__(self, userfile='', userdict={}, quiet=False, RM: ResourceManager = None, basefile: str = '', ncpus_override: int = 0):
+    def __init__(self, userfile='', userdict={}, quiet=False, RM: ResourceManager = None, basefile: str = '', ncpus_override: int = 0,
+                 processor_type_override: str = ''):
         self.userfile = userfile
         self.userdict = userdict
         self.quiet = quiet
         self.basefile = basefile
         self.RM = RM
         self.ncpus_override = ncpus_override
+        self.processor_type_override = processor_type_override
         self.my_processor_info = ''
         self.kwargs_to_scripters = {}
 
@@ -90,6 +97,13 @@ class Config(Yclept):
         assert os.path.exists(self.basefile), f'Base config file {self.basefile} does not exist.'
         # ycleptic's init:
         super().__init__(self.basefile, userfile=self.userfile, userdict=self.userdict)
+
+        # A CLI processor-type flag is *defined* to be equivalent to the config key, so write
+        # it into the user config rather than patching the resolved state afterward.  Doing it
+        # here -- before shell commands are resolved and the scripters are built -- is what
+        # makes --gpu reach the scripters and the --check preflight alike.
+        if self.processor_type_override:
+            self['user']['namd']['processor-type'] = self.processor_type_override
 
         self.my_processor_info = self._set_processor_info()
         if not self.quiet:
@@ -290,9 +304,12 @@ class Config(Yclept):
         ``namd.processor-type`` control and the resolved binaries.
 
         - ``'cpu'`` -- force CPU; ignore any GPU binary.
-        - ``'gpu'`` -- force GPU; use a separate ``namd3gpu`` binary if one resolves on
-          PATH, else the same binary as ``namd3`` (the single-binary build that ``'auto'``
-          can never elect on its own -- the case this control exists to express).
+        - ``'gpu'`` -- force GPU; use the separate ``namd3gpu`` binary named by
+          ``paths.namd3gpu`` if one resolves on PATH.  When that path has been left at its
+          default (equal to ``paths.namd3``), fall back to a conventionally-named
+          ``namd3gpu`` on PATH before using ``namd3`` itself -- the latter is correct only
+          for the single-binary build that ``'auto'`` can never elect on its own, and is
+          wrong on a workstation where the CUDA build is a separate executable.
         - ``'auto'`` -- elect GPU only when ``paths.namd3gpu`` names a *separate* binary
           that resolves; otherwise CPU. This is the historical path-inequality behavior.
 
@@ -302,12 +319,22 @@ class Config(Yclept):
         if processor_type == 'cpu':
             return 'cpu', namd3_path
         if processor_type == 'gpu':
-            if shutil.which(namd3gpu_path):
-                return 'gpu', namd3gpu_path
-            # No separate GPU binary resolves -- run GPU mode with the namd3 binary. This is
-            # the single-binary build (paths equal), or a misconfigured distinct path (warn).
             if namd3gpu_path != namd3_path:
+                if shutil.which(namd3gpu_path):
+                    return 'gpu', namd3gpu_path
                 logger.warning(f'namd3gpu {namd3gpu_path!r} not found; running GPU mode with {namd3_path!r}.')
+                return 'gpu', namd3_path
+            # paths.namd3gpu is still at its default, so the user has named no GPU binary.
+            # Look for the conventional name before falling back to namd3: on a workstation
+            # where the CUDA build is a separate executable, using namd3 here would emit
+            # GPU-resident directives to the CPU build, which NAMD rejects outright with
+            # "Can't modify CUDASOAintegrate when that mode was never enabled".
+            conventional = shutil.which('namd3gpu')
+            if conventional and conventional != shutil.which(namd3_path):
+                logger.info(f'namd.processor-type is \'gpu\' and paths.namd3gpu is unset; '
+                            f'using {conventional!r} found on PATH')
+                return 'gpu', 'namd3gpu'
+            # Single-binary build: namd3 itself is the CUDA build.
             return 'gpu', namd3_path
         # auto
         if namd3gpu_path != namd3_path:
