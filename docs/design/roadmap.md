@@ -256,6 +256,31 @@ what appears here is refined and reprioritized as the project evolves.
 
 ## Tooling / packaging
 
+- [ ] **`deposit` subcommand: package a completed build for public archiving.** Point it at a
+      finished production fileset and it assembles a deposit-ready bundle — inputs, topologies,
+      parameters, initial configurations, and outputs — laid out for upload to Zenodo or an
+      equivalent DOI-issuing repository. This maps directly onto what JCIM now requires of an MD
+      paper: *"depositing your input files (including topologies, parameters, input files, and
+      initial configurations) and output trajectory files in a public repository providing a
+      DOI."* Points to settle:
+    - **Trajectory size.** Full trajectories will usually be too large — 27 examples × 3 replicas
+      is already substantial. The guidelines permit depositing *a selection of clustered
+      representative structures* instead, so an option to cluster and deposit representatives
+      (rather than everything) is probably the common path, with full-trajectory deposit as the
+      opt-in.
+    - **What it reuses.** A build already writes `run-record.json`, an environment record, and a
+      citation list; the deposit should carry those rather than re-derive them, so the bundle
+      documents its own provenance. It pairs naturally with `report-methods`: one drafts the
+      Methods text, the other assembles the deposit, and between them a build becomes publishable
+      without hand-assembly.
+    - **Sequencing.** Same argument as environment recording: a deposit assembled by a tool that
+      already knows how the build was produced is reproducible by construction, whereas one
+      hand-assembled afterward is a reconstruction. Worth having *before* a deposit is made in
+      anger.
+    (Raised by Cameron while preparing the manuscript, 2026-08-18. Deliberately **not**
+    implemented at the time: a new feature means a new release, and the manuscript pins v3.18.0
+    as the version that produced its results.)
+
 - [x] **GPU mode detection shouldn't hinge on path inequality.** The `namd.processor-type`
       schema entry (formerly deprecated-and-ignored) is now a functional `auto|cpu|gpu` control
       (default `auto`). `auto` keeps the historical path-inequality detection (+ the
