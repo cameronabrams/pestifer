@@ -191,6 +191,11 @@ class ChunkedEquilibrateTask(MDTask):
         # expose the outcome so a caller (e.g. make_membrane_system's calibration) can trust this
         # self-terminating equilibration's own verdict instead of re-deriving convergence downstream
         self.converged = stop_reason.startswith('CONVERGED')
+        # The whole reason run-record.json exists: how far an adaptive equilibration ran, and why
+        # it stopped, are decided here at run time and appear nowhere in the config.
+        self.record_outcome(adaptive=True, converged=self.converged,
+                            stopped_because=stop_reason, chunks=n_chunk)
+        self.outcome['steps'] = int(total_steps)
         self._write_outputs(stop_reason)
         return 0
 

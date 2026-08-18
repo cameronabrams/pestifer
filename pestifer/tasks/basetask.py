@@ -125,6 +125,12 @@ class BaseTask(ABC):
 
         self.basename: str = ''
         self.subtaskcount: int = 0
+        #: What this task actually did, for the run record.  Empty for tasks that run no
+        #: simulation.  Populated by :meth:`record_outcome` as the task finishes -- deliberately
+        #: reported by the task rather than derived from its specs, because an adaptive task
+        #: (``density_equilibrate``, ``membrane_equilibrate``) decides at run time how far to run
+        #: and its config says nothing about what actually happened.
+        self.outcome: dict = {}
         self.result: int = 0
         self.duration: float = 0.0
         self.extra_message: str = ''
@@ -412,6 +418,14 @@ class BaseTask(ABC):
         if not any([x in self._init_msg_options for x in mtoks]):
             extra += f' (result: {self.result})'
         logger.info(f'Controller {self.controller_index:02d} Task {self.index:02d} \'{self.taskname}\' {message} {extra}')
+
+
+    def record_outcome(self, **facts):
+        """Record what this task actually did, for ``run-record.json``.
+
+        Values that are ``None`` are dropped, so a caller can pass optional facts unconditionally.
+        """
+        self.outcome.update({k: v for k, v in facts.items() if v is not None})
 
     def next_basename(self, extra_label: str = ''):
         """

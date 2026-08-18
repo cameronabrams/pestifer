@@ -10,6 +10,7 @@ from .config_help import ConfigHelpSubcommand
 from .config_default import ConfigDefaultSubcommand
 from .new_system import NewSystemSubcommand
 from .show_resources import ShowResourcesSubcommand
+from .report_methods import ReportMethodsSubcommand
 from .wheretcl import WhereTCLSubcommand
 from .desolvate import DesolvateSubcommand
 from .modify_package import ModifyPackageSubcommand
@@ -35,6 +36,7 @@ _subcommands: list[Subcommand] = [
     DesolvateSubcommand(),
     MakeLigandMol2Subcommand(),
     MakePDBCollectionSubcommand(),
+    ReportMethodsSubcommand(),
     WhereTCLSubcommand(),
     MDPlotSubcommand(),
     DensityProfileSubcommand(),

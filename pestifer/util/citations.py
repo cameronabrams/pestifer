@@ -38,17 +38,46 @@ logger = logging.getLogger(__name__)
 
 @dataclass(frozen=True)
 class Citation:
-    """One reference, what it is owed for, and (when conditional) why it applies here."""
+    """One reference, what it is owed for, and (when conditional) why it applies here.
+
+    ``bibtex`` is the entry a Methods draft emits.  It is written out by hand for the software
+    citations, whose bibliographic details are fixed and known; coordinate citations get a
+    minimal ``@misc`` carrying the DOI instead, because a PDB-format file cannot tell us the real
+    capitalization of a title or an author name and a guess would be wrong in a bibliography.
+    """
     subject: str
     text: str
     doi: str = ''
     reason: str = ''
+    key: str = ''
+    bibtex: str = ''
 
     def render(self):
         line = f'[{self.subject}] {self.text}'
         if self.doi:
             line += f' doi:{self.doi}'
         return line
+
+    def bib_entry(self):
+        """This citation as a BibTeX entry, falling back to a DOI-only ``@misc``.
+
+        The fallback is deliberately thin: an entry that carries only an identifier can be
+        resolved correctly by the author's reference manager, whereas one padded with guessed
+        metadata looks complete and is not.
+        """
+        if self.bibtex:
+            return self.bibtex.strip()
+        key = self.key or _slug(self.subject)
+        fields = [f'  note = {{{self.subject}}}']
+        if self.doi:
+            fields.insert(0, f'  doi = {{{self.doi}}}')
+            fields.insert(0, f'  howpublished = {{\\url{{https://doi.org/{self.doi}}}}}')
+        return '@misc{' + key + ',\n' + ',\n'.join(fields) + '\n}'
+
+
+def _slug(text):
+    """A BibTeX-safe key fragment."""
+    return ''.join(c if c.isalnum() else '-' for c in text.lower()).strip('-')
 
 
 # --- the catalog -----------------------------------------------------------------------------
@@ -57,79 +86,228 @@ class Citation:
 NAMD = Citation(
     'NAMD',
     'Phillips JC, et al. Scalable molecular dynamics with NAMD. '
-    'J Comput Chem 26, 1781-1802 (2005).', '10.1002/jcc.20289')
+    'J Comput Chem 26, 1781-1802 (2005).', '10.1002/jcc.20289',
+    key='namd2005',
+    bibtex=r'''@article{namd2005,
+  author  = {Phillips, James C. and Braun, Rosemary and Wang, Wei and Gumbart, James and
+             Tajkhorshid, Emad and Villa, Elizabeth and Chipot, Christophe and Skeel, Robert D.
+             and Kal{\'e}, Laxmikant and Schulten, Klaus},
+  title   = {Scalable molecular dynamics with {NAMD}},
+  journal = {Journal of Computational Chemistry},
+  volume  = {26}, pages = {1781--1802}, year = {2005},
+  doi     = {10.1002/jcc.20289}
+}''')
 
 NAMD3 = Citation(
     'NAMD 3',
     'Phillips JC, et al. Scalable molecular dynamics on CPU and GPU architectures with NAMD. '
     'J Chem Phys 153, 044130 (2020).', '10.1063/5.0014475',
-    reason='this build ran NAMD 3')
+    reason='this build ran NAMD 3',
+    key='namd2020',
+    bibtex=r'''@article{namd2020,
+  author  = {Phillips, James C. and Hardy, David J. and Maia, Julio D. C. and Stone, John E. and
+             Ribeiro, Jo{\~a}o V. and Bernardi, Rafael C. and Buch, Ronak and Fiorin, Giacomo and
+             H{\'e}nin, J{\'e}r{\^o}me and Jiang, Wei and McGreevy, Ryan and Melo, Marcelo C. R.
+             and Radak, Brian K. and Skeel, Robert D. and Singharoy, Abhishek and Wang, Yi and
+             Roux, Beno{\^i}t and Aksimentiev, Aleksei and Luthey-Schulten, Zaida and
+             Kal{\'e}, Laxmikant V. and Schulten, Klaus and Chipot, Christophe and
+             Tajkhorshid, Emad},
+  title   = {Scalable molecular dynamics on {CPU} and {GPU} architectures with {NAMD}},
+  journal = {The Journal of Chemical Physics},
+  volume  = {153}, number = {4}, pages = {044130}, year = {2020},
+  doi     = {10.1063/5.0014475}
+}''')
 
 VMD = Citation(
     'VMD',
     'Humphrey W, Dalke A, Schulten K. VMD: Visual molecular dynamics. '
-    'J Mol Graph 14, 33-38 (1996).', '10.1016/0263-7855(96)00018-5')
+    'J Mol Graph 14, 33-38 (1996).', '10.1016/0263-7855(96)00018-5',
+    key='vmd1996',
+    bibtex=r'''@article{vmd1996,
+  author  = {Humphrey, William and Dalke, Andrew and Schulten, Klaus},
+  title   = {{VMD}: Visual molecular dynamics},
+  journal = {Journal of Molecular Graphics},
+  volume  = {14}, pages = {33--38}, year = {1996},
+  doi     = {10.1016/0263-7855(96)00018-5}
+}''')
 
 PSFGEN = Citation(
     'psfgen',
     "Ribeiro J, Radak B, Stone J, Gullingsrud J, Saam J, Phillips J. "
-    "psfgen User's Guide, v2.0 (2020).")
+    "psfgen User's Guide, v2.0 (2020).",
+    key='psfgen2020',
+    bibtex=r'''@misc{psfgen2020,
+  author       = {Ribeiro, Jo{\~a}o and Radak, Brian and Stone, John and Gullingsrud, Justin and
+                  Saam, Jan and Phillips, Jim},
+  title        = {psfgen User's Guide, v2.0},
+  year         = {2020},
+  howpublished = {Theoretical and Computational Biophysics Group, University of Illinois}
+}''')
 
 CHARMM36M = Citation(
     'CHARMM36m (protein)',
     'Huang J, et al. CHARMM36m: An improved force field for folded and intrinsically disordered '
-    'proteins. Nat Methods 14, 71-73 (2016).', '10.1038/nmeth.4067')
+    'proteins. Nat Methods 14, 71-73 (2016).', '10.1038/nmeth.4067',
+    key='charmm36m',
+    bibtex=r'''@article{charmm36m,
+  author  = {Huang, Jing and Rauscher, Sarah and Nawrocki, Grzegorz and Ran, Ting and Feig, Michael
+             and de Groot, Bert L. and Grubm{\"u}ller, Helmut and MacKerell, Alexander D.},
+  title   = {{CHARMM36m}: An improved force field for folded and intrinsically disordered proteins},
+  journal = {Nature Methods},
+  volume  = {14}, pages = {71--73}, year = {2017},
+  doi     = {10.1038/nmeth.4067}
+}''')
 
 CHARMM_OVERVIEW = Citation(
     'CHARMM force field',
     'Vanommeslaeghe K, MacKerell AD. CHARMM additive and polarizable force fields for biophysics '
     'and computer-aided drug design. Biochim Biophys Acta 1850, 861-871 (2015).',
-    '10.1016/j.bbagen.2014.08.004')
+    '10.1016/j.bbagen.2014.08.004',
+    key='charmm-ff-overview',
+    bibtex=r'''@article{charmm-ff-overview,
+  author  = {Vanommeslaeghe, K. and MacKerell, A. D.},
+  title   = {{CHARMM} additive and polarizable force fields for biophysics and computer-aided drug design},
+  journal = {Biochimica et Biophysica Acta - General Subjects},
+  volume  = {1850}, pages = {861--871}, year = {2015},
+  doi     = {10.1016/j.bbagen.2014.08.004}
+}''')
 
 CHARMM_LIPID = Citation(
     'CHARMM36 (lipids)',
     'Klauda JB, et al. Update of the CHARMM All-Atom Additive Force Field for Lipids: Validation '
-    'on Six Lipid Types. J Phys Chem B 114, 7830-7843 (2010).', '10.1021/jp101759q')
+    'on Six Lipid Types. J Phys Chem B 114, 7830-7843 (2010).', '10.1021/jp101759q',
+    key='charmm36-lipid',
+    bibtex=r'''@article{charmm36-lipid,
+  author  = {Klauda, Jeffery B. and Venable, Richard M. and Freites, J. Alfredo and
+             O'Connor, Joseph W. and Tobias, Douglas J. and Mondragon-Ramirez, Carlos and
+             Vorobyov, Igor and MacKerell, Alexander D. and Pastor, Richard W.},
+  title   = {Update of the {CHARMM} All-Atom Additive Force Field for Lipids: Validation on Six Lipid Types},
+  journal = {The Journal of Physical Chemistry B},
+  volume  = {114}, pages = {7830--7843}, year = {2010},
+  doi     = {10.1021/jp101759q}
+}''')
 
 CHARMM_CARB = Citation(
     'CHARMM36 (carbohydrates)',
     'Guvench O, et al. CHARMM Additive All-Atom Force Field for Glycosidic Linkages between '
-    'Hexopyranoses. J Chem Theory Comput 5, 2353-2370 (2009).', '10.1021/ct900242e')
+    'Hexopyranoses. J Chem Theory Comput 5, 2353-2370 (2009).', '10.1021/ct900242e',
+    key='charmm36-carb',
+    bibtex=r'''@article{charmm36-carb,
+  author  = {Guvench, Olgun and Hatcher, Elizabeth and Venable, Richard M. and Pastor, Richard W.
+             and MacKerell, Alexander D.},
+  title   = {{CHARMM} Additive All-Atom Force Field for Glycosidic Linkages between Hexopyranoses},
+  journal = {Journal of Chemical Theory and Computation},
+  volume  = {5}, pages = {2353--2370}, year = {2009},
+  doi     = {10.1021/ct900242e}
+}''')
 
 CGENFF = Citation(
     'CGenFF',
     'Vanommeslaeghe K, et al. CHARMM general force field: A force field for drug-like molecules '
     'compatible with the CHARMM all-atom additive biological force fields. '
-    'J Comput Chem 31, 671-690 (2010).', '10.1002/jcc.21367')
+    'J Comput Chem 31, 671-690 (2010).', '10.1002/jcc.21367',
+    key='cgenff2010',
+    bibtex=r'''@article{cgenff2010,
+  author  = {Vanommeslaeghe, K. and Hatcher, E. and Acharya, C. and Kundu, S. and Zhong, S. and
+             Shim, J. and Darian, E. and Guvench, O. and Lopes, P. and Vorobyov, I. and
+             MacKerell, A. D.},
+  title   = {{CHARMM} general force field: A force field for drug-like molecules compatible with
+             the {CHARMM} all-atom additive biological force fields},
+  journal = {Journal of Computational Chemistry},
+  volume  = {31}, pages = {671--690}, year = {2010},
+  doi     = {10.1002/jcc.21367}
+}''')
 
 CGENFF_PROGRAM_I = Citation(
     'CGenFF program',
     'Vanommeslaeghe K, MacKerell AD. Automation of the CHARMM General Force Field (CGenFF) I: '
-    'Bond Perception and Atom Typing. J Chem Inf Model 52, 3144-3154 (2012).', '10.1021/ci300363c')
+    'Bond Perception and Atom Typing. J Chem Inf Model 52, 3144-3154 (2012).', '10.1021/ci300363c',
+    key='cgenff-program-1',
+    bibtex=r'''@article{cgenff-program-1,
+  author  = {Vanommeslaeghe, K. and MacKerell, A. D.},
+  title   = {Automation of the {CHARMM} General Force Field ({CGenFF}) {I}: Bond Perception and Atom Typing},
+  journal = {Journal of Chemical Information and Modeling},
+  volume  = {52}, pages = {3144--3154}, year = {2012},
+  doi     = {10.1021/ci300363c}
+}''')
 
 CGENFF_PROGRAM_II = Citation(
     'CGenFF program',
     'Vanommeslaeghe K, Raman EP, MacKerell AD. Automation of the CHARMM General Force Field '
     '(CGenFF) II: Assignment of Bonded Parameters and Partial Atomic Charges. '
-    'J Chem Inf Model 52, 3155-3168 (2012).', '10.1021/ci3003649')
+    'J Chem Inf Model 52, 3155-3168 (2012).', '10.1021/ci3003649',
+    key='cgenff-program-2',
+    bibtex=r'''@article{cgenff-program-2,
+  author  = {Vanommeslaeghe, K. and Raman, E. Prabhu and MacKerell, A. D.},
+  title   = {Automation of the {CHARMM} General Force Field ({CGenFF}) {II}: Assignment of Bonded
+             Parameters and Partial Atomic Charges},
+  journal = {Journal of Chemical Information and Modeling},
+  volume  = {52}, pages = {3155--3168}, year = {2012},
+  doi     = {10.1021/ci3003649}
+}''')
 
 PDB2PQR = Citation(
     'PDB2PQR',
     'Dolinsky TJ, et al. PDB2PQR: expanding and upgrading automated preparation of biomolecular '
-    'structures for molecular simulations. Nucleic Acids Res 35, W522-W525 (2007).')
+    'structures for molecular simulations. Nucleic Acids Res 35, W522-W525 (2007).',
+    key='pdb2pqr2007',
+    bibtex=r'''@article{pdb2pqr2007,
+  author  = {Dolinsky, Todd J. and Czodrowski, Paul and Li, Hui and Nielsen, Jens E. and
+             McCammon, J. Andrew and Klebe, Gerhard and Baker, Nathan A.},
+  title   = {{PDB2PQR}: expanding and upgrading automated preparation of biomolecular structures
+             for molecular simulations},
+  journal = {Nucleic Acids Research},
+  volume  = {35}, pages = {W522--W525}, year = {2007},
+  doi     = {10.1093/nar/gkm276}
+}''')
 
 APBS = Citation(
     'APBS/PDB2PQR',
     'Jurrus E, et al. Improvements to the APBS biomolecular solvation software suite. '
-    'Protein Sci 27, 112-128 (2018).')
+    'Protein Sci 27, 112-128 (2018).',
+    key='apbs2018',
+    bibtex=r'''@article{apbs2018,
+  author  = {Jurrus, Elizabeth and Engel, Dave and Star, Keith and Monson, Kyle and Brandi, Juan
+             and Felberg, Lisa E. and Brookes, David H. and Wilson, Leighton and Chen, Jiahui and
+             Liles, Karina and Chun, Minju and Li, Peter and Gohara, David W. and Dolinsky, Todd
+             and Konecny, Robert and Koes, David R. and Nielsen, Jens Erik and Head-Gordon, Teresa
+             and Geng, Weihua and Krasny, Robert and Wei, Guo-Wei and Holst, Michael J. and
+             McCammon, J. Andrew and Baker, Nathan A.},
+  title   = {Improvements to the {APBS} biomolecular solvation software suite},
+  journal = {Protein Science},
+  volume  = {27}, pages = {112--128}, year = {2018},
+  doi     = {10.1002/pro.3280}
+}''')
 
 PROPKA = Citation(
     'PROPKA',
     'Olsson MHM, Sondergaard CR, Rostkowski M, Jensen JH. PROPKA3: Consistent Treatment of '
     'Internal and Surface Residues in Empirical pKa Predictions. '
-    'J Chem Theory Comput 7, 525-537 (2011).')
+    'J Chem Theory Comput 7, 525-537 (2011).',
+    key='propka2011',
+    bibtex=r'''@article{propka2011,
+  author  = {Olsson, Mats H. M. and S{\o}ndergaard, Chresten R. and Rostkowski, Michal and
+             Jensen, Jan H.},
+  title   = {{PROPKA3}: Consistent Treatment of Internal and Surface Residues in Empirical
+             p{K}a Predictions},
+  journal = {Journal of Chemical Theory and Computation},
+  volume  = {7}, pages = {525--537}, year = {2011},
+  doi     = {10.1021/ct100578z}
+}''')
 
 ALWAYS = [NAMD, VMD, PSFGEN, CHARMM36M, CHARMM_OVERVIEW]
+
+#: Every catalog entry that carries a stable BibTeX key, indexed by that key.  A run record
+#: stores only the key, not the entry -- so a Methods draft rendered by a later pestifer picks up
+#: any corrections made to the bibliography since the build ran, and records stay small.
+CATALOG = {c.key: c for c in (
+    NAMD, NAMD3, VMD, PSFGEN, CHARMM36M, CHARMM_OVERVIEW, CHARMM_LIPID, CHARMM_CARB,
+    CGENFF, CGENFF_PROGRAM_I, CGENFF_PROGRAM_II, PDB2PQR, APBS, PROPKA) if c.key}
+
+
+def by_key(key):
+    """The catalog entry for ``key``, or ``None``."""
+    return CATALOG.get(key)
 
 _WATER = {'TIP3', 'TIP3P', 'WATER', 'SPC', 'SPCE'}
 

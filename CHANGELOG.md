@@ -4,6 +4,31 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **`pestifer report-methods` drafts a Methods section from what a build actually did.**
+  The analogue of `gmx report-methods`, with more to say, because a pestifer build knows not only
+  the final system but how it was produced. Reads the `run-record.json` that completed builds now
+  leave behind -- one, or several at once for replicas -- and writes a LaTeX fragment plus a BibTeX
+  file (`--format md` for authors not writing LaTeX). Replicas are described as a set: facts every
+  replica agrees on are stated once, and a fact they disagree on is reported as a range rather than
+  dropped. The register is **deliberately machine-generated** -- short declarative sentences, no
+  connective flourish, no rationale -- because fluent prose reads as authoritative and invites
+  being pasted unread, while text that visibly came from a tool invites the editing it needs.
+  Everything pestifer did not do (the production simulation, the ensemble choice, the analysis) is
+  a visible `\TODO`, never prose, and nothing is stated that the record does not support: a build
+  that stopped at its step ceiling is never described as having converged. Not run automatically
+  at the end of a build; recording the facts and turning them into prose are separate acts.
+
+- feat: **Every completed build writes `run-record.json`.** The facts a build produces were
+  scattered and mostly unstructured -- the final atom count in a log table, the steps an adaptive
+  equilibration ran in per-chunk log lines, versions and citations in their own blocks -- so
+  anything downstream had to scrape them back out. They are now collected once into a versioned
+  JSON record: system topology and box, the protocol that actually ran, the environment, the
+  citations, and the seed. The distinction the record exists to preserve is between what was asked
+  for and what happened: `density_equilibrate` and `membrane_equilibrate` run to a convergence
+  criterion, so their step counts are decided at run time and appear nowhere in the config, and
+  each task now reports what it did rather than having it inferred afterward. Useful well beyond
+  the Methods draft -- comparing replicas, or building a summary table.
+
 - feat: **NAMD's RNG seed is now pinned, and replicas are a flag.** NAMD draws its seed from the
   clock unless told otherwise, and pestifer never set it, so two runs of one config produced
   different trajectories and neither could be reproduced -- verified directly: identical builds

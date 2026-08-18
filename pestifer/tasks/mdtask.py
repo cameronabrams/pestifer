@@ -217,6 +217,15 @@ class MDTask(VMDTask):
         seed = self._namd_seed()
         if seed:
             params['seed'] = seed
+
+        # Report what this invocation runs, for run-record.json.  Accumulated rather than
+        # assigned: a chunked equilibration calls namdrun repeatedly, and the record should show
+        # the total the task ran, not the size of its last chunk.
+        self.record_outcome(ensemble=ens, seed=seed or None,
+                            temperature=float(temperature) if temperature is not None else None,
+                            pressure=(float(pressure) if ens in ('npt', 'npgt') else None))
+        self.outcome['steps'] = int(self.outcome.get('steps', 0)) + int(nsteps or 0)
+        self.outcome['namd_runs'] = int(self.outcome.get('namd_runs', 0)) + 1
         params['structure'] = state.psf.name
         params['coordinates'] = state.pdb.name
         params['temperature'] = '$temperature'

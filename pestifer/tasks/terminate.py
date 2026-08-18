@@ -56,9 +56,30 @@ class TerminateTask(MDTask):
             state.minimal_prm = CharmmffParFileArtifact(data=minimal_prm, keep=True)
             state.data['minimal_prm'] = state.minimal_prm
         self.print_system_report()
+        # Capture the final system's facts here, before packaging and cleanup move the files
+        # this reads.  The record itself is assembled and written by the caller, which is what
+        # holds the config.
+        self.capture_system_facts()
         self.result += self.make_package()
         self.result += self.cleanup()
         return self.result
+
+
+    def capture_system_facts(self):
+        """Record the final system's topology and box facts for ``run-record.json``.
+
+        Called while the state artifacts are still in the run directory: ``make_package`` and
+        ``cleanup`` archive them moments later, and a caller assembling the record afterward
+        would find them gone.  Failure is logged and ignored -- a completed build is not failed
+        over its own summary.
+        """
+        from ..core.run_record import system_facts
+        try:
+            self.system_facts = system_facts(self.get_current_artifact('state'))
+        except Exception as e:
+            logger.warning(f'could not capture system facts for the run record: {e}')
+            self.system_facts = {}
+
 
     def write_chainmaps(self):
         """

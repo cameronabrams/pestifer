@@ -22,6 +22,7 @@ from ..cli.subcommand import Subcommand
 from ..util.stringthings import __pestifer_version__
 from ..util.provenance import log_environment
 from ..util.citations import log_citations
+from ..core.run_record import build_run_record, write_run_record
 from ..util.util import hmsf
 
 #: Extensions that only ever name an *input* to a build.  A config value ending in one of
@@ -253,7 +254,7 @@ class RunSubcommand(Subcommand):
                         **kwargs).configure_new()
         # Record the whole toolchain before anything runs, so this build's log is self-describing
         # and its results never have to have their environment reconstructed after the fact.
-        log_environment(config)
+        config.environment_report = log_environment(config)
         C = Controller().configure(config)
         C.restart = getattr(args, 'restart', False)
         C.fresh = getattr(args, 'fresh', False)
@@ -274,7 +275,17 @@ class RunSubcommand(Subcommand):
         # there are results: an aborted build has nothing to cite, and printing 'please cite'
         # under a stack of task failures reads as though it had succeeded.
         if not C.exit_code:
-            log_citations(config)
+            cites = log_citations(config)
+            # One machine-readable record of what this build actually did, for a Methods draft,
+            # a replica comparison, or a summary table.  Written only for a build that finished:
+            # a record of an aborted run would describe a system that does not exist.
+            write_run_record(build_run_record(
+                config, C.tasks,
+                environment=getattr(config, 'environment_report', None),
+                citations={'entries': [
+                    {'subject': c.subject, 'text': c.text, 'doi': c.doi,
+                     'reason': c.reason, 'key': c.key}
+                    for c in (cites or [])]}))
         if args.output_dir != './':
             os.chdir(exec_dir)
         return C
