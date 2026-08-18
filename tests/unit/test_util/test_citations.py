@@ -4,6 +4,7 @@
 No toolchain needed: the predicates read a config dict, so the tests hand them one.
 """
 
+import os
 import unittest
 from unittest import mock
 
@@ -118,6 +119,23 @@ class TestRendering(unittest.TestCase):
         self.assertEqual(_subjects({}), [c.subject for c in citations.ALWAYS] + ['NAMD 3'])
 
 
+class _FakeStructureFile:
+    """Stand-in for ``citations._structure_file``: callable, and a reusable context manager
+    yielding a fixed path (or None)."""
+
+    def __init__(self, value):
+        self.value = value
+
+    def __call__(self, _source_id):
+        return self
+
+    def __enter__(self):
+        return self.value
+
+    def __exit__(self, *exc):
+        return False
+
+
 class _FakeCid:
     def __init__(self, doi=None, pmid=None):
         self.doi, self.pmid = doi, pmid
@@ -176,8 +194,8 @@ class TestStructureCitations(unittest.TestCase):
     def test_resolved_identifiers_are_reported(self):
         with mock.patch.object(citations, '_pidibble_import',
                                         return_value=type('P', (), {'citation_ids': 1})), \
-             mock.patch.object(citations, '_local_structure_file',
-                                        return_value='6pti.pdb'), \
+             mock.patch.object(citations, '_structure_file',
+                                        new=_FakeStructureFile('6pti.pdb')), \
              mock.patch.object(citations, '_pidibble_citation_ids',
                                         return_value=[_FakeCid('10.1/x', 12345)]):
             cites, notes = citations.structure_citations(self._cfg_one())
@@ -187,26 +205,26 @@ class TestStructureCitations(unittest.TestCase):
     def test_unreadable_file_and_absent_citation_are_different_notes(self):
         api = type('P', (), {'citation_ids': 1})
         with mock.patch.object(citations, '_pidibble_import', return_value=api), \
-             mock.patch.object(citations, '_local_structure_file',
-                                        return_value='6pti.pdb'), \
+             mock.patch.object(citations, '_structure_file',
+                                        new=_FakeStructureFile('6pti.pdb')), \
              mock.patch.object(citations, '_pidibble_citation_ids', return_value=None):
             _, unreadable = citations.structure_citations(self._cfg_one())
         with mock.patch.object(citations, '_pidibble_import', return_value=api), \
-             mock.patch.object(citations, '_local_structure_file',
-                                        return_value='6pti.pdb'), \
+             mock.patch.object(citations, '_structure_file',
+                                        new=_FakeStructureFile('6pti.pdb')), \
              mock.patch.object(citations, '_pidibble_citation_ids', return_value=[]):
             _, none_listed = citations.structure_citations(self._cfg_one())
         self.assertIn('could not be read', unreadable[0])
         self.assertIn('lists no citation', none_listed[0])
         self.assertNotEqual(unreadable, none_listed)
 
-    def test_missing_downloaded_file_is_noted(self):
+    def test_missing_structure_file_is_noted(self):
         api = type('P', (), {'citation_ids': 1})
         with mock.patch.object(citations, '_pidibble_import', return_value=api), \
-             mock.patch.object(citations, '_local_structure_file', return_value=None):
+             mock.patch.object(citations, '_structure_file', new=_FakeStructureFile(None)):
             cites, notes = citations.structure_citations(self._cfg_one())
         self.assertEqual(cites, [])
-        self.assertIn('no downloaded structure file', notes[0])
+        self.assertIn('neither in the working directory nor in a', notes[0])
 
     def test_noncitable_source_explained_not_dropped(self):
         cfg = _cfg(tasks=[{'fetch': {'sourceID': 'P22033', 'source': 'alphafold'}}])
@@ -216,3 +234,75 @@ class TestStructureCitations(unittest.TestCase):
 
     def test_no_sources_means_no_notes(self):
         self.assertEqual(citations.structure_citations(_cfg()), ([], []))
+
+
+class TestStructureFileLookup(unittest.TestCase):
+    """Where the report finds the structure file it reads identifiers from.
+
+    The ``terminate`` task sweeps every intermediate -- fetched structures included -- into
+    ``<basename>-artifacts.tar.gz``, and the citation report runs after the run, so by the time
+    it looks the originals are usually gone.  Reading the archive is not a nicety; without it the
+    coordinate half of the report is empty for every build that ran to completion.
+    """
+
+    def setUp(self):
+        import tempfile, os
+        self._cwd = os.getcwd()
+        self._tmp = tempfile.TemporaryDirectory()
+        os.chdir(self._tmp.name)
+
+    def tearDown(self):
+        import os
+        os.chdir(self._cwd)
+        self._tmp.cleanup()
+
+    @staticmethod
+    def _write_tarball(name, member):
+        import tarfile, os
+        os.makedirs('stage', exist_ok=True)
+        with open(os.path.join('stage', os.path.basename(member)), 'w') as f:
+            f.write('HEADER    TEST\n')
+        with tarfile.open(name, 'w:gz') as tf:
+            tf.add(os.path.join('stage', os.path.basename(member)), arcname=member)
+
+    def test_prefers_a_file_still_in_the_working_directory(self):
+        with open('6pti.pdb', 'w') as f:
+            f.write('HEADER\n')
+        with citations._structure_file('6pti') as path:
+            self.assertEqual(path, '6pti.pdb')
+
+    def test_falls_back_to_the_artifacts_archive(self):
+        self._write_tarball('demo-artifacts.tar.gz', 'demo-artifacts/6pti.pdb')
+        with citations._structure_file('6pti') as path:
+            self.assertIsNotNone(path)
+            self.assertTrue(path.endswith('6pti.pdb'))
+            self.assertTrue(os.path.exists(path))
+
+    def test_extracted_file_is_cleaned_up(self):
+        self._write_tarball('demo-artifacts.tar.gz', 'demo-artifacts/6pti.pdb')
+        with citations._structure_file('6pti') as path:
+            extracted = path
+        self.assertFalse(os.path.exists(extracted))
+
+    def test_case_insensitive_match_in_the_archive(self):
+        self._write_tarball('demo-artifacts.tar.gz', 'demo-artifacts/6PTI.pdb')
+        with citations._structure_file('6pti') as path:
+            self.assertIsNotNone(path)
+
+    def test_cif_preferred_over_pdb(self):
+        for name in ('6pti.pdb', '6pti.cif'):
+            with open(name, 'w') as f:
+                f.write('x\n')
+        with citations._structure_file('6pti') as path:
+            self.assertEqual(path, '6pti.cif')
+
+    def test_absent_everywhere_yields_none(self):
+        with citations._structure_file('6pti') as path:
+            self.assertIsNone(path)
+
+    def test_note_mentions_both_places_searched(self):
+        api = type('P', (), {'citation_ids': 1})
+        cfg = _cfg(tasks=[{'fetch': {'sourceID': '6pti'}}])
+        with mock.patch.object(citations, '_pidibble_import', return_value=api):
+            _, notes = citations.structure_citations(cfg)
+        self.assertIn('artifacts.tar.gz', notes[0])

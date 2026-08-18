@@ -267,8 +267,11 @@ class RunSubcommand(Subcommand):
         for task in report.values():
             logger.info(f' - {name_format.format(task["taskname"])}: {hmsf(task["duration"])} ({task["duration_frac"]:>5.1%})')
         # Last thing the user sees: what this particular build owes credit to.  Placed after the
-        # run rather than before it so it sits beside the results it applies to.
-        log_citations(config)
+        # run rather than before it so it sits beside the results it applies to -- and only when
+        # there are results: an aborted build has nothing to cite, and printing 'please cite'
+        # under a stack of task failures reads as though it had succeeded.
+        if not C.exit_code:
+            log_citations(config)
         if args.output_dir != './':
             os.chdir(exec_dir)
         return C

@@ -13,6 +13,7 @@ pages are about how the pieces fit together for a particular job.
 
    exploring-the-config-schema
    file-naming-conventions
+   build-provenance
    importing-systems
    charmmff-customizations
    agent-driven-builds

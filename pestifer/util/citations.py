@@ -25,9 +25,12 @@ the pestifer paper; the PDB2PQR and PROPKA entries are the citations those packa
 declare (``pdb2pqr.config.CITATIONS`` and ``propka.__doc__``).
 """
 
+import contextlib
 import glob
 import logging
 import os
+import tarfile
+import tempfile
 from dataclasses import dataclass, field
 
 logger = logging.getLogger(__name__)
@@ -333,19 +336,73 @@ def _pidibble_citation_ids(path):
         return None
 
 
-def _local_structure_file(source_id):
-    """The downloaded file for ``source_id`` in the working directory, preferring mmCIF.
+def _candidate_names(source_id):
+    """Filenames the downloaded structure for ``source_id`` could have, mmCIF first.
 
     mmCIF preserves the real capitalization of titles and author names; the PDB format does not.
     We report identifiers rather than reference strings either way, but preferring the richer
     format costs nothing and leaves the door open.
     """
+    names = []
     for ext in ('.cif', '.mmcif', '.pdb'):
-        for candidate in glob.glob(f'{source_id}{ext}') + glob.glob(f'{source_id.upper()}{ext}') \
-                + glob.glob(f'{source_id.lower()}{ext}'):
-            if os.path.exists(candidate):
-                return candidate
+        for stem in (source_id, source_id.lower(), source_id.upper()):
+            if f'{stem}{ext}' not in names:
+                names.append(f'{stem}{ext}')
+    return names
+
+
+def _local_structure_file(source_id):
+    """The downloaded file for ``source_id`` in the working directory, or ``None``."""
+    for name in _candidate_names(source_id):
+        if os.path.exists(name):
+            return name
     return None
+
+
+def _archived_structure_member(source_id):
+    """``(tarball, member)`` for ``source_id`` inside a run's artifacts archive, or ``None``.
+
+    The ``terminate`` task tidies the run directory by sweeping every intermediate -- the fetched
+    structures included -- into ``<basename>-artifacts.tar.gz``.  Since the citation report is
+    emitted after the run, the originals are typically gone by the time it looks, so it reads the
+    archive instead.  That is still the file the build used, and it needs no network.
+    """
+    wanted = {n.lower() for n in _candidate_names(source_id)}
+    for tarball in sorted(glob.glob('*-artifacts.tar.gz')):
+        try:
+            with tarfile.open(tarball) as tf:
+                for member in tf.getnames():
+                    if os.path.basename(member).lower() in wanted:
+                        return tarball, member
+        except Exception as e:
+            logger.debug(f'could not inspect {tarball}: {e}')
+    return None
+
+
+@contextlib.contextmanager
+def _structure_file(source_id):
+    """Yield a readable path to ``source_id``'s structure file, or ``None``.
+
+    Prefers a file still in the working directory; falls back to extracting it from the run's
+    artifacts archive into a temporary directory that is cleaned up on exit.
+    """
+    path = _local_structure_file(source_id)
+    if path is not None:
+        yield path
+        return
+    found = _archived_structure_member(source_id)
+    if found is None:
+        yield None
+        return
+    tarball, member = found
+    with tempfile.TemporaryDirectory() as td:
+        try:
+            with tarfile.open(tarball) as tf:
+                tf.extract(member, path=td, filter='data')
+            yield os.path.join(td, member)
+        except Exception as e:
+            logger.debug(f'could not extract {member} from {tarball}: {e}')
+            yield None
 
 
 def structure_citations(config):
@@ -378,15 +435,16 @@ def structure_citations(config):
         return cites, notes
 
     for s in citable:
-        path = _local_structure_file(s.id)
-        if path is None:
-            notes.append(f'{s.id.upper()}: no downloaded structure file found in the working '
-                         f'directory, so its citation could not be read')
-            continue
-        ids = _pidibble_citation_ids(path)
+        with _structure_file(s.id) as path:
+            if path is None:
+                notes.append(f'{s.id.upper()}: its structure file is neither in the working '
+                             f'directory nor in a *-artifacts.tar.gz here, so its citation '
+                             f'could not be read')
+                continue
+            ids = _pidibble_citation_ids(path)
         if ids is None:
-            notes.append(f'{s.id.upper()}: {os.path.basename(path)} could not be read for '
-                         f'citations (see the debug log)')
+            notes.append(f'{s.id.upper()}: the structure file could not be read for citations '
+                         f'(see the debug log)')
             continue
         if not ids:
             notes.append(f'{s.id.upper()}: the structure file lists no citation identifier')

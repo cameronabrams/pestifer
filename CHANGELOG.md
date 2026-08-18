@@ -4,6 +4,29 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **The citation report is no longer printed for a build that failed, and it can still find
+  its structure files after `terminate` has run.** Two defects that only a real end-to-end build
+  surfaced. The report was emitted unconditionally, so an aborted build printed "please cite"
+  under a stack of task failures, as though it had produced something; it is now gated on the
+  controller's exit code. And because the report runs after the run, while `terminate` sweeps
+  every intermediate -- the fetched structures included -- into `<basename>-artifacts.tar.gz`, the
+  coordinate half found nothing for every build that ran to completion. It now reads the structure
+  out of that archive when it is no longer loose in the working directory, which is still the file
+  the build used and still needs no network.
+
+- fix: **A version probe that fails now says so.** The probe timeout was 30 s, and `vmd --version`
+  performs a full VMD startup -- plugin registration and GPU detection included -- so on a loaded
+  machine it could exceed that and be recorded as `unknown` with no explanation, which is
+  indistinguishable from a missing program. The bound is now generous, and a probe that times out
+  or errors logs a warning naming the program, so an `unknown` in a provenance record is always
+  accounted for.
+
+- docs: **New guide, "What a build records: environment and citations"**, documenting both blocks:
+  what the environment record captures and why each part is there, the full table of which
+  citations are unconditional and which the config triggers, how coordinate citations are resolved
+  and why they are reported as DOI/PMID rather than reference strings, and what the report cannot
+  know from a config alone.
+
 - feat: **Every build now reports the citations it owes.** Pestifer is an orchestrator: the
   science in a prepared system belongs to NAMD, VMD, psfgen and the CHARMM force field, and --
   depending on what the input asked for -- to CGenFF, to the lipid or carbohydrate parameter

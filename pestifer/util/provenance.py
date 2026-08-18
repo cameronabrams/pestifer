@@ -27,8 +27,13 @@ from .stringthings import __pestifer_version__
 
 logger = logging.getLogger(__name__)
 
-_PROBE_TIMEOUT = 30
-"""Seconds any single version probe may take before it is abandoned as ``unknown``."""
+_PROBE_TIMEOUT = 120
+"""Seconds any single version probe may take before it is abandoned as ``unknown``.
+
+Generous on purpose.  ``vmd --version`` still performs a full startup -- plugin registration and
+GPU detection included -- so on a loaded machine or a cold cache it can take far longer than the
+work suggests.  A tight timeout here does not save meaningful time; it just silently degrades the
+provenance record, which is the one thing this module exists to prevent."""
 
 _UNKNOWN = 'unknown'
 
@@ -43,8 +48,14 @@ def _run(cmd, cwd=None):
         p = subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                            timeout=_PROBE_TIMEOUT, text=True, errors='replace')
         return p.stdout or ''
+    except subprocess.TimeoutExpired:
+        # Warn, not debug: the record the user keeps beside their results is now incomplete, and
+        # an 'unknown' with no explanation is indistinguishable from a missing program.
+        logger.warning(f'version probe {cmd[0]!r} timed out after {_PROBE_TIMEOUT}s; '
+                       f'it will be recorded as unknown')
+        return ''
     except Exception as e:
-        logger.debug(f'version probe {cmd!r} failed: {e}')
+        logger.warning(f'version probe {cmd[0]!r} failed ({e}); it will be recorded as unknown')
         return ''
 
 

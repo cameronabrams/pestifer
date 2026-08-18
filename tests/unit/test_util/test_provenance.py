@@ -129,3 +129,26 @@ class TestLogEnvironment(unittest.TestCase):
 
     def test_charmmff_release_degrades_to_unknown(self):
         self.assertEqual(provenance.charmmff_release(SimpleNamespace()), 'unknown')
+
+
+class TestProbeFailureIsVisible(unittest.TestCase):
+    """An 'unknown' in the record must be explained, not silent: a provenance record that
+    degrades without saying so is the failure mode this module exists to prevent."""
+
+    def test_timeout_warns(self):
+        import subprocess
+        with mock.patch.object(provenance.subprocess, 'run',
+                               side_effect=subprocess.TimeoutExpired('vmd', 1)):
+            with self.assertLogs('pestifer.util.provenance', level='WARNING') as cm:
+                self.assertEqual(provenance._run(['vmd', '--version']), '')
+        self.assertIn('timed out', ''.join(cm.output))
+
+    def test_other_failure_warns(self):
+        with mock.patch.object(provenance.subprocess, 'run', side_effect=OSError('boom')):
+            with self.assertLogs('pestifer.util.provenance', level='WARNING') as cm:
+                self.assertEqual(provenance._run(['vmd', '--version']), '')
+        self.assertIn('recorded as unknown', ''.join(cm.output))
+
+    def test_timeout_is_generous_enough_for_a_vmd_startup(self):
+        # vmd --version performs a full startup; a tight bound silently degrades the record
+        self.assertGreaterEqual(provenance._PROBE_TIMEOUT, 60)
