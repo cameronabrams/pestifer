@@ -5,6 +5,7 @@ No toolchain needed: the predicates read a config dict, so the tests hand them o
 """
 
 import unittest
+from unittest import mock
 
 from pestifer.util import citations
 from pestifer.util.citations import citations_for, log_citations
@@ -115,3 +116,103 @@ class TestRendering(unittest.TestCase):
 
     def test_unreadable_config_yields_only_unconditional(self):
         self.assertEqual(_subjects({}), [c.subject for c in citations.ALWAYS] + ['NAMD 3'])
+
+
+class _FakeCid:
+    def __init__(self, doi=None, pmid=None):
+        self.doi, self.pmid = doi, pmid
+
+
+class TestStructureSources(unittest.TestCase):
+
+    def test_fetch_task_is_the_starting_structure(self):
+        src = citations.structure_sources(_cfg(tasks=[{'fetch': {'sourceID': '6pti',
+                                                                 'source': 'rcsb'}}]))
+        self.assertEqual([(s.id, s.origin, s.citable) for s in src], [('6pti', 'rcsb', True)])
+
+    def test_alphafold_model_is_not_citable(self):
+        src = citations.structure_sources(_cfg(tasks=[{'fetch': {'sourceID': 'P22033',
+                                                                 'source': 'alphafold'}}]))
+        self.assertFalse(src[0].citable)
+
+    def test_graft_donors_are_collected(self):
+        cfg = _cfg(tasks=[{'psfgen': {'mods': {'grafts': ['A_1304:4b7i,C_1-8',
+                                                          'B_1310:2wah,C_1-6']}}}])
+        self.assertEqual(sorted(s.id for s in citations.structure_sources(cfg)), ['2wah', '4b7i'])
+
+    def test_fusion_donors_are_collected(self):
+        cfg = _cfg(tasks=[{'psfgen': {'mods': {'Cfusions': ['1ema:A:2-229,A']}}}])
+        self.assertEqual([s.id for s in citations.structure_sources(cfg)], ['1ema'])
+
+    def test_repeated_donor_reported_once(self):
+        cfg = _cfg(tasks=[{'fetch': {'sourceID': '7xix'}},
+                          {'psfgen': {'mods': {'grafts': ['A_1:4b7i,C_1-8',
+                                                          'B_1:4b7i,C_1-8',
+                                                          'C_1:4B7I,C_1-8']}}}])
+        self.assertEqual([s.id for s in citations.structure_sources(cfg)], ['7xix', '4b7i'])
+
+    def test_local_donor_file_is_not_citable(self):
+        # a graft from a file the user made has no deposited paper behind it
+        cfg = _cfg(tasks=[{'psfgen': {'mods': {'grafts': ['A_1:mydonor,C_1-8']}}}])
+        self.assertFalse(citations.structure_sources(cfg)[0].citable)
+
+    def test_unparsable_shortcode_is_skipped_not_fatal(self):
+        cfg = _cfg(tasks=[{'psfgen': {'mods': {'grafts': ['total nonsense']}}}])
+        self.assertEqual(citations.structure_sources(cfg), [])
+
+
+class TestStructureCitations(unittest.TestCase):
+
+    _cfg_one = staticmethod(lambda: _cfg(tasks=[{'fetch': {'sourceID': '6pti'}}]))
+
+    def test_named_but_unresolved_without_pidibble_support(self):
+        # an old pidibble must not make the report silently drop structures
+        with mock.patch.object(citations, '_pidibble_import', return_value=object):
+            cites, notes = citations.structure_citations(self._cfg_one())
+        self.assertEqual([c.subject for c in cites], ['PDB 6PTI'])
+        self.assertIn('unresolved', cites[0].text)
+        self.assertTrue(any('1.10.0' in n for n in notes))
+
+    def test_resolved_identifiers_are_reported(self):
+        with mock.patch.object(citations, '_pidibble_import',
+                                        return_value=type('P', (), {'citation_ids': 1})), \
+             mock.patch.object(citations, '_local_structure_file',
+                                        return_value='6pti.pdb'), \
+             mock.patch.object(citations, '_pidibble_citation_ids',
+                                        return_value=[_FakeCid('10.1/x', 12345)]):
+            cites, notes = citations.structure_citations(self._cfg_one())
+        self.assertEqual(cites[0].text, 'doi:10.1/x pmid:12345')
+        self.assertEqual(notes, [])
+
+    def test_unreadable_file_and_absent_citation_are_different_notes(self):
+        api = type('P', (), {'citation_ids': 1})
+        with mock.patch.object(citations, '_pidibble_import', return_value=api), \
+             mock.patch.object(citations, '_local_structure_file',
+                                        return_value='6pti.pdb'), \
+             mock.patch.object(citations, '_pidibble_citation_ids', return_value=None):
+            _, unreadable = citations.structure_citations(self._cfg_one())
+        with mock.patch.object(citations, '_pidibble_import', return_value=api), \
+             mock.patch.object(citations, '_local_structure_file',
+                                        return_value='6pti.pdb'), \
+             mock.patch.object(citations, '_pidibble_citation_ids', return_value=[]):
+            _, none_listed = citations.structure_citations(self._cfg_one())
+        self.assertIn('could not be read', unreadable[0])
+        self.assertIn('lists no citation', none_listed[0])
+        self.assertNotEqual(unreadable, none_listed)
+
+    def test_missing_downloaded_file_is_noted(self):
+        api = type('P', (), {'citation_ids': 1})
+        with mock.patch.object(citations, '_pidibble_import', return_value=api), \
+             mock.patch.object(citations, '_local_structure_file', return_value=None):
+            cites, notes = citations.structure_citations(self._cfg_one())
+        self.assertEqual(cites, [])
+        self.assertIn('no downloaded structure file', notes[0])
+
+    def test_noncitable_source_explained_not_dropped(self):
+        cfg = _cfg(tasks=[{'fetch': {'sourceID': 'P22033', 'source': 'alphafold'}}])
+        cites, notes = citations.structure_citations(cfg)
+        self.assertEqual(cites, [])
+        self.assertTrue(any('no deposited citation' in n for n in notes))
+
+    def test_no_sources_means_no_notes(self):
+        self.assertEqual(citations.structure_citations(_cfg()), ([], []))

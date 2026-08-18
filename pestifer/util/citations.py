@@ -12,14 +12,23 @@ Every conditional citation carries the reason it applies, so the report is a der
 than a list to be taken on faith.  Nothing here inspects the built system: the config is the
 input the user wrote, and the citations follow from it.
 
+Coordinates are cited too.  A build that starts from a PDB entry, grafts glycans from another,
+or fuses a domain from a third owes the experimental papers behind all three, and only the config
+knows which they were.  Those citations are resolved from the structure files the build already
+downloaded -- no network call is made on their account -- and are reported as DOI and PMID rather
+than as reconstructed reference strings, because the PDB format stores author names and titles in
+upper case and the original capitalization is not recoverable from them (``A.B.MCDERMOTT`` cannot
+be turned back into ``McDermott, A.B.``).  An identifier cannot be subtly wrong in that way.
+
 Sources for the reference strings: the CHARMM/NAMD/VMD/psfgen entries match the bibliography of
 the pestifer paper; the PDB2PQR and PROPKA entries are the citations those packages themselves
 declare (``pdb2pqr.config.CITATIONS`` and ``propka.__doc__``).
 """
 
+import glob
 import logging
+import os
 from dataclasses import dataclass, field
-from typing import Callable, Optional
 
 logger = logging.getLogger(__name__)
 
@@ -213,6 +222,196 @@ def citations_for(config):
     return out
 
 
+# --- coordinate sources ----------------------------------------------------------------------
+
+_PIDIBBLE_CITATIONS_MIN = '1.10.0'
+"""First pidibble release exposing ``PDBParser.citation_ids()``; below it, structures cannot be
+cited and the report says so rather than quietly omitting them."""
+
+
+@dataclass(frozen=True)
+class StructureSource:
+    """A set of coordinates a build took as input, and the role it played."""
+    id: str
+    origin: str
+    role: str
+
+    @property
+    def citable(self):
+        """Whether an experimental paper can be expected behind these coordinates.
+
+        AlphaFold models and files the user supplied locally have no deposited citation of their
+        own, so claiming one would be wrong.
+        """
+        return self.origin == 'rcsb'
+
+
+def _looks_like_pdb_id(token):
+    """PDB IDs are four characters beginning with a digit; anything else names a local file."""
+    return len(token) == 4 and token[0].isdigit() and token.isalnum()
+
+
+def structure_sources(config):
+    """Every set of input coordinates this config names, deduplicated, in first-seen order.
+
+    Covers the three places coordinates enter a build: the ``fetch`` task, graft donors, and
+    C-terminal fusion donors.  Grafts and fusions are parsed with pestifer's own shortcode
+    parsers rather than by splitting strings here, so this cannot drift from the syntax the
+    build itself accepts.
+    """
+    from ..objs.graft import Graft
+    from ..objs.cfusion import Cfusion
+
+    found, seen = [], set()
+
+    def add(token, origin, role):
+        token = str(token or '').strip()
+        if not token or token.lower() in seen:
+            return
+        seen.add(token.lower())
+        found.append(StructureSource(token, origin, role))
+
+    try:
+        tasks = config['user'].get('tasks') or []
+    except Exception:
+        return found
+
+    for entry in tasks:
+        if not isinstance(entry, dict):
+            continue
+        for name, spec in entry.items():
+            if not isinstance(spec, dict):
+                continue
+            if name == 'fetch':
+                add(spec.get('sourceID'), str(spec.get('source', 'rcsb') or 'rcsb'),
+                    'the structure this build starts from')
+            elif name == 'psfgen':
+                mods = spec.get('mods') or {}
+                for shortcode in (mods.get('grafts') or []):
+                    try:
+                        pdbid = Graft._from_shortcode(str(shortcode))['source_pdbid']
+                    except Exception as e:
+                        logger.debug(f'could not read graft source from {shortcode!r}: {e}')
+                        continue
+                    add(pdbid, 'rcsb' if _looks_like_pdb_id(pdbid) else 'local',
+                        'coordinates were grafted from it')
+                for shortcode in (mods.get('Cfusions') or []):
+                    try:
+                        srcfile = Cfusion._from_shortcode(str(shortcode))['sourcefile']
+                    except Exception as e:
+                        logger.debug(f'could not read fusion source from {shortcode!r}: {e}')
+                        continue
+                    add(srcfile, 'rcsb' if _looks_like_pdb_id(srcfile) else 'local',
+                        'a domain was fused from it')
+    return found
+
+
+def _pidibble_citation_ids(path):
+    """DOI/PMID for every citation in the structure file at ``path``, or ``None`` if unavailable.
+
+    Reads the file the build already downloaded rather than re-fetching it: the citation belongs
+    to the coordinates that were actually used, and a citation report is no reason to put a
+    network call in a build.  ``None`` distinguishes "pidibble cannot do this" from "this entry
+    lists no citation".
+    """
+    try:
+        from pidibble.pdbparse import PDBParser
+    except Exception as e:
+        logger.debug(f'pidibble unavailable: {e}')
+        return None
+    if not hasattr(PDBParser, 'citation_ids'):
+        return None
+    try:
+        parser = PDBParser(filepath=path).parse()
+    except Exception as e:
+        logger.debug(f'could not parse {path} for citations: {e}')
+        return None
+    try:
+        return list(parser.citation_ids(role='primary'))
+    except Exception as e:
+        logger.debug(f'could not read citations from {path}: {e}')
+        return None
+
+
+def _local_structure_file(source_id):
+    """The downloaded file for ``source_id`` in the working directory, preferring mmCIF.
+
+    mmCIF preserves the real capitalization of titles and author names; the PDB format does not.
+    We report identifiers rather than reference strings either way, but preferring the richer
+    format costs nothing and leaves the door open.
+    """
+    for ext in ('.cif', '.mmcif', '.pdb'):
+        for candidate in glob.glob(f'{source_id}{ext}') + glob.glob(f'{source_id.upper()}{ext}') \
+                + glob.glob(f'{source_id.lower()}{ext}'):
+            if os.path.exists(candidate):
+                return candidate
+    return None
+
+
+def structure_citations(config):
+    """Citations owed to the input coordinates, plus a note when they cannot be produced.
+
+    Returns ``(citations, notes)``.  A note rather than a silent omission is the point: a report
+    that claims to be complete must say when it is not.
+    """
+    cites, notes = [], []
+    sources = structure_sources(config)
+    if not sources:
+        return cites, notes
+
+    citable = [s for s in sources if s.citable]
+    for s in (s for s in sources if not s.citable):
+        notes.append(f'{s.id} ({s.origin}) has no deposited citation of its own '
+                     f'-- {s.role}')
+    if not citable:
+        return cites, notes
+
+    if not hasattr(_pidibble_import(), 'citation_ids'):
+        # Name the entries anyway.  Knowing *which* structures a build owes citations to is
+        # most of the value, and silently dropping them would make the report claim a
+        # completeness it does not have.
+        notes.append(f'structure citations need pidibble >= {_PIDIBBLE_CITATIONS_MIN}; the '
+                     f'installed version cannot resolve them, so the entries below are named '
+                     f'but unresolved -- look them up at rcsb.org')
+        for s in citable:
+            cites.append(Citation(f'PDB {s.id.upper()}', '(citation unresolved)', reason=s.role))
+        return cites, notes
+
+    for s in citable:
+        path = _local_structure_file(s.id)
+        if path is None:
+            notes.append(f'{s.id.upper()}: no downloaded structure file found in the working '
+                         f'directory, so its citation could not be read')
+            continue
+        ids = _pidibble_citation_ids(path)
+        if ids is None:
+            notes.append(f'{s.id.upper()}: {os.path.basename(path)} could not be read for '
+                         f'citations (see the debug log)')
+            continue
+        if not ids:
+            notes.append(f'{s.id.upper()}: the structure file lists no citation identifier')
+            continue
+        for cid in ids:
+            bits = []
+            if getattr(cid, 'doi', None):
+                bits.append(f'doi:{cid.doi}')
+            if getattr(cid, 'pmid', None):
+                bits.append(f'pmid:{cid.pmid}')
+            cites.append(Citation(f'PDB {s.id.upper()}',
+                                  ' '.join(bits) or '(no identifier)',
+                                  reason=s.role))
+    return cites, notes
+
+
+def _pidibble_import():
+    """The PDBParser class, or a stand-in with no citation API, for capability checks."""
+    try:
+        from pidibble.pdbparse import PDBParser
+        return PDBParser
+    except Exception:
+        return object
+
+
 def _because(citation, reason):
     """Copy of ``citation`` carrying the reason it applies to this build."""
     return Citation(citation.subject, citation.text, citation.doi, reason)
@@ -237,8 +436,17 @@ def log_citations(config, log=None):
         log(f'citations: {c.render()}')
         if c.reason:
             log(f'citations:     ^ included because {c.reason}')
-    log('citations: This list is derived from your input config, so it covers what you asked')
-    log('citations: for.  A structure that already carries glycans, nucleic acids or ligands')
-    log('citations: may owe further CHARMM parameter-set citations; see the force-field files.')
+    struct, notes = structure_citations(config)
+    if struct or notes:
+        log('citations: --- and the coordinates this build was given ---')
+    for c in struct:
+        log(f'citations: {c.render()}')
+        if c.reason:
+            log(f'citations:     ^ {c.reason}')
+    for n in notes:
+        log(f'citations: note: {n}')
+    log('citations: Software citations are derived from your input config, so they cover what')
+    log('citations: you asked for.  A structure that already carries glycans, nucleic acids or')
+    log('citations: ligands may owe further CHARMM parameter-set citations.')
     log('citations: ------------------------')
-    return cites
+    return cites + struct

@@ -19,6 +19,21 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   system, it closes by noting that a structure which already carries glycans, nucleic acids or
   ligands may owe further parameter-set citations.
 
+- feat: **Input coordinates are cited too.** A build that starts from one PDB entry, grafts
+  glycans from a second and fuses a domain from a third owes the experimental papers behind all
+  three, and only the config knows which they were. The citation report now also lists every set
+  of coordinates the build was given -- the `fetch` task, graft donors, and C-fusion donors, read
+  through pestifer's own shortcode parsers so they cannot drift from the syntax builds accept --
+  each with the role it played. Identifiers are read from the structure files the build already
+  downloaded, so no network call is made on their account, and they are reported as DOI and PMID
+  rather than as reconstructed reference strings: the PDB format stores author names and titles
+  in upper case, and `A.B.MCDERMOTT` cannot be turned back into `McDermott, A.B.`, whereas an
+  identifier cannot be subtly wrong in that way. AlphaFold models and local donor files are named
+  but flagged as having no deposited citation, rather than dropped. Resolving identifiers
+  requires `pidibble` >= 1.10.0; with an older pidibble the structures are still named, with a
+  note saying why they are unresolved, because a report that claims completeness must say when it
+  does not have it.
+
 - feat: **Every build now records its own environment.** A pestifer build is a chain of external
   programs -- VMD, psfgen, NAMD -- driven by a Python process against a particular CHARMM release,
   and the log recorded only the last of those. Reproducing a result therefore meant reconstructing
