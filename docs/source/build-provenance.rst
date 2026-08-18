@@ -235,13 +235,36 @@ build would correlate them.
     namd:
       seed: 27021972        # the default; set 0 to restore NAMD's clock-derived behavior
 
-Two runs of one config now agree exactly:
+Two runs of one config now draw the same seed:
 
 .. code-block:: console
 
     $ grep 'RANDOM NUMBER SEED' run-a/*.log run-b/*.log
     run-a: Info: RANDOM NUMBER SEED     714205816
     run-b: Info: RANDOM NUMBER SEED     714205816
+
+.. warning::
+
+   **This makes the stochastic inputs reproducible; it does not make the trajectory
+   reproducible.**  A parallel NAMD run is not bitwise reproducible even with the seed pinned.
+   Force contributions are accumulated in an order that depends on message arrival and on the
+   measurement-based load balancer's decisions, and floating-point addition is not associative,
+   so the low bits of a force sum differ between runs.  In chaotic dynamics those differences
+   grow.
+
+   Measured on this codebase: two builds of one config, same pinned seed, 24 PEs, compared after
+   20 minimization steps — **not one of 1108 atoms had identical coordinates**, with a maximum
+   deviation of 3.2e-12 Å (relative 1.1e-13, i.e. accumulated double-precision rounding).  Over a
+   full trajectory that separation grows to macroscopic.
+
+   What the seed buys is real and worth stating precisely: the *specification* is complete, the
+   *build* is deterministic, and the *stochastic inputs* are pinned — which is what makes a
+   replica set well-defined and re-derivable rather than accidental.  Replicate simulations are
+   scientifically meaningful precisely **because** trajectories are not reproducible; the seed
+   makes each replica labeled instead of anonymous.
+
+   Pinning the decomposition (``ldBalancer none``) would remove one source of variation but not
+   the others, and pestifer does not set it.
 
 **Replicas are the same config with a different seed.**  Use ``--seed`` rather than editing the
 YAML, so one input file describes every replica:

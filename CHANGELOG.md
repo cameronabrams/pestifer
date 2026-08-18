@@ -4,6 +4,18 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- docs: **Corrected an overclaim about reproducibility introduced in 3.18.0.** The `namd.seed`
+  schema text and the build-provenance guide said that pinning the seed made "a build reproducible
+  as a whole" and that two runs of one config "agree exactly". That is wrong for a parallel run.
+  Pinning the seed fixes the *stochastic inputs* -- velocity assignment and the Langevin streams --
+  not the trajectory: NAMD accumulates force contributions in an order that depends on message
+  arrival and on load-balancer decisions, floating-point addition is not associative, and in
+  chaotic dynamics the resulting last-bit differences grow. Measured here: two builds of one
+  config with the same pinned seed on 24 PEs, compared after 20 minimization steps, had **no** atom
+  in common out of 1108, with a maximum deviation of 3.2e-12 A. The claim is now stated as what it
+  is -- a complete specification, a deterministic build, and pinned stochastic inputs, which is
+  what makes a replica set well-defined and re-derivable rather than accidental.
+
 ## [3.18.0] - 2026-08-18
 
 - build: **`pidibble` floor raised to 1.11.0**, which gives mmCIF `SSBOND` records the integer
