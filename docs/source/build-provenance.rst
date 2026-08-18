@@ -187,6 +187,39 @@ entry and protonates it with ``pdb2pqr``:
 The PDB2PQR and PROPKA reference strings are the citations those packages declare for themselves;
 the rest match the bibliography of the pestifer paper.
 
+The run record
+--------------
+
+Both blocks above are prose in a log.  A completed build also writes **``run-record.json``**: the
+same facts, plus what the build actually did, in machine-readable form.
+
+.. code-block:: json
+
+   {
+     "run_record_version": 1,
+     "pestifer_version": "3.18.0",
+     "seed": 27021972,
+     "environment": {"charmmff": "feb26", "executables": {}, "packages": {}},
+     "citations": {"entries": []},
+     "system": {"atoms": 14130, "total_charge": 0.0, "box": {"a": 55.97, "b": 49.4, "c": 50.02}},
+     "protocol": [
+       {"index": 3, "task": "md", "ensemble": "minimize", "steps": 100},
+       {"index": 7, "task": "density_equilibrate", "ensemble": "npt", "steps": 82210,
+        "adaptive": true, "converged": true, "stopped_because": "CONVERGED: drift below tol"}
+     ]
+   }
+
+``environment`` and ``citations`` hold the two blocks above as data rather than as log lines.
+
+The ``protocol`` entries are reported by the tasks themselves as they finish, not derived from
+your config — and that is the whole point.  ``density_equilibrate`` and ``membrane_equilibrate``
+run until their convergence criterion is met, so **their step counts are decided at run time and
+appear nowhere in your input file**.  Anything that describes a build — a Methods paragraph, a
+comparison across replicas, a summary table — needs what happened, not what was requested.
+
+:ref:`pestifer report-methods <subs_report_methods>` turns one or more of these records into a
+drafted Methods section and bibliography.  An aborted build writes no record.
+
 Reproducibility and replicas: the NAMD seed
 -------------------------------------------
 

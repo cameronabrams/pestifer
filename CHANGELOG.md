@@ -4,6 +4,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- build: **`pidibble` floor raised to 1.11.0**, which gives mmCIF `SSBOND` records the integer
+  `serNum` the PDB spec declares rather than the `struct_conn` label (`'disulf1'`). `objs.ssbond`
+  had been undoing that label by hand; both its branches now read the field directly.
+
+- docs: **`report-methods` and the run record are documented for users**, not just in the design
+  notes: a new subcommand page covering where the facts come from and why they cannot come from
+  your config, how replicas are merged, what the draft will not claim, why coordinate citations
+  carry a DOI and nothing else, and how to `\input` the fragment; plus a run-record section in the
+  build-provenance guide.
+
 - feat: **`pestifer report-methods` drafts a Methods section from what a build actually did.**
   The analogue of `gmx report-methods`, with more to say, because a pestifer build knows not only
   the final system but how it was produced. Reads the `run-record.json` that completed builds now

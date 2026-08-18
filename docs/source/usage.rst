@@ -49,6 +49,7 @@ Subcommands
    subs/show-resources
    subs/follow-namd-log
    subs/mdplot
+   subs/report-methods
    subs/modify-package
    subs/setup-vmd
    subs/setup-claude

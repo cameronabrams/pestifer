@@ -120,6 +120,9 @@ class SSBond(BaseObj):
             rec = args[0]
             # pidibble mmCIF SSBOND records carry both a label (`residue*`) and an
             # author (`residue*_auth`) identity; PDB records carry only `residue*`.
+            # `serNum` used to arrive from mmCIF as the struct_conn label ('disulf1') and had
+            # to be stripped back to an integer here; pidibble >= 1.11.0 generates the integer
+            # serial the PDB spec declares, so both branches now read it directly.
             if hasattr(rec, 'residue1_auth'):
                 # mmCIF: label numbering primary; author insertion code from *_auth.
                 return dict(
@@ -127,7 +130,7 @@ class SSBond(BaseObj):
                     resid1 = ResID(rec.residue1.seqNum, rec.residue1_auth.iCode),
                     chainID2 = str(rec.residue2.chainID),
                     resid2 = ResID(rec.residue2.seqNum, rec.residue2_auth.iCode),
-                    serial_number = int(str(rec.serNum).strip('disulf')),
+                    serial_number = rec.serNum,
                     resname1 = 'CYS',
                     resname2 = 'CYS',
                     sym1 = symmetry_str(rec.sym1),
