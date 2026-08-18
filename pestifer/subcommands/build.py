@@ -85,6 +85,7 @@ def _preflight(configname, args, **kwargs):
     try:
         config = Config(userfile=configname, ncpus_override=args.ncpus,
                         processor_type_override=('gpu' if getattr(args, 'gpu', False) else ''),
+                        seed_override=getattr(args, 'seed', None),
                         **kwargs).configure_new()
     except PestiferError as e:
         report['errors'].append(str(e))
@@ -179,6 +180,7 @@ class RunSubcommand(Subcommand):
         self.parser.add_argument('config', type=str, default=None, help='input configuration file in YAML format')
         self.parser.add_argument('--output-dir', type=str, default='./', help='name of output directory relative to CWD (default: %(default)s)')
         self.parser.add_argument('--gpu', default=False, action='store_true', help='force run on GPU')
+        self.parser.add_argument('--seed', type=int, default=None, help='base NAMD RNG seed; use a different value per replica (0 = let NAMD draw from the clock)')
         self.parser.add_argument('--ncpus', type=int, default=0, help='number of NAMD processing elements (0 = auto-detect)')
         self.parser.add_argument('--complete-config', default=False, action='store_true', help='write complete config file')
         self.parser.add_argument('--restart', default=False, action='store_true',
@@ -247,6 +249,7 @@ class RunSubcommand(Subcommand):
 
         config = Config(userfile=configname, ncpus_override=args.ncpus,
                         processor_type_override=('gpu' if getattr(args, 'gpu', False) else ''),
+                        seed_override=getattr(args, 'seed', None),
                         **kwargs).configure_new()
         # Record the whole toolchain before anything runs, so this build's log is self-describing
         # and its results never have to have their environment reconstructed after the fact.

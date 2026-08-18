@@ -9,6 +9,7 @@ updating artifacts, and handling the results of the simulation.
 """
 import glob
 import logging
+import zlib
 
 
 from .basetask import VMDTask
@@ -129,6 +130,24 @@ class MDTask(VMDTask):
             self.register(history.data, key='md_history', artifact_type=MDHistoryArtifact)
         logger.debug(f'{self.taskname}: MD history now holds {len(self.get_current_artifact("md_history").data)} run(s)')
 
+
+    def _namd_seed(self):
+        """This invocation's NAMD RNG seed, derived from the build-wide base seed.
+
+        NAMD's own default seed comes from the clock, so two runs of one config produced
+        different trajectories and neither could be reproduced.  Pestifer pins a base
+        (``namd.seed``) and gives each NAMD invocation its own stream derived from it, so the
+        build as a whole is reproducible while its individual runs stay independent of one
+        another -- reusing one seed across every run in a build would correlate them.
+
+        Returns 0 when the user has set ``namd.seed: 0``, meaning "leave it to NAMD".
+        """
+        base = int(self.namd_global_config.get('seed', 0) or 0)
+        if not base:
+            return 0
+        stream = f'{self.controller_index}:{self.index}:{self.subtaskcount}'
+        return ((base ^ zlib.crc32(stream.encode())) % (2 ** 31 - 1)) or 1
+
     def namdrun(self, baselabel='', extras={}, script_only=False, **kwargs):
         """
         Run a NAMD simulation based on the specifications provided in the task.
@@ -195,6 +214,9 @@ class MDTask(VMDTask):
         colvars = specs.get('colvar_specs',{})
         ssrestraints = specs.get('ssrestraints',{})
         params.update(self.namd_global_config['generic'])
+        seed = self._namd_seed()
+        if seed:
+            params['seed'] = seed
         params['structure'] = state.psf.name
         params['coordinates'] = state.pdb.name
         params['temperature'] = '$temperature'

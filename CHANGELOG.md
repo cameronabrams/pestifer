@@ -4,6 +4,29 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **NAMD's RNG seed is now pinned, and replicas are a flag.** NAMD draws its seed from the
+  clock unless told otherwise, and pestifer never set it, so two runs of one config produced
+  different trajectories and neither could be reproduced -- verified directly: identical builds
+  reported `RANDOM NUMBER SEED 1787072454` and `1787072610`. A build was reproducible in
+  everything except its dynamics. `namd.seed` (default 27021972) is now a base seed for the whole
+  build, from which each NAMD invocation derives its own stream deterministically, so the build
+  reproduces as a whole while its runs stay uncorrelated with one another; two runs of one config
+  now agree exactly. Set `namd.seed: 0` to restore NAMD's clock-derived behavior. `run --seed N`
+  overrides it, which is how independent replicas of one system are produced: same input file,
+  different seed, and the seed is on the record rather than implied.
+
+- feat: **Both sweep scripts can build replicas.** `REPLICAS=3 ./run_all_examples_local.sh` builds
+  three replicas of every example, replica *r* using `SEED_BASE+r-1`, each in its own
+  `example-NN/rep-MM` directory with its seed echoed and recorded in its build log; the SLURM
+  script takes the same variables. With `REPLICAS=1` the layout is unchanged. Replicas differ only
+  in their MD random-number streams -- model building has its own seeds (`ligate.ccd.seed`,
+  `make_membrane_system.bilayer.seed`) which are deliberately not varied, so every replica starts
+  from the same built structure.
+
+- fix: **The SLURM sweep script no longer hard-codes 22 examples.** There are 27, so it had been
+  silently skipping every example added since the literal was written; it now discovers the count
+  from `show-resources examples`, as the local script already did.
+
 - fix: **The citation report is no longer printed for a build that failed, and it can still find
   its structure files after `terminate` has run.** Two defects that only a real end-to-end build
   surfaced. The report was emitted unconditionally, so an aborted build printed "please cite"

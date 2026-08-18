@@ -268,6 +268,17 @@ attributes:
         text: number of processing elements (PEs) for NAMD; 0 means auto-detect from SLURM environment or local CPU count
         type: int
         default: 0
+      - name: seed
+        text: >-
+          Base RNG seed for NAMD. NAMD's own default is drawn from the clock, so two runs of one
+          config produced different trajectories and neither could be reproduced; pestifer
+          therefore pins it. Each NAMD invocation in a build derives its own stream from this
+          base deterministically, so a build is reproducible as a whole while its individual runs
+          remain independent. Set 0 to restore NAMD's clock-derived behavior. To generate
+          independent replicas of one system, run the same config with different values here (or
+          with 'run --seed'); record which value produced which replica.
+        type: int
+        default: 27021972
       - name: cpu-parallel-launcher
         text: >-
           How CPU-mode NAMD is launched when running under SLURM. 'auto' (the default) uses

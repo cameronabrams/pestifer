@@ -71,10 +71,13 @@ class Config(Yclept):
         (``run --gpu``) as the config key it is defined to be equivalent to.  Applied to
         the user config itself, so it reaches the scripters, ``--complete-config`` output,
         and any subconfiguration derived via :meth:`taskless_subconfig`.
+    seed_override : int
+        Optional override for ``namd.seed``, expressing ``run --seed`` the same way.  This is
+        how independent replicas of one system are generated: same config, different seed.
     """
 
     def __init__(self, userfile='', userdict={}, quiet=False, RM: ResourceManager = None, basefile: str = '', ncpus_override: int = 0,
-                 processor_type_override: str = ''):
+                 processor_type_override: str = '', seed_override: int = None):
         self.userfile = userfile
         self.userdict = userdict
         self.quiet = quiet
@@ -82,6 +85,7 @@ class Config(Yclept):
         self.RM = RM
         self.ncpus_override = ncpus_override
         self.processor_type_override = processor_type_override
+        self.seed_override = seed_override
         self.my_processor_info = ''
         self.kwargs_to_scripters = {}
 
@@ -104,6 +108,8 @@ class Config(Yclept):
         # makes --gpu reach the scripters and the --check preflight alike.
         if self.processor_type_override:
             self['user']['namd']['processor-type'] = self.processor_type_override
+        if self.seed_override is not None:
+            self['user']['namd']['seed'] = int(self.seed_override)
 
         self.my_processor_info = self._set_processor_info()
         if not self.quiet:

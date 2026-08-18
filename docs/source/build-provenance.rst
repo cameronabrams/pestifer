@@ -187,6 +187,52 @@ entry and protonates it with ``pdb2pqr``:
 The PDB2PQR and PROPKA reference strings are the citations those packages declare for themselves;
 the rest match the bibliography of the pestifer paper.
 
+Reproducibility and replicas: the NAMD seed
+-------------------------------------------
+
+NAMD draws its random-number seed from the clock unless told otherwise, which meant two runs of
+one pestifer config produced different trajectories and neither could be reproduced.  Pestifer
+therefore pins it.  ``namd.seed`` is a **base** seed for the whole build; each NAMD invocation
+derives its own stream from it deterministically, so the build reproduces as a whole while its
+individual runs stay independent of one another — reusing a single seed across every run in a
+build would correlate them.
+
+.. code-block:: yaml
+
+    namd:
+      seed: 27021972        # the default; set 0 to restore NAMD's clock-derived behavior
+
+Two runs of one config now agree exactly:
+
+.. code-block:: console
+
+    $ grep 'RANDOM NUMBER SEED' run-a/*.log run-b/*.log
+    run-a: Info: RANDOM NUMBER SEED     714205816
+    run-b: Info: RANDOM NUMBER SEED     714205816
+
+**Replicas are the same config with a different seed.**  Use ``--seed`` rather than editing the
+YAML, so one input file describes every replica:
+
+.. code-block:: bash
+
+    pestifer run mysystem --seed 27021972    # replica 1
+    pestifer run mysystem --seed 27021973    # replica 2
+    pestifer run mysystem --seed 27021974    # replica 3
+
+Both sweep scripts do this for you.  ``REPLICAS=3 ./run_all_examples_local.sh`` builds three
+replicas of every example, replica *r* using ``SEED_BASE+r-1``, each in its own
+``example-NN/rep-MM`` directory with the seed echoed and recorded in its build log.  With
+``REPLICAS=1`` the layout is unchanged.
+
+.. note::
+
+   Replicas produced this way differ **only in their MD random-number streams** — velocity
+   assignment and the Langevin thermostat.  Model building has its own seeds
+   (``ligate.ccd.seed`` for loop closure and ``make_membrane_system.bilayer.seed`` for lipid
+   packing) which are *not* varied, so every replica starts from the same built structure.  That is
+   the usual meaning of replicate simulations.  If you want independent *builds* as well — a
+   different loop closure, a different lipid arrangement — vary those seeds in the YAML too.
+
 Recovering either block from a log
 ----------------------------------
 
