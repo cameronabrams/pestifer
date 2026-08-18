@@ -21,6 +21,7 @@ from ..core.errors import PestiferError
 from ..cli.subcommand import Subcommand
 from ..util.stringthings import __pestifer_version__
 from ..util.provenance import log_environment
+from ..util.citations import log_citations
 from ..util.util import hmsf
 
 #: Extensions that only ever name an *input* to a build.  A config value ending in one of
@@ -265,6 +266,9 @@ class RunSubcommand(Subcommand):
         name_format = f'{{:>{maxnamelen}s}}'
         for task in report.values():
             logger.info(f' - {name_format.format(task["taskname"])}: {hmsf(task["duration"])} ({task["duration_frac"]:>5.1%})')
+        # Last thing the user sees: what this particular build owes credit to.  Placed after the
+        # run rather than before it so it sits beside the results it applies to.
+        log_citations(config)
         if args.output_dir != './':
             os.chdir(exec_dir)
         return C

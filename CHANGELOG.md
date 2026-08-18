@@ -4,6 +4,21 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **Every build now reports the citations it owes.** Pestifer is an orchestrator: the
+  science in a prepared system belongs to NAMD, VMD, psfgen and the CHARMM force field, and --
+  depending on what the input asked for -- to CGenFF, to the lipid or carbohydrate parameter
+  sets, or to PDB2PQR and PROPKA. A user cannot reasonably be expected to know which of those a
+  given YAML pulled in, so pestifer now works it out from the config and prints a `citations:`
+  block at the end of a run, to the console and the diagnostics log alike. NAMD, VMD, psfgen and
+  the CHARMM36 protein set are unconditional; NAMD 3, the lipid set, the carbohydrate set, CGenFF
+  and the PDB2PQR/APBS/PROPKA trio are added only when the config calls for them, and each
+  conditional entry states *why* it applies -- "included because this build has a
+  `make_membrane_system` task" -- so the report is a derivation rather than a list to be taken on
+  faith. The reference strings for PDB2PQR and PROPKA are the ones those packages declare
+  themselves. Because the report is derived from the input config rather than from the built
+  system, it closes by noting that a structure which already carries glycans, nucleic acids or
+  ligands may owe further parameter-set citations.
+
 - feat: **Every build now records its own environment.** A pestifer build is a chain of external
   programs -- VMD, psfgen, NAMD -- driven by a Python process against a particular CHARMM release,
   and the log recorded only the last of those. Reproducing a result therefore meant reconstructing
