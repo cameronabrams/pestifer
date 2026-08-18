@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.18.0] - 2026-08-18
+
 - build: **`pidibble` floor raised to 1.11.0**, which gives mmCIF `SSBOND` records the integer
   `serNum` the PDB spec declares rather than the `struct_conn` label (`'disulf1'`). `objs.ssbond`
   had been undoing that label by hand; both its branches now read the field directly.
