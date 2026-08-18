@@ -169,3 +169,69 @@ class TestWriteAndLoad(unittest.TestCase):
             self.assertEqual(len(written), 3)
             for p in written:
                 self.assertTrue(os.path.getsize(p) > 0)
+
+
+def _have(prog):
+    import shutil
+    return shutil.which(prog) is not None
+
+
+@unittest.skipUnless(_have('pdflatex'), 'no pdflatex on PATH')
+class TestGeneratedLatexCompiles(unittest.TestCase):
+    """Compile the generated fragment for real.
+
+    Brace-balance and escaping assertions are proxies; this is the thing they stand in for.  It
+    earns its keep: the escaping tests passed while ``NAMD 3.0.2 for Linux-x86_64-multicore`` --
+    an unescaped underscore in a *version string* rather than a task name -- made the fragment
+    fail to compile.
+    """
+
+    DRIVER = (
+        '\\documentclass{article}\n'
+        '\\usepackage{url}\n'
+        '\\newcommand{\\TODO}[1]{\\textbf{[TODO: #1]}}\n'
+        '\\begin{document}\n'
+        '\\input{methods}\n'
+        '\\bibliographystyle{plain}\n'
+        '\\bibliography{methods}\n'
+        '\\end{document}\n'
+    )
+
+    def _build(self, records):
+        import subprocess
+        with tempfile.TemporaryDirectory() as td:
+            MR.write_report(records, outdir=td, formats=('tex', 'bib'))
+            with open(os.path.join(td, 'driver.tex'), 'w') as f:
+                f.write(self.DRIVER)
+            def run(cmd):
+                return subprocess.run(cmd, cwd=td, stdout=subprocess.PIPE,
+                                      stderr=subprocess.STDOUT, text=True, timeout=180)
+            p = run(['pdflatex', '-interaction=nonstopmode', '-halt-on-error', 'driver.tex'])
+            self.assertEqual(p.returncode, 0, f'pdflatex failed:\n{p.stdout[-2500:]}')
+            if _have('bibtex'):
+                b = run(['bibtex', 'driver'])
+                self.assertNotIn('Warning--to sort', b.stdout)
+                run(['pdflatex', '-interaction=nonstopmode', 'driver.tex'])
+                final = run(['pdflatex', '-interaction=nonstopmode', 'driver.tex'])
+                self.assertNotIn('undefined', final.stdout.lower(),
+                                 'a \\cite has no matching bib entry')
+            self.assertTrue(os.path.exists(os.path.join(td, 'driver.pdf')))
+
+    def test_single_run_compiles(self):
+        self._build([_record(protocol=_ADAPTIVE_OK)])
+
+    def test_ceilinged_run_compiles(self):
+        # the branch carrying escaped task names and the extra TODO
+        self._build([_record(protocol=_ADAPTIVE_CEILING)])
+
+    def test_replica_set_compiles(self):
+        self._build([_record(seed=1, box=(55.9, 49.4, 50.0), protocol=_ADAPTIVE_OK),
+                     _record(seed=2, box=(56.2, 49.6, 50.3), protocol=_ADAPTIVE_OK)])
+
+    def test_awkward_names_do_not_break_the_build(self):
+        # underscores and percent signs reach the fragment from config filenames and versions
+        rec = _record(protocol=_ADAPTIVE_CEILING)
+        rec['config_file'] = 'my_system_v2.yaml'
+        rec['environment']['executables']['namd3']['version'] = 'NAMD 3.0.2 for Linux-x86_64-multicore'
+        rec['pestifer_version'] = '3.18.0_rc1'
+        self._build([rec])

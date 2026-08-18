@@ -68,7 +68,10 @@ class Citation:
         if self.bibtex:
             return self.bibtex.strip()
         key = self.key or _slug(self.subject)
-        fields = [f'  note = {{{self.subject}}}']
+        # `key` is BibTeX's sorting fallback for an entry with no author; without it a
+        # DOI-only entry warns and sorts unpredictably.
+        fields = [f'  key = {{{self.subject}}}',
+                  f'  note = {{{self.subject}}}']
         if self.doi:
             fields.insert(0, f'  doi = {{{self.doi}}}')
             fields.insert(0, f'  howpublished = {{\\url{{https://doi.org/{self.doi}}}}}')

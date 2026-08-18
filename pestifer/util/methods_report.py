@@ -177,7 +177,8 @@ def render_tex(records):
     if coord:
         ids = ', '.join(sorted({c.subject.replace('PDB ', '') for c in coord}))
         cites = ','.join(sorted({c.key or _slug(c.subject) for c in coord}))
-        add(f'Starting coordinates were taken from Protein Data Bank entries {ids}~\\cite{{{cites}}}.')
+        add(f'Starting coordinates were taken from Protein Data Bank entries '
+            f'{_tex_escape(ids)}~\\cite{{{cites}}}.')
     else:
         add('Starting coordinates \\TODO{state the source; the run record names none}.')
 
@@ -209,7 +210,7 @@ def render_tex(records):
                if 'CHARMM' in c.subject or c.subject == 'CGenFF']
     if ff_keys:
         ff = f'~\\cite{{{",".join(ff_keys)}}}'
-        release = f' (release {charmmff})' if charmmff else ''
+        release = f' (release {_tex_escape(charmmff)})' if charmmff else ''
         add(f'The CHARMM36 force field{release} was used{ff}.')
 
     # --- what actually ran
@@ -227,7 +228,8 @@ def render_tex(records):
         for step in adaptive:
             why = step.get('stopped_because')
             if why:
-                add(f'% {step.get("task")}: {why}')
+                # a LaTeX comment: safe as-is, but newlines would break out of it
+                add('% ' + f'{step.get("task")}: {why}'.replace('\n', ' '))
         if adaptive:
             converged = [a for a in adaptive if a.get('converged')]
             ceilinged = [a for a in adaptive if not a.get('converged')]
@@ -269,15 +271,17 @@ def render_tex(records):
         if exe_version and exe_version != 'unknown':
             named.append(exe_version)
     if named:
-        add('Simulations and system construction used ' + '; '.join(named) + '.')
+        add('Simulations and system construction used '
+            + '; '.join(_tex_escape(x) for x in named) + '.')
     py = env.get('python') or {}
     if version:
-        add(f'Systems were prepared with pestifer {version}'
-            + (f' under Python {py.get("version")}' if py.get('version') else '') + '.')
+        add(f'Systems were prepared with pestifer {_tex_escape(version)}'
+            + (f' under Python {_tex_escape(py.get("version"))}' if py.get('version') else '')
+            + '.')
     cfg = _agree(records, 'config_file')
     if cfg:
-        add(f'The complete specification of the build is the input file \\texttt{{{cfg}}}, '
-            f'distributed with this work.')
+        add(f'The complete specification of the build is the input file '
+            f'\\texttt{{{_tex_escape(cfg)}}}, distributed with this work.')
     add('\\TODO{Cite the archived pestifer release (Zenodo DOI) here.}')
 
     add('')

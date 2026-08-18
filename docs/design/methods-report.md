@@ -161,9 +161,13 @@ over one record, never three independent template sets.
    appear. The test that earns its keep is the one asserting an unconverged run is never described
    as converged; the first implementation got that wrong.
 
-   Still open: nothing compile-checks the generated LaTeX, because this machine has no TeX
-   installation. The tests check brace balance and that task-name underscores are escaped, which
-   caught the real defect, but that is not the same as compiling.
+   **Closed:** the generated fragment is now compiled for real by the test suite
+   (`TestGeneratedLatexCompiles`, skipped where `pdflatex` is absent), through the full
+   pdflatex/bibtex/pdflatex/pdflatex cycle, asserting a PDF is produced, no BibTeX sort warning,
+   and no undefined citation. It earned its keep immediately: the brace-balance and escaping
+   assertions all passed while `NAMD 3.0.2 for Linux-x86_64-multicore` — an unescaped underscore
+   in a *version string* rather than a task name — made the fragment fail to compile. Proxies
+   test what you thought of; compiling tests what you did not.
 4. **Scope of the citation set.** Does the Methods draft cite everything the run touched, or only
    what a reader needs? Probably the former, since the author can delete — but it means a small
    BPTI build arrives with six software citations, which may read as padding.
