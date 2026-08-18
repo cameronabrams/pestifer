@@ -16,12 +16,10 @@ task as it builds and embeds a bilayer.
 .. tclscript:: pestifer/resources/tcl/scripts/bilayer_patch.tcl
 
 ``bilayer_orient.tcl`` was formerly sourced here as well.  Orientation now happens in Python
-(:class:`~pestifer.objs.rottrans.RotTrans`, via
-``MakeMembraneSystemTask._orientation_align``), so no pestifer workflow runs it; it is retained
-only as the oracle for the regression test that pins the Python path to the coordinates the Tcl
-path produced.
-
-.. tclscript:: pestifer/resources/tcl/scripts/bilayer_orient.tcl
+(:class:`~pestifer.objs.rottrans.RotTrans`, via ``MakeMembraneSystemTask._orientation_align``),
+so no pestifer workflow runs it.  It has moved out of the package to
+``tests/unit/test_tasks/fixtures/tcl_oracle/``, where it serves as the oracle for the regression
+test that pins the Python path to the coordinates the Tcl path produced.
 
 Retained for reference
 ----------------------

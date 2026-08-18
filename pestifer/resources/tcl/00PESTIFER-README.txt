@@ -52,23 +52,14 @@ Scripts:
     for an SMD run that conducts a domain-swap operation.  The
     domainswap task is no longer registered as a user-invocable
     task; the script is kept so the method is not lost.
-- bilayer_orient.tcl
-    Orients a transmembrane protein so that z is the membrane
-    normal.  Superseded by the Python transform path; retained
-    only as a test oracle (see below).
 
-Third-party packages (not used by any pestifer workflow):
-
-- la
-    The Linear Algebra package from Hume Integration Software
-- orient
-    The Orient package from the VMD folks
-
-Orientation moved into Python (pestifer.objs.rottrans, via
-MakeMembraneSystemTask._orientation_align).  Their only consumer is
-bilayer_orient.tcl, which is retained solely as the oracle for the
-regression test that pins the Python path to the coordinates the Tcl
-path produced.
+No third-party Tcl packages are distributed with pestifer.  The "la"
+and "orient" packages, and the bilayer_orient.tcl script that required
+them, moved to tests/unit/test_tasks/fixtures/tcl_oracle/ once
+orientation moved into Python (pestifer.objs.rottrans, via
+MakeMembraneSystemTask._orientation_align).  They survive there only as
+the oracle for the regression test that pins the Python path to the
+coordinates the Tcl path produced.
 
 Cameron F. Abrams, <cfa22@drexel.edu>
 

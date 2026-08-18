@@ -43,8 +43,9 @@ top of its source.
 Third-party packages
 --------------------
 
-Pestifer also ships two packages it did not write and does not document here: ``La`` (linear
-algebra) and ``Orient``.  They live under ``pestifer/resources/tcl/pkg/``.  No pestifer workflow
-loads them: their only consumer is ``bilayer_orient.tcl``, which was retired when orientation
-moved into Python and is now itself exercised only by the regression test that pins the Python
-path to the coordinates the Tcl path produced.
+Pestifer no longer distributes any third-party Tcl package.  The ``La`` (linear algebra) and
+``Orient`` packages it used to ship are required only by the retired ``bilayer_orient.tcl``, and
+all three now live under ``tests/unit/test_tasks/fixtures/tcl_oracle/`` as the oracle for the
+regression test that pins the Python orientation path to the coordinates the Tcl path produced.
+The test tree is excluded from both the wheel and the sdist, so none of it reaches an installed
+pestifer.

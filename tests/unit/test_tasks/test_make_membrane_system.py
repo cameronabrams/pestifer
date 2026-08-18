@@ -29,6 +29,22 @@ class _StubMDPlot:
         self.dataframes = {} if xst is None else {'xst': xst}
 
 
+def _stage_orient_oracle(vm):
+    """Make the retired ``bilayer_orient.tcl`` runnable from the current working directory.
+
+    The script and the third-party ``Orient``/``La`` packages it needs are test fixtures, not
+    package resources -- no pestifer workflow loads them, and they are kept only so these tests
+    can compare the Python orientation path against the Tcl path it replaced.  Because they no
+    longer live under ``${PESTIFER_TCLROOT}/pkg/``, ``vmdrc.tcl`` does not glob them onto
+    ``auto_path``, so we add that entry ourselves before the script is ingested.
+
+    Call after ``vm.newscript(...)`` and before ``vm.usescript('bilayer_orient', local=True)``.
+    """
+    oracle = os.path.abspath(os.path.join('..', '..', 'fixtures', 'tcl_oracle'))
+    shutil.copy(os.path.join(oracle, 'bilayer_orient.tcl'), '.')
+    vm.addline(f'lappend auto_path {os.path.join(oracle, "pkg")}')
+
+
 def _xst_from_area(area):
     """Build an xst-style dataframe whose a_x*b_y equals the given area trajectory."""
     area = np.asarray(area, dtype=float)
@@ -519,7 +535,8 @@ class TestMakeMembraneSystem(unittest.TestCase):
 
         vm: VMDScripter = self.scripters['vmd']
         vm.newscript('orient')
-        vm.usescript('bilayer_orient')
+        _stage_orient_oracle(vm)
+        vm.usescript('bilayer_orient', local=True)
         vm.writescript('orient')
         result = vm.runscript(psf=psf,
                               pdb=pdb,
@@ -562,7 +579,8 @@ class TestMakeMembraneSystem(unittest.TestCase):
             vm: VMDScripter = self.scripters['vmd']
             # old path: bilayer_orient (Orient::orient)
             vm.newscript('orient_old')
-            vm.usescript('bilayer_orient')
+            _stage_orient_oracle(vm)
+            vm.usescript('bilayer_orient', local=True)
             vm.writescript('orient_old')
             assert vm.runscript(psf=psf, pdb=pdb,
                                 z_head_group=protect_str_arg(head),

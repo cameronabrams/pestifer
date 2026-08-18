@@ -4,6 +4,19 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: **The third-party `la` and `orient` Tcl packages no longer ship.** Pestifer distributed
+  two packages it did not write, plus the `bilayer_orient.tcl` script that requires them. Once
+  coordinate transforms moved into Python, `MakeMembraneSystemTask._orientation_align` took over
+  the rotation `Orient::orient` used to compute and nothing invoked that script again -- it was
+  the sole consumer of `Orient`, which was in turn the sole consumer of `La`. They were not
+  simply dead, though: two regression tests run the retired Tcl path against the Python one and
+  compare coordinates, and that comparison is the evidence the port preserved behavior. All three
+  therefore move to `tests/unit/test_tasks/fixtures/tcl_oracle/` rather than being deleted. The
+  test tree is excluded from both the wheel and the sdist, so an installed pestifer no longer
+  carries them, while the guarantee they underwrite survives. Because they no longer sit under
+  `${PESTIFER_TCLROOT}/pkg/`, `vmdrc.tcl` does not glob them onto `auto_path`; the tests add that
+  entry themselves.
+
 - fix: **`--gpu` now elects an actual GPU binary, and `--check` sees it.** Two defects made the
   flag unusable on a workstation whose CUDA build is a separate executable. `paths.namd3gpu`
   defaults to `namd3`, so forcing GPU mode resolved the *CPU* binary, and NAMD then refused the
