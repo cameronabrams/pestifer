@@ -30,9 +30,10 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   in upper case, and `A.B.MCDERMOTT` cannot be turned back into `McDermott, A.B.`, whereas an
   identifier cannot be subtly wrong in that way. AlphaFold models and local donor files are named
   but flagged as having no deposited citation, rather than dropped. Resolving identifiers
-  requires `pidibble` >= 1.10.0; with an older pidibble the structures are still named, with a
-  note saying why they are unresolved, because a report that claims completeness must say when it
-  does not have it.
+  requires `pidibble` >= 1.10.0, which is now the declared floor; the capability probe is kept
+  anyway, since it costs nothing and covers an environment that resolves to something older than
+  the pin. Where it cannot resolve, the structures are still named with a note saying why,
+  because a report that claims completeness must say when it does not have it.
 
 - feat: **Every build now records its own environment.** A pestifer build is a chain of external
   programs -- VMD, psfgen, NAMD -- driven by a Python process against a particular CHARMM release,
