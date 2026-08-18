@@ -20,6 +20,7 @@ from ..core.config import Config
 from ..core.errors import PestiferError
 from ..cli.subcommand import Subcommand
 from ..util.stringthings import __pestifer_version__
+from ..util.provenance import log_environment
 from ..util.util import hmsf
 
 #: Extensions that only ever name an *input* to a build.  A config value ending in one of
@@ -246,6 +247,9 @@ class RunSubcommand(Subcommand):
         config = Config(userfile=configname, ncpus_override=args.ncpus,
                         processor_type_override=('gpu' if getattr(args, 'gpu', False) else ''),
                         **kwargs).configure_new()
+        # Record the whole toolchain before anything runs, so this build's log is self-describing
+        # and its results never have to have their environment reconstructed after the fact.
+        log_environment(config)
         C = Controller().configure(config)
         C.restart = getattr(args, 'restart', False)
         C.fresh = getattr(args, 'fresh', False)

@@ -4,6 +4,24 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **Every build now records its own environment.** A pestifer build is a chain of external
+  programs -- VMD, psfgen, NAMD -- driven by a Python process against a particular CHARMM release,
+  and the log recorded only the last of those. Reproducing a result therefore meant reconstructing
+  its environment afterward from whatever happened to still be installed, which is an assertion
+  rather than evidence, and the versions that matter most were the two the log could not recover
+  at all: a machine may carry several VMD and NAMD builds, and which one ran was nowhere written
+  down. Each build now emits a `environment:`-prefixed block before its first task listing the
+  interpreter and platform, pestifer's version and the resolved version of every runtime
+  dependency it declares, the CHARMM release, the NAMD mode, and the resolved path and reported
+  version of each external program the build may invoke. NAMD is probed with an empty config,
+  which makes it announce itself before it objects; the CUDA build additionally reports the CUDA
+  version it was compiled against. `namd3` is always probed, since even a GPU build runs it for
+  tasks carrying `cpu-override`, while `namd3gpu` is probed only in GPU mode because probing it
+  binds a GPU device. pestifer's own version comes from the source-tree resolver rather than
+  `importlib.metadata`, which records the version at install time and so goes stale on an editable
+  install the moment a release is cut. No probe can fail a build: anything that does not answer is
+  recorded as `unknown`.
+
 - change: **The third-party `la` and `orient` Tcl packages no longer ship.** Pestifer distributed
   two packages it did not write, plus the `bilayer_orient.tcl` script that requires them. Once
   coordinate transforms moved into Python, `MakeMembraneSystemTask._orientation_align` took over
