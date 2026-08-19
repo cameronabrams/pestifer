@@ -289,6 +289,144 @@ class MDPlotTask(BaseTask):
             plt.close(fig)
             logger.debug(f'{self.taskname}: overlay of {name} across {drawn} runs -> {png_path}')
 
+    def _plot_timeseries(self, timeseries, df_of_column, output_dir, block_average,
+                         stage_markers, legend, grid):
+        """Draw one figure per requested trace group.
+
+        Extracted from ``do`` so it matches its siblings (``_plot_panels``, ``_plot_overlays``,
+        ``_plot_histograms``) and so its figure content can be asserted on without running a
+        build: a caller can invoke it directly and inspect the axes it produced.
+        """
+        time_step_column_names = self.specs.get('time_step_column_names', ['TS', 'step', 'steps'])
+        for trace in timeseries:
+            unitspecs = []
+            figsize = self.specs.get('figsize') or (9, 6)
+            fig, ax = plt.subplots(1, 1, figsize=figsize)
+            if type(trace) != list:
+                tracelist = [trace]
+            else:
+                tracelist = trace
+
+            # Determine time-axis settings once per figure using the first
+            # trace whose dataframe carries time_ps.
+            time_unit = None   # 'ps' or 'ns', or None → fall back to TS index
+            time_scale = 1.0
+            eff_dt_scaled = None  # dt in time_unit per TS step (for secondary axis)
+            ts_offset = 0.0
+            for t_i in tracelist:
+                df_check = df_of_column.get(t_i.upper(), df_of_column.get(t_i.lower()))
+                if df_check is not None and 'time_ps' in df_check.columns:
+                    max_time_ps = float(df_check['time_ps'].max())
+                    if max_time_ps >= 1000.0:
+                        time_unit, time_scale = 'ns', 1e-3
+                    else:
+                        time_unit, time_scale = 'ps', 1.0
+                    ts_arr = df_check['TS'].values.astype(float)
+                    ts_offset = float(ts_arr[0])
+                    ts_range = float(ts_arr[-1] - ts_arr[0])
+                    if ts_range > 0:
+                        eff_dt_ps = max_time_ps / ts_range
+                    elif 'dt_fs' in df_check.columns:
+                        eff_dt_ps = float(df_check['dt_fs'].iloc[0]) / 1000.0
+                    else:
+                        eff_dt_ps = None
+                    if eff_dt_ps and eff_dt_ps > 0:
+                        eff_dt_scaled = eff_dt_ps * time_scale
+                    break
+
+            boundary_series = None
+            # Count what is actually drawn, not what was asked for.  A requested trace whose data
+            # is absent is skipped below, and if *every* trace is skipped the figure is empty --
+            # in which case a legend call warns, and saving would leave a blank PNG registered as
+            # a build artifact with only a debug-level breadcrumb explaining why.
+            plotted, missing = 0, []
+            for idx, t_i in enumerate(tracelist):
+                key, df, units, unitspec = self._resolve_units(t_i, df_of_column)
+                unitspecs.append(unitspec)
+                if df is None:
+                    logger.debug(f'No data found for trace {t_i}. Skipping...')
+                    missing.append(str(t_i))
+                    continue
+                if time_unit is not None and 'time_ps' in df.columns:
+                    x_values = df['time_ps'] * time_scale
+                else:
+                    time_step_column = None
+                    for tcn in time_step_column_names:
+                        if tcn in df.columns:
+                            time_step_column = tcn
+                            break
+                    if time_step_column is None:
+                        logger.debug(f'No time step column found for trace {t_i}. Skipping...')
+                        missing.append(str(t_i))
+                        continue
+                    x_values = df[time_step_column]
+                color = self.colormap(idx / max(1, len(tracelist)-1))
+                if self.colormap_direction == -1 and len(tracelist) > 1:
+                    color = self.colormap(1.0 - idx / max(1, len(tracelist)-1))
+                label = key
+                if label.endswith('_time'):
+                    label = label.replace('_time', ' time')
+                plot_label = label.title() if '_' not in label else r'$'+label+r'$'
+                y_values = df[key] * units
+                window = block_average
+                if window < 0:                      # automatic: smooth only the noisy observables
+                    window = auto_block_average(key, len(y_values))
+                    if window:
+                        logger.debug(f'{self.taskname}: {key} is smoothed automatically over '
+                                     f'{window} samples (raw series kept visible)')
+                if window > 1 and len(y_values) > window:
+                    # the raw series stays visible but recedes; the eye follows the mean, and the
+                    # band shows the fluctuation the mean was taken over
+                    rolled = y_values.rolling(window, center=True, min_periods=1)
+                    mean, sd = rolled.mean(), rolled.std().fillna(0.0)
+                    ax.plot(x_values, y_values, color=color, alpha=0.25, linewidth=0.8)
+                    ax.fill_between(x_values, mean - sd, mean + sd, color=color, alpha=0.20,
+                                    linewidth=0)
+                    ax.plot(x_values, mean, label=plot_label, color=color, linewidth=1.6)
+                else:
+                    ax.plot(x_values, y_values, label=plot_label, color=color)
+                plotted += 1
+                if stage_markers and boundary_series is None:
+                    boundary_series = (key, df, x_values)
+
+            if stage_markers and boundary_series is not None:
+                self._draw_stage_markers(ax, *boundary_series)
+
+            if time_unit is not None:
+                ax.set_xlabel(f'simulation time ({time_unit})')
+                if eff_dt_scaled is not None:
+                    _ts0, _dt = ts_offset, eff_dt_scaled
+                    ax_top = ax.secondary_xaxis(
+                        'top',
+                        functions=(
+                            lambda t, ts0=_ts0, dt=_dt: ts0 + t / dt,
+                            lambda ts, ts0=_ts0, dt=_dt: (ts - ts0) * dt,
+                        )
+                    )
+                    ax_top.set_xlabel('time step')
+            else:
+                ax.set_xlabel('time step')
+            axis_labels = self.specs.get('axis-labels', {})
+            ax.set_ylabel(', '.join([to_latex_math(axis_labels.get(n, n)) + ' (' + u + ')' for n, u in zip(tracelist, unitspecs)]))
+            # Legend on what was drawn, not on what was requested: asking for a legend over
+            # zero labelled artists is what emits matplotlib's "No artists with labels" warning.
+            if legend and plotted > 1:
+                ax.legend()
+            if grid:
+                ax.grid(True)
+            tracename = '-'.join(tracelist)
+            if plotted == 0:
+                logger.warning(f'{self.taskname}: no data for {tracename} '
+                               f'(missing: {", ".join(missing) or "unknown"}); no plot written')
+                plt.clf()
+                continue
+            if missing:
+                logger.warning(f'{self.taskname}: plotting {tracename} without '
+                               f'{", ".join(missing)} -- no data for those traces')
+            png_path = os.path.join(output_dir, f'{self.basename}-{tracename}.png')
+            plt.savefig(png_path, bbox_inches='tight')
+            self.register(png_path, key=f'{tracename}-timeseries-plot', artifact_type=PNGImageFileArtifact, keep=True)
+            plt.clf()
     def _plot_panels(self, panels, df_of_column, output_dir, block_average, stage_markers,
                      legend, grid):
         """Stacked panels sharing one x axis.
@@ -700,117 +838,8 @@ class MDPlotTask(BaseTask):
         if histograms:
             self._plot_histograms(histograms, df_of_column, output_dir)
         logger.debug(f'Timeseries to plot: {timeseries}')
-        for trace in timeseries:
-            unitspecs = []
-            figsize = self.specs.get('figsize') or (9, 6)
-            fig, ax = plt.subplots(1, 1, figsize=figsize)
-            if type(trace) != list:
-                tracelist = [trace]
-            else:
-                tracelist = trace
-
-            # Determine time-axis settings once per figure using the first
-            # trace whose dataframe carries time_ps.
-            time_unit = None   # 'ps' or 'ns', or None → fall back to TS index
-            time_scale = 1.0
-            eff_dt_scaled = None  # dt in time_unit per TS step (for secondary axis)
-            ts_offset = 0.0
-            for t_i in tracelist:
-                df_check = df_of_column.get(t_i.upper(), df_of_column.get(t_i.lower()))
-                if df_check is not None and 'time_ps' in df_check.columns:
-                    max_time_ps = float(df_check['time_ps'].max())
-                    if max_time_ps >= 1000.0:
-                        time_unit, time_scale = 'ns', 1e-3
-                    else:
-                        time_unit, time_scale = 'ps', 1.0
-                    ts_arr = df_check['TS'].values.astype(float)
-                    ts_offset = float(ts_arr[0])
-                    ts_range = float(ts_arr[-1] - ts_arr[0])
-                    if ts_range > 0:
-                        eff_dt_ps = max_time_ps / ts_range
-                    elif 'dt_fs' in df_check.columns:
-                        eff_dt_ps = float(df_check['dt_fs'].iloc[0]) / 1000.0
-                    else:
-                        eff_dt_ps = None
-                    if eff_dt_ps and eff_dt_ps > 0:
-                        eff_dt_scaled = eff_dt_ps * time_scale
-                    break
-
-            boundary_series = None
-            for idx, t_i in enumerate(tracelist):
-                key, df, units, unitspec = self._resolve_units(t_i, df_of_column)
-                unitspecs.append(unitspec)
-                if df is None:
-                    logger.debug(f'No data found for trace {t_i}. Skipping...')
-                    continue
-                if time_unit is not None and 'time_ps' in df.columns:
-                    x_values = df['time_ps'] * time_scale
-                else:
-                    time_step_column = None
-                    for tcn in time_step_column_names:
-                        if tcn in df.columns:
-                            time_step_column = tcn
-                            break
-                    if time_step_column is None:
-                        logger.debug(f'No time step column found for trace {t_i}. Skipping...')
-                        continue
-                    x_values = df[time_step_column]
-                color = self.colormap(idx / max(1, len(tracelist)-1))
-                if self.colormap_direction == -1 and len(tracelist) > 1:
-                    color = self.colormap(1.0 - idx / max(1, len(tracelist)-1))
-                label = key
-                if label.endswith('_time'):
-                    label = label.replace('_time', ' time')
-                plot_label = label.title() if '_' not in label else r'$'+label+r'$'
-                y_values = df[key] * units
-                window = block_average
-                if window < 0:                      # automatic: smooth only the noisy observables
-                    window = auto_block_average(key, len(y_values))
-                    if window:
-                        logger.debug(f'{self.taskname}: {key} is smoothed automatically over '
-                                     f'{window} samples (raw series kept visible)')
-                if window > 1 and len(y_values) > window:
-                    # the raw series stays visible but recedes; the eye follows the mean, and the
-                    # band shows the fluctuation the mean was taken over
-                    rolled = y_values.rolling(window, center=True, min_periods=1)
-                    mean, sd = rolled.mean(), rolled.std().fillna(0.0)
-                    ax.plot(x_values, y_values, color=color, alpha=0.25, linewidth=0.8)
-                    ax.fill_between(x_values, mean - sd, mean + sd, color=color, alpha=0.20,
-                                    linewidth=0)
-                    ax.plot(x_values, mean, label=plot_label, color=color, linewidth=1.6)
-                else:
-                    ax.plot(x_values, y_values, label=plot_label, color=color)
-                if stage_markers and boundary_series is None:
-                    boundary_series = (key, df, x_values)
-
-            if stage_markers and boundary_series is not None:
-                self._draw_stage_markers(ax, *boundary_series)
-
-            if time_unit is not None:
-                ax.set_xlabel(f'simulation time ({time_unit})')
-                if eff_dt_scaled is not None:
-                    _ts0, _dt = ts_offset, eff_dt_scaled
-                    ax_top = ax.secondary_xaxis(
-                        'top',
-                        functions=(
-                            lambda t, ts0=_ts0, dt=_dt: ts0 + t / dt,
-                            lambda ts, ts0=_ts0, dt=_dt: (ts - ts0) * dt,
-                        )
-                    )
-                    ax_top.set_xlabel('time step')
-            else:
-                ax.set_xlabel('time step')
-            axis_labels = self.specs.get('axis-labels', {})
-            ax.set_ylabel(', '.join([to_latex_math(axis_labels.get(n, n)) + ' (' + u + ')' for n, u in zip(tracelist, unitspecs)]))
-            if legend and len(tracelist) > 1:
-                ax.legend()
-            if grid:
-                ax.grid(True)
-            tracename = '-'.join(tracelist)
-            png_path = os.path.join(output_dir, f'{self.basename}-{tracename}.png')
-            plt.savefig(png_path, bbox_inches='tight')
-            self.register(png_path, key=f'{tracename}-timeseries-plot', artifact_type=PNGImageFileArtifact, keep=True)
-            plt.clf()
+        self._plot_timeseries(timeseries, df_of_column, output_dir, block_average,
+                              stage_markers, legend, grid)
         panels = self.specs.get('panels', [])
         if panels:
             self._plot_panels(panels, df_of_column, output_dir, block_average, stage_markers,

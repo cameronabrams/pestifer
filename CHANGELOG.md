@@ -4,6 +4,28 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **`mdplot` no longer writes a blank figure when the data it was asked to plot is absent.**
+  A requested trace with no data was skipped at debug level; if *every* trace in a group was
+  missing, the loop drew nothing, called `ax.legend()` on empty axes -- matplotlib's "No artists
+  with labels found to put in legend" warning, which a real membrane build was emitting -- and then
+  saved and registered a blank PNG as a build artifact. The figure is now skipped entirely with a
+  **warning** naming the missing traces, a partially-available group plots what it has and warns
+  about the rest, and the legend is drawn from what was actually plotted rather than what was
+  requested.
+
+- refactor: **the `mdplot` timeseries loop is a method (`_plot_timeseries`)** rather than being
+  inline in `do()`, matching its siblings `_plot_panels`, `_plot_overlays` and `_plot_histograms`.
+  This is what lets its figure content be asserted on without running a build.
+
+- test: **`mdplot`'s data preparation and figure content are tested, without comparing images.**
+  Baseline PNG comparison is hostage to matplotlib, FreeType and font versions, answers "something
+  changed" rather than "what changed", and -- worst -- blesses whatever bug was present when the
+  baseline was generated. Tested instead: the pure functions where unit conversion, stage detection
+  and series selection actually live (`auto_block_average`, `stage_of`,
+  `select_commensurable_runs`, `_resolve_units`), and the *content* of the figure object via
+  matplotlib's own inspectable model -- how many lines were drawn, what they were labelled, what
+  the axes say. The empty-legend defect above is caught by a one-line assertion of that kind.
+
 - test: **`membrane_equilibrate` coverage raised from 42% to 73%.** The parameter resolution and APL
   arithmetic were already tested; what was not were the three things a user actually consumes or
   depends on. The **stop reasons**, which are what the run reports and what `run-record.json`
