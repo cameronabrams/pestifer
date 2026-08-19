@@ -8,6 +8,12 @@ Software Prerequisites
 
 Pestifer requires Python 3.12 or newer.  The commands ``vmd`` (v. 1.9.4 or better; v. 2.0.0 or better recommended), ``charmrun``, ``catdcd`` (v. 5.2 required), and ``namd3`` (v. 3.0.2 recommended) should be in your path.  By default, Pestifer expects your GPU-enabled ``namd3`` to be in your path as ``namd3gpu``.  If your GPU-resident NAMD build has a different executable name, override it by setting the ``paths.namd3gpu`` key in your configuration.
 
+These four are required: pestifer checks that ``vmd``, ``namd3``, ``charmrun`` and ``catdcd``
+resolve when it loads a configuration, and refuses to start a build if any is missing.  One
+further external command, ``obabel`` (`Open Babel <https://openbabel.org>`_), is **optional** --
+it is used only by the :ref:`make-ligand-mol2 <subs_make_ligand_mol2>` subcommand, so it is not
+checked at startup and its absence does not affect building systems.
+
 .. note::
 
    ``catdcd`` version 5.2 or later is required.  Earlier versions silently drop insertion codes from residue identifiers when reading and writing DCD trajectory files.  Pestifer uses insertion codes to distinguish residues that share the same sequence number (a common occurrence in antibody structures and other proteins with non-standard numbering), so an older ``catdcd`` will corrupt coordinate data for those systems without any warning.

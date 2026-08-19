@@ -14,7 +14,9 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   pestifer's actual position: `make-ligand-mol2` *prepares* a CGenFF-ready mol2, and parameter
   generation happens in the CGenFF program or web tool, neither of which ships here. And it omitted
   Open Babel, which the subcommand shells out to and which is a system package no Python extra can
-  install.
+  install. The requirements paragraph now also distinguishes the four commands pestifer *checks*
+  at configuration load (`vmd`, `namd3`, `charmrun`, `catdcd`) from `obabel`, which is optional and
+  affects only `make-ligand-mol2`.
 
 - docs: **New contributor page covering how to run and write the tests.** There was none, and the
   test harness had grown machinery a contributor could not discover: running `pytest` alone gives a
