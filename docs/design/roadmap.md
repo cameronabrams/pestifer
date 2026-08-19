@@ -607,6 +607,26 @@ what appears here is refined and reprioritized as the project evolves.
       release time rather than at the commit that caused it. A self-hosted runner on a machine with
       the toolchain is the real fix. See `docs/source/contributing.rst`.
 
+- [x] **Coverage can be measured, and two blind spots are gone.** `pytest-cov` was not installed,
+      so the distribution table could not be produced at all. With it: **72% overall** (23,917
+      statements). The shape is healthy -- the data model is well covered (`objs` 86%, `molecule`
+      85%, `psfutil` 83%) and the gaps are in orchestration (`tasks` 54%, `subcommands` 47%),
+      most of which only executes with VMD and NAMD present.
+
+      Two modules were brought up from near nothing: `util/namdrestart.py` 13% → 99% (which
+      surfaced a real bug -- see the CHANGELOG) and `sphinxext` 38% → 95%, with `task_table` and
+      `tclscript` both at 100%. The `sphinxext` figure had been *fictional*: its `conftest.py`
+      skips the directory when sphinx is absent and sphinx was not a test dependency, so 15
+      existing tests ran nowhere. That is the same failure mode as the integration-test item
+      above, and it is worth watching for elsewhere -- **a conditional skip that is always taken
+      reports green and looks like coverage.** (Unreleased.)
+
+- [ ] **Remaining coverage gaps, in priority order.** `tasks/mdplot.py` 42% (413 statements
+      uncovered -- the largest single gap; the profile and pressure-profile paths are still dark),
+      `tasks/make_membrane_system.py` 23%, `tasks/psfgen.py` 50%, `charmmff/make_pdb_collection.py`
+      14%, `tasks/ringcheck.py` 20%. Most need the toolchain, so they are gated behind the
+      self-hosted-runner item above rather than being straightforwardly writable today.
+
 - [ ] **Test runs dirty the working tree.** *Half fixed.* Several files under
       `tests/unit/test_tasks/test_psfgen_*/` and `test_cleave/` are tracked *and* rewritten by the
       suite, so `git status` is dirty after every run -- noise at best, and at worst it trips

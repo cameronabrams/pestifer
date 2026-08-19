@@ -121,7 +121,17 @@ class NAMDConfig:
     def var_backresolve(self, oldvarname: str, newvarval: str):
         """
         Back-resolve a variable assignment in the NAMD configuration.
+
+        ``oldvarname`` may be given either as a bare name (``outputbase``) or as it appears in a
+        command argument (``$outputbase``, ``${outputbase}``); both refer to the same variable.
+        Accepting only the bare form meant :meth:`replace_command`, which passes the reference
+        verbatim, never matched -- so replacing an argument that was a variable reference silently
+        did nothing, and a restart config kept writing to the *old* basename, overwriting the very
+        files it was resuming from.
         """
+        oldvarname = oldvarname.lstrip('$')
+        if oldvarname.startswith('{') and oldvarname.endswith('}'):
+            oldvarname = oldvarname[1:-1]
         if oldvarname in self.varsdefined:
             self.varsdefined[oldvarname] = newvarval
             self.backresolve_lines()

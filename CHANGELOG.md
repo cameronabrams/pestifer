@@ -4,6 +4,39 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **`make-namd-restart` silently kept the old output basename**, so a restart generated from
+  a config using the standard `set outputbase ...` idiom would have written over the very
+  checkpoint files it was resuming from. `NAMDConfig.replace_command` passes a variable argument
+  through verbatim (`$outputbase`) while `varsdefined` is keyed on bare names, so the back-resolve
+  never matched and the replacement was a no-op that only logged a warning.
+  `NAMDConfig.var_backresolve` now accepts a reference in any of its forms -- `outputbase`,
+  `$outputbase`, `${outputbase}`. Found by writing the test for what the code should do.
+
+- test: **`namdrestart` coverage raised from 13% to 99%**, the least-tested module in the
+  NAMD-layer extraction candidate set and the most obviously public API in it -- it operates on a
+  run pestifer did not manage, so its inputs are whatever the user brings. Covered without NAMD:
+  config parsing (line classification, variable definition and citation, the duplicate- and
+  undefined-variable warnings), the editing operations, and the restart decision itself -- resume
+  from the last checkpoint vs extend a finished run, the refusals when a log records no restart
+  step, no step target or a missing `.coor`/`.vel`/`.xsc`, and the SLURM script rotation.
+
+- test: **`task_table` coverage raised from 18% to 100%, and `tclscript` from 0% to 100%.**
+  `pestifer.sphinxext` as a whole is now at 95%. Both run at *docs build* time, where a failure
+  takes the whole build down rather than one page. The guard worth naming: `task_table` degrades
+  silently -- a task type it does not recognize renders as an em dash, indistinguishable in a
+  built table from a deliberate blank -- so one test walks every shipped example and fails if any
+  task summarizes to nothing.
+
+- fix: **the `test_sphinxext` tests never ran anywhere.** Their `conftest.py` skips the directory
+  when sphinx is absent, and sphinx was not in the `test` extra, so 15 existing tests were
+  silently ignored rather than run and the extension sat at 0% coverage. `sphinx` is now a test
+  dependency. This is the same failure mode as the integration tests having nowhere to run.
+
+- build: **`pytest-cov` added to the `test` extra**, with a `[tool.coverage.run]` section that
+  omits `pestifer/resources/_archive` (retired, unimported code that would depress the total
+  while saying nothing about what needs testing). Coverage could not be measured at all before.
+
+
 - feat: **pestifer watermarks the files it authors.** Generated scripts (`.tcl`, `.namd`), the
   generated `*_minimal.prm`, the `density_equilibrate`/`membrane_equilibrate` convergence reports
   and every figure now carry `pestifer <version>  seed <seed>`. Artifacts routinely leave their

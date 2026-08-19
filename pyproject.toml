@@ -50,6 +50,11 @@ ligand-paramgen = [
 # Test runner (the suite itself; the tool-driven tests auto-skip when vmd/namd3 are absent).
 test = [
   "pytest",
+  "pytest-cov",
+  # tests/unit/test_sphinxext exercises pestifer.sphinxext, which imports sphinx/docutils.  Its
+  # conftest skips the whole directory when sphinx is absent -- so without this the tests were
+  # silently ignored everywhere rather than run anywhere, and the extension sat at 0% coverage.
+  "sphinx",
 ]
 
 [project.scripts]
@@ -70,6 +75,14 @@ override-dependencies = ["docutils>=0.21,<0.23"]
 
 [tool.pytest.ini_options]
 log_cli = false
+
+[tool.coverage.run]
+source = ["pestifer"]
+omit = [
+  # Retired code kept for reference only; it is not imported and would drag the total down
+  # while telling us nothing about what needs testing.
+  "pestifer/resources/_archive/*",
+]
 
 [tool.hatch.build]
 exclude = [
