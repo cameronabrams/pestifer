@@ -31,6 +31,7 @@ import os
 
 from .equilibrate_base import ChunkedEquilibrateTask, _fmt
 from ..core.artifacts import DataFileArtifact, PNGImageFileArtifact
+from ..util.provenance import stamp_figure
 from ..util.density_convergence import (
     ConvergenceParams,
     DensityConvergenceMonitor,
@@ -304,6 +305,7 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         fn = f'{self.basename}-membrane.dat'
         with open(fn, 'w') as f:
             f.write(f'# membrane_equilibrate convergence report -- {self.taskname}\n')
+            f.write(f'# {self.build_stamp()}\n')
             if self._geom is not None:
                 g = self._geom
                 f.write(f'# total system mass: {self._mass_amu:.1f} amu; lipids/leaflet: '
@@ -399,6 +401,7 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         output_dir = self.specs.get('output_dir', 'mdplots')
         os.makedirs(output_dir, exist_ok=True)
         fn = os.path.join(output_dir, f'{self.basename}-membrane.png')
+        stamp_figure(fig, self.build_stamp())
         fig.savefig(fn, dpi=120)
         plt.close(fig)
         self.register(fn, key='membrane_plot', artifact_type=PNGImageFileArtifact, keep=True)

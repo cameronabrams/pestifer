@@ -176,8 +176,12 @@ class DensityProfile:
         return centers, profiles
 
     def plot(self, outfile, title='', dz=1.0, lipid_components=False,
-             figsize=(6.4, 4.4), dpi=150):
-        """Compute and render the profile to ``outfile``; returns ``outfile``."""
+             figsize=(6.4, 4.4), dpi=150, stamp=None):
+        """Compute and render the profile to ``outfile``; returns ``outfile``.
+
+        ``stamp`` is an optional provenance mark drawn in the corner.  It is passed in rather than
+        looked up so this module keeps its independence from the rest of pestifer.
+        """
         import matplotlib
         matplotlib.use('Agg')
         import matplotlib.pyplot as plt
@@ -210,6 +214,8 @@ class DensityProfile:
         ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5),
                   frameon=False, fontsize='small')
         fig.tight_layout()
+        if stamp:
+            fig.text(0.995, 0.005, stamp, ha='right', va='bottom', fontsize=5.5, color='0.55')
         fig.savefig(outfile, dpi=dpi, bbox_inches='tight')
         plt.close(fig)
         logger.info(f'wrote {outfile}')

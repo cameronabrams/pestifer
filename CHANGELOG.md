@@ -4,6 +4,39 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **pestifer watermarks the files it authors.** Generated scripts (`.tcl`, `.namd`), the
+  generated `*_minimal.prm`, the `density_equilibrate`/`membrane_equilibrate` convergence reports
+  and every figure now carry `pestifer <version>  seed <seed>`. Artifacts routinely leave their
+  build directory -- a plot into a slide, a script into an email -- and arrived with nothing to say
+  what produced them. The seed is included because a replica set otherwise yields three
+  near-identical artifacts that nothing distinguishes.
+
+- change: **generated scripts no longer carry a `Created <ctime>` banner**, which the version-and-seed
+  mark replaces. A wall-clock timestamp says nothing about what produced a file and made
+  byte-identical regeneration impossible; the build time is still recorded in the log and in
+  `run-record.json`. Consequently **one config built twice with one pestifer now produces
+  byte-identical generated scripts**, and test runs no longer dirty the tracked fixture scripts in
+  the working tree. Nothing parsed the banner.
+
+- fix: **`TcLScripter` dropped every keyword argument but `comment_char`**, so nothing passed to a
+  Tcl-derived scripter (`VMDScripter`, `PsfgenScripter`, `NAMDScripter` inherit through it) reached
+  the base class. Harmless until the base class had state worth setting; found while wiring the
+  watermark, which was silently omitting the seed from every script.
+
+- fix: **re-plotted figures are marked with the seed of the run that produced the data**, read from
+  the NAMD log, rather than the seed in the current configuration. `pestifer mdplot` and
+  `reprocess-logs: true` plot logs some other run wrote; marking those with the running config's
+  seed attributes the data to a run that never made it. Observed in practice: a figure re-plotted
+  from a sweep log came out marked with the schema default while the log recorded `1609943847`.
+  Where logs disagree or record no seed, the mark falls back to the version alone.
+
+- docs: **the copied CHARMM force-field files are never watermarked, and the reason is written
+  down.** `.rtf`/`.str`/`.prm` are staged verbatim, and byte-identity with the upstream release is
+  how a reader verifies they are unmodified -- a naive "stamp everything pestifer writes" rule
+  would have destroyed exactly the provenance the mark exists to establish. There is a test
+  guarding it, and a new *Watermarks on generated files* section in `build-provenance.rst`.
+
+
 - fix: **`mdplot` no longer writes a blank figure when the data it was asked to plot is absent.**
   A requested trace with no data was skipped at debug level; if *every* trace in a group was
   missing, the loop drew nothing, called `ax.legend()` on empty axes -- matplotlib's "No artists

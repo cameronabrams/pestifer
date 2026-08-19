@@ -1,5 +1,5 @@
 # pestifer.scripters: 00-01-000_psfgen-build.tcl
-####################### Created Wed Aug 19 09:53:10 2026 #######################
+######################## pestifer 3.18.0  seed 27021972 ########################
 package require psfgen
 psfcontext mixedcase
 topology top_all36_prot.rtf

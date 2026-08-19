@@ -607,12 +607,25 @@ what appears here is refined and reprioritized as the project evolves.
       release time rather than at the commit that caused it. A self-hosted runner on a machine with
       the toolchain is the real fix. See `docs/source/contributing.rst`.
 
-- [ ] **Test runs dirty the working tree.** Several files under `tests/unit/test_tasks/test_psfgen_*/`
-      are tracked *and* rewritten by the suite -- `00-01-000_psfgen-build.tcl` differs only in the
-      generation timestamp in its header. So `git status` is dirty after every run, which is noise
-      at best and at worst trips `release.sh`'s clean-tree precondition. Either have those tests
-      write to a temp directory, or stop tracking the generated files and keep only whatever is a
-      genuine input fixture.
+- [ ] **Test runs dirty the working tree.** *Half fixed.* Several files under
+      `tests/unit/test_tasks/test_psfgen_*/` and `test_cleave/` are tracked *and* rewritten by the
+      suite, so `git status` is dirty after every run -- noise at best, and at worst it trips
+      `release.sh`'s clean-tree precondition.
+
+      The **timestamp** cause is gone: the generated-script header now carries `pestifer <version>
+      seed <seed>` instead of `Created <ctime>` (see *Watermarks on generated files* in
+      `build-provenance.rst`), and `test_psfgen_preserve`'s `.tcl` and `test_cleave`'s
+      `_minimal.prm` are now byte-stable across runs.
+
+      What remains is **a different cause**, found while verifying the above:
+      `test_psfgen_resegment/00-01-000_psfgen-build.tcl` still churns, because the generated script
+      embeds process-global counters -- `set m13 ...` vs `set m8 ...`, `Transform 14 begins` vs
+      `Transform 6 begins`. Those depend on how many molecules and transforms were created earlier
+      *in the same interpreter*, so the file's content depends on which other tests ran first.
+      Note this does **not** weaken the byte-reproducibility of a build: for a fixed task list the
+      counter sequence is fixed. It is test-ordering sensitivity, and the fix is the same as
+      before -- write to a temp directory, or stop tracking generated output and keep only the
+      genuine input fixtures.
 
 - [x] **Cover the chunked-equilibration machinery.** The convergence *criterion* was well tested
       (94%) but the loop around it was not (23%): chunk sizing and growth, the patch-grid

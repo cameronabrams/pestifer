@@ -8,6 +8,7 @@ import tempfile
 from .tcl import TcLScripter
 from ..charmmff.charmmffprm import CharmmParamFile
 from ..core.command import Command
+from ..util.provenance import stamp as provenance_stamp
 from ..logparsers import NAMDLogParser, NAMDxstParser
 from ..psfutil.psfcontents import PSFContents
 from ..util.progress import NAMDProgress
@@ -175,7 +176,8 @@ class NAMDScripter(TcLScripter):
 
         minimal = combined.extract_for_atomtypes(atomtypes)
         outname = f'{self.basename}_minimal.prm'
-        minimal.write(outname, title=f'Minimal CHARMM parameters for {self.basename}')
+        minimal.write(outname, title=f'Minimal CHARMM parameters for {self.basename}',
+                      stamp=provenance_stamp(getattr(self, 'build_seed', None)))
         logger.debug(f'consolidate_params: wrote {outname} ({minimal.summary()})')
 
         # Rewrite script: replace all 'parameters X' lines with the single minimal file

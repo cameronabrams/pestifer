@@ -289,6 +289,54 @@ replicas of every example, replica *r* using ``SEED_BASE+r-1``, each in its own
    the usual meaning of replicate simulations.  If you want independent *builds* as well — a
    different loop closure, a different lipid arrangement — vary those seeds in the YAML too.
 
+Watermarks on generated files
+-----------------------------
+
+The blocks above live in a log and in ``run-record.json``, which is fine until an artifact leaves
+its build directory.  A figure dropped into a slide, a psfgen script mailed to a colleague, a
+convergence report attached to an issue — each one arrives with no way to say what produced it.
+So pestifer marks the files it authors:
+
+.. code-block:: text
+
+    # pestifer.scripters: 00-01-000_psfgen-build.tcl
+    ####################### pestifer 3.18.0  seed 27021972 ########################
+
+The mark carries the version and the build's base seed.  The seed is there because a replica set
+otherwise produces three near-identical artifacts that nothing distinguishes — with it, a stray
+density plot names its own replica.  On figures it is drawn small in the bottom-right corner; in
+scripts and reports it is a comment; in the generated ``*_minimal.prm`` it is a CHARMM title
+record.
+
+.. note::
+
+   The mark deliberately replaced a wall-clock ``Created <ctime>`` banner.  A timestamp says
+   nothing about *what* produced a file, and it makes byte-identical regeneration impossible.
+   With it gone, **one config built twice with one pestifer produces byte-identical generated
+   scripts** — a checkable claim the timestamp had been quietly costing.  The build time is still
+   recorded, in the log and in ``run-record.json``, where it costs nothing.
+
+What is **not** marked, and why:
+
+* **Files pestifer copies rather than writes.**  The CHARMM ``.rtf``, ``.str`` and ``.prm`` files
+  are staged into the build directory verbatim, and byte-identity with the upstream release is
+  exactly how you verify they were not modified.  Stamping them would destroy the provenance the
+  mark exists to establish.  Only the *generated* ``*_minimal.prm`` carries one.
+* **Files NAMD, psfgen and catdcd write** — ``.log``, ``.coor``, ``.vel``, ``.xsc``, ``.dcd``,
+  ``.xst``, ``.psf``.  Those are their formats, not pestifer's, and several are read by other
+  tools that would not thank us for an extra header.
+* **The CSV time series**, which are consumed by ``pandas``; a comment line ahead of the header
+  risks breaking naive readers for provenance ``run-record.json`` already carries.
+
+.. warning::
+
+   Re-plotting is the one place where the running configuration is *not* the provenance of the
+   data.  ``pestifer mdplot`` and ``reprocess-logs: true`` draw figures from logs some earlier run
+   produced, possibly on another machine.  Those figures are therefore marked with the seed **NAMD
+   recorded in the log being plotted**, not the one in the current configuration.  Where the logs
+   disagree — a build's chunks each derive their own seed — or record none, the mark falls back to
+   the version alone rather than inventing a seed.
+
 Recovering either block from a log
 ----------------------------------
 

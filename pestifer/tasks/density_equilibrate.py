@@ -16,6 +16,7 @@ import os
 
 from .equilibrate_base import ChunkedEquilibrateTask, _fmt
 from ..core.artifacts import DataFileArtifact, PNGImageFileArtifact
+from ..util.provenance import stamp_figure
 from ..util.density_convergence import (
     ConvergenceParams,
     DensityConvergenceMonitor,
@@ -107,6 +108,7 @@ class DensityEquilibrateTask(ChunkedEquilibrateTask):
         fn = f'{self.basename}-density.dat'
         with open(fn, 'w') as f:
             f.write(f'# density_equilibrate convergence report -- {self.taskname}\n')
+            f.write(f'# {self.build_stamp()}\n')
             f.write(f'# total system mass: {mass_amu:.1f} amu\n')
             f.write(f'# stop: {stop_reason}\n')
             f.write('# chunk  step  nsteps  rho[g/cc]  drift  drift_hi  SEM/mean  tau[fr]  N_eff  '
@@ -181,6 +183,7 @@ class DensityEquilibrateTask(ChunkedEquilibrateTask):
         output_dir = self.specs.get('output_dir', 'mdplots')
         os.makedirs(output_dir, exist_ok=True)
         fn = os.path.join(output_dir, f'{self.basename}-density.png')
+        stamp_figure(fig, self.build_stamp())
         fig.savefig(fn, dpi=120)
         plt.close(fig)
         self.register(fn, key='density_plot', artifact_type=PNGImageFileArtifact, keep=True)

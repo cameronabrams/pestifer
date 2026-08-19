@@ -23,6 +23,7 @@ from matplotlib import colormaps as cmaps
 from .basetask import BaseTask
 from .mdtask import MDTask
 from ..core.errors import PestiferBuildError
+from ..util.provenance import stamp_figure, stamp as provenance_stamp
 from ..util.density_convergence import total_atoms
 from ..util.units import g_per_amu, A3_per_cm3
 from ..logparsers import NAMDLogParser
@@ -284,6 +285,7 @@ class MDPlotTask(BaseTask):
             if grid:
                 ax.grid(True)
             png_path = os.path.join(output_dir, f'{self.basename}-{name}-overlay.png')
+            stamp_figure(fig, self.build_stamp())
             fig.savefig(png_path, bbox_inches='tight')
             self.register(png_path, key=f'{name}-overlay-plot', artifact_type=PNGImageFileArtifact, keep=True)
             plt.close(fig)
@@ -424,6 +426,7 @@ class MDPlotTask(BaseTask):
                 logger.warning(f'{self.taskname}: plotting {tracename} without '
                                f'{", ".join(missing)} -- no data for those traces')
             png_path = os.path.join(output_dir, f'{self.basename}-{tracename}.png')
+            stamp_figure(plt.gcf(), self.build_stamp())
             plt.savefig(png_path, bbox_inches='tight')
             self.register(png_path, key=f'{tracename}-timeseries-plot', artifact_type=PNGImageFileArtifact, keep=True)
             plt.clf()
@@ -494,6 +497,7 @@ class MDPlotTask(BaseTask):
         fig.tight_layout()
         name = '_'.join('-'.join(g) for g in groups)
         png_path = os.path.join(output_dir, f'{self.basename}-panels-{name}.png')
+        stamp_figure(fig, self.build_stamp())
         fig.savefig(png_path, bbox_inches='tight')
         self.register(png_path, key='panels-plot', artifact_type=PNGImageFileArtifact, keep=True)
         plt.close(fig)
@@ -586,6 +590,7 @@ class MDPlotTask(BaseTask):
             if self.specs.get('grid', False):
                 ax.grid(True, axis='y')
             png_path = os.path.join(output_dir, f'{self.basename}-{name}-hist.png')
+            stamp_figure(plt.gcf(), self.build_stamp())
             plt.savefig(png_path, bbox_inches='tight')
             self.register(png_path, key=f'{name}-histogram-plot', artifact_type=PNGImageFileArtifact, keep=True)
             plt.clf()
@@ -679,6 +684,22 @@ class MDPlotTask(BaseTask):
                     logger.debug(f'MD history references a missing CSV: {artifact.name}')
         return len(self.csvartifacts) > 0
 
+    def build_stamp(self) -> str:
+        """The provenance mark for figures this task writes.
+
+        Overridden because re-plotting is the one path where the running configuration is *not*
+        the provenance of the data.  ``pestifer mdplot`` and ``reprocess-logs: true`` draw figures
+        from logs some other run produced -- possibly on another machine, possibly years earlier --
+        and stamping those with this configuration's seed would attribute the data to a run that
+        never made it.  NAMD records the seed it used in its own log, so that is what is used when
+        the logs agree on one; when they disagree (a build's chunks each get a derived seed) or
+        record none, the mark falls back to the version alone rather than inventing a seed.
+        """
+        if getattr(self, 'reprocess_logs', False):
+            seeds = {s for s in getattr(self, '_log_seeds', set()) if s}
+            return provenance_stamp(seeds.pop() if len(seeds) == 1 else None)
+        return super().build_stamp()
+
     def do(self):
         self.next_basename()
         my_logger(self.specs, logger.debug)
@@ -705,10 +726,13 @@ class MDPlotTask(BaseTask):
         if self.reprocess_logs:
             logger.debug(f'Reprocessing logs: {self.reprocess_logs}')
             namdlog_objs = []
+            # the seeds actually recorded by the runs being re-plotted -- see build_stamp
+            self._log_seeds = set()
             if self.explicit_logs:
                 for f in self.explicit_logs:
                     logger.debug(f'Extracting data from {f}')
                     the_log = NAMDLogParser.from_file(f)
+                    self._log_seeds.add(the_log.metadata.get('random_number_seed'))
                     csvs_generated = the_log.write_csv()
                     for key in csvs_generated:
                         artifact = self.register(csvs_generated[key], key=f'{key}-csv', artifact_type=CSVDataFileArtifact) 
@@ -965,6 +989,7 @@ class MDPlotTask(BaseTask):
                         ax[1].grid(True)
                         ax[2].grid(True)
                     png_path = os.path.join(output_dir, f'{self.basename}-pressureprofile.png')
+                    stamp_figure(plt.gcf(), self.build_stamp())
                     plt.savefig(png_path, bbox_inches='tight')
                     self.register(png_path, key='pressureprofile-plot', artifact_type=PNGImageFileArtifact, keep=True)
                     plt.clf()

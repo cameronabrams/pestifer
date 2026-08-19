@@ -282,7 +282,8 @@ class TerminateTask(MDTask):
                 f'fail with "DIDN\'T FIND vdW PARAMETER". Parsed files: {param_files}')
 
         outname = f'{self.basename}_minimal.prm'
-        minimal.write(outname, title=f'Minimal CHARMM parameter file for {self.basename}')
+        minimal.write(outname, title=f'Minimal CHARMM parameter file for {self.basename}',
+                       stamp=self.build_stamp())
         logger.debug(f'Wrote minimal parameter file: {outname}')
         return outname
 

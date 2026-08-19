@@ -28,6 +28,7 @@ from dataclasses import dataclass
 
 from . import Subcommand
 from ..util.densityprofile import DensityProfile
+from ..util.provenance import stamp as provenance_stamp
 
 logger = logging.getLogger(__name__)
 
@@ -62,7 +63,8 @@ class DensityProfileSubcommand(Subcommand):
         if args.lipid_components and len(dp.lipid_resnames) > 1:
             logger.info(f'lipid components: {", ".join(dp.lipid_resnames)}')
         dp.plot(out, title=args.title, dz=args.dz,
-                lipid_components=args.lipid_components, figsize=tuple(args.figsize))
+                lipid_components=args.lipid_components, figsize=tuple(args.figsize),
+                stamp=provenance_stamp())
         logger.info(f'wrote {out}')
         print(out)
         return True

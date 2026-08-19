@@ -16,6 +16,9 @@ class GenericScripter:
     """
     def __init__(self, *args, **kwargs):
         comment_char = kwargs.pop('comment_char', '#')
+        # The build-wide NAMD seed, so anything a scripter writes can identify which replica of a
+        # system it belongs to -- three replicas otherwise leave indistinguishable scripts.
+        self.build_seed = (kwargs.get('namd_config') or {}).get('seed')
         self.B = ByteCollector(comment_char=comment_char)
         self.is_written = False
         self.indent = ''

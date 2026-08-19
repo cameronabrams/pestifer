@@ -1,10 +1,10 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
-import datetime
 import logging
 import os
 
 from .generic import GenericScripter
+from ..util.provenance import stamp as provenance_stamp
 from ..util.stringthings import FileCollector
 
 logger = logging.getLogger(__name__)
@@ -19,7 +19,9 @@ class TcLScripter(GenericScripter):
         The configuration object containing settings for the script.
     """
     def __init__(self, *args, **kwargs):
-        super().__init__(comment_char=kwargs.get('comment_char', '#'))
+        # forward the rest: GenericScripter picks the build seed out of namd_config, and
+        # dropping kwargs here would silently unstamp every .tcl and .namd script
+        super().__init__(*args, **kwargs)
         self.progress = kwargs.get('progress', True)
         self.F = FileCollector()
         self.default_ext = '.tcl'
@@ -36,7 +38,6 @@ class TcLScripter(GenericScripter):
         basename : str, optional
             The base name for the script file. If not provided, a default name is used.
         """
-        timestampstr = datetime.datetime.today().ctime()
         if basename:
             self.basename = basename
         else:
@@ -45,7 +46,7 @@ class TcLScripter(GenericScripter):
         self.newfile(self.scriptname)
         msg = f'{__package__}: {self.basename}{self.default_ext}'
         self.comment(msg)
-        self.banner(f'Created {timestampstr}')
+        self.banner(provenance_stamp(getattr(self, 'build_seed', None)))
 
     def writescript(self):
         """

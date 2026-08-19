@@ -30,6 +30,7 @@ from ..core.pipeline import PipelineContext
 
 from ..scripters import GenericScripter, VMDScripter
 from ..util.util import hmsf
+from ..util.provenance import stamp as provenance_stamp
 
 if TYPE_CHECKING:
     from ..core.controller import Controller
@@ -158,6 +159,17 @@ class BaseTask(ABC):
         self.scripters: dict[GenericScripter] = self.provisions.get('scripters', {})
         self.controller_index: int = self.provisions.get('controller_index', 0)
         self.pipeline: PipelineContext = self.provisions.get('pipeline', None)
+
+    def build_stamp(self) -> str:
+        """The provenance mark this task writes into the files and figures it authors.
+
+        Version plus the build-wide NAMD seed, so an artifact that leaves its build directory can
+        still say what produced it and which replica it belongs to.
+        """
+        # getattr, not attribute access: the standalone re-plot paths build a task without ever
+        # provisioning it, and a provenance mark must never be able to break the artifact it marks
+        ngc = (getattr(self, 'provisions', None) or {}).get('namd_global_config') or {}
+        return provenance_stamp(ngc.get('seed'))
 
     @property
     def is_provisioned(self) -> bool:

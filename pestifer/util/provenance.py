@@ -59,6 +59,36 @@ def _run(cmd, cwd=None):
         return ''
 
 
+def stamp(seed=None):
+    """The one-line provenance mark pestifer writes into the files it authors.
+
+    Deliberately version-and-seed, not a wall-clock timestamp.  A timestamp says nothing about
+    *what* produced a file and makes byte-identical regeneration impossible; the version and seed
+    say exactly what produced it and are deterministic, so re-running one config with one pestifer
+    reproduces its generated scripts byte for byte.  The build time is recorded in the log and in
+    ``run-record.json``, where it does not cost that.
+
+    Never applied to files pestifer *copies* rather than writes -- the CHARMM ``.rtf``/``.str``/
+    ``.prm`` files must stay byte-identical to the release they came from, since that is how a
+    reader verifies they are unmodified.
+    """
+    mark = f'pestifer {__pestifer_version__}'
+    # _namd_seed returns 0 for 'no seed configured', so falsy means absent, not 'seed 0'
+    return f'{mark}  seed {seed}' if seed else mark
+
+
+def stamp_figure(fig, text=None, seed=None):
+    """Write the provenance mark into the bottom-right corner of a figure.
+
+    Figures are the artifacts most likely to travel without their build directory -- into a slide,
+    a notebook, a manuscript -- so they are the ones that most need to say what made them.  The
+    seed is included because a triplicate sweep otherwise produces three near-identical plots that
+    nothing distinguishes.
+    """
+    fig.text(0.995, 0.005, text or stamp(seed), ha='right', va='bottom',
+             fontsize=5.5, color='0.55')
+
+
 def python_environment():
     """Interpreter identity: implementation, version, executable, and platform."""
     return {
