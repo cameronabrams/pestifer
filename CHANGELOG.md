@@ -4,6 +4,24 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- docs: **New contributor page covering how to run and write the tests.** There was none, and the
+  test harness had grown machinery a contributor could not discover: running `pytest` alone gives a
+  *partial* suite, because `slow` tests need `--runslow` and `needs_tools` tests skip themselves
+  when VMD/NAMD are absent -- so a green run on a machine without the toolchain has not exercised a
+  single build. `pytest tests/integration` reports "10 skipped" and looks clean. The page documents
+  the two tiers and three markers, why CI runs only `tests/unit` (GitHub's runners have no VMD or
+  NAMD, so adding the integration tests there would silently skip and *look* like coverage), the
+  release gate in `scripts/release.sh` and how to bypass it, how to use
+  `helpers.py::assert_psf_sane` including why `unminimized=True` and a 2.5 A `max_bond` default
+  exist, the practice of asserting that a test exercised its path, and the habit of breaking a new
+  test to confirm it can fail.
+
+- docs: **New page for the `mdplot` task.** It appears in twenty-six of the twenty-seven
+  distributed examples -- the most-used task without documentation -- and was reachable only
+  through a passing mention on the `mdplot` *subcommand* page. Covers the nested-list `timeseries`
+  syntax, `profiles` for membrane pressure profiles, `reprocess-logs` for regenerating figures from
+  an existing build, and where the output lands.
+
 - test: **The chunked-equilibration machinery is now unit-tested.** The convergence *criterion*
   was already well covered (94%), but the machinery around it was not: the loop that sizes each
   chunk, recovers when NAMD outruns its patch grid, decides why it stopped and reports what it

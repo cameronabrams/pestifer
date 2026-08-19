@@ -155,6 +155,7 @@ Detailed explanation of some *selected* common tasks you can use is below.
    buildtasks/solvate
    buildtasks/make_membrane_system
    buildtasks/ring_check
+   buildtasks/mdplot
    buildtasks/terminate
 
 Please consult the Configuration Reference pages for :ref:`tasks <config_ref tasks>`, for a full list of available pestifer build tasks.

@@ -43,5 +43,6 @@ examples
 config_ref
 API <api/API>
 Tcl sources <tcl/source>
+contributing
 Changelog <changelog>
 ```
