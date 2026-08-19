@@ -96,6 +96,9 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "slow: mark test as slow to run")
     config.addinivalue_line("markers",
                             "needs_tools: requires the external vmd and namd3 executables on PATH")
+    config.addinivalue_line("markers",
+                            "expensive: minutes-long even by integration-test standards; excluded "
+                            "from the release gate, run explicitly with -m expensive")
 
 def pytest_unconfigure(config):
     """Remove and close our handler cleanly."""

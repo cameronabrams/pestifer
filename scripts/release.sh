@@ -65,7 +65,9 @@ fi
 #   - Skip entirely:  SKIP_INTEGRATION_TESTS=1
 if [ "${SKIP_INTEGRATION_TESTS:-0}" != "1" ]; then
     echo "Running integration tests (skip with SKIP_INTEGRATION_TESTS=1)..."
-    if ! ${PYTEST:-uv run --extra test pytest} tests/integration -q --runslow; then
+    # -m 'not expensive' excludes the membrane-patch build (~5.5 min, four times the rest of
+    # the suite combined).  Run it deliberately: pytest tests/integration -m expensive --runslow
+    if ! ${PYTEST:-uv run --extra test pytest} tests/integration -q --runslow -m 'not expensive'; then
         echo "ERROR: integration tests failed; not releasing.  Fix them, or set" >&2
         echo "       SKIP_INTEGRATION_TESTS=1 if you have decided the failure is not a blocker." >&2
         exit 1

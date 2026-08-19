@@ -21,8 +21,26 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   a bug in the representation they share. New `test_loop_closure.py` covers the `ligate` task,
   which had no test at all despite being the capability the Env and spike examples are built on.
   And `scripts/release.sh` now runs the integration suite before tagging -- CI cannot, since
-  GitHub's runners have no VMD or NAMD, and the whole suite takes 80 seconds on a machine that
-  does.
+  GitHub's runners have no VMD or NAMD, and the gated suite takes under two minutes on a machine
+  that does.
+
+- test: **Integration coverage extended to cleavage, chain identity, and bilayer construction.**
+  `test_cleave.py` asserts that the named peptide bond is severed, that the fragments re-segment
+  with the expected residue ranges, and that the only remaining covalent links between them are
+  the two disulfides that legitimately span the cut -- which also guards against cleavage breaking
+  a bond it was not asked to.  `test_chain_identity.py` covers chain IDs surviving the PSF -> PDB
+  regeneration after MD, comparing against the psfgen-stage files from the same build rather than
+  a hard-coded expectation, on a structure whose glycan segments deliberately share their parent
+  protein's chain ID -- so a regeneration that derived chain from segment name would be caught.
+  `test_membrane_patch.py` builds a real bilayer and asserts the packer's own claims: equally
+  populated leaflets, no lipid pointing the wrong way, and a physical headgroup separation.  The
+  membrane test is marked `expensive` (~3.5 min, several times the rest of the suite) and is
+  excluded from the release gate; run it with `pytest tests/integration -m expensive --runslow`.
+
+  Not added, after checking: a dedicated wide-PDB column-integrity test.  The 6-character
+  carbohydrate resnames that motivated it (`BGLCNA`) are already produced by the 2WAH build the
+  glycan test covers, the writer truncates them into the 4-column field with coordinates landing
+  correctly, and any column shift would fail the bond-geometry checks already running there.
 
 - docs: **Corrected an overclaim about reproducibility introduced in 3.18.0.** The `namd.seed`
   schema text and the build-provenance guide said that pinning the seed made "a build reproducible
