@@ -4,6 +4,19 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- test: **The chunked-equilibration machinery is now unit-tested.** The convergence *criterion*
+  was already well covered (94%), but the machinery around it was not: the loop that sizes each
+  chunk, recovers when NAMD outruns its patch grid, decides why it stopped and reports what it
+  ran, plus the density hooks that turn an `.xst` into a verdict. Both only ran under a live NAMD,
+  so they were exercised end to end and asserted on nowhere -- and this is the code the Validation
+  claim in a paper rests on. Neither needs NAMD to test: `ChunkedEquilibrateTask` already isolates
+  the physics behind hooks, so a stub subclass can script the verdicts and drive the loop, and an
+  `.xst` is a text file, so a density trajectory can just be written. `equilibrate_base.py` goes
+  from 23% to 80% and `density_equilibrate.py` from 21% to 46%, covering chunk growth and
+  quantization, the crash-halve-retry path and its bounded give-up, budget accounting relative to
+  an inherited `firsttimestep`, blowup handling, and the content of the stop reasons that end up
+  in `run-record.json`.
+
 - fix: **A `ligate` task on a structure with no gaps no longer fails the build.** The bypass path
   returned `None` instead of 0, and once a failed task became fatal (3.14.0) that turned a
   legitimate no-op into an aborted build. Pointing an Env-derived config at a complete structure
