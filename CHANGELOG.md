@@ -4,6 +4,26 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **A `ligate` task on a structure with no gaps no longer fails the build.** The bypass path
+  returned `None` instead of 0, and once a failed task became fatal (3.14.0) that turned a
+  legitimate no-op into an aborted build. Pointing an Env-derived config at a complete structure
+  is the obvious way to hit it. Found by writing an integration test for loop modelling.
+
+- test: **Integration tests gained a shared structural battery, a loop-modelling case, and a
+  release gate.** `tests/integration/helpers.py::assert_psf_sane` asserts what every build should
+  satisfy regardless of what it was exercising -- no duplicate, self, or over-long bonds; PSF and
+  PDB describing the same system; nothing stranded at the origin; integral total charge; no atoms
+  occupying the same space -- with an `unminimized=True` mode that skips contact checks and
+  ignores guessed hydrogen positions for builds that stop at psfgen. Each check corresponds to a
+  bug that has actually shipped here. The existing tests now call it, and their duplicated PSF/PDB
+  parsers are consolidated into that one module, which deliberately parses raw text rather than
+  using pestifer's own reader: a test that checks the writer with the writer's reader cannot catch
+  a bug in the representation they share. New `test_loop_closure.py` covers the `ligate` task,
+  which had no test at all despite being the capability the Env and spike examples are built on.
+  And `scripts/release.sh` now runs the integration suite before tagging -- CI cannot, since
+  GitHub's runners have no VMD or NAMD, and the whole suite takes 80 seconds on a machine that
+  does.
+
 - docs: **Corrected an overclaim about reproducibility introduced in 3.18.0.** The `namd.seed`
   schema text and the build-provenance guide said that pinning the seed made "a build reproducible
   as a whole" and that two runs of one config "agree exactly". That is wrong for a parallel run.

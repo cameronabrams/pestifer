@@ -33,6 +33,8 @@ import pytest
 from pestifer.core.config import Config
 from pestifer.core.controller import Controller
 
+from tests.integration.helpers import assert_psf_sane, parse_psf_pdb
+
 pytestmark = pytest.mark.needs_tools
 
 # Small glycoproteins with branched N-glycans (and, for 4b7i/4byh, chloride ions).
@@ -63,44 +65,13 @@ def _build(pdbid: str, workdir: Path) -> dict:
     return controller.do_tasks()
 
 
-def _parse_psf_pdb(psf: Path, pdb: Path):
-    """Return (atoms, bonds, coords).
-
-    atoms: {atomid -> (segname, resid, resname, name)}
-    bonds: [(atomid, atomid), ...]
-    coords: {serial -> (x, y, z)}  (pestifer writes PSF and PDB in the same atom order)
-    """
-    lines = psf.read_text().splitlines()
-    ai = next(k for k, l in enumerate(lines) if '!NATOM' in l)
-    natom = int(lines[ai].split()[0])
-    atoms = {}
-    for l in lines[ai + 1:ai + 1 + natom]:
-        p = l.split()
-        atoms[int(p[0])] = (p[1], p[2], p[3], p[4])
-    bi = next(k for k, l in enumerate(lines) if '!NBOND' in l)
-    nbond = int(lines[bi].split()[0])
-    ints: list[int] = []
-    k = bi + 1
-    while len(ints) < nbond * 2:
-        ints += [int(x) for x in lines[k].split()]
-        k += 1
-    bonds = [(ints[2 * b], ints[2 * b + 1]) for b in range(nbond)]
-
-    coords = {}
-    idx = 0
-    for l in pdb.read_text().splitlines():
-        if l.startswith(('ATOM', 'HETATM')):
-            idx += 1
-            coords[idx] = (float(l[30:38]), float(l[38:46]), float(l[46:54]))
-    return atoms, bonds, coords
-
-
 def _inter_residue_glycan_bonds(atoms, bonds):
     """Yield (a, b, seg_a) for each bond that joins two different residues of one glycan segment."""
     for a, b in bonds:
         sa, sb = atoms[a], atoms[b]
-        if _GLYCAN_SEG.match(sa[0]) and sa[0] == sb[0] and sa[1] != sb[1]:
-            yield a, b, sa[0]
+        if (_GLYCAN_SEG.match(sa['segname']) and sa['segname'] == sb['segname']
+                and sa['resid'] != sb['resid']):
+            yield a, b, sa['segname']
 
 
 @pytest.mark.slow
@@ -119,7 +90,12 @@ def test_intraglycan_bond_geometry(pdbid, tmp_path, monkeypatch):
     psf = tmp_path / 'my_system.psf'
     pdb = tmp_path / 'my_system.pdb'
     assert psf.exists() and pdb.exists(), f'{pdbid}: expected build outputs not found'
-    atoms, bonds, coords = _parse_psf_pdb(psf, pdb)
+    # the general structural battery first -- it would catch the branch-mis-wiring bug this
+    # test targets, plus duplicate bonds, stranded atoms and PSF/PDB disagreement.
+    # unminimized: no relaxation step here, so guessed hydrogens are not yet meaningful.
+    assert_psf_sane(psf, pdb, unminimized=True, context=pdbid)
+
+    atoms, bonds, coords = parse_psf_pdb(psf, pdb)
 
     long_bonds = []
     n_inter = 0
@@ -129,14 +105,15 @@ def test_intraglycan_bond_geometry(pdbid, tmp_path, monkeypatch):
         d = math.dist(coords[a], coords[b])
         if d > MAX_INTRA_GLYCAN_BOND:
             sa, sb = atoms[a], atoms[b]
-            long_bonds.append(f'{seg}:{sa[3]}{sa[1]}--{sb[3]}{sb[1]} ({d:.1f} A)')
+            long_bonds.append(f'{seg}:{sa["name"]}{sa["resid"]}--{sb["name"]}{sb["resid"]} '
+                              f'({d:.1f} A)')
         # track parent->children to confirm a branch is present (parent donates the
         # non-anomeric atom; the child contributes its anomeric C1/C2)
         sa, sb = atoms[a], atoms[b]
-        if sa[3] in ('C1', 'C2'):
-            parent, child = (sb[0], sb[1]), (sa[0], sa[1])
-        elif sb[3] in ('C1', 'C2'):
-            parent, child = (sa[0], sa[1]), (sb[0], sb[1])
+        if sa['name'] in ('C1', 'C2'):
+            parent, child = (sb['segname'], sb['resid']), (sa['segname'], sa['resid'])
+        elif sb['name'] in ('C1', 'C2'):
+            parent, child = (sa['segname'], sa['resid']), (sb['segname'], sb['resid'])
         else:
             continue
         children.setdefault(parent, set()).add(child)

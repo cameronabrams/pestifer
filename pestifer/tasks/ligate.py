@@ -46,12 +46,18 @@ class LigateTask(MDTask):
         If the base molecule does not have loops, the task is bypassed.
         The method returns the result of the NAMD run, which is 0 on success or a non-zero error code on failure.
         If the task is successful, it saves the state of the simulation with the specified extensions.
-        If the task is bypassed, it logs a message and returns without performing any operations.
+        If the task is bypassed, it logs a message and returns 0 (success) without performing
+        any operations -- a structure with no protein loops is a valid input, not a failure.
         """
         self.base_molecule: Molecule = self.get_current_artifact_data('base_molecule')
         if not self.base_molecule.has_protein_loops:
+            # Return success, not None.  A structure with no gaps is a legitimate input to a
+            # config that carries a ligate task -- copying an Env example onto a complete
+            # structure is the obvious way to get here -- and since a failed task became fatal
+            # the bare `return` aborted the whole build with `result: None`.
             self.log_message('bypassed')
-            return
+            self.result = 0
+            return self.result
         method = str(self.specs.get('method', 'ccd')).casefold()
         if method == 'steer':
             logger.debug('Storing sequence gaps.')
@@ -60,7 +66,8 @@ class LigateTask(MDTask):
             steering_specs = self.specs.get('steer', {})
             if not steering_specs:
                 logger.debug(f'No steering specifications for ligate task; this is a bug; bypassing')
-                return
+                self.result = 0
+                return self.result
             self.measure_distances(steering_specs)
             logger.debug('Steering loop C-termini toward their partner N-termini')
             self.result = self.do_steered_md(self.specs['steer'])

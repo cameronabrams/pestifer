@@ -55,6 +55,23 @@ if git ls-remote --tags origin "refs/tags/v$VERSION" | grep -q .; then
     exit 1
 fi
 
+# ── Integration tests ─────────────────────────────────────────────────────────
+# The unit suite runs in CI; the integration tests cannot, because GitHub's runners have no
+# VMD or NAMD.  They build real systems and assert on their geometry, so they are the only
+# thing standing between a refactor and a silently wrong structure -- and at ~80 s for the
+# whole suite there is no reason not to run them here, on the one machine that can.
+# Tests marked `needs_tools` skip themselves when vmd/namd3 are absent, so this degrades to a
+# no-op rather than blocking a release from a machine without the toolchain.
+#   - Skip entirely:  SKIP_INTEGRATION_TESTS=1
+if [ "${SKIP_INTEGRATION_TESTS:-0}" != "1" ]; then
+    echo "Running integration tests (skip with SKIP_INTEGRATION_TESTS=1)..."
+    if ! ${PYTEST:-uv run --extra test pytest} tests/integration -q --runslow; then
+        echo "ERROR: integration tests failed; not releasing.  Fix them, or set" >&2
+        echo "       SKIP_INTEGRATION_TESTS=1 if you have decided the failure is not a blocker." >&2
+        exit 1
+    fi
+fi
+
 # ── PyPI project-size preflight ───────────────────────────────────────────────
 # PyPI enforces a per-project total-size quota (default 10 GB, summed over every file of
 # every release). An upload that would exceed it is rejected with HTTP 400 — but only in CI,
