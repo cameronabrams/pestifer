@@ -4,6 +4,19 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- test: **`membrane_equilibrate` coverage raised from 42% to 73%.** The parameter resolution and APL
+  arithmetic were already tested; what was not were the three things a user actually consumes or
+  depends on. The **stop reasons**, which are what the run reports and what `run-record.json`
+  stores -- including that a ceilinged run names which precision gate was unmet, and that the
+  `CONVERGED` prefix the loop keys off is present. The **convergence report file**
+  (`<basename>-membrane.dat`), whose header must not claim a protein-corrected APL when the leaflet
+  geometry could not be measured. And **`_setup`'s protocol resolution**: two-stage by default with
+  stage 1 gating on density alone, single-stage gating on both, the larger step floor area gets as
+  a slow mode, and the graceful degradation when leaflet geometry cannot be measured -- which is
+  the decision that determines whether APL is protein-corrected at all, and therefore whether the
+  report header is telling the truth. The remainder is `_write_plot`, left alone deliberately:
+  asserting that a PNG appeared is a weak test.
+
 - feat: **`paths.obabel` makes Open Babel relocatable, like every other external command.**
   `vmd`, `namd3`, `charmrun` and `catdcd` could all be pointed elsewhere through a `paths` key for
   the user whose copy lives under another name or outside `PATH` -- a module-loaded HPC build, a
