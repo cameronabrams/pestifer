@@ -133,6 +133,14 @@ what appears here is refined and reprioritized as the project evolves.
         (sterols are phase-independent, forced `single`); finish the ex17 both-`Lo` acceptance build
         (patch-B → quilt → embed → equilibrate) before committing the example.
 
+- [ ] **Decide whether `max_steps` is a hard ceiling or a soft budget.** A chunked
+      equilibration runs whole chunks, so the last one crosses the ceiling rather than stopping at
+      it: a run with `max_steps: 6000` was observed to perform 8000 steps and then report
+      `CEILING: reached max_steps (6000)`. Both numbers are true -- the run *did* exhaust its budget
+      and it *did* run 8000 steps -- but a reader comparing them will assume one is wrong. Either
+      quantize the final chunk down to the remaining budget, or say "budget" rather than
+      "max_steps" in the message and the schema. (Observed while writing the loop tests, 2026-08-19.)
+
 - [ ] **Compute and plot chain order parameters (Scd) alongside density / box size.** The phase work
       packs and calibrates leaflets by chain order, but that order is only ever measured on the
       *single-molecule conformer ensemble* at generation time -- never on the assembled, equilibrating
@@ -255,6 +263,16 @@ what appears here is refined and reprioritized as the project evolves.
     hygiene code paths.
 
 ## Tooling / packaging
+
+- [ ] **The per-user cache is keyed on version but not on which checkout wrote it.**
+      `CacheableObject` names its files `<name>-v<major>.<minor>`, so two checkouts at the same
+      version share one cache -- and the cached CHARMMFF content stores *absolute paths* to
+      resource files. Building from a second checkout (a git worktree, a pip-installed copy
+      alongside the source tree) therefore poisons the shared cache with paths into that copy, and
+      builds from the original then fail with `FileNotFoundError` on a toppar file. `pestifer cache
+      clear` fixes it, but nothing points there. Options: include a hash of the resource root in the
+      cache key, or store resource paths relative to it. (Hit while running the test suite from a
+      worktree, 2026-08-19.)
 
 - [ ] **`deposit` subcommand: package a completed build for public archiving.** Point it at a
       finished production fileset and it assembles a deposit-ready bundle — inputs, topologies,
@@ -568,6 +586,46 @@ what appears here is refined and reprioritized as the project evolves.
     - Composes with the optionally-interactive `new-system` item (which can emit detected missing
       residues straight into a `terminal_tails` block). Possible follow-up: ring-piercing hygiene
       for tails (interior loops get it via the graft-time scan).
+
+## Testing / CI
+
+- [ ] **Give the integration tests somewhere to actually run.** They build real systems and are the
+      only tests that can catch a wrong *structure*, but GitHub-hosted runners have no VMD or NAMD,
+      so adding them to `.github/workflows/tests.yaml` would make them **skip** and report green --
+      worse than not running them, because it looks like coverage. They currently run in
+      `scripts/release.sh` (gated, ~2 min) and nowhere else, which means a regression is caught at
+      release time rather than at the commit that caused it. A self-hosted runner on a machine with
+      the toolchain is the real fix. See `docs/source/contributing.rst`.
+
+- [ ] **Test runs dirty the working tree.** Several files under `tests/unit/test_tasks/test_psfgen_*/`
+      are tracked *and* rewritten by the suite -- `00-01-000_psfgen-build.tcl` differs only in the
+      generation timestamp in its header. So `git status` is dirty after every run, which is noise
+      at best and at worst trips `release.sh`'s clean-tree precondition. Either have those tests
+      write to a temp directory, or stop tracking the generated files and keep only whatever is a
+      genuine input fixture.
+
+- [x] **Cover the chunked-equilibration machinery.** The convergence *criterion* was well tested
+      (94%) but the loop around it was not (23%): chunk sizing and growth, the patch-grid
+      crash-halve-retry path, budget accounting relative to an inherited `firsttimestep`, and the
+      stop reasons that end up in `run-record.json`. Both `ChunkedEquilibrateTask` and the density
+      and membrane hooks are now driven without NAMD, by scripting the verdicts and writing
+      synthetic `.xst` series. `equilibrate_base` 23% → 80%, `density_equilibrate` 21% → 46%,
+      `membrane_equilibrate` 42% → 73%. (Unreleased.)
+
+- [x] **A shared structural battery for integration tests.** `tests/integration/helpers.py`
+      supplies `assert_psf_sane`: PSF and PDB describing the same system, no duplicate/self/
+      over-long bonds, nothing stranded at the origin, integral total charge, no atoms occupying
+      the same space. Each check corresponds to a bug that has actually shipped here. New tests for
+      loop closure, cleavage, chain identity and bilayer packing use it. (Unreleased.)
+
+**Deliberately not planned:** image-comparison tests for the plotting code. Baseline PNGs are
+hostage to matplotlib, FreeType and font versions, answer "something changed" rather than "what
+changed", and bless whatever bug was present when the baseline was generated. `mdplot` is tested
+instead through its pure data-preparation functions and by asserting on the *content* of the figure
+object (lines drawn, labels attached, axis text) -- which is how the blank-figure defect was found.
+Much of the remaining uncovered plotting code is styling, where the only honest assertion is "it
+did not crash"; testing it would move the coverage number without improving the odds of catching a
+real bug.
 
 ## Ideas / unsorted
 
