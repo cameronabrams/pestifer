@@ -29,11 +29,26 @@ Pestifer is under very active development.  To get the latest version, just upda
 
 .. note::
 
-   To use CGenFF ligand auto-parameterization (needed by Examples 9, 10, and 24, and the ``make-ligand-mol2`` subcommand), install the optional ``ligand-paramgen`` extra, which pulls in ``rdkit`` and ``dimorphite_dl``:
+   The optional ``ligand-paramgen`` extra is needed only by the
+   :ref:`make-ligand-mol2 <subs_make_ligand_mol2>` subcommand:
 
    .. code-block:: console
 
       $ pip install pestifer[ligand-paramgen]
+
+   It pulls in ``rdkit`` and ``dimorphite_dl``, and the subcommand additionally shells out to
+   `Open Babel <https://openbabel.org>`_ (``obabel``), which is a system package rather than a
+   Python one -- install it through your OS package manager.
+
+   **This does not give you ligand parameterization.**  ``make-ligand-mol2`` *prepares* a
+   CGenFF-ready mol2 file for each unknown ligand; generating the parameters themselves is done by
+   the CGenFF program or the `CGenFF web tool <https://cgenff.com/>`_, neither of which ships with
+   pestifer.  Pestifer then :ref:`incorporates the resulting stream file <custom_charmm_stream_file>`
+   into a build.
+
+   No distributed example requires this extra.  Examples that contain a parameterized ligand --
+   9 and 10, whose ``83G`` drug molecule was parameterized with CGenFF beforehand -- carry the
+   resulting stream file as a package resource, so they build with nothing extra installed.
 
 If you want a bleeding-edge, potentially unstable version, or you just want the source code, you can clone it from `GitHub <https://github.com/cameronabrams/pestifer>`_:
 

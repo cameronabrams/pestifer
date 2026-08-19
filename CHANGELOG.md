@@ -4,6 +4,18 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- docs: **Corrected the installation note about the `ligand-paramgen` extra**, which was wrong in
+  three ways. It said the extra was "needed by Examples 9, 10, and 24" -- none of them need it:
+  examples 9 and 10 carry the CGenFF stream file for their `83G` drug molecule as a package
+  resource (`resources/charmmff/custom/83G-cgenff.str`), and example 24 has no ligand at all. All
+  three build on a machine with neither `rdkit`, `dimorphite_dl` nor the CGenFF binary installed --
+  verified, since examples 9 and 10 each built three times that way during a replica sweep. It
+  called the extra "CGenFF ligand auto-parameterization", which overstates it and contradicts
+  pestifer's actual position: `make-ligand-mol2` *prepares* a CGenFF-ready mol2, and parameter
+  generation happens in the CGenFF program or web tool, neither of which ships here. And it omitted
+  Open Babel, which the subcommand shells out to and which is a system package no Python extra can
+  install.
+
 - docs: **New contributor page covering how to run and write the tests.** There was none, and the
   test harness had grown machinery a contributor could not discover: running `pytest` alone gives a
   *partial* suite, because `slow` tests need `--runslow` and `needs_tools` tests skip themselves
