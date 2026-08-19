@@ -322,6 +322,16 @@ what appears here is refined and reprioritized as the project evolves.
       Validated by a golden AsymmetricUnit oracle on 4zmj/6pti (diffs to only the sym delta), the full
       unit suite, and an all-examples runthrough (the CIF/glycan/assembly builds — 7–12, 14, 15, 18,
       21 — all pass). Design doc: `docs/design/mmcif-offload.md`.
+- [ ] **Extract the NAMD analysis layer into its own package.** Reading and analysing what NAMD
+      writes -- `.log` and `.xst` parsing, density and lateral-area computation, the
+      autocorrelation-corrected convergence criterion, density profiles, restart generation -- is a
+      general capability worth having outside pestifer, on the precedent of `pidibble` and
+      `ycleptic`. Roughly 1,000 statements with light or no coupling back into pestifer.  *Writing*
+      a NAMD config is not extractable: it needs the CHARMM force field and the PSF, so it is
+      pestifer's own domain.  Note pestifer would **depend on** the result rather than shed it, as
+      it does pidibble.  Full evidence, coupling graph, sequencing and the decision test in
+      `docs/design/namd-layer-extraction.md`.  (Distinct from the resource-package item below.)
+
 - [ ] **Split the stable CHARMM resources into a separate data package.** The bundled force
       field and PDB repository are *data*, versioned on CHARMM's release cadence, but they live in
       the code repo and ride every pestifer release. The costs, measured rather than supposed:
