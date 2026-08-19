@@ -4,6 +4,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **`paths.obabel` makes Open Babel relocatable, like every other external command.**
+  `vmd`, `namd3`, `charmrun` and `catdcd` could all be pointed elsewhere through a `paths` key for
+  the user whose copy lives under another name or outside `PATH` -- a module-loaded HPC build, a
+  conda environment. `obabel` could not, because `mol2_writer` hardcoded the string. It is resolved
+  as an *optional* command: recorded in `shell_commands` so it can be overridden, but deliberately
+  not added to the required set, since requiring it would break every build for the majority who
+  never run `make-ligand-mol2`. The failure message now names the binary that was actually tried,
+  so a user who relocated it and got the path wrong is told which path failed rather than the
+  generic name.
+
 - docs: **Corrected the installation note about the `ligand-paramgen` extra**, which was wrong in
   three ways. It said the extra was "needed by Examples 9, 10, and 24" -- none of them need it:
   examples 9 and 10 carry the CGenFF stream file for their `83G` drug molecule as a package

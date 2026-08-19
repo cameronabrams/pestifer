@@ -430,6 +430,14 @@ attributes:
         type: str
         text: Path for vmd executable
         default: vmd
+      - name: obabel
+        type: str
+        text: >-
+          Path for the Open Babel executable. Used only by the 'make-ligand-mol2' subcommand,
+          which shells out to it for PDB-to-mol2 conversion; it is never needed to build a
+          system, so unlike vmd/namd3/charmrun/catdcd it is not checked when a configuration
+          loads. Set this if Open Babel is installed under another name or outside PATH.
+        default: obabel
       - name: catdcd
         type: str
         text: Path to catdcd executable

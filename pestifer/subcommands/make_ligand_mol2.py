@@ -65,6 +65,7 @@ class MakeLigandMol2Subcommand(Subcommand):
             outdir=Path(args.outdir),
             ph=args.ph,
             smiles_overrides=overrides,
+            obabel=config.shell_commands.get('obabel', 'obabel'),
         )
 
         _print_summary(summary, args.outdir)

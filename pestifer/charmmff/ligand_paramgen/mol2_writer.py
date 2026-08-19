@@ -44,6 +44,7 @@ def write_mol2(
     mol: Chem.Mol,
     resname: str,
     outpath: str | os.PathLike,
+    obabel: str = 'obabel',
 ) -> Path:
     """
     Write ``mol`` to ``outpath`` as a mol2 file via Open Babel.
@@ -91,11 +92,11 @@ def write_mol2(
         # input filename, which CGenFF then picks up as the RESI name —
         # so the resulting .str registers a residue named like
         # "/tmp/AP5_xyz.pdb" that pestifer can never match.
-        c = Command(f"obabel {tmp_pdb} -O {outpath} --title {resname}")
+        c = Command(f"{obabel} {tmp_pdb} -O {outpath} --title {resname}")
         rc = c.run(quiet=True)
         if rc != 0 or not outpath.exists():
             raise Mol2WriteError(
-                f"obabel failed (rc={rc}) for {resname}: {c.stderr or c.stdout}"
+                f"{obabel} failed (rc={rc}) for {resname}: {c.stderr or c.stdout}"
             )
     finally:
         try:

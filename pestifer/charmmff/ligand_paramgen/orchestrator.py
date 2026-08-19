@@ -115,6 +115,7 @@ def generate_ligand_mol2s(
     outdir: Path | str,
     ph: float = 7.4,
     smiles_overrides: dict[str, str] | None = None,
+    obabel: str = 'obabel',
 ) -> LigandGenSummary:
     """
     For each unknown ligand resname in the parsed PDB, fetch a SMILES,
@@ -156,7 +157,7 @@ def generate_ligand_mol2s(
             continue
         outpath = outdir / f"{resname}.mol2"
         try:
-            write_mol2(mol, resname, outpath)
+            write_mol2(mol, resname, outpath, obabel=obabel)
         except Mol2WriteError as exc:
             logger.warning("%s: mol2 write failed (%s)", resname, exc)
             summary.failures.append(LigandResult(

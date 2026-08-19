@@ -263,6 +263,11 @@ class Config(Yclept):
         command is missing when used (see e.g. ``DesolvateTask``).
         """
         required_commands = ['charmrun', 'namd3', 'vmd', 'catdcd']
+        # Resolved and made available, but never required: a command only some subcommand needs.
+        # Requiring `obabel` would break every build for the majority who never run
+        # `make-ligand-mol2`, and that subcommand already fails loudly and by name when it is
+        # missing.  Recording it here is what makes `paths.obabel` relocatable at all.
+        optional_commands = ['obabel']
         command_alternates = {'namd3': 'namd2'}
         self.shell_commands = {}
 
@@ -289,6 +294,9 @@ class Config(Yclept):
                     _missing(f'Cannot find or execute required command {self.shell_commands[rq]!r}.')
             if rq_resolved is not None and verify_access:
                 assert os.access(rq_resolved, os.X_OK), f'You do not have permission to execute {rq_resolved}'
+        for opt in optional_commands:
+            self.shell_commands[opt] = self['user']['paths'][opt]
+
         namd3_path = self.shell_commands['namd3']
         namd3gpu_path = self['user']['paths']['namd3gpu']
         processor_type = self['user']['namd'].get('processor-type', 'auto')
