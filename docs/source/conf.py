@@ -10,6 +10,18 @@ project = 'pestifer'
 # back to install metadata, so this matches both the CLI and the Read the Docs build
 # (which installs the package non-editably).
 from pestifer.util.stringthings import __pestifer_version__
+
+# Resolve pydantic forward references before autodoc introspects anything.
+#
+# Several models (SSBond, Link, Patch, ... and their subclasses in pestifer.objs) annotate fields
+# with quoted types -- 'Residue', 'ResidueList' -- that are imported only under TYPE_CHECKING to
+# break an import cycle.  pestifer.molecule.residue rebuilds them at the bottom of the module that
+# defines Residue, so at run time everything is complete.  autodoc, though, imports each documented
+# module on its own: importing pestifer.objs.ssbonddelete never pulls in molecule.residue, so the
+# model is still incomplete when the autodoc-skip-member handler inspects it, and pydantic raises
+#   `SSBondDelete` is not fully defined; you should define `Residue`, ...
+# which aborts the whole build.  Importing residue here runs those rebuilds first.
+import pestifer.molecule.residue  # noqa: F401,E402
 release = __pestifer_version__
 version = '.'.join(release.split('.')[:2])  # major.minor
 

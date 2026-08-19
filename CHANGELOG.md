@@ -30,6 +30,20 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   from a sweep log came out marked with the schema default while the log recorded `1609943847`.
   Where logs disagree or record no seed, the mark falls back to the version alone.
 
+- fix: **the docs build aborted in autodoc on an unresolved pydantic forward reference.**
+  `SSBond` and friends annotate fields with quoted types (`'Residue'`) imported only under
+  `TYPE_CHECKING` to break an import cycle, and `molecule/residue.py` rebuilds them at the bottom
+  of the module that defines `Residue`. At run time everything is complete, but autodoc imports
+  each documented module on its own -- importing `pestifer.objs.ssbonddelete` never pulls in
+  `molecule.residue` -- so the model was still incomplete when the `autodoc-skip-member` handler
+  inspected it and pydantic raised ``` `SSBondDelete` is not fully defined ```, taking the whole
+  build down. `docs/source/conf.py` now imports `pestifer.molecule.residue` before autodoc runs.
+  Confirmed pre-existing at HEAD and independent of the watermark work.
+
+- fix: **`Residue` was never rebuilt and so was permanently incomplete**, unlike the five models
+  listed beside it at the bottom of `molecule/residue.py`. It has forward references of its own, so
+  every first use paid for a lazy rebuild. Added to the list.
+
 - docs: **the copied CHARMM force-field files are never watermarked, and the reason is written
   down.** `.rtf`/`.str`/`.prm` are staged verbatim, and byte-identity with the upstream release is
   how a reader verifies they are unmodified -- a naive "stamp everything pestifer writes" rule

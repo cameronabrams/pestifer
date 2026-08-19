@@ -1178,8 +1178,13 @@ class ResidueList(BaseObjList[Residue]):
     def puniquify(self, attrs: list[str], stash_attr_name = 'ORIGINAL_ATTRIBUTES'):
         return super().puniquify(attrs, stash_attr_name)
 
+# These models carry forward references (quoted annotations resolved only under TYPE_CHECKING)
+# that cannot be resolved until Residue itself exists, so they are rebuilt here at the bottom of
+# the module that defines it.  Residue is in the list because it has forward references of its own;
+# leaving it out left it permanently incomplete, so every first use paid for a lazy rebuild.
 Link.model_rebuild()
 Patch.model_rebuild()
+Residue.model_rebuild()
 SSBond.model_rebuild()
 Seqadv.model_rebuild()
 StateInterval.model_rebuild()
