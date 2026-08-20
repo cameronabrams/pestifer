@@ -4,6 +4,26 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- test: **`psfgen` coverage raised from 47% to 65%.** The existing files cover the guards that stop
+  a bad build, the two incoming-PSF modes, and real psfgen runs; the new `test_psfgen_logic.py`
+  takes the graph and bookkeeping helpers that decide *what* gets rotated, declashed or carried
+  forward. None of it needs VMD.
+
+  These are the parts where an error produces a structure that builds and runs anyway: a missed
+  rotatable bond just means a glycan never declashes, and a resid parsed as `None` silently drops
+  a residue from a loop. Now covered: `_rotatable_bonds` (including that ring bonds and peptide
+  bonds are never rotatable, that a doubly-anchored bond is not, and that the graph is restored
+  after each trial cut), `_resid_seqnum` insertion-code handling, `_crotation_targeted_resids`
+  and its expansion over assembly images, `_incoming_stream_files`, the declash dispatch and its
+  per-image count arithmetic, loop enumeration and its two exclusions, both ring-piercing
+  resolvers, `resi_topologies`/`patch_topologies`, and `strip_remarks`.
+
+  One interaction worth naming: when the free-tail modeler is on it owns every terminal tail, so
+  `declash_protein_loops` must *not* also wiggle a C-terminal run. Both would happily process it,
+  and the result of doing both is the modeler's careful conformation being wiggled afterwards by a
+  declasher that treats it as a loop.
+
+
 - test: **`make_membrane_system` coverage raised from 23% to 54%.** `test_make_membrane_system.py`
   already covered the physics helpers and runs real end-to-end builds behind `--runslow`; the new
   `test_make_membrane_decisions.py` takes the routing and setup logic between those two -- what the

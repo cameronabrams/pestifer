@@ -621,10 +621,13 @@ what appears here is refined and reprioritized as the project evolves.
       above, and it is worth watching for elsewhere -- **a conditional skip that is always taken
       reports green and looks like coverage.** (Unreleased.)
 
-- [ ] **Remaining coverage gaps, in priority order.** `tasks/psfgen.py` 50%,
-      `charmmff/make_pdb_collection.py` 14%, `tasks/ringcheck.py` 20%. These need the toolchain,
-      so they are gated behind the self-hosted-runner item above rather than being
-      straightforwardly writable today.
+- [ ] **Remaining coverage gaps, in priority order.** `charmmff/make_pdb_collection.py` 14%,
+      `tasks/ringcheck.py` 20%. Both should be read before being written off: the same assumption
+      about `make_membrane_system` and `psfgen` proved about half wrong in each case.
+
+      `psfgen` is now 47% → 65%; what is left there is genuine structural work (tail modeling, the
+      numpy declashers over real PSFs, molecule ingestion) rather than decision logic.
+      (Unreleased.)
 
       `tasks/make_membrane_system.py` is done as far as it usefully goes without the toolchain:
       23% → 54%. The remainder is genuinely VMD/NAMD-bound (grid placement, psfgen, the relaxation
