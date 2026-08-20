@@ -4,6 +4,32 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- test: **`ring_check` coverage raised from 20% to 99%.** `test_ringcheck.py` covers the *detector*
+  -- whether a bond really threads a ring -- against real coordinates; the new
+  `test_ringcheck_task.py` covers what the task does with the answer. Those decisions are
+  consequential and invisible when wrong: deleting the wrong residue silently changes the system's
+  composition, classifying a fixable piercing as fatal aborts a build that had a way forward, and
+  the reverse hands the next stage a threaded structure that RATTLE-fails minutes later looking
+  like something else entirely.
+
+  Pinned: the `_rotatable` classification in all three of its cases; the full decision tree in
+  `do()` (rotate, re-check, delete, or refuse); the **delete set**, including that `both` never
+  deletes a non-lipid piercer because a glycan or protein bond cannot be dropped without breaking
+  the molecule; the rotation-strategy order, where a glycan ring speared by a protein side chain
+  moves the *glycan* first because it is the model-built partner; and the side-chain scoring, where
+  among rotations that clear the ring the one introducing the fewest new heavy-atom clashes wins
+  and a clash-free one ends the search.
+
+  Also pinned: each candidate rotation is measured from the input pose rather than the previous
+  candidate. Were the coordinates not reset between them the rotations would compound, and
+  "rotate by 240 degrees" would silently mean 360.
+
+- note: **`ring_check` has an unreachable branch.** The `if not other_piercings` early return in
+  `do()` cannot be taken: the three piercing lists partition the detector's output exhaustively, so
+  reaching it requires `other_piercings` to equal a list already known to be non-empty. Harmless
+  defensive code, left in place, but it is the only part of the task that no test can reach.
+
+
 - test: **`make_pdb_collection` coverage raised from 14% to 43%.** The expensive half -- `do_psfgen`,
   which builds and samples an actual lipid -- needs psfgen and NAMD and is exercised by the
   generator's own acceptance runs. Everything around it is now covered:

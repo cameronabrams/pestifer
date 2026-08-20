@@ -621,14 +621,28 @@ what appears here is refined and reprioritized as the project evolves.
       above, and it is worth watching for elsewhere -- **a conditional skip that is always taken
       reports green and looks like coverage.** (Unreleased.)
 
-- [ ] **Remaining coverage gaps.** `tasks/ringcheck.py` 20% is the last of the ones flagged in
-      August. Read it before writing it off: the "needs the toolchain" assumption proved about
-      half wrong for `make_membrane_system`, `psfgen` and `make_pdb_collection` alike -- in each
-      case the decision layer around the toolchain call was ordinary, testable logic, and it is
-      the layer where errors are silent.
+- [x] **The August coverage gaps are closed.** Every module flagged then has been brought up
+      without a toolchain:
 
-      `charmmff/make_pdb_collection.py` is now 14% → 43%; what remains is `do_psfgen`, which
-      genuinely builds and samples a lipid. (Unreleased.)
+      | Module | Before | After |
+      |---|---|---|
+      | `tasks/mdplot.py` | 42% | 90% |
+      | `tasks/make_membrane_system.py` | 23% | 54% |
+      | `tasks/psfgen.py` | 47% | 65% |
+      | `charmmff/make_pdb_collection.py` | 14% | 43% |
+      | `tasks/ringcheck.py` | 20% | 99% |
+      | `util/namdrestart.py` | 13% | 99% |
+      | `sphinxext` | 38% | 95% |
+
+      The lesson, which held in every case: **"needs the toolchain" was about half true.** Grid
+      placement, psfgen and NAMD genuinely cannot be stubbed, but what each task *decides* around
+      those calls is ordinary logic -- and it is the half where errors are silent, because a
+      toolchain failure announces itself while a wrong decision just produces a structure that
+      builds and runs. Where a task really is bound to the toolchain (`do_psfgen`, tail modeling,
+      the numpy declashers), that is now the honest remainder rather than an assumption.
+
+      Two real defects came out of the exercise: the `make-namd-restart` basename bug, and the
+      `sphinxext` tests that had never run anywhere. (Unreleased.)
 
       `psfgen` is now 47% → 65%; what is left there is genuine structural work (tail modeling, the
       numpy declashers over real PSFs, molecule ingestion) rather than decision logic.
