@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.19.1] - 2026-08-20
+
 - change: **the examples no longer plot density twice.** Twenty-two of the twenty-seven examples
   asked `mdplot` for `density` while also running `density_equilibrate`, which writes its own
   density figure -- so every build produced two plots of one quantity and left the reader to work
