@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.19.0] - 2026-08-20
+
 - change: **subcommands are grouped rather than listed flat.** Nineteen commands (twenty in a
   source checkout) were presented as one undifferentiated list on the command line, and as a
   *differently* ordered undifferentiated list in the docs -- so neither order carried information
