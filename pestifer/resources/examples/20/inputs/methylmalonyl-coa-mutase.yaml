@@ -40,7 +40,9 @@ tasks:
 - mdplot:
     basename: solvated
     timeseries:
-      - density
+      - - a_x
+        - b_y
+        - c_z
     grid: True
 - terminate:
     basename: my_mcm

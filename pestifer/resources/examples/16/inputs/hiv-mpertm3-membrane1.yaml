@@ -128,7 +128,6 @@ tasks:
       timeseries:
         - - cpu_time
           - wall_time
-        - density
         - - a_x
           - b_y
           - c_z

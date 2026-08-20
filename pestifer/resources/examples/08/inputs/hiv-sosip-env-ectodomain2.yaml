@@ -89,7 +89,9 @@ tasks:
   - density_equilibrate:
   - mdplot:
       timeseries:
-        - density
+        - - a_x
+          - b_y
+          - c_z
       basename: solvated
       grid: True
   - terminate:

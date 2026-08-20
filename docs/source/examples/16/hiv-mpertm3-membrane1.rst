@@ -44,10 +44,6 @@ The ``mdplot`` task generated the following plots for the membrane-embedded syst
 
            Cell dimensions vs time step for the protein-embedded membrane.
 
-.. figure:: 16-bilayer-density.png
-
-           System density vs time step for the protein-embedded membrane.
-
 .. figure:: 16-bilayer-pressureprofile.png
 
            Pressure profiles for selected time intervals during the protein-embedded membrane relaxation.

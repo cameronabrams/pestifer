@@ -86,13 +86,13 @@ The task writes its own convergence plot, which shows the reasoning rather than 
 
     Box density vs. timestep for the BPTI system, as reported by ``density_equilibrate``.  The grey band at the left is the burn-in discarded as the barostat transient; the green band is the trailing window the convergence test is evaluated over; the red points are per-chunk means of that window; and the marker at the right is the step at which the run decided it was finished.  The final density is stated on the plot.
 
-The ``mdplot`` task then plots the same quantity across *all* the post-solvation dynamics -- the minimization and the NVT warm-up as well as the NPT stage -- which is the wider view rather than the convergence argument:
+The ``mdplot`` task then plots what the box was *doing* to get there.  Density and cell size are two views of one process -- under NPT the cell shrinks until the water reaches its proper density -- so the pair is complementary rather than repetitive:
 
-.. figure:: solvated-density.png
+.. figure:: solvated-a_x-b_y-c_z.png
 
-    Density vs. timestep for the BPTI system post-solvation, across every simulation stage.  The dashed vertical rules mark the boundaries between stages, so the jump as the barostat engages reads as a change of ensemble rather than as a physical event.
+    The three cell edges vs. timestep for the BPTI system under NPT.  All three contract sharply as the barostat engages on the slightly-too-sparse solvated box -- ``a_x`` from 58 to 56 A, the other two by about 2 A each -- and then fluctuate about fixed values for the rest of the run.  That plateau is the same equilibrium the density plot above reports reaching; this is the box motion behind it.  The series begins where the NPT stage does, because the cell trajectory is only written once the barostat is running.
 
-Between them, nothing about the equilibration has to be assumed: the convergence plot shows the criterion that ended the run, and the stage plot shows that criterion in the context of everything that came before it.
+Between them, nothing about the equilibration has to be assumed: the convergence plot shows the criterion that ended the run, and the cell plot shows the box motion that criterion was measuring.
 
 The same ``mdplot`` task also records what the run cost, which is the other thing worth knowing
 before scaling a protocol up:

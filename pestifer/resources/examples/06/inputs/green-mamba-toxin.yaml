@@ -32,7 +32,9 @@ tasks:
 - mdplot:
     basename: solvated
     timeseries:
-    - density
+    - - a_x
+      - b_y
+      - c_z
 - terminate:
     basename: my_1fas
     package:

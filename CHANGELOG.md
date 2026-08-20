@@ -4,6 +4,26 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: **the examples no longer plot density twice.** Twenty-two of the twenty-seven examples
+  asked `mdplot` for `density` while also running `density_equilibrate`, which writes its own
+  density figure -- so every build produced two plots of one quantity and left the reader to work
+  out which to trust. The `density_equilibrate` figure is strictly the better of the two: it
+  carries the burn-in and trailing-window shading, the per-chunk window means, the final rho and
+  the step at which the run decided it had converged. `mdplot`'s added only the pre-NPT warm-up.
+
+  Those examples now ask `mdplot` for the cell edges (`a_x`/`b_y`/`c_z`) instead, which is
+  complementary rather than duplicative -- density converging and the box contracting are two
+  views of one process. This is not a new convention: examples 23, 24, 26 and 27 already did
+  exactly this, so the change brings 01-22 into line with the newer ones rather than inventing
+  anything.
+
+  Note that `docs/source/examples/01/bpti1.rst` had explicitly argued for showing both figures
+  ("Between them, nothing about the equilibration has to be assumed"). That prose is rewritten to
+  make the same argument with the pairing that actually holds -- the convergence criterion, and
+  the box motion it was measuring. The two redundant figures in examples 16 and 17 are removed;
+  both pages already showed the cell-edge plot immediately above them.
+
+
 - fix: **consecutive replica seeds no longer produce near-adjacent NAMD seeds.** Both sweep
   scripts seed replica *r* with `SEED_BASE+r-1`, so consecutive base seeds are the normal case;
   but `_namd_seed` XORed the base against a per-stream constant, which leaves the base's low bits
