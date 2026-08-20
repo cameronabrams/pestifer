@@ -1,0 +1,10 @@
+# Keeps this directory in git while ignoring everything the tests write into it.
+#
+# tests/conftest.py chdirs into a per-module working directory when one exists and into the parent
+# when it does not, and this module's tests reach their inputs as ../fixtures/... -- which only
+# resolves from inside here.  Without this marker the directory is absent from a fresh checkout,
+# the chdir falls back to tests/unit/test_sphinxext/, and every test in the module fails on a path
+# one level too high.  That went unnoticed because the whole directory was skipped on CI until
+# sphinx became a test dependency.
+*
+!.gitignore
