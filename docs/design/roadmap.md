@@ -621,10 +621,16 @@ what appears here is refined and reprioritized as the project evolves.
       above, and it is worth watching for elsewhere -- **a conditional skip that is always taken
       reports green and looks like coverage.** (Unreleased.)
 
-- [ ] **Remaining coverage gaps, in priority order.** `tasks/make_membrane_system.py` 23%,
-      `tasks/psfgen.py` 50%, `charmmff/make_pdb_collection.py` 14%, `tasks/ringcheck.py` 20%.
-      These need the toolchain, so they are gated behind the self-hosted-runner item above rather
-      than being straightforwardly writable today.
+- [ ] **Remaining coverage gaps, in priority order.** `tasks/psfgen.py` 50%,
+      `charmmff/make_pdb_collection.py` 14%, `tasks/ringcheck.py` 20%. These need the toolchain,
+      so they are gated behind the self-hosted-runner item above rather than being
+      straightforwardly writable today.
+
+      `tasks/make_membrane_system.py` is done as far as it usefully goes without the toolchain:
+      23% → 54%. The remainder is genuinely VMD/NAMD-bound (grid placement, psfgen, the relaxation
+      ladder, protein embedding). The lesson worth reusing is that a task being "toolchain-bound"
+      is usually about half true -- what it *decides* before and after shelling out is ordinary
+      logic, and it is the half where errors are silent. (Unreleased.)
 
       `tasks/mdplot.py` is done: 42% → 90%, which was the largest single gap. The approach worth
       reusing on the others is the third layer of it -- driving the task's `do()` through a real

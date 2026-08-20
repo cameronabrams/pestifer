@@ -4,6 +4,30 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- test: **`make_membrane_system` coverage raised from 23% to 54%.** `test_make_membrane_system.py`
+  already covered the physics helpers and runs real end-to-end builds behind `--runslow`; the new
+  `test_make_membrane_decisions.py` takes the routing and setup logic between those two -- what the
+  task decides *before* it places a lipid and *after* the relaxation returns. That is where a
+  mistake is silent: a grid-placement failure announces itself, whereas misreading the schema's
+  default `embed` block just builds the wrong kind of system. Nothing in it needs VMD or NAMD.
+
+  * **the stress-free leaflet-count calibration** -- the ratio `n_upper/n_lower = apl_lower/apl_upper`
+    that makes an asymmetric membrane tensionless by construction. Getting it wrong builds in
+    exactly the differential stress the procedure exists to remove, and nothing downstream would
+    catch it.
+  * **`_embed_requested`**, which guards a schema trap worth naming: ycleptic materializes `embed`
+    with default scalars even when nothing was requested, so the obvious truthiness test is always
+    true on the real pipeline.
+  * the **composition setup** in `initialize`, including the in-place symmetrization an asymmetric
+    build performs to derive its two calibration patches.
+  * the **relaxation-protocol guard** that inserts a lipid `ring_check` before the first dynamics
+    stage, the **top-level dispatch** (embed vs bare, symmetric vs asymmetric, prebuilt), box
+    sizing from a protein footprint, and the differential-stress diagnostic's advice arithmetic.
+
+  One test pins behavior that reads backwards at first glance and carries the reasoning: the
+  leaflet under *more* tension is the stretched one and needs lipids moved *into* it.
+
+
 - test: **`mdplot` coverage raised from 42% to 90%**, closing the largest single gap in the
   codebase (413 uncovered statements). Three layers, none of which needs VMD or NAMD:
 
