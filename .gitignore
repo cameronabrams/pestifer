@@ -71,6 +71,10 @@ coverage.xml
 
 # Django stuff:
 *.log
+# ...except the test fixtures, which are trimmed real NAMD logs.  Without this the blanket rule
+# above drops them silently -- `git add` warns, but the commit succeeds and the tests then fail
+# on a fresh clone.
+!tests/unit/test_tasks/fixtures/*.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal

@@ -621,11 +621,16 @@ what appears here is refined and reprioritized as the project evolves.
       above, and it is worth watching for elsewhere -- **a conditional skip that is always taken
       reports green and looks like coverage.** (Unreleased.)
 
-- [ ] **Remaining coverage gaps, in priority order.** `tasks/mdplot.py` 42% (413 statements
-      uncovered -- the largest single gap; the profile and pressure-profile paths are still dark),
-      `tasks/make_membrane_system.py` 23%, `tasks/psfgen.py` 50%, `charmmff/make_pdb_collection.py`
-      14%, `tasks/ringcheck.py` 20%. Most need the toolchain, so they are gated behind the
-      self-hosted-runner item above rather than being straightforwardly writable today.
+- [ ] **Remaining coverage gaps, in priority order.** `tasks/make_membrane_system.py` 23%,
+      `tasks/psfgen.py` 50%, `charmmff/make_pdb_collection.py` 14%, `tasks/ringcheck.py` 20%.
+      These need the toolchain, so they are gated behind the self-hosted-runner item above rather
+      than being straightforwardly writable today.
+
+      `tasks/mdplot.py` is done: 42% → 90%, which was the largest single gap. The approach worth
+      reusing on the others is the third layer of it -- driving the task's `do()` through a real
+      `Config`/`Controller` against a **trimmed real** NAMD log, which needs no VMD or NAMD and
+      cost ~4 s. Anything that consumes NAMD output rather than producing it can be tested that
+      way; the fixtures are ~30 KB each. (Unreleased.)
 
 - [ ] **Test runs dirty the working tree.** *Half fixed.* Several files under
       `tests/unit/test_tasks/test_psfgen_*/` and `test_cleave/` are tracked *and* rewritten by the

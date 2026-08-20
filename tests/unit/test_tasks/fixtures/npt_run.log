@@ -1,0 +1,270 @@
+charmrun> namd3 +p 24 00-11-008_density_equilibrate-NPT.namd
+Charm++: standalone mode (not using charmrun)
+Charm++> Running in Multicore mode: 24 threads (PEs)
+Charm++> Using recursive bisection (scheme 3) for topology aware partitions
+Converse/Charm++ Commit ID: 
+CharmLB> Load balancer assumes all CPUs are same.
+Charm++> Running on 1 hosts (1 sockets x 12 cores x 2 PUs = 24-way SMP)
+Charm++> cpu topology info is gathered in 0.003 seconds.
+CharmLB> Load balancing instrumentation for communication is off.
+Info: NAMD 3.0.2 for Linux-x86_64-multicore
+Info: 
+Info: Please visit http://www.ks.uiuc.edu/Research/namd/
+Info: for updates, documentation, and support information.
+Info: 
+Info: Please cite Phillips et al., J. Chem. Phys. 153:044130 (2020) doi:10.1063/5.0014475
+Info: in all publications reporting results obtained with NAMD.
+Info: 
+Info: Based on Charm++/Converse 80000 for multicore-linux-x86_64-gcc
+Info: Built Wed Aug 27 15:39:24 CDT 2025 by dhardy on athine.ks.uiuc.edu
+Info: 1 NAMD  3.0.2  Linux-x86_64-multicore  24    panacea.chemeng.drexel.edu  cfa
+Info: Running on 24 processors, 1 nodes, 1 physical nodes.
+Info: CPU topology information available.
+Info: Charm++/Converse parallel runtime startup completed at 0.0135757 s
+CkLoopLib is used in SMP with simple dynamic scheduling (converse-level notification)
+Info: 1680.25 MB of memory in use based on /proc/self/stat
+Info: Configuration file is 00-11-008_density_equilibrate-NPT.namd
+Info: Working in the current directory /home/cfa/devtests/pestifer/triplicate-2026-08-18/example-12/rep-02
+TCL: Suspending until startup complete.
+Info: EXTENDED SYSTEM FILE   00-11-007_density_equilibrate-NPT.xsc
+Warning: The Langevin gamma parameters differ over the particles,
+Warning: requiring extra work per step to constrain rigid bonds.
+Info: SIMULATION PARAMETERS:
+Info: TIMESTEP               2
+Info: NUMBER OF STEPS        19610
+Info: STEPS PER CYCLE        10
+Info: PERIODIC CELL BASIS 1  151.699 0 0
+Info: PERIODIC CELL BASIS 2  0 150.669 0
+Info: PERIODIC CELL BASIS 3  0 0 128.021
+Info: PERIODIC CELL CENTER   170.875 160.773 152.278
+Info: WRAPPING ALL CLUSTERS AROUND PERIODIC BOUNDARIES ON OUTPUT.
+Info: LOAD BALANCER  Centralized
+Info: LOAD BALANCING STRATEGY  New Load Balancers -- DEFAULT
+Info: LDB PERIOD             2000 steps
+Info: FIRST LDB TIMESTEP     50
+Info: LAST LDB TIMESTEP     -1
+Info: LDB BACKGROUND SCALING 1
+Info: HOM BACKGROUND SCALING 1
+Info: PME BACKGROUND SCALING 1
+Info: MIN ATOMS PER PATCH    40
+Info: EMPTY PATCH LOAD       40 ATOMS
+Info: VELOCITY FILE          00-11-007_density_equilibrate-NPT.vel
+Info: CENTER OF MASS MOVING INITIALLY? NO
+Info: DIELECTRIC             1
+Info: EXCLUDE                SCALED ONE-FOUR
+Info: 1-4 ELECTROSTATICS SCALED BY 1
+Info: MODIFIED 1-4 VDW PARAMETERS WILL BE USED
+Info: DCD FILENAME           00-11-008_density_equilibrate-NPT.dcd
+Info: DCD FREQUENCY          100
+Info: DCD FIRST STEP         19700
+Info: DCD FILE WILL CONTAIN UNIT CELL DATA
+Info: XST FILENAME           00-11-008_density_equilibrate-NPT.xst
+Info: XST FREQUENCY          100
+Info: NO VELOCITY DCD OUTPUT
+Info: NO FORCE DCD OUTPUT
+Info: OUTPUT FILENAME        00-11-008_density_equilibrate-NPT
+Info: BINARY OUTPUT FILES WILL BE USED
+Info: NO RESTART FILE
+Info: SWITCHING ACTIVE
+Info: SWITCHING ON           9
+Info: SWITCHING OFF          10
+Info: PAIRLIST DISTANCE      11.5
+Info: PAIRLIST SHRINK RATE   0.01
+Info: PAIRLIST GROW RATE     0.01
+Info: PAIRLIST TRIGGER       0.3
+Info: PAIRLISTS PER CYCLE    2
+Info: PAIRLISTS ENABLED
+Info: MARGIN                 0.42
+Info: HYDROGEN GROUP CUTOFF  2.5
+Info: PATCH DIMENSION        14.42
+Info: ENERGY OUTPUT STEPS    100
+Info: ENERGY EVALUATION STEPS    100
+Info: OUTPUT ENERGY PRECISION 4
+Info: CROSSTERM ENERGY INCLUDED IN DIHEDRAL
+Info: TIMING OUTPUT STEPS    1000
+Info: LANGEVIN DYNAMICS ACTIVE
+Info: LANGEVIN TEMPERATURE   300
+Info: LANGEVIN USING BBK INTEGRATOR
+Info: LANGEVIN DAMPING COEFFICIENT IS 5 INVERSE PS
+Info: LANGEVIN DYNAMICS NOT APPLIED TO HYDROGENS
+Info: LANGEVIN PISTON PRESSURE CONTROL ACTIVE
+Info:        TARGET PRESSURE IS 1 BAR
+Info:     OSCILLATION PERIOD IS 200 FS
+Info:             DECAY TIME IS 100 FS
+Info:     PISTON TEMPERATURE IS 300 K
+Info:       PRESSURE CONTROL IS GROUP-BASED
+Info:    INITIAL STRAIN RATE IS -1.22833e-05 -1.22833e-05 -1.22833e-05
+Info:       CELL FLUCTUATION IS ISOTROPIC
+Info: PARTICLE MESH EWALD (PME) ACTIVE
+Info: PME TOLERANCE               1e-06
+Info: PME EWALD COEFFICIENT       0.312341
+Info: PME INTERPOLATION ORDER     4
+Info: PME GRID DIMENSIONS         160 160 132
+Info: PME MAXIMUM GRID SPACING    1
+Info: Attempting to read FFTW data from FFTW_NAMD_3.0.2_Linux-x86_64-multicore.txt
+Info: Optimizing 6 FFT steps.  1... 2... 3... 4... 5... 6...   Done.
+Info: Writing FFTW data to FFTW_NAMD_3.0.2_Linux-x86_64-multicore.txt
+Info: FULL ELECTROSTATIC EVALUATION FREQUENCY      2
+Info: USING VERLET I (r-RESPA) MTS SCHEME.
+Info: C1 SPLITTING OF LONG RANGE ELECTROSTATICS
+Info: PLACING ATOMS IN PATCHES BY HYDROGEN GROUPS
+Info: RIGID BONDS TO HYDROGEN : ALL
+Info:         ERROR TOLERANCE : 1e-08
+Info:          MAX ITERATIONS : 100
+Info: RIGID WATER USING SETTLE ALGORITHM
+Info: RANDOM NUMBER SEED     1210520238
+Info: USE HYDROGEN BONDS?    NO
+Info: COORDINATE PDB         00-11-007_density_equilibrate-NPT.pdb
+Info: STRUCTURE FILE         00-08-000_solvate.psf
+Info: PARAMETER file: CHARMM format! 
+Info: PARAMETERS             00-11-008_density_equilibrate-NPT_minimal.prm
+Info: USING ARITHMETIC MEAN TO COMBINE L-J SIGMA PARAMETERS
+Info: BINARY COORDINATES     00-11-007_density_equilibrate-NPT.coor
+Info: FIRST TIMESTEP         19610
+Info: SUMMARY OF PARAMETERS:
+Info: 164 BONDS
+Info: 512 ANGLES
+Info: 1300 DIHEDRAL
+Info: 45 IMPROPER
+Info: 8 CROSSTERM
+Info: 57 VDW
+Info: 2 VDW_PAIRS
+Info: 0 NBTHOLE_PAIRS
+Info: TIME FOR READING PSF FILE: 2.26323
+Info: Reading pdb file 00-11-007_density_equilibrate-NPT.pdb
+Info: TIME FOR READING PDB FILE: 0.383706
+Info: 
+Info: ****************************
+Info: STRUCTURE SUMMARY:
+Info: 297297 ATOMS
+Info: 208442 BONDS
+Info: 143449 ANGLES
+Info: 80085 DIHEDRALS
+Info: 4986 IMPROPERS
+Info: 1671 CROSSTERMS
+Info: 0 EXCLUSIONS
+Info: 282417 RIGID BONDS
+Info: 609474 DEGREES OF FREEDOM
+Info: 104167 HYDROGEN GROUPS
+Info: 4 ATOMS IN LARGEST HYDROGEN GROUP
+Info: 104167 MIGRATION GROUPS
+Info: 4 ATOMS IN LARGEST MIGRATION GROUP
+Info: TOTAL MASS = 1.82106e+06 amu
+Info: TOTAL CHARGE = 2.35029e-05 e
+Info: MASS DENSITY = 1.03347 g/cm^3
+Info: ATOM DENSITY = 0.101602 atoms/A^3
+Info: *****************************
+Info: Reading from binary file 00-11-007_density_equilibrate-NPT.coor
+Info: 
+Info: Entering startup at 2.70848 s, 15.2836 MB of memory in use
+Info: Startup phase 0 took 0.000213623 s, 15.2836 MB of memory in use
+Info: ADDED 430428 IMPLICIT EXCLUSIONS
+Info: Startup phase 1 took 0.128242 s, 15.2836 MB of memory in use
+Info: NONBONDED TABLE R-SQUARED SPACING: 0.0625
+Info: NONBONDED TABLE SIZE: 705 POINTS
+Info: INCONSISTENCY IN FAST TABLE ENERGY VS FORCE: 0.000290479 AT 0.251946
+Info: INCONSISTENCY IN SCOR TABLE ENERGY VS FORCE: 0.000178193 AT 9.97184
+Info: ABSOLUTE IMPRECISION IN VDWA TABLE ENERGY: 7.88861e-31 AT 9.99687
+Info: RELATIVE IMPRECISION IN VDWA TABLE ENERGY: 1.10587e-16 AT 9.99687
+Info: INCONSISTENCY IN VDWA TABLE ENERGY VS FORCE: 0.0040507 AT 0.251946
+Info: INCONSISTENCY IN VDWB TABLE ENERGY VS FORCE: 0.00377068 AT 9.07951
+Info: Startup phase 2 took 0.000657719 s, 15.2836 MB of memory in use
+Info: Startup phase 3 took 0.000107596 s, 15.2836 MB of memory in use
+Info: Startup phase 4 took 0.00193962 s, 15.2836 MB of memory in use
+Info: Startup phase 5 took 0.000191722 s, 15.2836 MB of memory in use
+Info: PATCH GRID IS 10 (PERIODIC) BY 10 (PERIODIC) BY 8 (PERIODIC)
+Info: PATCH GRID IS 1-AWAY BY 1-AWAY BY 1-AWAY
+Info: Reading from binary file 00-11-007_density_equilibrate-NPT.vel
+Info: REMOVING COM VELOCITY -0.0140954 0.00205514 0.0165123
+Info: LARGEST PATCH (524) HAS 415 ATOMS
+Info: TORUS A SIZE 1 USING 0
+Info: TORUS B SIZE 1 USING 0
+Info: TORUS C SIZE 1 USING 0
+Info: TORUS MINIMAL MESH SIZE IS 1 BY 1 BY 1
+Info: Placed 100% of base nodes on same physical node as patch
+Info: Startup phase 6 took 0.0549146 s, 15.2836 MB of memory in use
+Info: PME using 23 and 23 processors for FFT and reciprocal sum.
+Info: PME GRID LOCATIONS: 1 2 3 4 5 6 7 8 9 10 ...
+Info: PME TRANS LOCATIONS: 1 2 3 4 5 6 7 8 9 10 ...
+Info: PME USING 1 GRID NODES AND 1 TRANS NODES
+Info: Startup phase 7 took 0.0115075 s, 15.2836 MB of memory in use
+Info: Startup phase 8 took 0.00109373 s, 15.2836 MB of memory in use
+Info: Startup phase 9 took 0.000157254 s, 15.2836 MB of memory in use
+Info: Startup phase 10 took 0.00011161 s, 15.2836 MB of memory in use
+Info: Startup phase 11 took 0.00158927 s, 15.2836 MB of memory in use
+LDB: Central LB being created...
+Info: Startup phase 12 took 0.00164212 s, 15.2836 MB of memory in use
+Info: CREATING 16120 COMPUTE OBJECTS
+Info: useSync: 0 useProxySync: 0
+Info: Startup phase 13 took 0.0310428 s, 15.2836 MB of memory in use
+Info: Startup phase 14 took 0.000251066 s, 15.2836 MB of memory in use
+Info: Startup phase 15 took 5.4485e-05 s, 15.2836 MB of memory in use
+Info: Finished startup at 2.9422 s, 15.2836 MB of memory in use
+
+TCL: Running for 5000 steps
+LDB: ============= START OF LOAD BALANCING ============== 3.84985
+LDB: ============== END OF LOAD BALANCING =============== 3.85007
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 3.85044
+LDB: ============= START OF LOAD BALANCING ============== 7.297
+LDB: Largest compute 1457 load 0.034390 is 1.1% of average load 3.242022
+LDB: Average compute 0.004203 is 0.1% of average load 3.242022
+LDB: Partitioning computes with target load 0.324202
+LDB: Increased migratable compute count from 15200 to 15200
+LDB: Largest unpartitionable compute is 0.007539
+LDB: ============== END OF LOAD BALANCING =============== 7.30435
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 7.30658
+Info: Initial time: 24 CPUs 0.0862051 s/step 0.498872 days/ns 15.2836 MB memory
+LDB: ============= START OF LOAD BALANCING ============== 8.16141
+LDB: ============== END OF LOAD BALANCING =============== 8.16175
+Info: useSync: 0 useProxySync: 0
+LDB: =============== DONE WITH MIGRATION ================ 8.1623
+OPENING COORDINATE DCD FILE
+WRITING COORDINATES TO DCD FILE 00-11-008_density_equilibrate-NPT.dcd AT STEP 19700
+The last position output (seq=19700) takes 0.019 seconds, 15.284 MB of memory in use
+ENERGY:   19700      6083.8681     16905.5461     18901.9557       969.8353       -1018828.0090     84918.3799         0.0000         0.0000    180550.6278        -710497.7960       298.1496   -891048.4239   -709898.8963       298.6525            -62.3188       -11.0177   2925708.3321        10.3436        10.8377
+ENERGY:   19800      6225.1004     16875.3318     18880.5018       994.5117       -1019882.3113     85486.8098         0.0000         0.0000    180952.9730        -710467.0829       298.8140   -891420.0559   -709914.3810       299.0375            -30.3317        23.3312   2924029.9704        -0.8765        -0.8173
+ENERGY:   19900      6097.5029     16762.6447     18831.6989       968.2194       -1019100.3385     84926.5160         0.0000         0.0000    181264.1314        -710249.6252       299.3278   -891513.7567   -709686.4020       299.0175           -100.9969       -55.6801   2926990.1620         6.3168         6.4614
+ENERGY:   20000      6200.5135     16936.2908     18912.0817      1006.8409       -1019812.0641     85529.4496         0.0000         0.0000    180825.1159        -710401.7718       298.6029   -891226.8877   -709830.1164       299.1084            -58.3665       -10.4697   2922728.4818        -2.7219        -2.6251
+ENERGY:   20100      6215.8089     17081.1152     18840.5033       963.2800       -1018669.2709     84935.6414         0.0000         0.0000    181255.1610        -709377.7611       299.3130   -890632.9221   -708800.3795       299.3706            -90.9424       -39.9095   2926141.0888         5.4312         5.2823
+ENERGY:   20200      6166.0059     16773.9657     18863.1039       979.6934       -1017972.7553     84402.2448         0.0000         0.0000    181065.3694        -709722.3723       298.9996   -890787.7417   -709129.2427       299.2755           -158.1540      -109.2452   2927007.0548         2.9541         2.7226
+ENERGY:   20300      6137.8210     16885.6544     18824.5795       974.1819       -1018341.2884     84373.2402         0.0000         0.0000    180914.4188        -710231.3926       298.7503   -891145.8113   -709651.3498       299.1564           -139.7190       -91.3018   2926226.0108        16.9384        16.9576
+ENERGY:   20400      6251.3239     16902.3463     18853.5099      1017.3464       -1019382.9281     84964.0589         0.0000         0.0000    181327.0974        -710067.2453       299.4318   -891394.3427   -709501.0231       299.2985           -137.0556       -83.6349   2924967.8651         8.1249         7.8101
+ENERGY:   20500      6059.5958     16944.5315     18799.3353       942.0162       -1019223.2283     85228.5773         0.0000         0.0000    181500.8739        -709748.2983       299.7188   -891249.1722   -709152.0214       299.3107            -46.6547         5.5102   2925476.8300         0.6560         0.7133
+ENERGY:   20600      6197.0653     16873.2970     18862.7318      1013.7948       -1018627.4634     85258.7189         0.0000         0.0000    181419.8014        -709002.0541       299.5849   -890421.8556   -708422.2438       299.2517            -32.9624        22.1301   2926866.2531         7.4381         7.7053
+ENERGY:   20700      6190.3430     17020.8402     18920.2001       965.1297       -1019490.7790     85720.2653         0.0000         0.0000    181615.7267        -709058.2741       299.9084   -890674.0007   -708451.6457       299.7337              8.2309        60.5790   2923987.3449       -11.0164       -10.8915
+ENERGY:   20800      6174.9949     16882.2484     18905.5887      1001.6241       -1019575.8868     85794.7665         0.0000         0.0000    181343.2702        -709473.3940       299.4585   -890816.6642   -708862.6299       299.6483            -51.8265        -2.5262   2925805.8995         1.6282         1.7468
+ENERGY:   20900      6178.5277     17077.0514     18802.1348       969.4690       -1017798.5594     84383.4131         0.0000         0.0000    181151.4904        -709236.4730       299.1418   -890387.9634   -708686.7925       299.3027           -122.9907       -68.6501   2927230.4837       -13.1228       -13.0747
+ENERGY:   21000      6140.2042     16811.3989     18842.8884       969.0308       -1018773.9999     84691.3451         0.0000         0.0000    181570.2983        -709748.8342       299.8334   -891319.1325   -709145.2197       299.6480           -162.2203      -112.3681   2926760.4908        -9.0073        -9.0619
+ENERGY:   21100      6128.3447     16769.4854     18853.0926       953.7409       -1020031.6844     85674.0527         0.0000         0.0000    181634.3296        -710018.6386       299.9391   -891652.9681   -709420.3690       299.4097             19.0715        67.3963   2924683.9536         1.5116         1.7522
+ENERGY:   21200      6067.0789     16939.8260     18873.1585       963.4085       -1020338.0226     85807.4747         0.0000         0.0000    181518.7917        -710168.2842       299.7483   -891687.0759   -709593.3538       298.8905             29.9238        77.7844   2925089.0495        -2.7130        -2.6012
+ENERGY:   21300      6114.2870     16864.6887     18820.5124      1019.3832       -1019083.5702     85045.1099         0.0000         0.0000    181404.9159        -709814.6732       299.5603   -891219.5891   -709228.2630       299.3208            -49.8052         0.9628   2925458.3670         4.5195         4.7252
+ENERGY:   21400      6212.5021     16928.2004     18902.1320      1016.6179       -1020257.7932     85766.2084         0.0000         0.0000    181174.3318        -710257.8007       299.1795   -891432.1325   -709635.1267       299.0521            -26.1978        22.7847   2924900.1582        -3.3443        -3.3096
+ENERGY:   21500      6268.0481     16997.9768     18953.2017      1008.8933       -1019570.7317     85460.5329         0.0000         0.0000    180932.5457        -709949.5331       298.7803   -890882.0789   -709361.0281       299.3401            -46.6279         3.0880   2927642.8582        -1.1189        -1.0853
+ENERGY:   21600      6147.8056     16853.0672     18867.2207      1011.9692       -1019341.8080     85108.2154         0.0000         0.0000    181427.1209        -709926.4089       299.5970   -891353.5298   -709321.9167       299.3406           -146.5652       -93.4603   2928965.4619        -7.2596        -7.2514
+ENERGY:   21700      6138.0280     16766.5633     18886.2800      1029.0242       -1019521.8041     85529.7599         0.0000         0.0000    181199.2161        -709972.9326       299.2206   -891172.1487   -709378.7009       299.1411            -44.7813         4.2323   2925803.3078         9.1774         8.8253
+ENERGY:   21800      6195.0151     17041.5339     18809.1776       962.7782       -1019691.6307     85363.4587         0.0000         0.0000    181777.5875        -709542.0797       300.1757   -891319.6672   -708940.4092       299.3313            -61.7500       -12.4596   2926866.8004        -4.0004        -3.6272
+ENERGY:   21900      6277.6903     16925.4355     18978.8839       954.9425       -1019527.5657     85600.9068         0.0000         0.0000    181424.8386        -709364.8681       299.5932   -890789.7066   -708797.9355       299.3939            -14.6525        36.3908   2927190.2578         2.7054         2.6732
+ENERGY:   22000      6208.5088     16996.9569     18811.3273      1025.7393       -1018627.7764     84864.3161         0.0000         0.0000    181306.4217        -709414.5063       299.3977   -890720.9280   -708857.5353       299.5492           -104.5307       -54.7662   2929268.7866        -4.4763        -4.5141
+ENERGY:   22100      6123.6851     16817.8921     18910.9489      1003.9937       -1019002.6272     85203.4614         0.0000         0.0000    181260.1408        -709682.5052       299.3212   -890942.6460   -709061.8225       299.3354            -17.8484        30.7765   2924608.5743        -0.8324        -0.7787
+ENERGY:   22200      6186.6414     16902.7125     18896.0709       964.1413       -1019192.2740     85424.1985         0.0000         0.0000    181605.5492        -709212.9601       299.8916   -890818.5093   -708607.7493       299.4690             -4.8759        47.3719   2927316.8192         4.0459         3.9886
+ENERGY:   22300      6181.5757     16791.5256     18883.1802       966.7384       -1019744.1532     85301.7317         0.0000         0.0000    181382.0042        -710237.3974       299.5225   -891619.4016   -709691.3457       298.8255            -44.7940         6.6537   2927374.6939        -5.3822        -5.4407
+ENERGY:   22400      6193.6766     16854.4104     18865.1184      1038.7287       -1020256.4971     86035.3564         0.0000         0.0000    181256.6001        -710012.6064       299.3154   -891269.2065   -709465.6160       299.1856             36.5605        84.0197   2926082.8739         5.5754         5.6840
+ENERGY:   22500      6130.1369     16908.3495     18971.1602      1038.4654       -1019410.8516     85370.7845         0.0000         0.0000    180909.4456        -710082.5097       298.7421   -890991.9553   -709498.0685       299.1042            -37.7419        10.3786   2926131.3349        -5.6429        -5.8487
+ENERGY:   22600      6144.7151     17015.9316     18823.6855       982.9660       -1019987.9799     85370.8224         0.0000         0.0000    181744.1212        -709905.7381       300.1204   -891649.8592   -709340.8512       299.7779            -87.4954       -36.2895   2928576.1287         4.6913         4.8538
+ENERGY:   22700      6190.6667     17107.1873     18794.9886       998.3688       -1019817.2758     85451.6407         0.0000         0.0000    181322.9998        -709951.4240       299.4250   -891274.4238   -709393.8912       299.4664            -71.3716       -22.8895   2926967.9529        -4.6750        -5.0456
+ENERGY:   22800      6184.6921     16931.9710     18845.2907       967.0465       -1019683.6300     85692.0295         0.0000         0.0000    181578.6038        -709483.9965       299.8471   -891062.6003   -708924.1788       299.3919             42.2511        93.1075   2926109.2469         6.1731         6.1759
+ENERGY:   22900      6104.6502     17099.8765     18871.1405      1005.8172       -1018931.3804     84684.3816         0.0000         0.0000    180978.4451        -710187.0693       298.8561   -891165.5144   -709613.1702       299.3425            -99.0699       -51.3725   2925421.8461        -0.8194        -0.8094
+ENERGY:   23000      6190.3949     16880.0395     18831.3547      1003.6122       -1019374.6962     85094.1377         0.0000         0.0000    180958.0827        -710417.0745       298.8224   -891375.1572   -709796.4141       298.7878            -22.2939        26.4739   2924251.6378         8.7634         8.6036
+ENERGY:   23100      6085.8816     17101.7830     18838.9437       960.1455       -1019008.1086     85237.5762         0.0000         0.0000    181037.5132        -709746.2653       298.9536   -890783.7785   -709196.1316       298.9500             22.8077        74.3859   2923240.9884         4.2890         4.5722
+ENERGY:   23200      6297.8938     16989.9022     18763.6405      1012.4472       -1017939.9178     84854.4787         0.0000         0.0000    181115.0964        -708906.4591       299.0817   -890021.5555   -708333.5723       299.1425            -76.0738       -26.9512   2926252.0924        -0.8921        -1.2465
+ENERGY:   23300      6228.7367     17092.0642     18779.1043      1000.9876       -1018718.1329     84817.9451         0.0000         0.0000    181307.5163        -709491.7787       299.3995   -890799.2950   -708918.7752       299.8393            -93.9645       -41.4396   2924095.3062         9.2662         9.3022
+ENERGY:   23400      6173.2103     16997.9376     18788.2882       964.6119       -1019915.7145     86194.9457         0.0000         0.0000    181341.3717        -709455.3490       299.4554   -890796.7208   -708902.4379       299.1267            106.7489       155.7130   2920679.5148         5.7806         5.5154
+ENERGY:   23500      6166.8266     17012.5244     18737.6062       967.8139       -1016951.7960     83705.7331         0.0000         0.0000    181422.8010        -708938.4908       299.5898   -890361.2918   -708336.5503       299.2581           -143.3585       -95.3037   2926034.1589        -7.6204        -7.5912
+ENERGY:   23600      6172.0945     17018.0360     18933.7059       957.9977       -1018992.6183     85355.2069         0.0000         0.0000    181320.6955        -709234.8818       299.4212   -890555.5773   -708688.9179       299.5735              2.3808        55.4750   2923895.0651         2.9050         2.7467
+ENERGY:   23700      6239.8397     16782.4097     18796.6622       988.9996       -1018862.0220     85279.1571         0.0000         0.0000    181987.7983        -708787.1553       300.5228   -890774.9537   -708223.0511       299.7034             11.9459        62.5367   2922259.3991         7.2074         7.1124
+ENERGY:   23800      6102.7012     16949.5673     18818.8309       965.2284       -1018716.8964     85151.8367         0.0000         0.0000    181900.3018        -708828.4300       300.3783   -890728.7319   -708250.4705       299.9810             37.4409        87.1483   2922282.4971         2.1475         2.0899
+ENERGY:   23900      6214.8624     16967.2568     18833.3551       968.4319       -1018326.2200     84923.8298         0.0000         0.0000    181723.7185        -708694.7653       300.0867   -890418.4839   -708139.1691       299.9464            -14.7392        40.2124   2922926.5652         4.5832         4.6867
+ENERGY:   24000      6344.0599     16875.4167     18861.5559       989.0242       -1018964.7499     84795.6725         0.0000         0.0000    181691.1049        -709407.9158       300.0329   -891099.0207   -708827.5037       299.5548            -81.2056       -29.0961   2922677.6374        -3.3556        -3.5693
+ENERGY:   24100      6165.5389     16981.0645     18934.2959       974.6516       -1018543.4030     85083.8192         0.0000         0.0000    180512.7176        -709891.3153       298.0870   -890404.0329   -709319.4931       299.5421            -68.3388       -18.6640   2923764.9878        -4.6114        -4.7724

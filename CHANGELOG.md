@@ -4,6 +4,30 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- test: **`mdplot` coverage raised from 42% to 90%**, closing the largest single gap in the
+  codebase (413 uncovered statements). Three layers, none of which needs VMD or NAMD:
+
+  * the **derived cell geometry** (`area`, `volume`, `aspect`, `apl`) computed from the `.xst`
+    series, including the documented reason for using |a x b| rather than `a_x * b_y` -- the two
+    agree only for an orthorhombic cell. That test is checked to actually discriminate: with the
+    exact form replaced by the naive product it fails, and a first version of it passed either way
+    because the shear chosen happened not to change the cross product.
+  * the **four remaining figure builders** -- overlays, panels, histograms, stage markers -- and
+    the summary table, asserted on figure *content* via matplotlib's inspectable model rather than
+    by comparing pixels, for the reasons already recorded in `test_mdplot_data.py`.
+  * an **end-to-end pass through `do()`** driven the way `pestifer mdplot` drives it, through a
+    real `Config` and `Controller`. `do()` is where the pieces are wired together, and no unit
+    test can see the wiring. Fixtures are a **real** NAMD log and `.xst` trimmed to 45 records
+    (and a real NPgT membrane run for the lateral pressure profile); written by hand they would be
+    a guess at NAMD's output format and a parser regression would sail through.
+
+- note: **`mdplot` ends its figures with `plt.clf()`**, which clears a figure but leaves it
+  registered with pyplot, so each one is retained for the life of the process. One figure per
+  invocation is harmless in a build; it is visible only when many plots are produced in a single
+  process, where it trips matplotlib's max-open warning. Not changed here because the existing
+  tests hook `clf`; the fix is `plt.close(fig)` at each site.
+
+
 - fix: **`make-namd-restart` silently kept the old output basename**, so a restart generated from
   a config using the standard `set outputbase ...` idiom would have written over the very
   checkpoint files it was resuming from. `NAMDConfig.replace_command` passes a variable argument
