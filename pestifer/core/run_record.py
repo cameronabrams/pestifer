@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 RUN_RECORD_NAME = 'run-record.json'
 """Conventional filename, written into the run directory by the ``terminate`` task."""
 
-RUN_RECORD_VERSION = 1
+RUN_RECORD_VERSION = 2
 """Schema version of the record itself, so a consumer can refuse a shape it does not know."""
 
 
@@ -129,6 +129,12 @@ def build_run_record(config, tasks, *, environment=None, citations=None):
     return {
         'run_record_version': RUN_RECORD_VERSION,
         'pestifer_version': __pestifer_version__,
+        # A record is only written for a build that finished, so its existence already implies
+        # success -- but absence is ambiguous (failed? crashed? still running?), and a sweep
+        # asking "did all 81 replicas succeed?" should be able to answer from the file's content
+        # rather than from a directory listing.  Stated explicitly for that reason.
+        'status': 'completed',
+        'exit_code': 0,
         'title': user.get('title') if isinstance(user, dict) else None,
         'config_file': getattr(config, 'userfile', '') or None,
         'seed': namd.get('seed'),

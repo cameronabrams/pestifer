@@ -140,13 +140,21 @@ class MDTask(VMDTask):
         build as a whole is reproducible while its individual runs stay independent of one
         another -- reusing one seed across every run in a build would correlate them.
 
+        The base is hashed *together with* the stream key rather than XORed against it.  XOR
+        leaves the base's low bits untouched, so a replica set seeded 27021972/3/4 -- which is
+        exactly how the sweep scripts seed replicas -- produced NAMD seeds that differed only in
+        their low bits (1112820144, 1112820145, 1112820146).  Adjacent seeds are not necessarily
+        independent streams for a generator seeded by simple state initialization, and "the
+        replicas were seeded one apart" is not a property worth having to defend.  Hashing the
+        pair avalanches the base, so consecutive replicas get unrelated seeds.
+
         Returns 0 when the user has set ``namd.seed: 0``, meaning "leave it to NAMD".
         """
         base = int(self.namd_global_config.get('seed', 0) or 0)
         if not base:
             return 0
-        stream = f'{self.controller_index}:{self.index}:{self.subtaskcount}'
-        return ((base ^ zlib.crc32(stream.encode())) % (2 ** 31 - 1)) or 1
+        stream = f'{base}:{self.controller_index}:{self.index}:{self.subtaskcount}'
+        return (zlib.crc32(stream.encode()) % (2 ** 31 - 1)) or 1
 
     def namdrun(self, baselabel='', extras={}, script_only=False, **kwargs):
         """

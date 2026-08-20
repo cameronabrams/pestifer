@@ -4,6 +4,27 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **consecutive replica seeds no longer produce near-adjacent NAMD seeds.** Both sweep
+  scripts seed replica *r* with `SEED_BASE+r-1`, so consecutive base seeds are the normal case;
+  but `_namd_seed` XORed the base against a per-stream constant, which leaves the base's low bits
+  untouched. A real triplicate came out with NAMD seeds 1112820144, 1112820145 and 1112820146 --
+  one apart. The base is now hashed *together with* the stream key, so the same triplicate gets
+  145839264 / 784752427 / 1801544102. Reproducibility is unchanged: the same base and position
+  still give the same seed.
+
+  Found by running a triplicate pilot and looking at the seeds rather than trusting that
+  "different base gives a different stream" was enough. Measured impact on that pilot was nil --
+  steady-state density fluctuations across the three replicas correlated at -0.08, +0.08 and
+  -0.01, i.e. independent, and the plateaus agreed to 0.001 g/cc -- so this is robustness rather
+  than a demonstrated defect. Adjacent seeds are simply not a property worth having to defend.
+
+- feat: **`run-record.json` states its own completion** (`status: "completed"`, `exit_code: 0`).
+  A record is only written for a build that finished, so its existence already implied success --
+  but absence is ambiguous (failed? crashed? still running?), and a sweep asking "did all 81
+  replicas succeed?" should answer from a file's contents rather than a directory listing.
+  `RUN_RECORD_VERSION` moves 1 -> 2 with the shape.
+
+
 ## [3.19.0] - 2026-08-20
 
 - change: **subcommands are grouped rather than listed flat.** Nineteen commands (twenty in a

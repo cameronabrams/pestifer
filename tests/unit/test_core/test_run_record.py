@@ -5,6 +5,7 @@ import json
 import os
 import tempfile
 import unittest
+from unittest import mock
 from types import SimpleNamespace
 
 from pestifer.core import run_record as RR
@@ -110,3 +111,33 @@ class TestBuildRecord(unittest.TestCase):
 
     def test_write_never_raises(self):
         self.assertIsNone(RR.write_run_record({'a': 1}, path='/nonexistent-dir-xyzzy/rec.json'))
+
+
+class TestCompletionIsStated(unittest.TestCase):
+    """A record is only written for a build that finished, so its existence already implies
+    success.  But *absence* is ambiguous -- failed, crashed, or still running -- and a sweep asking
+    "did all 81 replicas succeed?" should be able to answer from a file's contents rather than from
+    a directory listing.
+    """
+
+    def _record(self):
+        cfg = mock.Mock()
+        cfg.__getitem__ = lambda _s, k: {} if k == 'user' else None
+        cfg.userfile = 'x.yaml'
+        cfg.namd_type = 'cpu'
+        return RR.build_run_record(cfg, [])
+
+    def test_the_record_says_it_completed(self):
+        rec = self._record()
+        self.assertEqual(rec['status'], 'completed')
+        self.assertEqual(rec['exit_code'], 0)
+
+    def test_the_field_is_a_real_zero_not_a_missing_key(self):
+        """`.get('exit_code')` returning None for an absent key reads exactly like a recorded
+        failure, which is how this was misdiagnosed in the first place."""
+        rec = self._record()
+        self.assertIn('exit_code', rec)
+        self.assertIsNotNone(rec.get('exit_code'))
+
+    def test_the_record_version_moved_with_the_shape(self):
+        self.assertGreaterEqual(RR.RUN_RECORD_VERSION, 2)

@@ -41,6 +41,32 @@ class TestNAMDSeed(unittest.TestCase):
         self.assertNotEqual(_task(27021972, 0, 3, 0)._namd_seed(),
                             _task(27021973, 0, 3, 0)._namd_seed())
 
+    def test_consecutive_replica_seeds_are_not_adjacent(self):
+        """Replicas are seeded 27021972/3/4 by both sweep scripts, so consecutive base seeds are
+        the normal case rather than an edge one.
+
+        The earlier derivation XORed the base against a per-stream constant, which leaves the
+        base's low bits untouched: a real triplicate came out with NAMD seeds 1112820144,
+        1112820145 and 1112820146.  Adjacent seeds are not necessarily independent streams for a
+        generator seeded by simple state initialization, and it is not a property worth having to
+        defend in review.  Hashing the base together with the stream key avalanches it.
+        """
+        seeds = [_task(b, 0, 6, 0)._namd_seed() for b in (27021972, 27021973, 27021974)]
+        gaps = [abs(b - a) for a, b in zip(seeds, seeds[1:])]
+        self.assertGreater(min(gaps), 1_000_000,
+                           f'consecutive replicas got near-adjacent seeds: {seeds}')
+
+    def test_a_replica_set_stays_reproducible(self):
+        """Separation must not have cost determinism: the same base still gives the same seed."""
+        for b in (27021972, 27021973, 27021974):
+            self.assertEqual(_task(b, 0, 6, 0)._namd_seed(), _task(b, 0, 6, 0)._namd_seed())
+
+    def test_runs_within_one_build_are_also_well_separated(self):
+        seeds = [_task(27021972, 0, i, 0)._namd_seed() for i in range(3, 9)]
+        self.assertEqual(len(set(seeds)), len(seeds))
+        pairs = [abs(a - b) for i, a in enumerate(seeds) for b in seeds[i + 1:]]
+        self.assertGreater(min(pairs), 1_000_000, f'runs share a seed neighbourhood: {seeds}')
+
     def test_each_invocation_in_a_build_gets_its_own_stream(self):
         # reusing one seed for every NAMD run in a build would correlate them
         seeds = {_task(27021972, 0, i, 0)._namd_seed() for i in range(12)}
