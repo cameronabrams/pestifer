@@ -13,6 +13,7 @@ from ..logparsers.namdlogparser import subcommand_follow_namd_log
 @dataclass
 class FollowNAMDLogSubcommand(Subcommand):
     name: str = "follow-namd-log"
+    group: str = 'After the run'
     short_help: str = "follow and parse an actively updating NAMD log file"
     long_help: str = "Monitor a NAMD log file for changes and display relevant information."
 

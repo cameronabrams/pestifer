@@ -217,6 +217,7 @@ def _ledger_revert(RM, args, repo_root):
 @dataclass
 class ModifyPackageSubcommand(Subcommand):
     name: str = 'modify-package'
+    group: str = 'Manage the installation'
     short_help: str = "modify the pestifer package"
     long_help: str = "Modify the pestifer package: manage examples, contribute PDB-repository coordinates, or modify CHARMM force-field content."
 

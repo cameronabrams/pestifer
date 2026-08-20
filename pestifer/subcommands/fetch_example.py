@@ -14,6 +14,7 @@ from ..core.resourcemanager import ResourceManager
 @dataclass
 class FetchExampleSubcommand(Subcommand):
     name: str = 'fetch-example'
+    group: str = 'Build a system'
     func_returns_type: type = str
     short_help: str = "copy the example\'s YAML config file to the CWD"
     long_help: str = "Fetch the YAML configuration file for a specific example by its ID. This command will copy the example's configuration file to the current working directory, allowing you to run simulations or analyses based on that configuration."

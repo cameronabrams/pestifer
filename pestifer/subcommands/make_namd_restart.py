@@ -13,6 +13,7 @@ from ..util.namdrestart import make_namd_restart_subcommand
 @dataclass
 class MakeNAMDRestartSubcommand(Subcommand):
     name: str = "make-namd-restart"
+    group: str = 'After the run'
     short_help: str = 'generate a restart NAMD config file based on current checkpoint'
     long_help: str = 'This command generates a NAMD configuration file for restarting a simulation from the current checkpoint.'
 

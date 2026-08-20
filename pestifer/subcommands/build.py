@@ -171,6 +171,7 @@ def _print_check_report(report):
 @dataclass
 class RunSubcommand(Subcommand):
     name: str = 'build'
+    group: str = 'Build a system'
     aliases: list = field(default_factory=lambda: ['run'])
     long_help: str = 'Prepare a system according to instructions in the config file.'
     short_help: str = 'prepare a system'

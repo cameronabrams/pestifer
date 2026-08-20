@@ -30,6 +30,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class MakeLigandMol2Subcommand(Subcommand):
     name: str = "make-ligand-mol2"
+    group: str = 'Work with structures'
     short_help: str = (
         "generate CGenFF-ready mol2 files for unknown HETATM ligands in a PDB"
     )

@@ -86,6 +86,7 @@ def _overview(out_stream=print):
 @dataclass
 class ShowResourcesSubcommand(Subcommand):
     name: str = 'show-resources'
+    group: str = 'Configure a build'
     short_help: str = 'show available resources for the current configuration'
     long_help: str = 'Display a list of all available resources for the current configuration.'
 

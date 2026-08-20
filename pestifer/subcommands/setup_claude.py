@@ -18,6 +18,7 @@ _SKILL_NAME = 'pestifer'
 @dataclass
 class SetupClaudeSubcommand(Subcommand):
     name: str = 'setup-claude'
+    group: str = 'Manage the installation'
     short_help: str = "install pestifer's Claude Code skill so an agent can drive pestifer"
     long_help: str = (
         "Copies pestifer's bundled skill to ~/.claude/skills/pestifer/SKILL.md, which teaches "

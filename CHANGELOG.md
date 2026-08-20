@@ -4,6 +4,32 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- change: **subcommands are grouped rather than listed flat.** Nineteen commands (twenty in a
+  source checkout) were presented as one undifferentiated list on the command line, and as a
+  *differently* ordered undifferentiated list in the docs -- so neither order carried information
+  and neither was learnable. They are now grouped by **what you hand them** -- a configuration, a
+  structure, a NAMD run's output, or nothing at all -- which is a rule a reader can apply to an
+  unfamiliar command instead of a list to memorize:
+
+  *Build a system* (`build`, `build-example`, `fetch-example`, `new-system`) · *Configure a build*
+  (`config-help`, `config-default`, `show-resources`) · *Work with structures* (`desolvate`,
+  `make-ligand-mol2`, `make-pdb-collection`) · *After the run* (`mdplot`, `density-profile`,
+  `follow-namd-log`, `make-namd-restart`, `report-methods`) · *Manage the installation* (`cache`,
+  `wheretcl`, `setup-vmd`, `setup-claude`).
+
+  `pestifer --help` and `docs/source/usage.rst` now present the same groups in the same order, and
+  tests hold them to it -- a command added without a group, or a heading in one list and not the
+  other, would otherwise reintroduce the flat list silently.
+
+- docs: **the one real seam in the command set is now named.** Four of the five *After the run*
+  commands -- `mdplot`, `density-profile`, `follow-namd-log`, `make-namd-restart` -- read NAMD
+  output and touch nothing of pestifer's, so they work on a run pestifer never managed;
+  `report-methods` is the exception, needing the `run-record.json` a pestifer build leaves behind.
+  That distinction was true before and stated nowhere. It is the same boundary as
+  `docs/design/namd-layer-extraction.md`, and naming it keeps that decision cheap without
+  splitting anything today.
+
+
 - test: **`ring_check` coverage raised from 20% to 99%.** `test_ringcheck.py` covers the *detector*
   -- whether a bond really threads a ring -- against real coordinates; the new
   `test_ringcheck_task.py` covers what the task does with the answer. Those decisions are

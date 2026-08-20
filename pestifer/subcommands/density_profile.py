@@ -36,6 +36,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class DensityProfileSubcommand(Subcommand):
     name: str = 'density-profile'
+    group: str = 'After the run'
     log_file: str = 'density-profile.log'
     short_help: str = "plot species-resolved density profiles along z"
     long_help: str = ("Compute and plot water/lipid/protein/ion mass-density profiles "

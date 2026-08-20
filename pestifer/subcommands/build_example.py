@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class RunExampleSubcommand(RunSubcommand):
     name: str = 'build-example'
+    group: str = 'Build a system'
     aliases: list = field(default_factory=lambda: ['run-example'])
     short_help: str = "build a specific example system"
     long_help: str = "Run the system preparation for a specific example by its ID; \'pestifer show-resources examples\' to see the list."

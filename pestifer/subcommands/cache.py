@@ -60,6 +60,7 @@ def _cache_rebuild(out=print):
 @dataclass
 class CacheSubcommand(Subcommand):
     name: str = 'cache'
+    group: str = 'Manage the installation'
     short_help: str = "inspect, clear, or rebuild pestifer's on-disk caches"
     long_help: str = ("Manage pestifer's per-user caches (the parsed CHARMM force field, the PDB "
                       "repository, and the residue-name lookup index): 'status' lists them, 'clear' "

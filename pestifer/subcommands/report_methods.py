@@ -25,6 +25,7 @@ from ..util.methods_report import write_report
 @dataclass
 class ReportMethodsSubcommand(Subcommand):
     name: str = 'report-methods'
+    group: str = 'After the run'
     short_help: str = 'draft a Methods section from one or more completed builds'
     long_help: str = ('Draft a Methods section and bibliography from the run-record.json files '
                       'that completed builds leave behind. Pass several run directories to '

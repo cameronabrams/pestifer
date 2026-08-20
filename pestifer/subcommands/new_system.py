@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class NewSystemSubcommand(Subcommand):
     name: str = 'new-system'
+    group: str = 'Build a system'
     short_help: str = 'create a new system script from scratch'
     long_help: str = 'Generate a new system script with a basic template.'
 

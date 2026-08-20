@@ -15,6 +15,7 @@ from ..core.config import Config
 @dataclass
 class ConfigDefaultSubcommand(Subcommand):
     name: str = 'config-default'
+    group: str = 'Configure a build'
     short_help: str = "show default configuration options"
     long_help: str = "Display default values for all available configuration options."
 

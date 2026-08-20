@@ -44,6 +44,7 @@ def _parse_overlays(items: list) -> list:
 @dataclass
 class MDPlotSubcommand(Subcommand):
     name: str = 'mdplot'
+    group: str = 'After the run'
     log_file: str = 'mdplot.log'
     short_help: str = "generate plots from MD simulation data"
     long_help: str = "Generates plots from all combined MD simulations"

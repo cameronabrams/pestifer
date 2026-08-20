@@ -16,6 +16,7 @@ from ..charmmff.make_solvent_box import build_solvent_entry
 @dataclass
 class MakePDBCollectionSubcommand(Subcommand):
     name: str = 'make-pdb-collection'
+    group: str = 'Work with structures'
     short_help: str = "create a PDB collection from a set of input files"
     long_help: str = "Generate a PDB collection from a list of PDB files or IDs."
 

@@ -32,32 +32,84 @@ General options for all subcommands:
 Subcommands
 -----------
 
+Commands are grouped below by **what you hand them** -- a configuration, a structure, a NAMD run's
+output, or nothing at all -- rather than by what they do, so an unfamiliar command can be placed
+without reading the whole list.  ``pestifer --help`` prints them under the same headings and in
+the same order.
+
+Build a system
+~~~~~~~~~~~~~~
+
+The core of pestifer: turn a description of a system into files NAMD can run.
+
+.. toctree::
+   :maxdepth: 1
+
+   subs/build
+   subs/build-example
+   subs/new-system
+
+The ``fetch-example`` subcommand (:ref:`fetch-example <sub_fetch_example>`) is documented alongside
+:ref:`build-example <sub_build_example>`; it copies an example's YAML config file to the current
+directory without building it.
+
+Configure a build
+~~~~~~~~~~~~~~~~~
+
+What you can ask for, and what is available to ask for.  These take no input of yours.
+
 .. toctree::
    :maxdepth: 1
 
    subs/config-help
    subs/config-default
-   subs/build
-   subs/build-example
-   subs/new-system
-   subs/wheretcl
-   subs/make-pdb-collection
-   subs/make-ligand-mol2
-   subs/desolvate
-   subs/density-profile
-   subs/make-namd-restart
    subs/show-resources
-   subs/follow-namd-log
+
+Work with structures
+~~~~~~~~~~~~~~~~~~~~
+
+These take a structure -- a PSF/PDB, a trajectory, a ligand -- rather than a configuration.
+
+.. toctree::
+   :maxdepth: 1
+
+   subs/desolvate
+   subs/make-ligand-mol2
+   subs/make-pdb-collection
+
+After the run
+~~~~~~~~~~~~~
+
+These read what NAMD wrote.  All but ``report-methods`` work on **any** NAMD run, including one
+pestifer never managed -- they need only the log, the ``.xst`` and the checkpoint files.
+``report-methods`` is the exception: it reads the ``run-record.json`` that a pestifer build leaves
+behind, so it applies to pestifer's own builds only.
+
+.. toctree::
+   :maxdepth: 1
+
    subs/mdplot
+   subs/density-profile
+   subs/follow-namd-log
+   subs/make-namd-restart
    subs/report-methods
-   subs/modify-package
+
+Manage the installation
+~~~~~~~~~~~~~~~~~~~~~~~
+
+These act on pestifer itself rather than on any system of yours.
+
+.. toctree::
+   :maxdepth: 1
+
+   subs/cache
+   subs/wheretcl
    subs/setup-vmd
    subs/setup-claude
-   subs/cache
+   subs/modify-package
 
-The ``fetch-example`` subcommand (:ref:`fetch-example <sub_fetch_example>`) is
-documented alongside :ref:`build-example <sub_build_example>`; it copies an
-example's YAML config file to the current directory without building it.
+``modify-package`` is a maintainer tool and is registered only when pestifer is run from a source
+checkout; it does not appear for a pip-installed pestifer.
 
 .. _custom_charmm_stream_file:
 

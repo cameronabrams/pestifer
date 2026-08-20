@@ -17,6 +17,7 @@ _VMDRC_MARKER = '# pestifer setup-vmd'
 @dataclass
 class SetupVMDSubcommand(Subcommand):
     name: str = 'setup-vmd'
+    group: str = 'Manage the installation'
     short_help: str = "install pestifer's Tcl library into your VMD startup environment"
     long_help: str = (
         "Generates ~/.pestifer/vmd_init.tcl with the absolute path to pestifer's "

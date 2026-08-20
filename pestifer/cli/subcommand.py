@@ -22,6 +22,13 @@ class Subcommand(ABC):
     """ the return type of the func method """
     parser: ArgumentParser = None
     """ the subparser for this subcommand """
+    group: str = ''
+    """ Heading this subcommand is listed under in ``pestifer --help`` and in the docs.
+
+    Commands are grouped by *what you hand them* rather than by what they do -- a config, a
+    structure, a NAMD run's output, or nothing at all -- so a reader can place an unfamiliar
+    command without having read the whole list.  See :data:`pestifer.subcommands.GROUPS`.
+    """
 
     @staticmethod
     def func(args: Namespace, **kwargs):

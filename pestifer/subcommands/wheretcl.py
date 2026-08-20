@@ -15,6 +15,7 @@ from ..core.resourcemanager import ResourceManager
 @dataclass
 class WhereTCLSubcommand(Subcommand):
     name: str = 'wheretcl'
+    group: str = 'Manage the installation'
     short_help: str = "provides path of TcL scripts for sourcing in interactive VMD"
     long_help: str = "Display the path of TcL scripts for sourcing in interactive VMD."
 

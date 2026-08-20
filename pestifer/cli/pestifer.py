@@ -23,9 +23,46 @@ class NiceHelpFormatter(ap.HelpFormatter):
     """
     A custom help formatter that provides a more readable help output.
     It formats the help text with a maximum help position and width.
+
+    It also prints the command list under group headings.  ``argparse`` allows only one
+    ``add_subparsers`` call and therefore only one title for the whole list, so the headings are
+    injected as each group's first command is formatted.  ``group_of`` maps a command name to its
+    heading and is set by :func:`grouped_formatter`; with it empty this behaves exactly as before.
     """
+
+    group_of: dict = {}
+
     def __init__(self, prog):
         super().__init__(prog, max_help_position=40, width=100)
+        self._groups_emitted = set()
+
+    def _format_action(self, action):
+        text = super()._format_action(action)
+        if isinstance(action, ap._SubParsersAction):
+            # The subparsers action's own invocation line is blank -- its metavar is empty so
+            # argparse does not print the whole {build,run,...} choice list -- and it heads the
+            # block containing every command, so drop it rather than leave a stray blank line
+            # between the title and the first group.
+            lines = text.split('\n')
+            while lines and not lines[0].strip():
+                lines.pop(0)
+            return '\n'.join(lines)
+        group = self.group_of.get(getattr(action, 'dest', None))
+        if group and group not in self._groups_emitted:
+            first = not self._groups_emitted
+            self._groups_emitted.add(group)
+            text = f'{"" if first else chr(10)}  {group}\n{text}'
+        return text
+
+
+def grouped_formatter(subcommands):
+    """A :class:`NiceHelpFormatter` subclass that knows which group each command belongs to.
+
+    Returned as a class because ``argparse`` instantiates the formatter itself, and baked into a
+    subclass rather than set on the shared base so nothing leaks between parsers.
+    """
+    return type('GroupedHelpFormatter', (NiceHelpFormatter,),
+                {'group_of': {s.name: s.group for s in subcommands if s.group}})
 
 def subcommand_exit_code(result) -> int:
     """Exit status implied by whatever a subcommand returned.
@@ -54,7 +91,7 @@ def cli():
     Command-line interface for pestifer.
     """
 
-    parser = ap.ArgumentParser(formatter_class=NiceHelpFormatter)
+    parser = ap.ArgumentParser(formatter_class=grouped_formatter(_subcommands))
     parser.add_argument(
         "--banner",
         default=True,

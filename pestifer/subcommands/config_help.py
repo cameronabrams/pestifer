@@ -15,6 +15,7 @@ from ..core.config import Config
 @dataclass
 class ConfigHelpSubcommand(Subcommand):
     name: str = 'config-help'
+    group: str = 'Configure a build'
     short_help: str = "show help for configuration options"
     long_help: str = "Display help information for all available configuration options."
 
