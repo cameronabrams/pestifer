@@ -621,9 +621,14 @@ what appears here is refined and reprioritized as the project evolves.
       above, and it is worth watching for elsewhere -- **a conditional skip that is always taken
       reports green and looks like coverage.** (Unreleased.)
 
-- [ ] **Remaining coverage gaps, in priority order.** `charmmff/make_pdb_collection.py` 14%,
-      `tasks/ringcheck.py` 20%. Both should be read before being written off: the same assumption
-      about `make_membrane_system` and `psfgen` proved about half wrong in each case.
+- [ ] **Remaining coverage gaps.** `tasks/ringcheck.py` 20% is the last of the ones flagged in
+      August. Read it before writing it off: the "needs the toolchain" assumption proved about
+      half wrong for `make_membrane_system`, `psfgen` and `make_pdb_collection` alike -- in each
+      case the decision layer around the toolchain call was ordinary, testable logic, and it is
+      the layer where errors are silent.
+
+      `charmmff/make_pdb_collection.py` is now 14% → 43%; what remains is `do_psfgen`, which
+      genuinely builds and samples a lipid. (Unreleased.)
 
       `psfgen` is now 47% → 65%; what is left there is genuine structural work (tail modeling, the
       numpy declashers over real PSFs, molecule ingestion) rather than decision logic.

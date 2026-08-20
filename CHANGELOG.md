@@ -4,6 +4,29 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- test: **`make_pdb_collection` coverage raised from 14% to 43%.** The expensive half -- `do_psfgen`,
+  which builds and samples an actual lipid -- needs psfgen and NAMD and is exercised by the
+  generator's own acceptance runs. Everything around it is now covered:
+
+  * **`_bisect_to_order`**, which tunes the trans bias toward a phase's chain-order target. Each
+    evaluation is a whole MC ensemble, so the iteration budget is small and the routine has to be
+    right rather than lucky: the tests pin that it infers the monotonic direction from its
+    endpoints (serving both the trans-bias and cylinder-looseness parametrizations), that it stops
+    as soon as it is inside tolerance, and that it reports an unreachable target as unbracketed
+    rather than silently returning a bound -- which is how a cis-unsaturated lipid gets recorded
+    as Ld instead of pretending it ordered.
+  * **the conformer write-out**, including that everything outside the coordinate columns survives
+    byte for byte. This repository has already been bitten by a fixed-column PDB write that
+    shifted fields and scrambled glycans downstream, so it is pinned here rather than assumed.
+  * **the directory bookkeeping** in `do_resi`/`do_cleanup`/`make_pdb_collection`: where a built
+    set is filed, that a failed build is kept for inspection rather than filed where a good one is
+    expected, that an existing set is not silently rebuilt, and that an empty failure directory is
+    removed rather than left looking like something went wrong.
+  * `phase_order_target` and `all_chains_saturated`, the latter including its documented false
+    negative -- a sphingomyelin's *trans* double bond reads as unsaturated here yet still orders,
+    which is why this is a pre-filter and not the verdict.
+
+
 - test: **`psfgen` coverage raised from 47% to 65%.** The existing files cover the guards that stop
   a bad build, the two incoming-PSF modes, and real psfgen runs; the new `test_psfgen_logic.py`
   takes the graph and bookkeeping helpers that decide *what* gets rotated, declashed or carried
