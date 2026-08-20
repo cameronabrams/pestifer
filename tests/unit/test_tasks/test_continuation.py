@@ -26,21 +26,24 @@ class TestContinuationTask(unittest.TestCase):
         dest_coor = Path('my_6pti.coor')
         dest_vel = Path('my_6pti.vel')
         dest_chainmap = Path('chainmap.yaml')
-        if dest_chainmap.exists():
-            dest_chainmap.unlink()
         dest_tarball = Path('my_system.tar.gz')
-        if dest_tarball.exists():
-            dest_tarball.unlink()
-        if dest_psf.exists():
-            dest_psf.unlink()
-        if dest_pdb.exists():
-            dest_pdb.unlink()
-        if dest_xsc.exists():
-            dest_xsc.unlink()
-        if dest_coor.exists():
-            dest_coor.unlink()
-        if dest_vel.exists():
-            dest_vel.unlink()
+
+        def clear(path):
+            """Remove ``path`` if anything is there at all -- including a *dangling* symlink.
+
+            ``Path.exists()`` follows the link, so it answers False for one whose target is gone,
+            and the stale link then survives to make ``os.symlink`` below fail with
+            FileExistsError.  That is not hypothetical: these links were once committed, and
+            because ``os.symlink`` stores the absolute path they resolved to on one machine, every
+            other checkout -- CI included -- got a dangling link and this whole class failed.
+            ``is_symlink()`` does not follow, so the two together catch every case.
+            """
+            if path.is_symlink() or path.exists():
+                path.unlink()
+
+        for dest in (dest_chainmap, dest_tarball,
+                     dest_psf, dest_pdb, dest_xsc, dest_coor, dest_vel):
+            clear(dest)
         os.symlink(psf.resolve(), dest_psf)
         os.symlink(pdb.resolve(), dest_pdb)
         os.symlink(xsc.resolve(), dest_xsc)

@@ -176,3 +176,14 @@ tests/unit/test_tasks/test_cleave/my_system-artifacts.tar.gz
 
 # per-run restart manifest (build bookkeeping; regenerated each run)
 .pestifer-manifest.json
+
+# Symlinks the task tests create in their working directories, pointing at the real fixtures
+# under tests/unit/test_tasks/fixtures/.  These were committed once by accident, and because
+# os.symlink stores the *absolute* path they resolved to on one machine, every other checkout --
+# CI included -- got a dangling link.  A dangling symlink is invisible to Path.exists(), so the
+# tests' own cleanup skipped it and then failed to recreate it.
+tests/unit/test_tasks/test_continuation/my_6pti.*
+tests/unit/test_tasks/test_psfgen_preserve/my_6pti.*
+tests/unit/test_tasks/test_psfgen_preserve/in.ps[fd]
+tests/unit/test_tasks/test_psfgen_preserve/in.pdb
+tests/unit/test_tasks/test_psfgen_resegment/my_6pti.*
