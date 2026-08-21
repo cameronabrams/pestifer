@@ -4,6 +4,24 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a `catdcd` older than 5.2 is now refused instead of silently corrupting coordinates.**
+  `installation.rst` has always stated 5.2 as a requirement, because earlier versions drop residue
+  insertion codes when reading and writing DCD files -- corrupting, with no warning of any kind,
+  any structure whose residues share sequence numbers (antibodies and other non-standard
+  numbering). Nothing enforced it: the four required commands were checked for presence and
+  executability only, so a wrong `catdcd` passed the gate and the damage surfaced, if ever, as
+  inexplicable coordinates much later.
+
+  A build run now probes `catdcd` and raises if it reports a version below 5.2. Only a version
+  that parses *and* is definitely too old is fatal -- a probe that fails, times out, or reports
+  something unrecognized warns and continues, since an advisory probe must not be able to block a
+  build through its own malfunction.
+
+  The version also reaches `run-record.json`, which previously recorded `catdcd` by path with an
+  empty version string: `provenance.py` asserted that catdcd reports no version, which is wrong --
+  run with no arguments it prints `CatDCD <version>` atop its usage message. `charmrun` genuinely
+  reports none and is still recorded by path alone.
+
 - fix: **a packaged NAMD config no longer names a parameter file the tarball does not contain.**
   A `terminate` task carrying both a `basename:` and a different `package: basename:` shipped the
   consolidated `*_minimal.prm` under the terminate basename -- as its docstring intends, and as the

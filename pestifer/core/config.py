@@ -8,6 +8,7 @@ access to the contents of Pestifer's :mod:`pestifer.resources` subpackage.
 """
 
 import os
+import re
 import sys
 import copy
 import logging
@@ -25,6 +26,20 @@ from ..scripters import PsfgenScripter, NAMDColvarInputScripter, VMDScripter, Ge
 from ..scripters.namd import NAMDScripter
 
 logger = logging.getLogger(__name__)
+
+MIN_CATDCD_VERSION = (5, 2)
+"""Oldest ``catdcd`` whose DCD round-trip preserves residue insertion codes.
+
+Not a compatibility floor: earlier versions read and write frames *successfully* while dropping
+the insertion codes that distinguish residues sharing a sequence number, so they corrupt any
+antibody-like structure silently.  See :meth:`Config._verify_catdcd_version`."""
+
+
+def _version_tuple(text: str):
+    """``(major, minor)`` parsed from a leading dotted version, or None if there isn't one."""
+    m = re.match(r'\s*(\d+)(?:\.(\d+))?', text or '')
+    return (int(m.group(1)), int(m.group(2) or 0)) if m else None
+
 
 
 def detect_local_gpu_ids() -> list:
@@ -297,6 +312,9 @@ class Config(Yclept):
         for opt in optional_commands:
             self.shell_commands[opt] = self['user']['paths'][opt]
 
+        if verify_access:
+            self._verify_catdcd_version()
+
         namd3_path = self.shell_commands['namd3']
         namd3gpu_path = self['user']['paths']['namd3gpu']
         processor_type = self['user']['namd'].get('processor-type', 'auto')
@@ -311,6 +329,41 @@ class Config(Yclept):
                 assert os.access(namd3gpu_resolved, os.X_OK), f'You do not have permission to execute {namd3gpu_resolved}'
         self._report_gpu_mode()
         self.namd_deprecates = self['user']['namd']['deprecated3']
+
+    def _verify_catdcd_version(self):
+        """Refuse a ``catdcd`` older than :data:`MIN_CATDCD_VERSION`.
+
+        Every other external program is checked for presence alone, because a wrong version of one
+        announces itself -- NAMD rejects a config it does not understand, VMD fails on a script.
+        ``catdcd`` is the exception: before 5.2 it reads and writes DCD frames without complaint
+        while dropping residue insertion codes, so a build that uses one silently corrupts the
+        coordinates of any structure whose residues share sequence numbers (antibodies, and
+        anything else with non-standard numbering).  Nothing downstream notices, which is why the
+        version is worth a check that presence is not.
+
+        Only a version that parses *and* is definitely too old is fatal.  A probe that fails, times
+        out, or reports something unrecognized warns and continues: an advisory probe must never be
+        able to block a build through its own malfunction.
+        """
+        from ..util.provenance import catdcd_version
+        cmd = self.shell_commands.get('catdcd')
+        if not cmd or not shutil.which(cmd):
+            return          # presence is the required-command loop's business, not ours
+        reported = catdcd_version(cmd)
+        parsed = _version_tuple(reported)
+        want = '.'.join(str(v) for v in MIN_CATDCD_VERSION)
+        if parsed is None:
+            logger.warning(f'Could not determine the version of {cmd!r} (reported {reported!r}); '
+                           f'pestifer requires {want} or later, since earlier versions silently '
+                           f'drop residue insertion codes.  Continuing.')
+            return
+        if parsed < MIN_CATDCD_VERSION:
+            raise PestiferError(
+                f'{cmd!r} reports version {reported}, but pestifer requires {want} or later: '
+                f'earlier versions silently drop residue insertion codes when reading and writing '
+                f'DCD files, corrupting the coordinates of any structure whose residues share '
+                f'sequence numbers.  Install catdcd {want}+ (it ships with VMD 1.9.4 and later).')
+        logger.debug(f'catdcd {reported} at {cmd!r} satisfies the {want}+ requirement')
 
     def _resolve_namd_type(self, processor_type: str, namd3_path: str, namd3gpu_path: str):
         """

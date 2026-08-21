@@ -170,9 +170,22 @@ def namd_version(cmd):
     return version
 
 
-_PROBERS = {'vmd': vmd_version, 'namd3': namd_version, 'namd3gpu': namd_version}
-"""Which resolved shell commands can report a version, and how.  ``charmrun`` and ``catdcd``
-report none, so they are recorded by resolved path alone."""
+def catdcd_version(cmd):
+    """Version string reported by the ``catdcd`` at ``cmd``, e.g. ``5.2``.
+
+    ``catdcd`` has no version flag: run with no arguments it prints ``CatDCD <version>`` as the
+    first line of its usage message and exits 0.  Worth probing rather than recording by path
+    alone, because this is the one external version that is a *correctness* matter -- before 5.2,
+    catdcd silently drops residue insertion codes (see :func:`Config._verify_catdcd_version`).
+    """
+    m = re.search(r'^CatDCD\s+(\S+)', _run([cmd]), re.M)
+    return m.group(1).strip() if m else _UNKNOWN
+
+
+_PROBERS = {'vmd': vmd_version, 'namd3': namd_version, 'namd3gpu': namd_version,
+            'catdcd': catdcd_version}
+"""Which resolved shell commands can report a version, and how.  ``charmrun`` reports none, so it
+is recorded by resolved path alone."""
 
 
 def executable_versions(config):

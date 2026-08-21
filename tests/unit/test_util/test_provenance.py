@@ -21,6 +21,11 @@ Info: Built Wed Aug 27 15:39:24 CDT 2025 by dhardy on athine.ks.uiuc.edu
 ERROR: 'cutoff' is a required configuration option
 """
 
+_CATDCD_OUT = """CatDCD 5.2
+   catdcd -o outputfile [-otype <filetype>] [-i indexfile]
+      [-stype <filetype>] [-s structurefile]
+"""
+
 _NAMD_GPU_OUT = """Info: Built with CUDA version 11080
 Info: NAMD 3.0.2 for Linux-x86_64-multicore-CUDA
 Info: Built Wed Aug 27 15:48:11 CDT 2025 by dhardy on athine.ks.uiuc.edu
@@ -45,11 +50,21 @@ class TestVersionProbes(unittest.TestCase):
             self.assertEqual(provenance.namd_version('namd3gpu'),
                              'NAMD 3.0.2 for Linux-x86_64-multicore-CUDA (CUDA 11080)')
 
+    def test_catdcd_version_parsed_from_bare_usage(self):
+        # catdcd has no version flag: it prints its version atop the usage message and exits 0
+        with mock.patch.object(provenance, '_run', return_value=_CATDCD_OUT):
+            self.assertEqual(provenance.catdcd_version('catdcd'), '5.2')
+
+    def test_catdcd_is_probed_not_recorded_by_path_alone(self):
+        # its version is a correctness matter (insertion codes), so it must be in the record
+        self.assertIn('catdcd', provenance._PROBERS)
+
     def test_probes_degrade_to_unknown(self):
         # a probe that returns nothing (missing binary, timeout) must not raise
         with mock.patch.object(provenance, '_run', return_value=''):
             self.assertEqual(provenance.vmd_version('vmd'), 'unknown')
             self.assertEqual(provenance.namd_version('namd3'), 'unknown')
+            self.assertEqual(provenance.catdcd_version('catdcd'), 'unknown')
 
     def test_run_never_raises(self):
         self.assertEqual(provenance._run(['definitely-not-a-real-binary-xyzzy']), '')

@@ -18,6 +18,11 @@ checked at startup and its absence does not affect building systems.
 
    ``catdcd`` version 5.2 or later is required.  Earlier versions silently drop insertion codes from residue identifiers when reading and writing DCD trajectory files.  Pestifer uses insertion codes to distinguish residues that share the same sequence number (a common occurrence in antibody structures and other proteins with non-standard numbering), so an older ``catdcd`` will corrupt coordinate data for those systems without any warning.
 
+   Because that corruption is silent, this is the one prerequisite whose *version* pestifer
+   checks rather than merely its presence: a build run refuses to start against a ``catdcd``
+   older than 5.2, and records the version it did use in ``run-record.json``.  If the version
+   cannot be determined, pestifer warns and continues.
+
 Installation
 ------------
 
