@@ -48,3 +48,82 @@ that: **pushing the tag is what publishes to PyPI**, so a hand-made tag publishe
 gate.
 
 Do not release on a red badge. The tag is permanent; the failure gets baked into it.
+
+## Fixed: packaged NAMD config pointed at a parameter file the tarball did not contain
+
+Found 2026-08-21 against v3.19.1 while benchmarking a packaged system on Picotte; fixed the same
+day. Kept here because the shape of the bug -- two names for one file, agreeing everywhere except
+inside the tarball -- can recur anywhere packaging renames things.
+
+A `terminate` task with both a `basename:` and a `package: basename:` wrote a tarball whose NAMD
+config referenced the *package* basename for its parameter file, while the file actually tarred
+carried the *terminate* basename:
+
+```
+$ tar tzf prod_vansc_native_r1.tar.gz
+...
+prod_vansc_native_r1/prod_vansc_native_r1.namd
+prod_vansc_native_r1/vansc_native_r1_minimal.prm     <-- shipped
+
+$ grep ^parameters prod_vansc_native_r1.namd
+parameters prod_vansc_native_r1_minimal.prm          <-- referenced
+```
+
+`structure`, `coordinates`, and `extendedSystem` were all correct; only `parameters` was wrong,
+and NAMD aborted on the missing file. It stayed invisible in the build directory, where a
+consolidated `.prm` under the package basename also exists and everything resolves.
+
+`NAMDScripter.consolidate_params()` (`pestifer/scripters/namd.py`) named its output from the
+scripter's *current* basename, which inside `TerminateTask.make_package()`
+(`pestifer/tasks/terminate.py`) has deliberately been set to the package basename, while
+`TarballContents.append(min_artifact)` tars the artifact named by `copy_state_to_basename()` --
+the terminate basename. `make_package`'s docstring says which one is intended ("State files are
+included in the tarball under their existing names (the terminate basename); only the tarball
+itself and the NAMD config script use the package basename"), so the fix is on the
+`consolidate_params` side: when the parameter set is already a single `*_minimal.prm`, keep that
+file under its own name instead of re-deriving one from the basename in force.
+
+Two regression tests guard it:
+`tests/unit/test_scripters/test_namdscripter.py::TestConsolidateParams` pins the naming rule, and
+`tests/unit/test_tasks/test_terminate.py::TestPackagedConfigIsSelfContained` runs a real
+`make_package` and asserts every file named in the packaged `.namd` is present in the tarball --
+the invariant that would catch the next one of these too.
+
+## Open bug: `new-system --inspect` chain summary counts waters and ions as protein
+
+Found 2026-08-21 against v3.19.1, alongside the packaging bug above. Also unfixed.
+
+The scaffold config emitted by `pestifer new-system --inspect` summarizes each chain like this,
+for PDB 8DX0:
+
+```
+#   A: protein (263 residues) — HISTIDINE KINASE
+#   B: protein (246 residues) — HISTIDINE KINASE
+```
+
+Neither number is a residue count of the protein. Both chains contain **139** amino-acid
+residues. The printed figures are the count of *every* distinct residue in the chain, waters
+and ions included:
+
+```
+chain A:  139 protein + 123 HOH + 1 MG = 263
+chain B:  139 protein + 105 HOH + 2 MG = 246
+```
+
+So the label says "protein" and the number counts solvent. Reproduce with any structure
+carrying chain-tagged waters:
+
+```bash
+pestifer new-system 8dx0 --inspect
+```
+
+Cross-checks for 8DX0 chain A, none of which agree with 263: 139 resolved (ATOM records),
+15 missing per REMARK 465 (208-209, 313-322, 359-361), 154 in SEQRES/DBREF (208-361), and 149
+in the system pestifer actually builds (210-358, 139 from the crystal plus the 10-residue loop
+it rebuilds).
+
+Why it is worth fixing rather than documenting: `--inspect` output is advisory text a user reads
+once and copies into a methods section, so a wrong count propagates silently into writing and is
+never checked again. It reached a published page that way before being caught. The fix is to
+count only residues of the chain's classified segtype, and to say which segtype is being
+counted when a chain carries more than one.

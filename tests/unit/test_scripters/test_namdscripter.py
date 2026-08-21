@@ -1,5 +1,6 @@
-import unittest
 import os
+import tempfile
+import unittest
 from pestifer.core.config import Config
 from pestifer.scripters import NAMDScripter
 
@@ -114,3 +115,52 @@ class TestNAMDLaunchCommand(unittest.TestCase):
         c = p._build_launch_command()
         self.assertEqual(c.command, 'srun namd3 job.namd')
         self.assertFalse(p._single_node_launch)
+
+
+class TestConsolidateParams(unittest.TestCase):
+    """``consolidate_params`` reduces the parameter set to one minimal .prm and points the
+    script's single ``parameters`` line at it.
+
+    When the set is *already* one consolidated file, the file keeps its own name: packaging
+    writes the package's NAMD config under the package basename while shipping the minimal
+    .prm generated under the terminate basename, so re-deriving the name from the basename in
+    force left the config referencing a file the tarball did not contain.
+    """
+
+    PSF = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..', 'inputs',
+                                       'existing.psf'))
+
+    def _make_scripter(self, tmp, basename, parameters):
+        p = NAMDScripter.__new__(NAMDScripter)
+        p.basename = basename
+        p.scriptname = os.path.join(tmp, f'{basename}.namd')
+        p.parameters = parameters
+        with open(p.scriptname, 'w') as fh:
+            fh.write('structure sys.psf\n')
+            for q in parameters:
+                fh.write(f'parameters {q}\n')
+            fh.write('minimize 100\n')
+        return p
+
+    @staticmethod
+    def _param_lines(scriptname):
+        return [l.split()[1] for l in open(scriptname).read().splitlines()
+                if l.startswith('parameters ')]
+
+    def test_already_minimal_keeps_its_own_name(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            prm = os.path.join(tmp, 'mysys_minimal.prm')
+            open(prm, 'w').write('* minimal\n*\n\nEND\n')
+            # scripter basename is the *package* basename; the parameter file is not
+            p = self._make_scripter(tmp, 'prod_mysys', [prm])
+            out = p.consolidate_params(self.PSF)
+            self.assertEqual(out, prm)
+            self.assertEqual(self._param_lines(p.scriptname), [prm])
+            self.assertFalse(os.path.exists(os.path.join(tmp, 'prod_mysys_minimal.prm')))
+
+    def test_returns_none_without_parameters_or_psf(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p = self._make_scripter(tmp, 'mysys', [])
+            self.assertIsNone(p.consolidate_params(self.PSF))
+            p = self._make_scripter(tmp, 'mysys', ['some.prm'])
+            self.assertIsNone(p.consolidate_params(os.path.join(tmp, 'nope.psf')))

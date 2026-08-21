@@ -145,6 +145,23 @@ class NAMDScripter(TcLScripter):
                 self.addline(f'{self.namd_deprecates.get(t, t)} {params[t]}')
         super().writescript()
 
+    def _point_script_at(self, outname: str):
+        """Rewrite the script so that a single ``parameters`` line names *outname*."""
+        with open(self.scriptname, 'r') as fh:
+            lines = fh.readlines()
+        param_lines_replaced = False
+        new_lines = []
+        for line in lines:
+            if line.startswith('parameters '):
+                if not param_lines_replaced:
+                    new_lines.append(f'parameters {outname}\n')
+                    param_lines_replaced = True
+                # drop all subsequent 'parameters' lines
+            else:
+                new_lines.append(line)
+        with open(self.scriptname, 'w') as fh:
+            fh.writelines(new_lines)
+
     def consolidate_params(self, psf_path: str) -> str | None:
         """Replace the full parameter file set with a single minimal .prm for this PSF.
 
@@ -153,12 +170,26 @@ class NAMDScripter(TcLScripter):
         ``{basename}_minimal.prm``, and rewrites the NAMD script so that its
         ``parameters`` lines reference only that one file.
 
-        Returns the path to the written minimal .prm on success, or None if
-        consolidation was skipped (e.g. no parameter files, PSF unreadable, or
-        parse failures on all files).
+        When the parameter set is *already* a single consolidated minimal file, that
+        file is kept under its own name rather than rewritten under the basename in
+        force.  Packaging relies on this: ``TerminateTask.make_package`` writes the
+        package's NAMD config under the package basename while shipping the minimal
+        .prm generated under the terminate basename, so re-deriving the name here
+        would leave the config pointing at a file the tarball does not contain.
+
+        Returns the path to the minimal .prm on success, or None if consolidation
+        was skipped (e.g. no parameter files, PSF unreadable, or parse failures on
+        all files).
         """
         if not self.parameters or not os.path.exists(psf_path):
             return None
+
+        if len(self.parameters) == 1 and self.parameters[0].endswith('_minimal.prm') \
+                and os.path.exists(self.parameters[0]):
+            outname = self.parameters[0]
+            logger.debug(f'consolidate_params: {outname} is already consolidated; keeping its name')
+            self._point_script_at(outname)
+            return outname
 
         atomtypes = set(a.atomtype for a in PSFContents(psf_path).atoms)
         logger.debug(f'consolidate_params: {len(atomtypes)} unique atom types in {psf_path}')
@@ -181,20 +212,7 @@ class NAMDScripter(TcLScripter):
         logger.debug(f'consolidate_params: wrote {outname} ({minimal.summary()})')
 
         # Rewrite script: replace all 'parameters X' lines with the single minimal file
-        with open(self.scriptname, 'r') as fh:
-            lines = fh.readlines()
-        param_lines_replaced = False
-        new_lines = []
-        for line in lines:
-            if line.startswith('parameters '):
-                if not param_lines_replaced:
-                    new_lines.append(f'parameters {outname}\n')
-                    param_lines_replaced = True
-                # drop all subsequent 'parameters' lines
-            else:
-                new_lines.append(line)
-        with open(self.scriptname, 'w') as fh:
-            fh.writelines(new_lines)
+        self._point_script_at(outname)
 
         self.parameters = [outname]
         return outname

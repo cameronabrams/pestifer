@@ -4,6 +4,20 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a packaged NAMD config no longer names a parameter file the tarball does not contain.**
+  A `terminate` task carrying both a `basename:` and a different `package: basename:` shipped the
+  consolidated `*_minimal.prm` under the terminate basename -- as its docstring intends, and as the
+  quickstart documents -- while `NAMDScripter.consolidate_params()` re-derived that file's name from
+  the basename then in force, which during packaging is the *package* basename. The tarball's
+  `parameters` line therefore pointed at a file that was not in the tarball, and NAMD aborted on the
+  unpacked package. `structure`, `coordinates`, and `extendedSystem` were unaffected, and the
+  mismatch was invisible in the build directory, where a `.prm` under the package basename also
+  exists.
+
+  `consolidate_params()` now keeps an already-consolidated single `*_minimal.prm` under its own
+  name instead of renaming it. A new test runs a real `make_package` and asserts that every file
+  named in the packaged `.namd` is present in the tarball.
+
 ## [3.19.1] - 2026-08-20
 
 - change: **the examples no longer plot density twice.** Twenty-two of the twenty-seven examples
