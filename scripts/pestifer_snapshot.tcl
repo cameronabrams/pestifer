@@ -28,8 +28,10 @@
 #   -solvent MODE    off|0 (default), or how to draw water/bulk solvent: points|lines|licorice
 #                    (1 == points).  Hydrogens are never drawn on solvent.  Ions come with it.
 #   -highlight SELS  ';'-separated VMD selections drawn as thick licorice in contrasting
-#                    colors on top of everything else, e.g. "resid 11 13; resid 5 55"
-#   -ss 0|1          draw cysteine sulfurs as spheres (default: 0), so disulfides read at a glance
+#                    colors on top of everything else, e.g. "resid 11 13; resid 5 55".
+#                    Hydrogens are dropped unless a selection matches only hydrogens.
+#   -ss 0|1          draw cysteine sidechains (no H) as one licorice rep (default: 0), so a
+#                    disulfide reads as a bond rather than as two nearby spheres
 #   -face SEL        rotate so this selection faces the camera, i.e. sits in the foreground
 #                    rather than behind the bulk of the structure
 #   -ghost 0|1       draw the bulk cartoon translucent (default: 0), so a feature enclosed by
@@ -295,10 +297,15 @@ proc ps_represent {molid style show_solvent highlight show_ss ghost domains} {
         ps_note "note: [ps_nsel $molid "not ($covered)"] atoms fell to the catch-all representation"
     }
 
-    # Cysteine sulfurs as spheres: on a disulfide-rich protein this is what makes the bonding
-    # pattern (and a missing or added one) legible without hunting through the ribbon.
-    if {$show_ss && [ps_nsel $molid "resname CYS and name SG"] > 0} {
-        ps_addrep $molid "resname CYS and name SG" "VDW 0.400000 16.000000" "ColorID 4"
+    # Cysteine sidechains as ONE licorice rep: drawing only the SG atoms (as spheres) shows
+    # where the sulfurs are but not whether they are bonded, which is the thing a reader is
+    # actually looking for.  Both partners in a single rep means VMD draws the S-S bond itself,
+    # so an intact disulfide and a reduced pair differ by a visible stick rather than by the
+    # ~2 A gap between two spheres.  Hydrogens dropped: on a sidechain this small they are
+    # clutter, and HG1 on a reduced cysteine is not what carries the distinction either.
+    if {$show_ss && [ps_nsel $molid "resname CYS and sidechain and noh"] > 0} {
+        ps_addrep $molid "resname CYS and sidechain and noh" \
+            "Licorice 0.200000 20.000000 20.000000" "ColorID 4"
     }
 
     # Highlights last so they draw over the ribbon; each selection gets its own contrasting color.
@@ -312,8 +319,16 @@ proc ps_represent {molid style show_solvent highlight show_ss ghost domains} {
             ps_note "WARNING: -highlight selection matched no atoms: $sel"
             continue
         }
-        ps_addrep $molid $sel "Licorice 0.300000 20.000000 20.000000" "ColorID $color"
-        ps_note "highlight [expr {$hi + 1}] (ColorID $color): $n atoms -- $sel"
+        # Hydrogens off by default: a licorice highlight is read for its heavy-atom shape, and
+        # the H cage around it only thickens the rep.  A selection that is ONLY hydrogens was
+        # clearly meant, so honour it rather than silently drawing nothing.
+        set drawsel "($sel) and noh"
+        if {[ps_nsel $molid $drawsel] == 0} {
+            set drawsel $sel
+            ps_note "highlight [expr {$hi + 1}]: hydrogen-only selection, drawing H"
+        }
+        ps_addrep $molid $drawsel "Licorice 0.300000 20.000000 20.000000" "ColorID $color"
+        ps_note "highlight [expr {$hi + 1}] (ColorID $color): [ps_nsel $molid $drawsel] atoms -- $drawsel"
         incr hi
     }
 
