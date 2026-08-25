@@ -38,6 +38,19 @@ fi
 out="$("$vmd" -dispdev text -args "$@" < "$script" 2>&1)"
 status=0
 grep -q '^pestifer_snapshot: wrote ' <<<"$out" || status=1
+
+# VMD cannot draw the labels itself: `graphics text` is a GL stroke font and the Tachyon
+# renderer drops it without complaint.  The Tcl side emits a screen position per residue
+# instead, and they are composited onto the finished image here.
+if [ "$status" -eq 0 ] && grep -q '^pestifer_snapshot: label ' <<<"$out"; then
+    img="$(sed -n 's/^pestifer_snapshot: wrote //p' <<<"$out" | tail -1)"
+    overlay="$here/pestifer_label_overlay.py"
+    if [ -f "$overlay" ] && [ -n "$img" ]; then
+        if ! grep '^pestifer_snapshot: label ' <<<"$out" | python3 "$overlay" "$img"; then
+            echo "pestifer-snapshot: label overlay failed; image written without labels" >&2
+        fi
+    fi
+fi
 # echo the script's own notes and any error, but not VMD's startup banner
 grep -E '^pestifer_snapshot:|^ERROR|error' <<<"$out" || true
 if [ "$status" -ne 0 ]; then

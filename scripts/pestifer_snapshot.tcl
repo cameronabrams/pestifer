@@ -34,6 +34,11 @@
 #                    disulfide reads as a bond rather than as two nearby spheres
 #   -face SEL        rotate so this selection faces the camera, i.e. sits in the foreground
 #                    rather than behind the bulk of the structure
+#   -labels 0|1      emit screen positions for each highlighted residue (default: 0), one line
+#                    per residue: "label <resid> <resname> <x_px> <y_px> <colorid>".  VMD's own
+#                    text does NOT survive the Tachyon renderer -- it is a GL stroke font and
+#                    ray-tracing drops it -- so the labels are drawn onto the finished image
+#                    afterwards.  pestifer-snapshot does that for you when -labels 1 is passed.
 #   -plain 0|1       draw the protein cartoon in neutral gray (default: 0) instead of coloring
 #                    it by secondary structure or chain.  For a figure whose subject is the
 #                    highlights: against the Structure palette a highlight competes with the
@@ -104,11 +109,54 @@ proc ps_nsel {molid text} {
     return $n
 }
 
+# Project a 3-D point to pixel coordinates in the rendered image.  VMD composes the view as
+# global * scale * rotate * centre; after that the visible vertical extent is (display height)/2
+# in projected units, so one unit is H/((display height)/2) pixels.  Calibrated against rendered
+# reference spheres: agreement is ~1-2 px in x and a consistent ~1% of frame height in y, which
+# is far inside the offset a label is drawn at anyway.
+proc ps_project {molid p w h} {
+    set M [transmult [lindex [molinfo $molid get global_matrix] 0] \
+                     [lindex [molinfo $molid get scale_matrix] 0] \
+                     [lindex [molinfo $molid get rotate_matrix] 0] \
+                     [lindex [molinfo $molid get center_matrix] 0]]
+    lassign [coordtrans $M $p] vx vy vz
+    set u [expr {$h / ([display get height] / 2.0)}]
+    return [list [expr {$w / 2.0 + $vx * $u}] [expr {$h / 2.0 - $vy * $u}]]
+}
+
+# One line per highlighted residue, for the overlay step.  Position is the centroid of the atoms
+# actually drawn for that residue, so a label tracks its sidechain rather than its backbone.
+proc ps_emit_labels {molid highlight w h} {
+    global PS_HIGHLIGHT_COLORS
+    set hi 0
+    foreach sel [split $highlight ";"] {
+        set sel [string trim $sel]
+        if {$sel eq ""} continue
+        set color [lindex $PS_HIGHLIGHT_COLORS [expr {$hi % [llength $PS_HIGHLIGHT_COLORS]}]]
+        set drawsel "([ps_with_ca $sel]) and noh"
+        set all [atomselect $molid $drawsel]
+        if {[$all num] == 0} { $all delete; incr hi; continue }
+        set pairs {}
+        foreach r [$all get resid] n [$all get resname] { lappend pairs [list $r $n] }
+        $all delete
+        foreach rn [lsort -unique -index 0 -integer $pairs] {
+            lassign $rn r n
+            set rs [atomselect $molid "($drawsel) and resid $r"]
+            if {[$rs num] == 0} { $rs delete; continue }
+            set c [measure center $rs]
+            $rs delete
+            lassign [ps_project $molid $c $w $h] px py
+            ps_note [format "label %s %s %.1f %.1f %s" $r $n $px $py $color]
+        }
+        incr hi
+    }
+}
+
 proc ps_parse_args {argv} {
     array set opt {
         psf "" coor "" frame -1 o "snapshot.png" size "1600x1200" view auto
         style auto solvent 0 bg white renderer TachyonInternal zoom 1.0 rot "" fill 0.92
-        highlight "" ss 0 face "" ghost 0 side "" domains "" plain 0
+        highlight "" ss 0 face "" ghost 0 side "" domains "" plain 0 labels 0
     }
     for {set i 0} {$i < [llength $argv]} {incr i} {
         set a [lindex $argv $i]
@@ -198,6 +246,15 @@ proc ps_bulk_species {molid seltext} {
         if {$copies($rn) >= $::PS_BULK_MIN_COPIES} { lappend bulk $rn }
     }
     return [lsort $bulk]
+}
+
+# A sidechain selection alone can be a single atom -- alanine's sidechain is just CB, and with
+# hydrogens dropped it renders as one lone sphere with no stick to say which residue it belongs
+# to (glycine's is empty entirely).  Carrying CA along gives every sidechain at least one bond
+# and roots it visibly in the backbone.  Idempotent: a selection that already covers CA is
+# unchanged.
+proc ps_with_ca {sel} {
+    return "($sel) or (name CA and same residue as ($sel))"
 }
 
 proc ps_represent {molid style show_solvent highlight show_ss ghost domains {plain 0}} {
@@ -309,8 +366,8 @@ proc ps_represent {molid style show_solvent highlight show_ss ghost domains {pla
     # ~2 A gap between two spheres.  Hydrogens dropped: on a sidechain this small they are
     # clutter, and HG1 on a reduced cysteine is not what carries the distinction either.
     if {$show_ss && [ps_nsel $molid "resname CYS and sidechain and noh"] > 0} {
-        ps_addrep $molid "resname CYS and sidechain and noh" \
-            "Licorice 0.200000 20.000000 20.000000" "ColorID 4"
+        set cyssel "([ps_with_ca {resname CYS and sidechain}]) and noh"
+        ps_addrep $molid $cyssel "Licorice 0.200000 20.000000 20.000000" "ColorID 4"
     }
 
     # Highlights last so they draw over the ribbon; each selection gets its own contrasting color.
@@ -327,7 +384,7 @@ proc ps_represent {molid style show_solvent highlight show_ss ghost domains {pla
         # Hydrogens off by default: a licorice highlight is read for its heavy-atom shape, and
         # the H cage around it only thickens the rep.  A selection that is ONLY hydrogens was
         # clearly meant, so honour it rather than silently drawing nothing.
-        set drawsel "($sel) and noh"
+        set drawsel "([ps_with_ca $sel]) and noh"
         if {[ps_nsel $molid $drawsel] == 0} {
             set drawsel $sel
             ps_note "highlight [expr {$hi + 1}]: hydrogen-only selection, drawing H"
@@ -599,6 +656,7 @@ proc ps_main {argv} {
     set opt(solvent) [ps_solvent_mode $opt(solvent)]
     set visible [ps_represent $molid $opt(style) $opt(solvent) $opt(highlight) $opt(ss) $opt(ghost) $opt(domains) $opt(plain)]
     ps_view $molid $visible $opt(view) $opt(rot) $opt(zoom) $opt(bg) $w $h $opt(renderer) $opt(fill) $opt(face) $opt(side)
+    if {$opt(labels)} { ps_emit_labels $molid $opt(highlight) $w $h }
     set written [ps_render $opt(renderer) $opt(o) $w $h $opt(bg)]
     ps_note "wrote $written"
 }
