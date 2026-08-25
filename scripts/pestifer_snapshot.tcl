@@ -301,7 +301,10 @@ proc ps_represent {molid style show_solvent highlight show_ss ghost domains {pla
         ps_addrep $molid "protein" "NewCartoon 0.300000 20.000000 3.000000 0" $protcolor $bulk_material
     }
     ps_addrep $molid "nucleic" "NewCartoon 0.300000 20.000000 3.000000 0" Chain $bulk_material
-    ps_addrep $molid $glycan_sel "Licorice 0.250000 20.000000 20.000000" Name
+    # Glycans without hydrogens, for the reason solvent is: on a heavily glycosylated particle
+    # the H cage is a haze of geometry that obscures the shape of the tree it sits on, and the
+    # tree is what a glycan figure is about.  Heavy atoms still carry element colour.
+    ps_addrep $molid "($glycan_sel) and noh" "Licorice 0.250000 20.000000 20.000000" Name
     ps_addrep $molid $metal_sel "VDW 0.600000 20.000000" ResName
 
     if {$style eq "membrane"} {
