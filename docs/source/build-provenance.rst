@@ -259,10 +259,12 @@ Two runs of one config now draw the same seed:
    full trajectory that separation grows to macroscopic.
 
    What the seed buys is real and worth stating precisely: the *specification* is complete, the
-   *model build* is deterministic — psfgen output is bit-identical across replicas — and the
-   *stochastic inputs* are pinned, which is what makes a replica set well-defined and re-derivable
-   rather than accidental.  Note that this covers the model build only: anything downstream of the
-   first NAMD stage inherits the non-reproducibility described above.  Replicate simulations are
+   *psfgen-built macromolecule* is bit-identical across replicas, and the *stochastic inputs* are
+   pinned — which is what makes a replica set well-defined and re-derivable rather than accidental.
+   Note the narrowness of the middle claim: it is psfgen's output specifically, not "the build" and
+   not "model building" as that term is used below (which also covers loop closure and lipid
+   packing).  Anything downstream of the first NAMD stage — solvation included, where the box is
+   set after dynamics — inherits the non-reproducibility described above.  Replicate simulations are
    scientifically meaningful precisely **because** trajectories are not reproducible; the seed
    makes each replica labeled instead of anonymous.
 
