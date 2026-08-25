@@ -87,3 +87,25 @@ def test_namd_energy_line_garbled_interleave():
     # must not raise, and must not append a bogus sample
     assert l.process_line(bad) == 0
     assert len(l.time_series_data['energy']) == 1
+
+def test_namd_density_column_is_g_per_cc():
+    """The DENSITY column must agree with NAMD's own startup MASS DENSITY.
+
+    Pestifer computes this column itself -- NAMD's ETITLE has no DENSITY field -- and for a long
+    time stored it as the raw amu/A^3 quotient, a factor of AMU_PER_A3_TO_G_PER_CC away from both
+    NAMD's figure and `util.density_convergence.volume_to_density()`, which the convergence gates
+    use.  The two paths disagreed silently: a plotted density read 0.62 where the gate beside it
+    read 1.03.  NAMD's own line is the oracle here, so this pins the units without hard-coding a
+    number that could drift with the fixture.
+    """
+    from pestifer.util.densityprofile import AMU_PER_A3_TO_G_PER_CC
+    l = NAMDLogParser()
+    with open('namd/test_namd-incomplete.testlog', 'r') as f:
+        l.update(f.read())
+    l.finalize()
+    density = l.dataframes['energy']['DENSITY']
+    namd_value = l.metadata['mass_density']          # NAMD's startup "MASS DENSITY = ... g/cm^3"
+    assert abs(density.iloc[0] - namd_value) / namd_value < 1e-3
+    # and explicitly not the raw quotient it used to be
+    raw = namd_value / AMU_PER_A3_TO_G_PER_CC
+    assert abs(density.iloc[0] - raw) / namd_value > 0.3

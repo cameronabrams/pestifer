@@ -15,6 +15,7 @@ from pathlib import Path
 
 from .logparser import LogParser, get_single, get_toflag, get_values
 
+from ..util.densityprofile import AMU_PER_A3_TO_G_PER_CC
 from ..util.progress import NAMDProgress
 from ..util.stringthings import my_logger
 
@@ -638,7 +639,12 @@ class NAMDLogParser(LogParser):
         # add per-run columns to the energy dataframe
         if 'energy' in self.dataframes:
             if 'total_mass' in self.metadata and 'VOLUME' in self.dataframes['energy'].columns:
-                self.dataframes['energy']['DENSITY'] = self.metadata['total_mass'] / self.dataframes['energy']['VOLUME']
+                # g/cc, matching NAMD's own startup "MASS DENSITY" line and util.density_convergence's
+                # volume_to_density().  The raw amu/A^3 quotient this used to store differed from both
+                # by a factor of AMU_PER_A3_TO_G_PER_CC, so a plotted density read 0.62 where the
+                # convergence gate beside it -- reading the same cell from the .xst -- read 1.03.
+                self.dataframes['energy']['DENSITY'] = (
+                    AMU_PER_A3_TO_G_PER_CC * self.metadata['total_mass'] / self.dataframes['energy']['VOLUME'])
             self.dataframes['energy']['dt_fs'] = self.metadata.get('timestep', 1.0)
         # convert the integer slab index column headings in the pressure profile dataframe to floating point z-coordinates using metadata['slab_thickness']
         # if 'pressureprofile' in self.dataframes:

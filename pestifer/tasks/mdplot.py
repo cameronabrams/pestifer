@@ -25,7 +25,6 @@ from .mdtask import MDTask
 from ..core.errors import PestiferBuildError
 from ..util.provenance import stamp_figure, stamp as provenance_stamp
 from ..util.density_convergence import total_atoms
-from ..util.units import g_per_amu, A3_per_cm3
 from ..logparsers import NAMDLogParser
 from ..util.stringthings import to_latex_math
 from ..core.artifacts import *
@@ -63,7 +62,7 @@ _NAMD_DEFAULT_UNITS = {
     'TOTAL': 'kcal/mol', 'POTENTIAL': 'kcal/mol', 'TOTAL3': 'kcal/mol',
     'TEMP': 'K', 'TEMPAVG': 'K',
     'PRESSURE': 'bar', 'GPRESSURE': 'bar', 'PRESSAVG': 'bar', 'GPRESSAVG': 'bar',
-    'VOLUME': 'Å³',
+    'VOLUME': 'Å³', 'DENSITY': 'g/cc',
 }
 
 
@@ -142,8 +141,12 @@ class MDPlotTask(BaseTask):
             unitspec = _NAMD_DEFAULT_UNITS.get(name.upper(), '*')
             units = 1.0
         elif name == 'density':
+            # The DENSITY column is stored in g/cc by the log parser, so asking for g/cc is a no-op.
+            # It used to be stored raw and converted here; converting again would double-apply the
+            # factor for any config carrying this spec.
             if unitspec in ['g_per_cc', 'g/cc', 'g_per_cm3', 'g/cm3']:
-                units = g_per_amu * A3_per_cm3
+                units = 1.0
+                unitspec = 'g/cc'
             else:
                 logger.debug(f'Unitspec "{unitspec}" not recognized.')
                 units = 1.0

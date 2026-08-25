@@ -4,6 +4,31 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **the `DENSITY` column and every density plot were in amu/A^3, not g/cc.**
+  `NAMDLogParser.finalize()` derived the column as `total_mass / VOLUME` and stored the raw
+  quotient, so an exported `*-energy.csv` and every plot drawn from it read ~0.62 for water where
+  the physical value is ~1.03 g/cc. NAMD's `ETITLE` has no `DENSITY` field -- the column is
+  entirely pestifer's -- so there was no upstream convention the raw form was following, and
+  NAMD's own startup line (`MASS DENSITY = ... g/cm^3`) disagreed with it by exactly the missing
+  factor of 1.66053906660.
+
+  The bug was a second code path: `util.density_convergence.volume_to_density()` converts
+  correctly, and it is what the `density_equilibrate` and `membrane_equilibrate` convergence gates
+  read off the `.xst`. **Builds were therefore never affected** -- every self-termination decision
+  used the correct figure, and `build.log`'s per-chunk `rho=` lines are correct in every build
+  already written. What was wrong was only what a human reads afterward: the exported CSV and the
+  plots. No system needs rebuilding.
+
+  `tasks/mdplot.py` is reconciled in the same change, since it converted the raw column to g/cc
+  when a config asked (`units: {density: g_per_cc}`) and would otherwise have double-applied the
+  factor. That spec is now a no-op, `DENSITY` carries a `g/cc` default axis label, and the
+  now-unused unit constants are dropped. No shipped example set that spec, so no example plot was
+  ever double-converted -- and equally, none demonstrated the correct units.
+
+  Guarded by `test_logparsers.py::test_namd_density_column_is_g_per_cc`, which pins the column
+  against NAMD's own `MASS DENSITY` line rather than a hard-coded constant -- the cross-check that
+  would have caught the divergence when the second path was written.
+
 - docs: **corrected a false replicate-reproducibility claim that had spread to three places.**
   The sweep-runner headers and the build-provenance guide all stated that, because the
   model-building seeds are not varied, "every replica starts from the same built structure", and

@@ -122,13 +122,22 @@ class TestUnitResolution(unittest.TestCase):
         t.specs = {'units': units or {}}
         return t
 
-    def test_density_is_converted_to_g_per_cc(self):
-        df = pd.DataFrame({'density': [0.62]})
-        key, got, mult, label = self._task({'density': 'g/cc'})._resolve_units(
+    def test_a_g_per_cc_request_does_not_convert_an_already_converted_column(self):
+        # The log parser stores DENSITY in g/cc.  This spec used to convert a raw amu/A^3 column
+        # here; applying it now would double the factor, so it must resolve to a no-op multiplier.
+        df = pd.DataFrame({'density': [1.03]})
+        key, _got, mult, label = self._task({'density': 'g/cc'})._resolve_units(
             'density', {'density': df})
         self.assertEqual(key, 'density')
-        self.assertAlmostEqual(0.62 * mult, 1.03, places=1)
+        self.assertEqual(mult, 1.0)
+        self.assertAlmostEqual(1.03 * mult, 1.03, places=2)
         self.assertEqual(label, 'g/cc')
+
+    def test_density_is_labelled_g_per_cc_without_being_asked(self):
+        # the stored unit is g/cc, so an unspecified density axis must say so rather than go bare
+        df = pd.DataFrame({'density': [1.03]})
+        _key, _got, mult, label = self._task()._resolve_units('density', {'density': df})
+        self.assertEqual((mult, label), (1.0, 'g/cc'))
 
     def test_a_namd_quantity_gets_its_documented_unit(self):
         df = pd.DataFrame({'TEMP': [300.0]})

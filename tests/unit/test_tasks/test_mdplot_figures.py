@@ -221,11 +221,21 @@ class TestSummaryTable(_FigureCase):
         self.assertEqual(list(table['std']), [0.0, 0.0])
 
     def test_units_reach_the_table(self):
-        df = pd.DataFrame({'TS': [0, 1], 'density': [0.62, 0.62]})
-        t = _task(units={'density': 'g/cc'})
+        # a live multiplier: large energies are rescaled and relabelled as a pair, and both the
+        # rescaled value and the label have to survive into the summary table
+        df = pd.DataFrame({'TS': [0, 1], 'TOTAL': [-250_000.0, -250_000.0]})
+        t = _task()
+        t.dataframes['energy'] = df
+        table = self._run(t, ['TOTAL'], {'TOTAL': df})
+        self.assertAlmostEqual(table['mean'].iloc[0], -250.0, places=1)
+        self.assertEqual(table['units'].iloc[0], '1000 kcal/mol')
+
+    def test_a_density_table_is_labelled_g_per_cc(self):
+        df = pd.DataFrame({'TS': [0, 1], 'density': [1.03, 1.03]})
+        t = _task()
         t.dataframes['energy'] = df
         table = self._run(t, ['density'], {'density': df})
-        self.assertAlmostEqual(table['mean'].iloc[0], 1.03, places=1)
+        self.assertAlmostEqual(table['mean'].iloc[0], 1.03, places=2)
         self.assertEqual(table['units'].iloc[0], 'g/cc')
 
     def test_no_table_is_written_when_nothing_resolves(self):
