@@ -18,17 +18,35 @@
 #              (default: the current directory).
 #   REPLICAS   number of independent replicas of each example (default: 1).
 #   SEED_BASE  base NAMD RNG seed (default: 27021972, pestifer's own default).
-#              Replica r of every example is built with seed SEED_BASE+r-1, so a
-#              replica is reproducible: rerunning with the same SEED_BASE
-#              reproduces it exactly.  The seed used is echoed and recorded in
-#              each replica's build log.
+#              Replica r of every example is built with seed SEED_BASE+r-1.  The
+#              seed used is echoed and recorded in each replica's build log.
+#              NOTE: re-running with the same seed does NOT reproduce a build
+#              exactly.  See "Reproducibility" below.
 #
-# Replicas differ only in their MD random-number streams -- velocity assignment
-# and the Langevin thermostat.  Model building (loop closure, membrane packing)
-# has its own seeds and is NOT varied here, so every replica of an example
-# starts from the same built structure.  That is the usual meaning of "replicate
-# simulations"; if you want independent *builds* too, vary ligate.ccd.seed and
-# make_membrane_system.bilayer.seed in the example YAML as well.
+# Replicas vary the MD random-number streams -- velocity assignment and the
+# Langevin thermostat.  Model-building seeds (loop closure, membrane packing)
+# are NOT varied here; to vary those too, set ligate.ccd.seed and
+# make_membrane_system.bilayer.seed in the example YAML.
+#
+# Reproducibility -- read before quoting any number from a sweep.
+#
+# Replicas do NOT all start from the same built structure, and the same seed
+# does NOT reproduce a build exactly.  NAMD is not bitwise reproducible on
+# multiple cores: on identical input with an identical seed it reproduces
+# exactly at +p1 and does not at +p24 (measured 2026-08-25).  Every NAMD stage
+# inherits this; whether it becomes visible depends on system size and stage
+# length, with dynamics amplifying fastest.  Measured over a 27-example
+# triplicate sweep:
+#
+#   - psfgen output IS bit-identical across replicas -- 27 of 27 examples.
+#   - Solvated starting structures differ across replicas in 24 of the 25
+#     examples that solvate (example 5 is the sole exception).
+#   - Where the solvation box is fixed AFTER dynamics, the atom count differs
+#     as well -- 11 of 27 examples, spanning 0.76-4.19%.
+#
+# So the built macromolecule is reproducible, and composition is reproducible
+# only for the 16 examples whose box is set before any dynamics runs.  Nothing
+# downstream of the first NAMD stage is reproducible bit-for-bit.
 #
 # With REPLICAS=1 the layout is unchanged: OUTROOT/example-NN.
 # With REPLICAS>1 each replica gets its own directory: OUTROOT/example-NN/rep-MM.
