@@ -39,6 +39,9 @@
 #                    text does NOT survive the Tachyon renderer -- it is a GL stroke font and
 #                    ray-tracing drops it -- so the labels are drawn onto the finished image
 #                    afterwards.  pestifer-snapshot does that for you when -labels 1 is passed.
+#   -glycans 0|1     draw glycans (default: 1, without hydrogens).  0 drops them, for a figure
+#                    whose subject is something else and where partially resolved carbohydrate is
+#                    scattered clutter carrying no argument.
 #   -plain 0|1       draw the protein cartoon in neutral gray (default: 0) instead of coloring
 #                    it by secondary structure or chain.  For a figure whose subject is the
 #                    highlights: against the Structure palette a highlight competes with the
@@ -156,7 +159,7 @@ proc ps_parse_args {argv} {
     array set opt {
         psf "" coor "" frame -1 o "snapshot.png" size "1600x1200" view auto
         style auto solvent 0 bg white renderer TachyonInternal zoom 1.0 rot "" fill 0.92
-        highlight "" ss 0 face "" ghost 0 side "" domains "" plain 0 labels 0
+        highlight "" ss 0 face "" ghost 0 side "" domains "" plain 0 labels 0 glycans 1
     }
     for {set i 0} {$i < [llength $argv]} {incr i} {
         set a [lindex $argv $i]
@@ -257,7 +260,7 @@ proc ps_with_ca {sel} {
     return "($sel) or (name CA and same residue as ($sel))"
 }
 
-proc ps_represent {molid style show_solvent highlight show_ss ghost domains {plain 0}} {
+proc ps_represent {molid style show_solvent highlight show_ss ghost domains {plain 0} {show_glycans 1}} {
     global PS_GLYCAN_RESNAMES PS_LIPID_EXTRA PS_ION_RESNAMES PS_METAL_RESNAMES PS_HIGHLIGHT_COLORS PS_DOMAIN_COLORS
     set glycan_sel "resname $PS_GLYCAN_RESNAMES"
     set lipid_sel  "lipid or resname $PS_LIPID_EXTRA"
@@ -304,7 +307,13 @@ proc ps_represent {molid style show_solvent highlight show_ss ghost domains {pla
     # Glycans without hydrogens, for the reason solvent is: on a heavily glycosylated particle
     # the H cage is a haze of geometry that obscures the shape of the tree it sits on, and the
     # tree is what a glycan figure is about.  Heavy atoms still carry element colour.
-    ps_addrep $molid "($glycan_sel) and noh" "Licorice 0.250000 20.000000 20.000000" Name
+    # -glycans 0 drops them entirely: on a figure whose subject is something else -- modeled
+    # loops, a mutation -- partially resolved carbohydrate is scattered clutter with no argument.
+    # $covered below already lists $glycan_sel, so dropping the rep does not send glycans to the
+    # catch-all "everything else" representation -- they simply are not drawn.
+    if {$show_glycans} {
+        ps_addrep $molid "($glycan_sel) and noh" "Licorice 0.250000 20.000000 20.000000" Name
+    }
     ps_addrep $molid $metal_sel "VDW 0.600000 20.000000" ResName
 
     if {$style eq "membrane"} {
@@ -657,7 +666,7 @@ proc ps_main {argv} {
     }
 
     set opt(solvent) [ps_solvent_mode $opt(solvent)]
-    set visible [ps_represent $molid $opt(style) $opt(solvent) $opt(highlight) $opt(ss) $opt(ghost) $opt(domains) $opt(plain)]
+    set visible [ps_represent $molid $opt(style) $opt(solvent) $opt(highlight) $opt(ss) $opt(ghost) $opt(domains) $opt(plain) $opt(glycans)]
     ps_view $molid $visible $opt(view) $opt(rot) $opt(zoom) $opt(bg) $w $h $opt(renderer) $opt(fill) $opt(face) $opt(side)
     if {$opt(labels)} { ps_emit_labels $molid $opt(highlight) $w $h }
     set written [ps_render $opt(renderer) $opt(o) $w $h $opt(bg)]
