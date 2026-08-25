@@ -34,6 +34,10 @@
 #                    disulfide reads as a bond rather than as two nearby spheres
 #   -face SEL        rotate so this selection faces the camera, i.e. sits in the foreground
 #                    rather than behind the bulk of the structure
+#   -plain 0|1       draw the protein cartoon in neutral gray (default: 0) instead of coloring
+#                    it by secondary structure or chain.  For a figure whose subject is the
+#                    highlights: against the Structure palette a highlight competes with the
+#                    ribbon it sits on, and against gray it simply reads.
 #   -ghost 0|1       draw the bulk cartoon translucent (default: 0), so a feature enclosed by
 #                    the structure -- DNA threaded through a polymerase, a buried cofactor --
 #                    is visible through it.  Highlights stay opaque.
@@ -104,7 +108,7 @@ proc ps_parse_args {argv} {
     array set opt {
         psf "" coor "" frame -1 o "snapshot.png" size "1600x1200" view auto
         style auto solvent 0 bg white renderer TachyonInternal zoom 1.0 rot "" fill 0.92
-        highlight "" ss 0 face "" ghost 0 side "" domains ""
+        highlight "" ss 0 face "" ghost 0 side "" domains "" plain 0
     }
     for {set i 0} {$i < [llength $argv]} {incr i} {
         set a [lindex $argv $i]
@@ -196,7 +200,7 @@ proc ps_bulk_species {molid seltext} {
     return [lsort $bulk]
 }
 
-proc ps_represent {molid style show_solvent highlight show_ss ghost domains} {
+proc ps_represent {molid style show_solvent highlight show_ss ghost domains {plain 0}} {
     global PS_GLYCAN_RESNAMES PS_LIPID_EXTRA PS_ION_RESNAMES PS_METAL_RESNAMES PS_HIGHLIGHT_COLORS PS_DOMAIN_COLORS
     set glycan_sel "resname $PS_GLYCAN_RESNAMES"
     set lipid_sel  "lipid or resname $PS_LIPID_EXTRA"
@@ -213,6 +217,7 @@ proc ps_represent {molid style show_solvent highlight show_ss ghost domains} {
         set nchain [llength [lsort -unique [$s get chain]]]
         $s delete
         if {$nchain > 1} { set protcolor Chain }
+        if {$plain} { set protcolor "ColorID 2" }
     }
     set bulk_material [expr {$ghost ? "Transparent" : "Opaque"}]
     # -domains replaces the single protein cartoon with one cartoon per named selection, each in
@@ -486,6 +491,13 @@ proc ps_view {molid visible view rot zoom bg w h renderer fill face side} {
     color Display Background $bg
     axes location Off
     display projection Orthographic
+    # Push the clipping planes out of the way.  VMD's default nearclip (0.5) sits close enough
+    # that the auto-fit's `scale by` drives foreground geometry through it: licorice cylinders
+    # come out sliced, showing a flat circular cross-section that reads as a sphere, and a
+    # sidechain can lose its CB-SG stick entirely and look like a bare sulfur.  Orthographic
+    # projection makes a small nearclip safe -- there is no perspective divide to blow up.
+    display nearclip set 0.01
+    display farclip set 100.0
     display depthcue off
     display shadows off
     display ambientocclusion off
@@ -585,7 +597,7 @@ proc ps_main {argv} {
     }
 
     set opt(solvent) [ps_solvent_mode $opt(solvent)]
-    set visible [ps_represent $molid $opt(style) $opt(solvent) $opt(highlight) $opt(ss) $opt(ghost) $opt(domains)]
+    set visible [ps_represent $molid $opt(style) $opt(solvent) $opt(highlight) $opt(ss) $opt(ghost) $opt(domains) $opt(plain)]
     ps_view $molid $visible $opt(view) $opt(rot) $opt(zoom) $opt(bg) $w $h $opt(renderer) $opt(fill) $opt(face) $opt(side)
     set written [ps_render $opt(renderer) $opt(o) $w $h $opt(bg)]
     ps_note "wrote $written"
