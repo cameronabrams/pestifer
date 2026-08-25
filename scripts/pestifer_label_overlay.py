@@ -8,6 +8,11 @@ composited here, which also buys real typography and a halo that reads over both
 ribbon and the dark sticks underneath.
 
 Reads "label <resid> <resname> <x> <y> <colorid>" lines on stdin; edits the image in place.
+
+An optional second argument nudges individual labels, for the one or two that automatic
+placement puts somewhere awkward: "15:1.2,1.2;52:0,-0.5", in units of the label's own type size,
+x positive right and y positive down.  Nudges are applied after the labels have been spread
+apart, so a nudge is not undone by the spreading.
 """
 import sys, re, os
 from PIL import Image, ImageDraw, ImageFont
@@ -31,6 +36,19 @@ def main():
     if len(sys.argv) < 2:
         sys.exit("usage: pestifer_label_overlay.py IMAGE < vmd-output")
     path = sys.argv[1]
+    nudges = {}
+    if len(sys.argv) > 2 and sys.argv[2].strip():
+        for part in sys.argv[2].split(";"):
+            part = part.strip()
+            if not part:
+                continue
+            try:
+                who, delta = part.split(":")
+                dx, dy = delta.split(",")
+                nudges[who.strip()] = (float(dx), float(dy))
+            except ValueError:
+                print(f"pestifer_snapshot: ignoring bad -labelnudge term '{part}'",
+                      file=sys.stderr)
     labels = []
     for line in sys.stdin:
         m = re.search(r'label (\S+) (\S+) ([-\d.]+) ([-\d.]+) (\d+)', line)
@@ -79,6 +97,12 @@ def main():
                     moved = True
         if not moved:
             break
+
+    for lab in placed:
+        if lab[0] in nudges:
+            dx, dy = nudges[lab[0]]
+            lab[2] += dx * size
+            lab[3] += dy * size
 
     for resid, cid, tx, ty, ax, ay, _w in placed:
         col = VMD_COLORS.get(cid, (0, 0, 0))

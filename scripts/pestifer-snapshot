@@ -42,11 +42,18 @@ grep -q '^pestifer_snapshot: wrote ' <<<"$out" || status=1
 # VMD cannot draw the labels itself: `graphics text` is a GL stroke font and the Tachyon
 # renderer drops it without complaint.  The Tcl side emits a screen position per residue
 # instead, and they are composited onto the finished image here.
+# -labelnudge is handled here rather than in the Tcl: the renderer has no use for it, and its
+# arg parser already skips flags it does not define.
+nudge=""
+for ((i = 1; i <= $#; i++)); do
+    if [ "${!i}" = "-labelnudge" ]; then j=$((i + 1)); nudge="${!j}"; fi
+done
+
 if [ "$status" -eq 0 ] && grep -q '^pestifer_snapshot: label ' <<<"$out"; then
     img="$(sed -n 's/^pestifer_snapshot: wrote //p' <<<"$out" | tail -1)"
     overlay="$here/pestifer_label_overlay.py"
     if [ -f "$overlay" ] && [ -n "$img" ]; then
-        if ! grep '^pestifer_snapshot: label ' <<<"$out" | python3 "$overlay" "$img"; then
+        if ! grep '^pestifer_snapshot: label ' <<<"$out" | python3 "$overlay" "$img" "$nudge"; then
             echo "pestifer-snapshot: label overlay failed; image written without labels" >&2
         fi
     fi
