@@ -4,6 +4,27 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- docs: **corrected a false replicate-reproducibility claim that had spread to three places.**
+  The sweep-runner headers and the build-provenance guide all stated that, because the
+  model-building seeds are not varied, "every replica starts from the same built structure", and
+  that re-running with the same `SEED_BASE` reproduces a replica exactly. Both are false, and the
+  first had already propagated out of the docs into a manuscript draft.
+
+  NAMD is not bitwise reproducible on multiple cores -- on identical input with an identical seed
+  it reproduces exactly at `+p1` and does not at `+p24` -- and every NAMD stage inherits this, so
+  replicas diverge from the first dynamics stage onward. Measured over the 27-example triplicate
+  sweep: psfgen output is bit-identical across replicas (27/27), solvated starting structures
+  differ in 24 of the 25 examples that solvate, and where the box is fixed after dynamics the atom
+  count differs too (11/27, 0.76-4.19%). The built macromolecule is reproducible; composition is
+  reproducible only for the 16 examples whose box is set before any dynamics runs.
+
+  `scripts/run_all_examples_local.sh` was corrected first; this completes the pass across the
+  other two sites -- `scripts/run_all_examples.sh` (the SLURM runner) and
+  `docs/source/build-provenance.rst`, where the claim was rendered user documentation rather than
+  a comment. The historical 3.18.0 entry below that carries the original wording is left as
+  written, since the changelog is a record of what was claimed at the time. Comments and prose
+  only; no behavior change.
+
 - fix: **a `catdcd` older than 5.2 is now refused instead of silently corrupting coordinates.**
   `installation.rst` has always stated 5.2 as a requirement, because earlier versions drop residue
   insertion codes when reading and writing DCD files -- corrupting, with no warning of any kind,

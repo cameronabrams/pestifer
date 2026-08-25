@@ -226,9 +226,10 @@ Reproducibility and replicas: the NAMD seed
 NAMD draws its random-number seed from the clock unless told otherwise, which meant two runs of
 one pestifer config produced different trajectories and neither could be reproduced.  Pestifer
 therefore pins it.  ``namd.seed`` is a **base** seed for the whole build; each NAMD invocation
-derives its own stream from it deterministically, so the build reproduces as a whole while its
-individual runs stay independent of one another — reusing a single seed across every run in a
-build would correlate them.
+derives its own stream from it deterministically, so the *seed assignment* reproduces as a whole
+while the individual runs stay independent of one another — reusing a single seed across every run
+in a build would correlate them.  (What the seed does *not* do is make the build itself reproduce;
+see the warning below and :ref:`the replica note <replica-reproducibility>`.)
 
 .. code-block:: yaml
 
@@ -258,8 +259,10 @@ Two runs of one config now draw the same seed:
    full trajectory that separation grows to macroscopic.
 
    What the seed buys is real and worth stating precisely: the *specification* is complete, the
-   *build* is deterministic, and the *stochastic inputs* are pinned — which is what makes a
-   replica set well-defined and re-derivable rather than accidental.  Replicate simulations are
+   *model build* is deterministic — psfgen output is bit-identical across replicas — and the
+   *stochastic inputs* are pinned, which is what makes a replica set well-defined and re-derivable
+   rather than accidental.  Note that this covers the model build only: anything downstream of the
+   first NAMD stage inherits the non-reproducibility described above.  Replicate simulations are
    scientifically meaningful precisely **because** trajectories are not reproducible; the seed
    makes each replica labeled instead of anonymous.
 
@@ -282,12 +285,31 @@ replicas of every example, replica *r* using ``SEED_BASE+r-1``, each in its own
 
 .. note::
 
-   Replicas produced this way differ **only in their MD random-number streams** — velocity
-   assignment and the Langevin thermostat.  Model building has its own seeds
-   (``ligate.ccd.seed`` for loop closure and ``make_membrane_system.bilayer.seed`` for lipid
-   packing) which are *not* varied, so every replica starts from the same built structure.  That is
-   the usual meaning of replicate simulations.  If you want independent *builds* as well — a
-   different loop closure, a different lipid arrangement — vary those seeds in the YAML too.
+   Replicas produced this way **vary** their MD random-number streams — velocity assignment and
+   the Langevin thermostat.  Model building has its own seeds (``ligate.ccd.seed`` for loop
+   closure and ``make_membrane_system.bilayer.seed`` for lipid packing) which are *not* varied.
+   If you want independent *builds* as well — a different loop closure, a different lipid
+   arrangement — vary those seeds in the YAML too.
+
+.. _replica-reproducibility:
+
+.. warning::
+
+   Not varying the model-building seeds does **not** mean every replica starts from the same
+   built structure, and re-running with the same seed does **not** reproduce a build exactly.
+   NAMD is not bitwise reproducible on multiple cores: on identical input with an identical seed
+   it reproduces exactly at ``+p1`` and does not at ``+p24``.  Every NAMD stage inherits this, so
+   any stage downstream of the first one diverges between replicas.  Measured over a 27-example
+   triplicate sweep:
+
+   * psfgen output *is* bit-identical across replicas — 27 of 27 examples.
+   * Solvated starting structures differ across replicas in 24 of the 25 examples that solvate.
+   * Where the solvation box is fixed *after* dynamics, the atom count differs too — 11 of 27
+     examples, spanning 0.76–4.19%.
+
+   So the built macromolecule is reproducible; composition is reproducible only for the 16
+   examples whose box is set before any dynamics runs; nothing downstream of the first NAMD stage
+   is reproducible bit-for-bit.  Read this before quoting any number from a sweep.
 
 Watermarks on generated files
 -----------------------------
