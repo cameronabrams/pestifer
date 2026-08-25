@@ -27,9 +27,16 @@ Consequences, and the resulting criterion (all per-observable, so it generalizes
 1. **Honest SEM.** `SEM = σ / √N_eff` with `N_eff = N_window / τ_int`, τ_int estimated per window by
    the standard `1 + 2·Σ ρ_k` (truncated at the first non-positive lag). The precision gate is
    `SEM/mean < drift_tol / precision_p`, unchanged in form but now honest. This is **size-aware for
-   free**: `σ/mean ∝ 1/√N_atoms` while τ_int is ~size-independent (a barostat property), so a large box
-   has a smaller honest SEM at equal duration and converges in far fewer chunks — no ad-hoc size factor
-   (a size-scaled gate was prototyped and dropped as redundant).
+   free**: `σ/mean ∝ 1/√N_atoms` while τ_int grows only weakly with size, so a large box has a smaller
+   honest SEM at equal duration and converges in far fewer chunks — no ad-hoc size factor (a
+   size-scaled gate was prototyped and dropped as redundant). *Correction (2026-08-25):* this
+   parenthetical previously read "τ_int is ~size-independent (a barostat property)", which is stronger
+   than the evidence. Recorded `tau[fr]` across the 27-example triplicate sweep gives `τ ∝ M^0.20`
+   (aqueous only, n=69, r=0.50): median 559 steps below 2e5 amu against 948 above 1e6 amu — a real but
+   weak ~1.7× rise over a ~10× mass range. The conclusion is unaffected, since `N^-0.5` dominates
+   `M^0.20` comfortably, but for the largest systems the argument is mildly optimistic. The regression
+   is correlational — mass covaries with protocol and solvent across these examples — so it bounds the
+   dependence rather than explaining it.
 2. **Reliability guard.** τ_int is *under*-estimated from a short series, so a too-short window can
    look spuriously precise. Convergence is refused until the window spans `autocorr_reliability` (≈6)
    correlation times **and** an absolute floor of samples.
