@@ -4,10 +4,10 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
-- fix: **the `DENSITY` column and every density plot were in amu/A^3, not g/cc.**
+- fix: **the exported `DENSITY` column was in amu/A^3, not g/cc.**
   `NAMDLogParser.finalize()` derived the column as `total_mass / VOLUME` and stored the raw
-  quotient, so an exported `*-energy.csv` and every plot drawn from it read ~0.62 for water where
-  the physical value is ~1.03 g/cc. NAMD's `ETITLE` has no `DENSITY` field -- the column is
+  quotient, so an exported `*-energy.csv` read ~0.62 for water where the physical value is
+  ~1.03 g/cc. NAMD's `ETITLE` has no `DENSITY` field -- the column is
   entirely pestifer's -- so there was no upstream convention the raw form was following, and
   NAMD's own startup line (`MASS DENSITY = ... g/cm^3`) disagreed with it by exactly the missing
   factor of 1.66053906660.
@@ -16,8 +16,17 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   correctly, and it is what the `density_equilibrate` and `membrane_equilibrate` convergence gates
   read off the `.xst`. **Builds were therefore never affected** -- every self-termination decision
   used the correct figure, and `build.log`'s per-chunk `rho=` lines are correct in every build
-  already written. What was wrong was only what a human reads afterward: the exported CSV and the
-  plots. No system needs rebuilding.
+  already written. No system needs rebuilding.
+
+  **Scope, stated precisely, because a first pass overstated it.** The wrong value reached the
+  exported CSV and nothing else. It did *not* reach any density figure: no shipped example routes
+  `density` through an `mdplot` `timeseries` block, and every density PNG that actually exists --
+  `density_equilibrate._write_plot()` and `make_membrane_system`'s equilibration plots -- is drawn
+  from the gate path, so it carries correct g/cc, as does `docs/source/examples/23/
+  density-convergence.png` (final rho 1.1128 g/cc, verified by opening it). The mdplot density axis
+  was a *latent* fault: wrong had anyone requested it, and nothing requested it. That distinction
+  was missed at first because the scope was derived by reading `_resolve_units` and the YAML unit
+  specs rather than by opening a figure.
 
   `tasks/mdplot.py` is reconciled in the same change, since it converted the raw column to g/cc
   when a config asked (`units: {density: g_per_cc}`) and would otherwise have double-applied the
