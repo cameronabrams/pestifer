@@ -35,11 +35,15 @@ Second, note the ``ssbondsdelete`` list.  Again, a shortcode is used to identify
 
            BPTI with the 5-55 disulfide intact, showing 
            sidechains for residues T11, P13, K15, and M52.
+           Red marks the two disulfide-forming cysteines, 
+           5 and 55; orange marks the four mutation sites.
 
       - .. figure:: no_disu.png
 
            BPTI with the 5-55 disulfide reduced, and 
            point mutations T11A, P13A, K15R, and M52L.
+           Same colors: the red cysteine sidechains are now 
+           unbonded, and the orange sidechains are the mutants.
 
 
 .. raw:: html
