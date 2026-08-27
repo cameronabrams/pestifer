@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.19.3] - 2026-08-27
+
 - fix: **the membrane fit guard checked the wrong box, and died opaquely when it had none.**
   `make_membrane_system`'s pre-embed guard exists to catch an over-condensed quilt before the
   protein is embedded into a box too small for it -- "turning a silent squeeze into a loud,
