@@ -517,6 +517,8 @@ class Molecule:
                     nextb = S.subsegments[i + 1]
                     c_anchor = S.residues[nextb.bounds[0]]
                     for transform in ba.transforms:
+                        if not transform.includes(asymm_segname, S.chainID):
+                            continue    # this image does not build that chain
                         act = transform.chainIDmap.get(asymm_segname, asymm_segname)
                         gaps.append({
                             'segname': act,
@@ -574,6 +576,8 @@ class Molecule:
                     continue  # interior -> handled by protein_loop_gaps
                 tail_res = S.residues[b.bounds[0]:b.bounds[1] + 1]
                 for transform in ba.transforms:
+                    if not transform.includes(asymm_segname, S.chainID):
+                        continue        # this image does not build that chain
                     act = transform.chainIDmap.get(asymm_segname, asymm_segname)
                     tails.append({
                         'segname': act,

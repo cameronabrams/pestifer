@@ -7,6 +7,7 @@ from pestifer.psfutil.loop_ccd import place_atom_nerf
 from pestifer.psfutil.tail_model import model_one_tail, downstream_anchor_target, _selection_key
 from pestifer.molecule.stateinterval import StateInterval, StateIntervalList
 from pestifer.molecule.molecule import Molecule
+from pestifer.molecule.transform import Transform
 
 # Ideal internal coordinates for building a synthetic all-ALA test peptide.
 _IC = dict(C_N=1.33, N_CA=1.45, CA_C=1.52, C_O=1.23, CA_CB=1.53,
@@ -137,8 +138,11 @@ class TestProteinTerminalTails(unittest.TestCase):
         # segment with the given subsegments over residues numbered by `resids`
         residues = [NS(resid=NS(resid=n), resname='ALA') for n in resids]
         seg = NS(segtype='protein', subsegments=StateIntervalList(subsegs),
-                 residues=residues, segname=segname)
-        transform = NS(chainIDmap={})
+                 residues=residues, segname=segname, chainID=segname)
+        # a real Transform, not a stand-in: the enumeration asks it whether this image builds
+        # the segment's chain, and an empty chainIDmap means "no assembly active, build it"
+        transform = Transform(index=1, tmat=np.identity(4, dtype=float),
+                              applies_chainIDs=[], chainIDmap={})
         return NS(asymmetric_unit=NS(segments=[seg]),
                   active_biological_assembly=NS(transforms=[transform]))
 

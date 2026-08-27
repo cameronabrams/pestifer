@@ -262,6 +262,16 @@ class PsfgenScripter(VMDScripter):
             special = {S.segname for S in segments.data
                        if _segment_on_special_position(S, transform)}
         for segment in segments.data:
+            if transform is not None and not transform.includes(segment.segname, segment.chainID):
+                # This biological assembly omits the segment's chain.  The stanza writers
+                # translate names with chainIDmap.get(seglabel, seglabel), so without this
+                # guard an unmapped segment falls through under its own A.U. name and the
+                # image silently gains material the assembly excludes.
+                logger.debug(f'segment {segment.segname} is not in transform '
+                             f'{getattr(transform, "index", "?")}\'s chain map; not built')
+                self.comment(f'Segment {segment.segname} is not part of this biological '
+                             f'assembly image; not built')
+                continue
             if segment.segname in special:
                 # already emitted by the identity image; replicating it would duplicate one
                 # physical atom into N coincident copies
@@ -796,6 +806,10 @@ class PsfgenScripter(VMDScripter):
         """
         chainIDmap=transform.chainIDmap 
         # ok since these are only going to reference protein segments; protein segment names are the chain IDs
+        if not (transform.includes(S.chainID1) and transform.includes(S.chainID2)):
+            logger.debug(f'skipping patch for {str(S)}: a partner chain is not in transform '
+                         f'{getattr(transform, "index", "?")}\'s chain map')
+            return
         logger.debug(f'writing patch for {str(S)}')
         c1 = chainIDmap.get(S.chainID1, S.chainID1)
         c2 = chainIDmap.get(S.chainID2, S.chainID2)
@@ -820,8 +834,13 @@ class PsfgenScripter(VMDScripter):
         """
         chainIDmap = transform.chainIDmap
         seg1 = L.segname1 if L.segname1 else L.residue1.chainID
-        seg1 = chainIDmap.get(seg1, seg1)
         seg2 = L.segname2 if L.segname2 else L.residue2.chainID
+        if not (transform.includes(seg1, L.residue1.chainID) and
+                transform.includes(seg2, L.residue2.chainID)):
+            logger.debug(f'skipping link patch {seg1}-{seg2}: a partner segment is not in '
+                         f'transform {getattr(transform, "index", "?")}\'s chain map')
+            return
+        seg1 = chainIDmap.get(seg1, seg1)
         seg2 = chainIDmap.get(seg2, seg2)
         resid1 = L.residue1.resid
         resid2 = L.residue2.resid

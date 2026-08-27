@@ -4,6 +4,42 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a `biological_assembly:` that selects a subset of the asymmetric unit built the whole
+  asymmetric unit.** 8DX0 is a histidine-kinase dimer in the A.U.; its assembly 1 is the
+  *monomer*, and `REMARK 350` names chain A alone. `psfgen: {source: {biological_assembly: 1}}`
+  nonetheless built both protomers, both magnesiums, and both chain-tagged water sets -- exit 0,
+  no warning. The wrong system is a perfectly plausible one, so nothing downstream objects: it
+  surfaces only as a doubled molecular weight, and it cost one user 35 GPU-days of production
+  before being caught.
+
+  The chain selection was read and honored on the way *in*. `Transform.generate_chainIDmap`
+  builds `chainIDmap` from the assembly's chain list plus resolved daughters, and
+  `ChainIDManager.thru_map` drops the inactive chains, so the map is correct -- pestifer's own
+  generated psfgen script prints it (`A.U. chain A: Image chain A`, C, E and no others), and
+  `chainmap.yaml` agrees. The leak was at the point of *use*: `PsfgenScripter.write_segments`
+  walked every A.U. segment for each transform without asking whether the segment belonged to
+  that image, and the stanza writers translate names with `chainIDmap.get(seglabel, seglabel)`,
+  so a segment the map does not name fell through under its own A.U. name and was built. The
+  same `.get(x, x)` fallback in `Molecule.protein_loop_gaps` and `Molecule.protein_terminal_tails`
+  would likewise have enumerated model-built loops for an omitted chain.
+
+  This is why *additive* assemblies were never affected and only subsets broke: when every chain
+  is in the map, the fallback never fires. Multi-image assemblies (4zmj's 3-fold trimer) and
+  ordinary non-assembly builds are unchanged.
+
+  `Transform.includes()` now states the contract -- a non-empty `chainIDmap` names exactly the
+  A.U. chains an image is built from, and is authoritative; an empty map carries no information,
+  so everything belongs -- and `write_segments`, `write_ssbond`, `write_link`, `protein_loop_gaps`,
+  and `protein_terminal_tails` all consult it before building or patching. A skipped segment is
+  recorded as a comment in the generated script rather than passing silently.
+
+  Two regression tests guard it:
+  `tests/unit/test_scripters/test_psfgenscripter.py::TestImageChainMapIsAuthoritative` pins the
+  filter itself with no toolchain, and
+  `tests/integration/test_biomt.py::test_subset_assembly_builds_only_its_own_chains` builds 8DX0
+  assembly 1 and asserts the monomer census (one protein chain of 149 residues, one Mg, 123
+  waters). Both fail on the unfixed code.
+
 - fix: **the exported `DENSITY` column was in amu/A^3, not g/cc.**
   `NAMDLogParser.finalize()` derived the column as `total_mass / VOLUME` and stored the raw
   quotient, so an exported `*-energy.csv` read ~0.62 for water where the physical value is

@@ -20,6 +20,7 @@ import pytest
 
 from pestifer.core.config import Config
 from pestifer.core.controller import Controller
+from pestifer.core.labels import Labels
 from pestifer.util.coord import kabsch
 
 pytestmark = pytest.mark.needs_tools
@@ -76,3 +77,66 @@ def test_biomt_images_are_displaced_rigid_copies(tmp_path, monkeypatch):
         if direct > 5.0:                  # a genuine (non-identity) symmetry image
             n_images_checked += 1
     assert n_images_checked >= 1, 'no displaced (non-identity) symmetry image found to verify'
+
+
+def _residues_by_chain(pdb):
+    """{chainID -> [resname, ...]} one entry per distinct residue of a built pdb."""
+    out, seen = {}, set()
+    for l in open(pdb):
+        if not l.startswith(('ATOM', 'HETATM')):
+            continue
+        chain, resname, key = l[21], l[17:21].strip(), (l[21], l[22:27])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.setdefault(chain, []).append(resname)
+    return out
+
+
+@pytest.mark.slow
+def test_subset_assembly_builds_only_its_own_chains(tmp_path, monkeypatch):
+    """
+    A biological assembly that names a *subset* of the asymmetric unit must build that subset.
+
+    8DX0 is a histidine-kinase dimer in the A.U. (chains A and B, each with its own Mg and its
+    own chain-tagged waters) whose assembly 1 is the *monomer*: REMARK 350 names chain A alone.
+    pestifer built both protomers anyway -- exit 0, no warning -- because ``write_segments``
+    walked every A.U. segment and the stanza writers fell back to the A.U. name for any segment
+    the image's ``chainIDmap`` did not name.  The wrong system is a plausible one, so the error
+    surfaces only as a doubled molecular weight; it cost a downstream user 35 GPU-days.
+    """
+    monkeypatch.chdir(tmp_path)
+    cfg = tmp_path / 'subset.yaml'
+    cfg.write_text(
+        "title: subset biological assembly regression\n"
+        "tasks:\n"
+        "  - fetch:\n"
+        "      sourceID: 8dx0\n"
+        "      source_format: pdb\n"
+        "  - psfgen:\n"
+        "      source:\n"
+        "        biological_assembly: 1\n"
+    )
+    config = Config(userfile=str(cfg)).configure_new()
+    report = Controller().configure(config).do_tasks()
+    failed = {r['taskname']: r['result'] for r in report.values() if r['result'] != 0}
+    assert not failed, f'build task(s) failed: {failed}'
+
+    by_chain = _residues_by_chain(tmp_path / 'my_system.pdb')
+    # classify by residue name, not by size: chain A's 123 waters are their own segment and
+    # outnumber plenty of real protein chains
+    protein = {c: r for c, r in by_chain.items()
+               if sum(Labels.segtype_of_resname.get(rn) == 'protein' for rn in r) > 20}
+    assert len(protein) == 1, (
+        f'assembly 1 of 8dx0 is the monomer; built protein chains {sorted(protein)} '
+        f'with residue counts { {c: len(r) for c, r in protein.items()} }')
+
+    # 139 resolved crystal residues plus the 10-residue interior loop pestifer rebuilds
+    n_res = len(next(iter(protein.values())))
+    assert n_res == 149, f'expected 149 protein residues in the monomer, got {n_res}'
+
+    resnames = [rn for r in by_chain.values() for rn in r]
+    assert resnames.count('MG') == 1, (
+        f"expected chain A's single Mg, got {resnames.count('MG')}")
+    n_wat = resnames.count('TIP3')
+    assert n_wat == 123, f"expected chain A's 123 waters, got {n_wat}"
