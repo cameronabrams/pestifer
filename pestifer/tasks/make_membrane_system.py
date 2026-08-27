@@ -48,6 +48,26 @@ _MIN_GRID_HALF_MID_ZGAP = 1.0
 
 logger = logging.getLogger(__name__)
 
+def _cell_or_raise(xsc, what: str):
+    """Read a periodic cell from an xsc, or fail with a message that names the file.
+
+    :func:`~pestifer.util.util.cell_from_xsc` returns ``(None, None)`` for any xsc that carries no
+    cell -- most commonly one written by a run with no periodic boundaries (a vacuum minimize
+    writes an origin-only ``step o_x o_y o_z``, 4 columns), and also for a truncated file.  The
+    callers here go straight on to index the box, so an unchecked ``None`` surfaces as a bare
+    ``TypeError: 'NoneType' object is not subscriptable`` far from its cause -- after hours of
+    equilibration, in the reported case.  Name the file and the reason instead.
+    """
+    box, origin = cell_from_xsc(xsc)
+    if box is None:
+        raise PestiferBuildError(
+            f'{what}: {xsc} carries no periodic cell. An xsc written by a run with no periodic '
+            f'boundaries (a vacuum minimize, say) holds only an origin -- "step o_x o_y o_z", 4 '
+            f'columns -- and a truncated file reads the same way; a cell needs at least 13. Check '
+            f'that this state came from a periodic run.')
+    return box, origin
+
+
 
 def _per_leaflet_tension(pp_df, c_z, midplane_slab=None):
     """Per-leaflet surface tension from a NAMD total pressure-profile trajectory.
@@ -154,7 +174,8 @@ class MakeMembraneSystemTask(BaseTask):
             self.quilt: Bilayer = Bilayer()
             quilt_state = dict(pdb=self.bilayer_specs['prebuilt']['pdb'], psf=self.bilayer_specs['prebuilt']['psf'], xsc=self.bilayer_specs['prebuilt']['xsc'])
             self.register(quilt_state, key='quilt_state', artifact_type=StateArtifacts)
-            self.quilt.box, self.quilt.origin = cell_from_xsc(quilt_state.xsc.path)
+            self.quilt.box, self.quilt.origin = _cell_or_raise(
+                quilt_state.xsc.path, 'prebuilt bilayer')
             self.quilt.area = self.quilt.box[0][0] * self.quilt.box[1][1]
             additional_topologies = get_toppar_from_psf(quilt_state.psf.name)
             # these will be registered as artifacts when psfgen executes
@@ -907,7 +928,8 @@ class MakeMembraneSystemTask(BaseTask):
         assert bilayer_state.coor.exists()
         self.subcontroller.pipeline.rekey('state', f'{bilayer_name}_state')
         self.import_artifacts(subcontroller.pipeline)
-        bilayer.box, bilayer.origin = cell_from_xsc(bilayer_state.xsc.name)
+        bilayer.box, bilayer.origin = _cell_or_raise(
+            bilayer_state.xsc.name, f'{bilayer_name} after equilibration')
         bilayer.area = bilayer.box[0][0] * bilayer.box[1][1]
         logger.debug(f'{self.basename} area after equilibration: {bilayer.area:.3f} {sA2_}')
         # flag (and record on the bilayer) whether its area actually equilibrated, so an
@@ -930,6 +952,57 @@ class MakeMembraneSystemTask(BaseTask):
             else:
                 logger.debug(f'{bilayer_name} area converged (final-half drift {pct:+.2f}%)')
 
+    def _verify_membrane_spans_protein(self):
+        """Verify the equilibrated membrane box still spans the protein before embedding.
+
+        The quilt was sized to the protein footprint + ``embed.xydist`` margin and then relaxed to
+        its stress-free area.  If a calibrated leaflet APL was overestimated, the quilt's true
+        tensionless area is smaller than that box, so it over-condenses -- possibly tighter than the
+        protein, which would clash the protein with its own periodic image.  Catching that here
+        turns a silent squeeze into a loud, diagnosable failure.
+
+        Reads ``quilt_state``, which is the membrane's own state in every path -- built (both the
+        symmetric and the asymmetric grid routes rekey it there after ``equilibrate_bilayer``) and
+        prebuilt alike.  It must not read ``state``: at this point in :meth:`do` that key still
+        holds the *protein's* state, whose box, when it has one at all, is the protein box the
+        quilt was sized from -- so the comparison would be ``2 * xydist`` by construction and would
+        pass no matter how far the membrane had condensed.  As it happened the protein's state
+        usually carries no xsc (the orient step registers only psf and pdb), so the check simply
+        never ran; when a config did leave an xsc there -- a continuation, or a vacuum minimize --
+        it read a cell-less file and died on ``None``.
+        """
+        if getattr(self, '_protein_xy', None) is None:
+            return
+        st: StateArtifacts = self.get_current_artifact('quilt_state')
+        if not (st and getattr(st, 'xsc', None) and st.xsc.exists()):
+            logger.warning(
+                'embed_protein: no equilibrated membrane xsc available; cannot verify that the '
+                'membrane box still spans the protein. Embedding proceeds unchecked.')
+            return
+        box, _origin = _cell_or_raise(st.xsc.name, 'equilibrated membrane')
+        Lx, Ly = float(box[0][0]), float(box[1][1])
+        pro_Lx, pro_Ly = self._protein_xy
+        clear_x, clear_y = (Lx - pro_Lx) / 2.0, (Ly - pro_Ly) / 2.0
+        margin = self.embed_specs.get('xydist', 10.0)
+        # log what was actually compared: the original failure was undiagnosable partly because the
+        # check was silent unless it tripped, so there was no way to tell which box it had read
+        logger.info(f'embed_protein: membrane box {Lx:.1f} x {Ly:.1f} A (from {st.xsc.name}) vs '
+                    f'protein footprint {pro_Lx:.1f} x {pro_Ly:.1f} A -- clearance '
+                    f'{clear_x:.1f}/{clear_y:.1f} A per side (requested {margin:.1f} A)')
+        if clear_x < 0.0 or clear_y < 0.0:
+            raise PestiferBuildError(
+                f'the equilibrated membrane box ({Lx:.1f} x {Ly:.1f} A) is smaller than the '
+                f'oriented protein footprint ({pro_Lx:.1f} x {pro_Ly:.1f} A): the protein would '
+                f'clash with its own periodic image. A calibrated leaflet APL was likely '
+                f'overestimated, so the quilt over-condensed below the protein box. Increase '
+                f'bilayer.embed.xydist, or re-check the calibrated per-leaflet APLs.')
+        if min(clear_x, clear_y) < 0.5 * margin:
+            logger.warning(
+                f'embed_protein: the equilibrated membrane condensed to only '
+                f'{clear_x:.1f}/{clear_y:.1f} A clearance around the protein (requested '
+                f'{margin:.1f} A) -- a leaflet APL may be overestimated. Embedding proceeds, '
+                f'but the periodic-image buffer is thin.')
+
     def embed_protein(self):
         """
         Embed the protein into the bilayer patch or quilt.
@@ -942,32 +1015,8 @@ class MakeMembraneSystemTask(BaseTask):
         if not self.embed_specs:
             logger.debug('No embed specs.')
             return
-        # Fit guard: the quilt was sized to the protein footprint + xydist margin and relaxed to its
-        # stress-free area. If a calibrated leaflet APL was overestimated, the quilt's true tensionless
-        # area is smaller than that box, so it over-condenses -- possibly tighter than the protein,
-        # which would clash the protein with its own periodic image. Verify the equilibrated box still
-        # spans the protein before embedding, turning a silent squeeze into a loud, diagnosable failure.
-        if getattr(self, '_protein_xy', None) is not None:
-            st: StateArtifacts = self.get_current_artifact('state')
-            if st and getattr(st, 'xsc', None) and st.xsc.exists():
-                box, _origin = cell_from_xsc(st.xsc.name)
-                Lx, Ly = float(box[0][0]), float(box[1][1])
-                pro_Lx, pro_Ly = self._protein_xy
-                clear_x, clear_y = (Lx - pro_Lx) / 2.0, (Ly - pro_Ly) / 2.0
-                margin = self.embed_specs.get('xydist', 10.0)
-                if clear_x < 0.0 or clear_y < 0.0:
-                    raise PestiferBuildError(
-                        f'the equilibrated membrane box ({Lx:.1f} x {Ly:.1f} A) is smaller than the '
-                        f'oriented protein footprint ({pro_Lx:.1f} x {pro_Ly:.1f} A): the protein would '
-                        f'clash with its own periodic image. A calibrated leaflet APL was likely '
-                        f'overestimated, so the quilt over-condensed below the protein box. Increase '
-                        f'bilayer.embed.xydist, or re-check the calibrated per-leaflet APLs.')
-                if min(clear_x, clear_y) < 0.5 * margin:
-                    logger.warning(
-                        f'embed_protein: the equilibrated membrane condensed to only '
-                        f'{clear_x:.1f}/{clear_y:.1f} A clearance around the protein (requested '
-                        f'{margin:.1f} A) -- a leaflet APL may be overestimated. Embedding proceeds, '
-                        f'but the periodic-image buffer is thin.')
+        # fit guard: an over-condensed quilt would clash the protein with its own periodic image
+        self._verify_membrane_spans_protein()
         zvals = np.zeros(2)
         dum_pdb: PDBFileArtifact = self.get_current_artifact('base_coordinates_dum')
         if dum_pdb and dum_pdb.exists():

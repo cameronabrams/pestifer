@@ -85,10 +85,17 @@ def cell_from_xsc(xsc: Path | str):
         A tuple containing the box vectors and origin, or (None, None) if the file is not found or invalid.
     """
     if xsc and os.path.exists(xsc):
-        celldf = pd.read_csv(xsc, skiprows=2, header=None, sep=r'\s+', index_col=None)
+        try:
+            celldf = pd.read_csv(xsc, skiprows=2, header=None, sep=r'\s+', index_col=None)
+        except (pd.errors.EmptyDataError, pd.errors.ParserError):
+            # a truncated or header-only xsc is just another invalid input; report it the same
+            # way as a cell-less one rather than raising a pandas exception through the caller
+            return None, None
         col = 'step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z s_x s_y s_z s_u s_v s_w'.split()[:len(celldf.columns)]
         celldf.columns = col
         if len(celldf.columns) < 13:
+            # a run with no periodic cell (e.g. a vacuum minimize) writes an origin-only xsc:
+            # `step o_x o_y o_z`, 4 columns
             return None, None
         avec = np.array(celldf.loc[0, ['a_x', 'a_y', 'a_z']].to_list())
         bvec = np.array(celldf.loc[0, ['b_x', 'b_y', 'b_z']].to_list())

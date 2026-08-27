@@ -18,10 +18,12 @@ is asserted is the arguments they were handed.
 import os
 import tempfile
 import unittest
+from types import SimpleNamespace
 from unittest import mock
 
 import pandas as pd
 
+from pestifer.core.errors import PestiferBuildError
 from pestifer.tasks.make_membrane_system import (
     MakeMembraneSystemTask, _DEFAULT_AREA_MODULUS,
 )
@@ -640,3 +642,86 @@ if __name__ == '__main__':
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestMembraneSpansProteinGuard(unittest.TestCase):
+    """The fit guard must read the *membrane's* box, and must fail legibly when there isn't one.
+
+    Two defects, both live from v3.15.0 (``ca6c0b11``) until this test was written:
+
+    1. It read ``get_current_artifact('state')``.  At that point in ``do()`` that key still holds
+       the *protein's* state -- the membrane's is ``quilt_state`` -- so the guard compared the
+       protein box against the protein footprint, which is ``2 * xydist`` by construction and
+       passes however far the membrane condensed.  In practice it mostly did not even get that
+       far: the orient step registers only psf and pdb, so there was no xsc and the check silently
+       did nothing.  A guard that cannot fail is not a guard.
+    2. ``cell_from_xsc`` returns ``(None, None)`` for an xsc with no cell -- a vacuum minimize
+       writes an origin-only ``step o_x o_y o_z`` -- and the box was indexed unchecked, so a
+       config that did leave such an xsc on the state got ``TypeError: 'NoneType' object is not
+       subscriptable`` tens of lines from the cause, after (in the reported case) a 3h52m
+       equilibration.
+    """
+
+    _PERIODIC = ('# NAMD extended system configuration output file\n'
+                 '#$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z\n'
+                 '1000 {lx} 0 0 0 {ly} 0 0 0 100 0 0 0\n')
+    # what a run with no periodic cell writes: the origin and nothing else
+    _VACUUM = ('# NAMD extended system configuration output file\n'
+               '#$LABELS step o_x o_y o_z\n'
+               '1000 0 0 0\n')
+
+    def _xsc(self, text):
+        # a plain namespace, not a Mock: `name` is reserved in the Mock constructor
+        fh = tempfile.NamedTemporaryFile('w', suffix='.xsc', delete=False)
+        fh.write(text)
+        fh.close()
+        self.addCleanup(os.unlink, fh.name)
+        return SimpleNamespace(name=fh.name, exists=lambda: True)
+
+    def _task_with(self, artifacts, protein_xy=(100.0, 100.0), xydist=40.0):
+        t = _task(_protein_xy=protein_xy, embed_specs={'xydist': xydist})
+        t.get_current_artifact = lambda key: artifacts.get(key)
+        return t
+
+    def test_it_reads_the_membrane_state_not_the_protein_state(self):
+        # the protein's state carries a box exactly 2*xydist larger than the protein -- the box the
+        # quilt was sized from.  Reading it would pass vacuously; the membrane has condensed to a
+        # box smaller than the protein and must be caught.
+        protein = SimpleNamespace(xsc=self._xsc(self._PERIODIC.format(lx=180.0, ly=180.0)))
+        membrane = SimpleNamespace(xsc=self._xsc(self._PERIODIC.format(lx=90.0, ly=90.0)))
+        t = self._task_with({'state': protein, 'quilt_state': membrane})
+        with self.assertRaises(PestiferBuildError) as cm:
+            t._verify_membrane_spans_protein()
+        self.assertIn('90.0', str(cm.exception))       # the membrane box, not the protein's
+
+    def test_a_membrane_that_spans_the_protein_passes(self):
+        membrane = SimpleNamespace(xsc=self._xsc(self._PERIODIC.format(lx=180.0, ly=180.0)))
+        t = self._task_with({'quilt_state': membrane})
+        t._verify_membrane_spans_protein()             # no raise
+
+    def test_a_thin_but_positive_buffer_warns_and_proceeds(self):
+        # 4 A clearance per side against a 40 A request: not a clash, but worth saying out loud
+        membrane = SimpleNamespace(xsc=self._xsc(self._PERIODIC.format(lx=108.0, ly=108.0)))
+        t = self._task_with({'quilt_state': membrane})
+        with self.assertLogs(LOGGER, level='WARNING') as log:
+            t._verify_membrane_spans_protein()
+        self.assertIn('clearance', '\n'.join(log.output))
+
+    def test_a_cell_less_xsc_fails_with_a_message_naming_the_file(self):
+        membrane = SimpleNamespace(xsc=self._xsc(self._VACUUM))
+        t = self._task_with({'quilt_state': membrane})
+        with self.assertRaises(PestiferBuildError) as cm:
+            t._verify_membrane_spans_protein()
+        msg = str(cm.exception)
+        self.assertIn('.xsc', msg)                     # names the file
+        self.assertIn('no periodic cell', msg)         # says what was wrong
+
+    def test_no_membrane_xsc_warns_rather_than_passing_silently(self):
+        t = self._task_with({})
+        with self.assertLogs(LOGGER, level='WARNING') as log:
+            t._verify_membrane_spans_protein()
+        self.assertIn('cannot verify', '\n'.join(log.output))
+
+    def test_no_protein_footprint_means_no_embedding_to_check(self):
+        t = self._task_with({}, protein_xy=None)
+        t._verify_membrane_spans_protein()             # no raise, no warning needed

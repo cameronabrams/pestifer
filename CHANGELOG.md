@@ -4,6 +4,40 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **the membrane fit guard checked the wrong box, and died opaquely when it had none.**
+  `make_membrane_system`'s pre-embed guard exists to catch an over-condensed quilt before the
+  protein is embedded into a box too small for it -- "turning a silent squeeze into a loud,
+  diagnosable failure", per its own comment. It did neither, from v3.15.0 (`ca6c0b11`) onward.
+
+  It read `get_current_artifact('state')`, but at that point in `do()` that key still holds the
+  *protein's* state; the membrane's is `quilt_state` (every path registers it there -- symmetric
+  grid, asymmetric grid, and prebuilt alike). Comparing the protein's box against the protein's
+  footprint is `2 * xydist` by construction and passes however far the membrane has condensed.
+  Mostly it did not get even that far: the orient step registers only psf and pdb, so there was no
+  xsc and the guard returned silently, having checked nothing.
+
+  When a config *did* leave an xsc on the protein state -- a continuation, or a vacuum minimize --
+  the second defect fired. `cell_from_xsc` is documented to return `(None, None)` for an xsc with
+  no periodic cell, and a run with no periodic boundaries writes exactly that: an origin-only
+  `step o_x o_y o_z`, 4 columns. The return was indexed unchecked, so the guard raised
+  `TypeError: 'NoneType' object is not subscriptable` tens of lines from its cause -- after a
+  3h52m quilt equilibration in the reported case.
+
+  The guard now reads `quilt_state`, logs the two boxes it compared (it was previously silent
+  unless it tripped, so there was no way to tell which box it had read), warns rather than passing
+  mutely when no membrane xsc is available, and routes every `cell_from_xsc` call in the task
+  through a helper that names the file and explains the 4-column case. `cell_from_xsc` also now
+  returns `(None, None)` for a truncated or header-only file instead of raising `EmptyDataError`
+  through its caller. The other call sites -- `terminate.py`, `solvate.py`, `run_record.py`,
+  `ringcheck.py`, `ring_resolve.py` -- were already guarded and are unchanged.
+
+  Guarded by `tests/unit/test_tasks/test_make_membrane_decisions.py::TestMembraneSpansProteinGuard`,
+  which pins the artifact the guard reads (a membrane condensed below the protein must raise even
+  when the protein's own state carries a comfortable box) and the cell-less failure message. All
+  six fail on the unfixed code.
+
+  Reported by the pestifer-sweep session, found while debugging an unrelated user config.
+
 ## [3.19.2] - 2026-08-27
 
 - fix: **a `biological_assembly:` that selects a subset of the asymmetric unit built the whole
