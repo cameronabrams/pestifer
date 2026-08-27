@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.19.2] - 2026-08-27
+
 - fix: **a `biological_assembly:` that selects a subset of the asymmetric unit built the whole
   asymmetric unit.** 8DX0 is a histidine-kinase dimer in the A.U.; its assembly 1 is the
   *monomer*, and `REMARK 350` names chain A alone. `psfgen: {source: {biological_assembly: 1}}`
