@@ -114,9 +114,25 @@ tasks:
       constraints:
         k: 1
         atoms: protein and name CA
+  # Restraints are off from here on.  The stage above certifies convergence of the *restrained*
+  # system; releasing the restraints changes the ensemble, and a profile must be sampled in the
+  # ensemble that was actually equilibrated.  Without this stage the 256 ps sampling window below
+  # did double duty as the re-equilibration, ungated -- and the lateral area was still moving
+  # through all of it (+2.1 to -3.3 %/ns, a 1.3-2.7% total contraction).  Gate on the cumulative area
+  # PLATEAU as well as the local slope: the local gate can certify while a slow systematic descent
+  # continues, which is exactly the failure this closes.
+  #
+  # Which mechanism dominates -- shock from releasing the (already weak, k=1) restraint, or the slow
+  # lipid-area mode simply needing longer than any stage above allowed -- is NOT established; both
+  # predict what was measured.  This stage is robust to either, and doubles as the experiment: a
+  # quick settle indicts the release, a long one indicts the slow mode.
+  - membrane_equilibrate:
+      temperature: 310
+      max_steps: 800000
+      area_plateau_tol: 0.005
   - md:
-      # final, unrestrained NPgT stage -- ~256 ps to let the lateral area plateau;
-      # the pressure profile is sampled only here, on the equilibrated cell
+      # profile-sampling stage only: 256 ps on the cell the unrestrained stage above certified.
+      # This window no longer doubles as the equilibration -- it must not, since nothing gates it.
       ensemble: NPgT
       nsteps: 128000
       temperature: 310
