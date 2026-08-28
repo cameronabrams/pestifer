@@ -72,9 +72,25 @@ class ExcisionRun:
         return f'{self.chain}:{span}'
 
 
+#: Segment types that make a chain a polymer chain.  A chain carrying any of these is named for
+#: it, however many waters and ions the depositor also tagged with that chain id.
+POLYMER_SEGTYPES = ('protein', 'nucleicacid')
+
+#: How a segtype is written in the "also" clause of :meth:`ChainIdentity.describe`.
+_SEGTYPE_LABEL = {'nucleicacid': 'nucleic acid'}
+
+
 @dataclass
 class ChainIdentity:
-    """What a single chain is: its dominant segment type, size, molecule name, and resname sample."""
+    """What a single chain is: its dominant segment type, size, molecule name, and resname sample.
+
+    ``n_residues`` and ``resnames`` describe **only the residues of** ``segtype`` -- not everything
+    sharing the chain id.  Depositors routinely tag waters and ions with the chain id of the
+    polymer they sit near, so a whole-chain residue count reported under a "protein" label is a
+    count of solvent (8DX0 chain A: 139 protein + 123 HOH + 1 MG, once printed as "protein (263
+    residues)").  ``composition`` keeps the per-segtype counts so ``describe`` can say what else
+    is in the chain instead of silently folding it into the headline number.
+    """
     chain: str
     segtype: str
     n_residues: int
@@ -82,23 +98,27 @@ class ChainIdentity:
     auth: str = None          # mmCIF author chain id (label chain is `chain`); None for PDB
     molecule: str = None      # molecule name from COMPND / mmCIF entity description, if available
     attached_to: str = None   # for a glycan chain: the protein chain it is glycosidically linked to
+    composition: dict = field(default_factory=dict)   # {segtype: n_residues} over the whole chain
 
     def describe(self) -> str:
-        sample = ', '.join(self.resnames[:4]) + ('...' if len(self.resnames) > 4 else '')
-        if self.segtype == 'water':
-            base = 'water'
-        elif self.segtype == 'ion':
-            base = f'ion ({sample})'
-        elif self.segtype == 'glycan':
-            base = f'glycan ({sample})'
-        elif self.segtype in ('protein', 'nucleicacid'):
-            name = 'protein' if self.segtype == 'protein' else 'nucleic acid'
-            base = f'{name} ({self.n_residues} residues)'
-        else:
-            base = f'{self.segtype} ({sample})'
+        label = _SEGTYPE_LABEL.get(self.segtype, self.segtype)
+        if self.segtype in POLYMER_SEGTYPES or self.segtype == 'water':
+            inner = f'{self.n_residues} residues'
+        else:   # small hetero chains: the resnames themselves are the information
+            inner = ', '.join(self.resnames[:4]) + ('...' if len(self.resnames) > 4 else '')
+        base = f'{label} ({inner}{self._also_clause()})'
         if self.molecule and self.segtype in ('protein', 'nucleicacid', 'other'):
             return f'{base} — {self.molecule}'
         return base
+
+    def _also_clause(self) -> str:
+        """``'; also 123 water, 1 ion'`` -- what else shares this chain id, so the headline count
+        is unambiguously a count of ``segtype`` alone."""
+        others = [(st, n) for st, n in self.composition.items() if st != self.segtype and n]
+        if not others:
+            return ''
+        others.sort(key=lambda x: (-x[1], x[0]))
+        return '; also ' + ', '.join(f'{n} {_SEGTYPE_LABEL.get(st, st)}' for st, n in others)
 
 
 @dataclass
@@ -432,6 +452,42 @@ def _group_runs(resseqnums):
     yield (start, prev)
 
 
+def _chain_identities(atoms, molnames: dict, attach: dict) -> list:
+    """Build one :class:`ChainIdentity` per chain id (label id for mmCIF, author for PDB).
+
+    Residues and resnames are bucketed **by segtype** before anything is counted.  A chain id is
+    not one molecule: depositors routinely tag waters and ions with the chain id of the polymer
+    they sit near, so counting or sampling across the whole chain reports solvent under the
+    polymer's label -- 8DX0 chain A read "protein (263 residues)" for 139 protein residues.
+    """
+    from ..core.labels import Labels
+
+    chain_data = {}
+    for a in atoms.data:
+        d = chain_data.setdefault(a.chainID, {'residues': defaultdict(set),
+                                              'resnames': defaultdict(list),
+                                              'auth': getattr(a, 'auth_asym_id', None)})
+        st = Labels.segtype_of_resname.get(a.resname, 'other')
+        d['residues'][st].add((a.resid.resseqnum, getattr(a.resid, 'insertion', '')))
+        if a.resname not in d['resnames'][st]:
+            d['resnames'][st].append(a.resname)
+
+    chains = []
+    for ch, d in chain_data.items():
+        composition = {st: len(v) for st, v in d['residues'].items()}
+        # A chain holding any polymer residues IS that polymer's chain, however much solvent
+        # shares the id; only among non-polymer chains does sheer count decide.  (Ranking by
+        # *distinct resnames*, as this once did, calls a DNA chain carrying five kinds of ion an
+        # ion chain -- DNA has only four resnames.)
+        polymer = {st: n for st, n in composition.items() if st in POLYMER_SEGTYPES}
+        segtype = max(polymer or composition, key=lambda st: composition[st])
+        mol = molnames.get(ch) or (molnames.get(d['auth']) if d['auth'] else None)
+        chains.append(ChainIdentity(ch, segtype, composition[segtype], d['resnames'][segtype],
+                                    d['auth'], mol, attach.get(ch), composition))
+    chains.sort(key=lambda c: c.chain)
+    return chains
+
+
 def _chain_molecule_names(parsed) -> dict:
     """
     ``{author-chain-id: molecule name}`` from the ``COMPND`` record.
@@ -535,24 +591,7 @@ def inspect_structure(db_id: str, source_format: str = 'pdb', source_db: str = '
     seqadv_tuples = [(s.chainID, getattr(s.resid, 'resseqnum', None), s.resname, s.dbRes or '',
                       (s.typekey or '').strip()) for s in seqadvs.data]
 
-    # chain identities (segtype by resname; chainID is the label id for mmCIF, author for PDB)
-    from collections import Counter
-    chain_data = {}
-    for a in atoms.data:
-        d = chain_data.setdefault(a.chainID, {'residues': set(), 'resnames': [],
-                                              'auth': getattr(a, 'auth_asym_id', None)})
-        d['residues'].add((a.resid.resseqnum, getattr(a.resid, 'insertion', '')))
-        if a.resname not in d['resnames']:
-            d['resnames'].append(a.resname)
-    molnames = _chain_molecule_names(parsed)
-    attach = _glycan_attachment(parsed)
-    chains = []
-    for ch, d in chain_data.items():
-        segs = Counter(Labels.segtype_of_resname.get(rn, 'other') for rn in d['resnames'])
-        mol = molnames.get(ch) or (molnames.get(d['auth']) if d['auth'] else None)
-        chains.append(ChainIdentity(ch, segs.most_common(1)[0][0], len(d['residues']),
-                                    d['resnames'], d['auth'], mol, attach.get(ch)))
-    chains.sort(key=lambda c: c.chain)
+    chains = _chain_identities(atoms, _chain_molecule_names(parsed), _glycan_attachment(parsed))
 
     # biological assemblies
     assemblies = []

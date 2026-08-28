@@ -4,6 +4,25 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **`new-system --inspect` labeled a chain "protein" and counted its solvent.** For PDB
+  8DX0 the scaffold read `A: protein (263 residues)`; chain A has 139 amino-acid residues, and
+  263 is every residue sharing that chain id (139 protein + 123 HOH + 1 MG). A chain id is not
+  one molecule -- depositors tag waters and ions with the chain id of the polymer they sit near
+  -- so `ChainIdentity` now buckets residues by segtype before counting, reports the count of the
+  labeled segtype alone, and names the rest instead of absorbing it:
+  `A: protein (139 residues; also 123 water, 1 ion) — HISTIDINE KINASE`.
+
+  Two further faces of the same mistake went with it. The `resnames` sample was also taken across
+  the whole chain, so a glycan chain carrying waters advertised `glycan (NAG, BMA, HOH...)`. And
+  the segtype itself was decided by counting *distinct resnames* rather than residues: harmless
+  for protein (twenty amino-acid names outvote one `HOH`), but it would classify a DNA chain
+  carrying five kinds of ion as an ion chain, DNA having only four resnames. Classification is
+  now polymer-first, with residue count deciding only among non-polymer chains.
+
+  This mattered out of proportion to its size because `--inspect` output is advisory text a user
+  reads once and pastes into a methods section; a wrong count propagates into writing and is
+  never re-checked. One reached a published page before being caught.
+
 ## [3.19.3] - 2026-08-27
 
 - fix: **the membrane fit guard checked the wrong box, and died opaquely when it had none.**

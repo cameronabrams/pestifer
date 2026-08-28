@@ -3,6 +3,7 @@ import unittest
 from pestifer.core.system_inspector import (
     build_findings, _group_runs, Findings, MissingRun, MutationFinding, ExcisionRun,
     interactive_select, make_prompter, ChainIdentity, AssemblyInfo, interactive_pipeline,
+    _chain_identities,
 )
 
 
@@ -188,7 +189,7 @@ class TestChainAndAssembly(unittest.TestCase):
     def test_chain_describe(self):
         self.assertEqual(ChainIdentity('A', 'protein', 187, ['ALA', 'GLY']).describe(),
                          'protein (187 residues)')
-        self.assertEqual(ChainIdentity('W', 'water', 50, ['HOH']).describe(), 'water')
+        self.assertEqual(ChainIdentity('W', 'water', 50, ['HOH']).describe(), 'water (50 residues)')
 
     def test_chain_describe_with_molecule_name(self):
         d = ChainIdentity('G', 'protein', 462, ['LEU'], molecule='ENVELOPE GLYCOPROTEIN GP160').describe()
@@ -259,6 +260,73 @@ class TestChainAndAssembly(unittest.TestCase):
         self.assertIn('1: 3 copies of chain(s) [A, B]', text)
         self.assertIn('A: protein (100 residues)', text)
         self.assertIn('exclude:', text)
+
+
+class TestChainComposition(unittest.TestCase):
+    """A chain id is not one molecule.  Depositors tag waters and ions with the chain id of the
+    polymer they sit near, so every per-chain number has to say which segtype it counted --
+    8DX0 chain A once read "protein (263 residues)" for 139 protein residues."""
+
+    @staticmethod
+    def _atoms(spec, auth=None):
+        """``spec`` is ``{chainID: [(resname, resseqnum), ...]}`` -> a stand-in for the parsed
+        ATOM table (only ``chainID``, ``resname`` and ``resid.resseqnum`` are read)."""
+        class _Resid:
+            def __init__(self, n):
+                self.resseqnum, self.insertion = n, ''
+
+        class _Atom:
+            def __init__(self, ch, rn, n):
+                self.chainID, self.resname, self.resid = ch, rn, _Resid(n)
+                self.auth_asym_id = auth
+
+        class _Table:
+            def __init__(self, data):
+                self.data = data
+
+        return _Table([_Atom(ch, rn, n) for ch, rs in spec.items() for rn, n in rs])
+
+    def _chain_a_of_8dx0(self):
+        # 139 protein + 123 HOH + 1 MG = 263, the number that used to be printed as "protein"
+        rs = [('ALA', i) for i in range(1, 140)]
+        rs += [('HOH', 1000 + i) for i in range(123)]
+        rs += [('MG', 2000)]
+        return _chain_identities(self._atoms({'A': rs}), {'A': 'HISTIDINE KINASE'}, {})[0]
+
+    def test_count_is_of_the_labeled_segtype_not_the_whole_chain(self):
+        ch = self._chain_a_of_8dx0()
+        self.assertEqual(ch.segtype, 'protein')
+        self.assertEqual(ch.n_residues, 139)            # not 263
+        self.assertEqual(ch.composition, {'protein': 139, 'water': 123, 'ion': 1})
+
+    def test_describe_names_what_else_shares_the_chain(self):
+        d = self._chain_a_of_8dx0().describe()
+        self.assertEqual(d, 'protein (139 residues; also 123 water, 1 ion) — HISTIDINE KINASE')
+
+    def test_resnames_sample_excludes_other_segtypes(self):
+        # a glycan chain that also carries waters must not sample HOH into its resname list
+        ch = _chain_identities(self._atoms({'G': [('NAG', 1), ('BMA', 2), ('HOH', 500)]}), {}, {})[0]
+        self.assertEqual(ch.segtype, 'glycan')
+        self.assertEqual(ch.resnames, ['NAG', 'BMA'])
+        self.assertEqual(ch.describe(), 'glycan (NAG, BMA; also 1 water)')
+
+    def test_polymer_wins_over_a_more_various_hetero_population(self):
+        # DNA has only four resnames; ranking by distinct resnames made five ions outvote it
+        rs = [('DA', 1), ('DC', 2), ('DG', 3), ('DT', 4)]
+        rs += [(ion, 100 + i) for i, ion in enumerate(['MG', 'ZN', 'CAL', 'POT', 'CLA'])]
+        ch = _chain_identities(self._atoms({'T': rs}), {}, {})[0]
+        self.assertEqual(ch.segtype, 'nucleicacid')
+        self.assertEqual(ch.n_residues, 4)
+        self.assertEqual(ch.describe(), 'nucleic acid (4 residues; also 5 ion)')
+
+    def test_polymer_wins_even_when_solvent_outnumbers_it(self):
+        rs = [('ALA', i) for i in range(1, 11)] + [('HOH', 1000 + i) for i in range(200)]
+        ch = _chain_identities(self._atoms({'P': rs}), {}, {})[0]
+        self.assertEqual((ch.segtype, ch.n_residues), ('protein', 10))
+
+    def test_single_segtype_chain_gets_no_also_clause(self):
+        ch = _chain_identities(self._atoms({'W': [('HOH', i) for i in range(50)]}), {}, {})[0]
+        self.assertEqual(ch.describe(), 'water (50 residues)')
 
 
 class TestPipeline(unittest.TestCase):

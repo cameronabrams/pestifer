@@ -89,9 +89,11 @@ Two regression tests guard it:
 `make_package` and asserts every file named in the packaged `.namd` is present in the tarball --
 the invariant that would catch the next one of these too.
 
-## Open bug: `new-system --inspect` chain summary counts waters and ions as protein
+## Fixed: `new-system --inspect` chain summary counted waters and ions as protein
 
-Found 2026-08-21 against v3.19.1, alongside the packaging bug above. Also unfixed.
+Found 2026-08-21 against v3.19.1, alongside the packaging bug above; fixed 2026-08-27. Kept
+because the shape of it -- a label and a number computed over different sets -- is easy to
+reintroduce anywhere a chain id is treated as one molecule.
 
 The scaffold config emitted by `pestifer new-system --inspect` summarizes each chain like this,
 for PDB 8DX0:
@@ -122,8 +124,28 @@ Cross-checks for 8DX0 chain A, none of which agree with 263: 139 resolved (ATOM 
 in the system pestifer actually builds (210-358, 139 from the crystal plus the 10-residue loop
 it rebuilds).
 
-Why it is worth fixing rather than documenting: `--inspect` output is advisory text a user reads
+Why it was worth fixing rather than documenting: `--inspect` output is advisory text a user reads
 once and copies into a methods section, so a wrong count propagates silently into writing and is
-never checked again. It reached a published page that way before being caught. The fix is to
-count only residues of the chain's classified segtype, and to say which segtype is being
-counted when a chain carries more than one.
+never checked again. It reached a published page that way before being caught.
+
+`_chain_identities()` (`pestifer/core/system_inspector.py`) now buckets residues **by segtype**
+before counting anything, and `ChainIdentity` carries a `composition` dict so `describe()` can
+name what else shares the id rather than folding it into the headline number:
+
+```
+#   A: protein (139 residues; also 123 water, 1 ion) — HISTIDINE KINASE
+#   B: protein (139 residues; also 105 water, 2 ion) — HISTIDINE KINASE
+```
+
+Two further faces of the same bug were fixed with it, neither in the original report:
+
+- **`resnames` was sampled across the whole chain too**, so a glycan chain carrying waters
+  advertised `glycan (NAG, BMA, HOH...)`. The sample is now segtype-restricted.
+- **The segtype itself was chosen by counting *distinct resnames***, not residues. That is why a
+  protein chain still read "protein" despite the solvent (20 amino-acid names beat one `HOH`) --
+  but a DNA chain carrying five kinds of ion would have been classified an *ion* chain, since DNA
+  has only four resnames. Classification is now: any polymer residues win; only among non-polymer
+  chains does residue count decide.
+
+`tests/unit/test_core/test_system_inspector.py::TestChainComposition` pins all three against
+synthetic atom tables (no network), including the 8DX0 shape.
