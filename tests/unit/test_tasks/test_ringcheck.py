@@ -1,6 +1,7 @@
 import unittest
 from pestifer.psfutil.psfring import ring_check, RingChecker
 from pestifer.tasks.ringcheck import RingCheckTask
+from pestifer.util.util import cell_from_xsc
 import os
 import tempfile
 import types
@@ -134,6 +135,32 @@ class TestRingCheck(unittest.TestCase):
         self.assertEqual(len(result),1)
         self.assertEqual(result[0]['piercee']['segname'],'AG01')
         self.assertEqual(result[0]['piercer']['segname'],'LIP1')
+
+    def test_ring_check_cell_less_xsc(self):
+        # an xsc that EXISTS and parses but carries no cell -- a vacuum run writes an
+        # origin-only `step o_x o_y o_z`, 4 columns.  check() used to guard on the xsc *path*,
+        # so this file entered the periodic branch with box=None and died in np.diagonal(None)
+        # ("diag requires an array of at least two dimensions").  It must scan as vacuum
+        # instead, giving the same answer as xsc=None.
+        dir='5'
+        pdb=os.path.join(dir,'test.pdb')
+        psf=os.path.join(dir,'test.psf')
+        with tempfile.NamedTemporaryFile('w',suffix='.xsc',delete=False) as f:
+            f.write('# NAMD extended system configuration output file\n')
+            f.write('#$LABELS step o_x o_y o_z\n')
+            f.write('1000 0 0 0\n')
+            cell_less_xsc=f.name
+        try:
+            self.assertEqual(cell_from_xsc(cell_less_xsc),(None,None))
+            result=ring_check(psf,pdb,cell_less_xsc,cutoff=3.5,segtypes=['lipid','glycan'])
+            vacuum=ring_check(psf,pdb,None,cutoff=3.5,segtypes=['lipid','glycan'])
+            self.assertEqual(len(result),1)
+            self.assertEqual(result,vacuum)
+            # the targeted re-check path takes box=None through _check_fast as well
+            c=RingChecker(psf,cutoff=3.5,segtypes=['lipid','glycan'])
+            self.assertEqual(len(c.check(pdb,xsc=cell_less_xsc,only_piercees=[('AG01',1)])),1)
+        finally:
+            os.unlink(cell_less_xsc)
 
     def test_ring_check_resname_and_only_piercees(self):
         # new fields/filters used by the protein side-chain auto-rotate path

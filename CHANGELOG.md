@@ -4,6 +4,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **`ring_check` died on an xsc that exists but carries no periodic cell.** `RingChecker.check`
+  guarded on the xsc *path*, not on the parsed cell, so a file written by a run with no periodic
+  boundaries -- a vacuum minimize writes an origin-only `step o_x o_y o_z`, 4 columns -- entered
+  the periodic branch with `box = None` and died in `np.diagonal(None)`: `ValueError: diag
+  requires an array of at least two dimensions`. The check now keys off the cell, and a cell-less
+  xsc scans as vacuum exactly as `xsc: None` already did. This is the same defect `c9ab48fd`
+  fixed one layer up in `make_membrane_system`; the earlier sweep cleared
+  `tasks/ringcheck.py`, which is only the wrapper that passes the path down, and so closed the
+  question a layer above the site that actually consumes the cell.
+
 - fix: **`new-system --inspect` labeled a chain "protein" and counted its solvent.** For PDB
   8DX0 the scaffold read `A: protein (263 residues)`; chain A has 139 amino-acid residues, and
   263 is every residue sharing that chain id (139 protein + 123 HOH + 1 MG). A chain id is not

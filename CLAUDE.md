@@ -209,3 +209,38 @@ Note the reported cause was "the chainIDmanager reassigns segids" -- i.e. that r
 renamed. They do not. Chain A stays A; it is the *derived* water and ion segments that draw from
 the freed pool. Same symptom, different mechanism, and the difference decides the fix.
 
+
+## An xsc that exists is not a promise of a periodic cell — and sweep by call site, not module
+
+`cell_from_xsc` returns `(None, None)` for any xsc it cannot get a cell out of. The common case is
+not a corrupt file: a run with **no periodic boundaries** — a vacuum minimize — writes a perfectly
+valid origin-only xsc, `step o_x o_y o_z`, 4 columns, where a cell needs at least 13. So
+
+```python
+box = cell_from_xsc(xsc)[0] if xsc is not None else None   # None for a cell-less xsc
+if xsc is not None:                                        # still True: the path exists
+    sidelengths = np.diagonal(box)                         # np.diagonal(None) -> ValueError
+```
+
+is wrong in a way that reads as right. **Guard on the parsed cell, never on the path.** Every other
+`cell_from_xsc` call site in the tree already does (`if box is not None`); the two that did not were
+`make_membrane_system` (fixed 2026-08-27, `c9ab48fd`) and `RingChecker.check` (fixed 2026-08-28).
+
+The second one is the part worth remembering. The 08-27 fix came with a sweep of the other call
+sites, and that sweep **cleared `tasks/ringcheck.py:218`, correctly** — it does guard. But
+`ringcheck.py` is the task wrapper; it only passes the xsc path down. The site that *consumes* the
+cell is `RingChecker.check()` in `psfutil/psfring.py`, one layer below and in a different module,
+and it was on nobody's list. Clearing the wrapper closed the question a layer too high, and the
+same build hit the same defect the next day at the next call site down.
+
+Sweep this pattern with `grep -rn cell_from_xsc` and check every hit, including the ones in modules
+you have already decided are fine. A module is not a unit of correctness here; a dereference is.
+
+`tests/unit/test_tasks/test_ringcheck.py::TestRingCheck::test_ring_check_cell_less_xsc` pins it,
+with an xsc that *exists and parses* but yields no cell — the pre-existing non-periodic test passes
+`xsc=None`, takes the other branch, and would never have caught this.
+
+One unguarded deref remains, deliberately: `make_solvent_box.py:432` indexes `final_box[0][0]`
+straight from `cell_from_xsc`. It reads the last xsc of a solvent-box NPT equilibration that
+pestifer itself just ran, so a missing cell there means the pipeline is already broken and there is
+no user input that reaches it. Left alone rather than papered over.

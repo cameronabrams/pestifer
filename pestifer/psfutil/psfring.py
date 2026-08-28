@@ -218,27 +218,30 @@ class RingChecker:
         """Check one coordinate frame for pierced rings and return the piercespecs.
 
         Only coordinates are re-read here; the PSF, bond list, and ring cycles from the
-        constructor are reused.  ``xsc`` sets the periodic box (``None`` -> vacuum, box from
-        coordinate extents).  ``only_piercees`` (iterable of ``(segname, resid)``) restricts
-        which rings are tested -- a cheap targeted re-check after a trial rotation.
+        constructor are reused.  ``xsc`` sets the periodic box; the system is treated as vacuum
+        (box from coordinate extents) both when ``xsc`` is ``None`` and when the file carries no
+        cell.  ``only_piercees`` (iterable of ``(segname, resid)``) restricts which rings are
+        tested -- a cheap targeted re-check after a trial rotation.
         """
         topol = self.topol
         coorddf = coorddf_from_pdb(pdb)
         assert coorddf.shape[0] == len(topol.atoms), f'{pdb} is incongruent with the PSF'
-        box = cell_from_xsc(xsc)[0] if xsc is not None else None
+        # guard on the parsed cell, not on the xsc path: cell_from_xsc returns (None, None)
+        # for any xsc that carries no cell -- a vacuum run writes an origin-only
+        # `step o_x o_y o_z`, 4 columns -- so a file that exists is not a promise of a box.
+        box, orig = cell_from_xsc(xsc) if xsc is not None else (None, None)
         if only_piercees is not None:
             # targeted re-check after a trial rotation: vectorized, no link cell.  Only a
             # handful of named rings are tested, so skip the whole-system coordinate ingest.
             coords = coorddf[['x', 'y', 'z']].values
             return self._check_fast(coords, box, only_piercees)
-        if xsc is not None:
-            orig = cell_from_xsc(xsc)[1]
+        if box is not None:
             sidelengths = np.diagonal(box)
             ll = orig - 0.5 * sidelengths
             ur = orig + 0.5 * sidelengths
         else:
             ll = ur = None
-            logger.debug('No XSC file — treating system as non-periodic (vacuum)')
+            logger.debug('No periodic cell — treating system as non-periodic (vacuum)')
         coords = coorddf[['x', 'y', 'z']].values
         return self._scan(coords, box, self.rings.data, ll=ll, ur=ur)
 
