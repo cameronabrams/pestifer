@@ -23,6 +23,37 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   reads once and pastes into a methods section; a wrong count propagates into writing and is
   never re-checked. One reached a published page before being caught.
 
+- fix: **the `validate` task's schema was declared `type: list`, which silently disabled every
+  constraint under it.** Its payload is a mapping, and ycleptic's list walker descends into a
+  list element only when it is declared `dict` -- anything else is skipped with a debug-level
+  note. The whole `validate` subtree was therefore never walked, so its `choices:` lists were
+  inert and a mistyped `measure:` or `connection_type:` reached the task unchallenged. `validate`
+  was the only task in the schema not declared `type: dict`.
+
+  Nothing flagged this: `yclept check-spec` passes either way (it checks that keys and type names
+  are recognized, not that a declared type fits the shape), and every example config parsed
+  before and after, because a skipped subtree raises nothing.
+
+- fix: **a `validate` test with an unsupported `measure:` emitted no check and reported nothing.**
+  `ResidueTest.write` logged an error and fell through, so the test silently vanished from the
+  run -- and a test that never ran is indistinguishable, in the VMD log and in the task's
+  `pass: N, fail: M` tally, from a test that passed. A typo could only shrink your test count.
+  `ResidueTest` now rejects an unsupported `measure` or `relation` at construction, as
+  `ConnectionTest` already did for `connection_type`, and both `write` fallthroughs raise instead
+  of logging.
+
+  `ConnectionTest.write`'s fallthrough was additionally written `case '_':`, which matches the
+  literal string `'_'` rather than acting as a wildcard, so an unsupported connection type
+  matched no case at all and produced not even the debug line.
+
+- docs: **validation tests must not be written against chain or segment letters.** Letters in a
+  built system are assigned by pestifer, not inherited from the input: each input chain is split
+  into one segment per segtype, and each segment past the first takes the next unused letter. So
+  `exclude: [chainID == 'B']` frees `B` for the next segment that needs one -- on 8DX0, the
+  magnesium lifted out of chain A -- and the obvious test, "I excluded chain B, so `chain B`
+  should be empty", reports FAIL on a correct build. Whether it bites depends on where the
+  excluded letter sits in the pool, which is what makes it easy to miss.
+
 ## [3.19.3] - 2026-08-27
 
 - fix: **the membrane fit guard checked the wrong box, and died opaquely when it had none.**

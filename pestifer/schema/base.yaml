@@ -2352,7 +2352,7 @@ attributes:
                       type: str
       - name: validate
         text: Task enables VMD-based validation of PDB and PSF files
-        type: list
+        type: dict
         attributes:
           - name: tests
             text: List of validation tests to run
@@ -2420,9 +2420,10 @@ attributes:
                     text: Measure to apply to the selection; atom_count or residue_count
                     type: str
                     choices: ['atom_count', 'residue_count']
-                  - name: relation 
+                  - name: relation
                     type: str
                     text: binary relational operator to relate measured value and expected value (defaults to ==)
+                    choices: ['==', '!=', '<', '<=', '>', '>=']
                   - name: value
                     text: Expected value for the measure
                     type: int

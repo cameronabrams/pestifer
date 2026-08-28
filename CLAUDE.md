@@ -149,3 +149,63 @@ Two further faces of the same bug were fixed with it, neither in the original re
 
 `tests/unit/test_core/test_system_inspector.py::TestChainComposition` pins all three against
 synthetic atom tables (no network), including the 8DX0 shape.
+
+## A wrong-but-valid `type:` in the schema silently disables a whole subtree
+
+Found 2026-08-27, chasing a report that a `validate` task with a mistyped `measure:` logged an
+error and emitted no check. The class-level fallthrough was real, but it was the second problem.
+The first: `validate` was declared
+
+```yaml
+      - name: validate
+        type: list          # <-- its payload is a mapping
+```
+
+Tasks are elements of the `tasks` list, and ycleptic's `lwalk` dispatches a list element on its
+declared type: scalars are ignored, `dict` descends via `dwalk`, and **anything else falls to a
+debug-level "ignored"**. So the entire `validate` subtree was never walked. Every `choices:`
+under it was inert -- `measure`, `connection_type`, all of it -- and a typo reached the task
+untouched. `validate` was the only task in the schema not declared `type: dict`.
+
+What makes this worth recording is that nothing flags it:
+
+- **`yclept check-spec` passes.** It verifies that keys and type *names* are recognized, not that
+  a declared type matches the shape it describes. It reported "no unrecognized keys or types"
+  before and after the fix.
+- **Every example config still parsed**, before and after -- a skipped subtree raises nothing.
+- The one visible symptom was in a code path far away: an unsupported `measure` reaching
+  `ResidueTest`, which could only have happened if the schema had not rejected it first.
+
+Diagnosing it requires *walking* the schema, not reading it. The regression test does exactly
+that: `tests/unit/test_tasks/test_validate.py::TestSchemaEnforcesTheSameSpecsAsTheCode` calls
+ycleptic's `dwalk` on the real `base.yaml` with a deliberately mistyped spec and requires it to
+raise -- and separately asserts each `choices:` list equals the matching class-level `*_supported`
+set, so the two gates cannot drift apart.
+
+If you add a task to the schema, declare it `type: dict`, then prove a bad value in it is
+rejected. A passing parse is not evidence that anything was checked.
+
+## Validation tests must not be written against chain or segment letters
+
+Letters in a built system are assigned by pestifer, not inherited from the input. Each input
+chain is split into one segment per segtype, and each segment past the first takes the next
+*unused* letter -- so excluding a chain frees its letter for the next segment that needs one.
+Verified 2026-08-27 by building 8DX0 both ways:
+
+```
+no exclusion                      exclude: [chainID == 'B']
+A protein / B protein             A protein
+C MG      / D MG                  B MG      <-- chain A's magnesium
+E water   / F water               C water
+```
+
+Both `segname B` and `chain B` name that magnesium, so the obvious test -- "I excluded chain B,
+so chain B should be empty" -- reports FAIL on a correct build. Whether you get away with it
+depends on where the excluded letter sits in the pool: example 5 excludes chain `P` and tests
+`chain P`, which is safe by accident, not design. Guidance is in
+`docs/source/subs/buildtasks/validate.rst` ("Test the molecule, not the letter").
+
+Note the reported cause was "the chainIDmanager reassigns segids" -- i.e. that retained chains get
+renamed. They do not. Chain A stays A; it is the *derived* water and ion segments that draw from
+the freed pool. Same symptom, different mechanism, and the difference decides the fix.
+

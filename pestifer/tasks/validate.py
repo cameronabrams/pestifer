@@ -154,18 +154,35 @@ class ConnectionTest:
                 vt.addline(f'}} else {{')
                 vt.addline(f'    vmdcon "PASS Selection {self.selection} has $count atoms bound to an external C1 atom"')
                 vt.addline(f'}}')
-            case '_':
-                logger.debug(f'Unsupported connection type: {self.connection_type}')
+            case _:
+                # Unreachable: __init__ rejects unsupported types.  Raise rather than log,
+                # so a check can never be silently omitted from the emitted script.
+                raise NotImplementedError(f'Unsupported connection type: {self.connection_type!r}')
 
 class ResidueTest:
     """
     This class represents a test for expected properties of a specific residue in an atom selection.
+
+    An unsupported ``measure`` or ``relation`` is rejected here, at construction, rather than
+    when the script is written.  A test that emits no check is indistinguishable in the log from
+    a test that passed, so a typo would otherwise shrink the test count silently.
     """
+    measure_supported = {'atom_count', 'residue_count'}
+    relation_supported = {'==', '!=', '<', '<=', '>', '>='}
+
     def __init__(self, name: str, selection: str, measure: str, value: int, relation: str = '=='):
         self.name = name
         self.selection = selection
         self.measure = measure
+        if self.measure not in self.measure_supported:
+            raise NotImplementedError(
+                f'Unsupported measure: {self.measure!r}; expected one of '
+                f'{", ".join(sorted(self.measure_supported))}')
         self.relation = relation
+        if self.relation not in self.relation_supported:
+            raise ValueError(
+                f'Unsupported relation: {self.relation!r}; expected one of '
+                f'{", ".join(sorted(self.relation_supported))}')
         self.value = value
 
     def write(self, vt: VMDScripter):
@@ -190,7 +207,9 @@ class ResidueTest:
                 vt.addline(f'   vmdcon "{fail_msg}"')
                 vt.addline(f'}}')
             case _:
-                logger.error(f'Unsupported measure type: {self.measure!r}; test emits no check')
+                # Unreachable: __init__ rejects unsupported measures.  Raise rather than log,
+                # so a check can never be silently omitted from the emitted script.
+                raise NotImplementedError(f'Unsupported measure: {self.measure!r}')
 
 class ValidateTask(VMDTask):
     """
