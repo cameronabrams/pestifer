@@ -13,6 +13,65 @@ Validation tests are performed in VMD sessions managed by the task.  There are t
 
 After all tests are performed, the task parses all VMD logs for results and generates a summary report. By default, if any test fails, the task raises an exception and the run is aborted.
 
+.. _subs_buildtasks_validate_letters:
+
+Test the molecule, not the letter
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Chain and segment letters in a *built* system are assigned by pestifer, not inherited from the
+input file.  A test written against a letter is therefore testing an output of the build, and
+the most natural-looking test of all -- "I excluded chain B, so ``chain B`` should be empty" --
+fails on a perfectly correct build.
+
+The reason is that pestifer splits each input chain into one segment per segment type, and every
+segment beyond the first takes the next **unused** letter.  Excluding a chain returns its letter
+to that pool, where the next segment needing one picks it up.  Building PDB 8DX0 (two protein
+chains, each with waters and a magnesium tagged with the same chain id) shows it directly:
+
+.. code-block:: text
+
+   no exclusion                        exclude: [chainID == 'B']
+
+   A  149 residues  protein            A  149 residues  protein
+   B  149 residues  protein            B    1 residue   MG      <-- chain A's magnesium
+   C    1 residue   MG                 C  123 residues  water
+   D    2 residues  MG
+   E  123 residues  water
+   F  105 residues  water
+
+After the exclusion, ``segname B`` and ``chain B`` both name the magnesium ion lifted out of
+chain A.  A test like
+
+.. code-block:: yaml
+
+   - residue_test:                # DON'T: passes or fails for the wrong reason
+       name: chain B excluded
+       selection: segname B
+       measure: residue_count
+       value: 0
+
+reports ``FAIL ... count 1 (expected 0)`` on a build that excluded chain B exactly as asked.
+
+Note that whether you get away with it depends on *which* letter you excluded, which is why this
+trap is easy to miss: the pool is consumed in order, so a late letter is rarely reused, while an
+early one is taken almost immediately.  Excluding chain ``P`` and then testing ``chain P`` (as
+:ref:`example 5 <example hivprotease>` does) is safe by accident, not by design.
+
+Write the test against something the build cannot rename -- the molecule itself:
+
+.. code-block:: yaml
+
+   - residue_test:                # DO: the count of what you excluded
+       name: only one protomer remains
+       selection: protein and name CA
+       measure: residue_count
+       value: 149
+
+or assert on a residue that is unique to the excluded molecule (a distinctive ``resname``, a
+sequence position that exists in only one protomer).  If you must refer to a chain, take the
+letter from the built system rather than from the input file: the mapping is recorded in the
+run's diagnostics log and in the psfgen script the task writes.
+
 .. _subs_buildtasks_validate_attribute_test:
 
 Attribute test
