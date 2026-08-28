@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.19.4] - 2026-08-28
+
 - fix: **`ring_check` died on an xsc that exists but carries no periodic cell.** `RingChecker.check`
   guarded on the xsc *path*, not on the parsed cell, so a file written by a run with no periodic
   boundaries -- a vacuum minimize writes an origin-only `step o_x o_y o_z`, 4 columns -- entered
