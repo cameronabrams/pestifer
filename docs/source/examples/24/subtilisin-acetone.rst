@@ -26,7 +26,7 @@ The rest of the build is identical to the DMSO example: the equilibrated acetone
 
 .. figure:: density-convergence.png
 
-    Density of the acetone-solvated system through equilibration, as reported by the self-terminating ``density_equilibrate`` task.  The shaded regions are the discarded burn-in and the trailing window the convergence test is evaluated over; the run stops once the drift in that window falls below tolerance, so the stopping point is measured rather than chosen in advance.
+    Density of the acetone-solvated system through equilibration, as reported by the self-terminating ``density_equilibrate`` task.  The shaded regions are the discarded burn-in and the trailing window the convergence test is evaluated over; the run stops once the drift in that window falls below tolerance, so the stopping point is measured rather than chosen in advance.  Acetone decorrelates slowly enough that this takes longer than the default ``max_steps`` ceiling allows, which is why the config above raises it -- the one example here that needs to.
 
 .. raw:: html
 
