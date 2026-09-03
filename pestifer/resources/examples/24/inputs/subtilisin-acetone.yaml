@@ -20,6 +20,12 @@ tasks:
 - md:
     ensemble: nvt
 - density_equilibrate:
+    # Acetone decorrelates slowly (autocorrelation time 15-23 frames, against a median of
+    # about 6 across the other examples), so the running mean's standard error shrinks too
+    # slowly to pass the precision gate inside the 100000-step default ceiling; all three
+    # replicas of a 2026-08 sweep stopped on CEILING rather than converging.  At 250000 all
+    # three converge, needing 111000-200000 steps.
+    max_steps: 250000
 - mdplot:
     basename: solvated
     grid: true
