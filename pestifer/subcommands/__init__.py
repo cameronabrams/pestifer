@@ -19,6 +19,7 @@ from .make_pdbcollection import MakePDBCollectionSubcommand
 from .cache import CacheSubcommand
 from .mdplot import MDPlotSubcommand
 from .density_profile import DensityProfileSubcommand
+from .pressure_profile_ewald import PressureProfileEwaldSubcommand
 from .setup_vmd import SetupVMDSubcommand
 from .setup_claude import SetupClaudeSubcommand
 
@@ -65,6 +66,7 @@ _subcommands: list[Subcommand] = [
     # After the run
     MDPlotSubcommand(),
     DensityProfileSubcommand(),
+    PressureProfileEwaldSubcommand(),
     FollowNAMDLogSubcommand(),
     MakeNAMDRestartSubcommand(),
     ReportMethodsSubcommand(),

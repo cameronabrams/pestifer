@@ -85,11 +85,16 @@ pestifer never managed -- they need only the log, the ``.xst`` and the checkpoin
 ``report-methods`` is the exception: it reads the ``run-record.json`` that a pestifer build leaves
 behind, so it applies to pestifer's own builds only.
 
+``pressure-profile-ewald`` differs in the other direction: it works on any run, but it is the only
+command in this group that *runs NAMD* rather than only reading its output, because the quantity it
+reports is one NAMD will not report in a single run.
+
 .. toctree::
    :maxdepth: 1
 
    subs/mdplot
    subs/density-profile
+   subs/pressure-profile-ewald
    subs/follow-namd-log
    subs/make-namd-restart
    subs/report-methods

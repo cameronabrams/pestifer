@@ -4,6 +4,21 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **new `pressure-profile-ewald` subcommand** reconstructs a *complete* NAMD pressure
+  profile, PME reciprocal-space term included, by replaying a trajectory twice and summing the
+  halves. NAMD will not report the whole thing in one run: `SimParameters.C:6699` does
+  `if (pressureProfileEwaldOn) pressureProfileOn = 0`, so a run with `pressureProfileEwald on`
+  reports the reciprocal contribution *alone*. The omission matters -- on one example-16 replica
+  the real-space integral is -16.63 mN/m and the reciprocal +26.50, so including it flips the
+  sign. Computing the Ewald half inline is impractical because `ComputeEwald` is gated only on
+  `doFullElectrostatics` and so runs every step regardless of `pressureProfileFreq` (14-28x per
+  step, i.e. 5-11 days for example 16's sampling stage); replaying evaluates once per sampled
+  frame instead, dividing that cost by the sampling stride. Each run self-checks against NAMD's
+  own reported pressure: on a 699-atom box the real-space half alone deviates by 213 bar and the
+  reconstruction by 1.05. Example 16 and 17 configs already pointed at this procedure in
+  comments; it is now a command.
+
+
 ## [3.19.4] - 2026-08-28
 
 - fix: **`ring_check` died on an xsc that exists but carries no periodic cell.** `RingChecker.check`

@@ -1,0 +1,22 @@
+* Minimal TIP3P water parameters, extracted verbatim from the CHARMM36
+* toppar_water_ions.str distributed with NAMD/CHARMM.  Water-only, so this
+* reproducer needs no other parameter file.
+*
+
+BONDS
+HT    HT      0.0       1.5139  ! from TIPS3P geometry (for SHAKE w/PARAM)
+HT    OT    450.0       0.9572  ! from TIPS3P geometry
+
+ANGLES
+HT   OT   HT     55.0      104.52   ! FROM TIPS3P GEOMETRY
+
+DIHEDRALS
+
+IMPROPER
+
+NONBONDED  nbxmod 5 atom cdiel shift vatom vdistance vswitch -
+cutnb 14.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
+HT       0.0       -0.046     0.2245
+OT       0.0       -0.1521    1.7682
+
+END

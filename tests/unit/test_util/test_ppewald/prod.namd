@@ -1,0 +1,46 @@
+# A production-shaped NAMD config for the ppewald replay test: PME on, a barostat and thermostat
+# the replay must strip, and a trailing `run` it must not execute.  233 TIP3P waters, 699 atoms.
+structure               wbox.psf
+coordinates             wbox.pdb
+paraTypeCharmm          on
+parameters              tip3.prm
+
+exclude                 scaled1-4
+1-4scaling              1.0
+cutoff                  9.0
+switching               on
+switchdist              8.0
+pairlistdist            11.0
+timestep                1.0
+rigidBonds              none
+
+cellBasisVector1        20.0 0.0 0.0
+cellBasisVector2        0.0 20.0 0.0
+cellBasisVector3        0.0 0.0 20.0
+cellOrigin              10.0 10.0 10.0
+wrapAll                 on
+
+PME                     on
+PMEGridSizeX            24
+PMEGridSizeY            24
+PMEGridSizeZ            24
+
+temperature             300
+outputName              gen
+dcdfreq                 20
+DCDUnitCell             yes
+
+langevin                on
+langevinTemp            300
+langevinDamping         1.0
+langevinPiston          on
+langevinPistonTarget    1.01325
+langevinPistonPeriod    200
+langevinPistonDecay     100
+langevinPistonTemp      300
+
+pressureProfile         on
+pressureProfileSlabs    10
+pressureProfileFreq     20
+
+run 60

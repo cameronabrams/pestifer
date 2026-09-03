@@ -205,8 +205,10 @@ tasks:
         # compute and gates it only on doFullElectrostatics -- never on pressureProfileFreq -- so
         # it runs every full-electrostatics step. Measured 2026-08-31 at 14-28x the per-step cost,
         # which turns this 128000-step stage into 5-11 days per replica.
-        # To get the complete profile, replay the trajectory offline with pressureProfileEwald on
-        # and SUM the two contributions per frame -- never substitute one for the other.
+        # To get the complete profile, replay the trajectory offline with `pestifer
+        # pressure-profile-ewald`, which runs both passes and sums them, and self-checks the
+        # sum against NAMD's own reported pressure.
+        # Never substitute one contribution for the other.
         pressureProfile: on
         pressureProfileFreq: 100
         pressureProfileSlabs: 20
@@ -238,8 +240,10 @@ tasks:
             # compute and gates it only on doFullElectrostatics -- never on pressureProfileFreq -- so
             # it runs every full-electrostatics step, measured 2026-08-31 at 14-28x the per-step cost.
             # At the nsteps below that is prohibitive by orders of magnitude.
-            # To get the complete profile, replay the trajectory offline with pressureProfileEwald on
-            # and SUM the two contributions per frame -- never substitute one for the other.
+            # To get the complete profile, replay the trajectory offline with `pestifer
+            # pressure-profile-ewald`, which runs both passes and sums them, and self-checks the
+            # sum against NAMD's own reported pressure.
+            # Never substitute one contribution for the other.
             pressureProfile: on
             pressureProfileFreq: 10000
             pressureProfileSlabs: 20
