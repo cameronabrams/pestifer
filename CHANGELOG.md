@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.20.0] - 2026-09-05
+
 - feat: **new `pressure-profile-ewald` subcommand** reconstructs a *complete* NAMD pressure
   profile, PME reciprocal-space term included, by replaying a trajectory twice and summing the
   halves. NAMD will not report the whole thing in one run: `SimParameters.C:6699` does
