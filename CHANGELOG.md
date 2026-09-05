@@ -18,6 +18,26 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   reconstruction by 1.05. Example 16 and 17 configs already pointed at this procedure in
   comments; it is now a command.
 
+- fix: **example 24 stopped its `density_equilibrate` on the step ceiling instead of converging.**
+  All three replicas of a 3.19.1 sweep hit the 100000-step `max_steps` default, so a reader
+  running the shipped example got a truncated, unconverged box. The failures were the precision
+  gate, not the drift tolerance: SEM/mean 7.44e-04 / 7.62e-04 / 9.54e-04 against a 6.67e-04 gate.
+  Acetone decorrelates slowly -- autocorrelation time 14.8-22.9 frames against a sweep-wide median
+  of 6.3 -- so the effective sample size never grows enough within the default. The example now
+  sets `max_steps: 250000`, at which all three converge (steps 111120 / 199850 / 189160, rho
+  0.8548 / 0.8560 / 0.8574 g/cc). The default is deliberately unchanged: example 24 is the one
+  example that demonstrates a user needing to raise it, and acetone is not a common MD solvent.
+
+- docs: **example 24's figures came from a run that hit the ceiling.** The density-convergence
+  figure ran out at ~104000 steps with no convergence marker while its caption described a run
+  that "stops once the drift in that window falls below tolerance". Both it and the companion
+  cell-dimension figure are regenerated from the median replica of the re-run, so the two now
+  agree on run length.
+
+- docs: **examples 16 and 17 now say that their pressure profiles omit the reciprocal-space term**,
+  why `pressureProfileEwald` is deliberately not set inline, and which command reconstructs the
+  complete profile offline.
+
 
 ## [3.19.4] - 2026-08-28
 
