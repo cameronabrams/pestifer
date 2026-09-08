@@ -23,8 +23,15 @@ with the tools hidden:
 ```bash
 git archive HEAD | tar -x -C /tmp/cisim && cd /tmp/cisim
 PATH="$(echo "$PATH" | tr : '\n' | grep -v /usr/local/bin | paste -sd:)" \
-    python -m pytest tests/unit -q
+    uv run --extra test pytest tests/unit -q
 ```
+
+`uv run` is what makes this a clean *environment* and not just a clean source tree: run under a
+bare `python`, the export borrows the repo's own `.venv`, so any package hand-installed there over
+the months is invisible to the check and absent on the runner -- the same accumulated-state
+failure the export is meant to catch. uv ignores the active venv (it says so: `VIRTUAL_ENV ... will
+be ignored`) and resolves the export's `pyproject.toml` into a fresh one. The cost is that this
+check now needs the network, and a resolution failure is a different red than a test failure.
 
 ## The test suite dirties the working tree
 
