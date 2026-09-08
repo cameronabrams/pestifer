@@ -4,6 +4,22 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **`build-example` and `fetch-example` now accept an example's shortname**, not only its
+  numeric id -- `pestifer build-example subtilisin-acetone` is equivalent to `pestifer
+  build-example 24`. The id is an identifier, not a position: the examples are numbered by
+  biological subject (BPTI, HIV Env, insulin, ...) while the paper describing pestifer groups
+  them by capability (cofactors, model building, non-aqueous solvents, ...), and no single
+  numbering can make both orders sequential -- renumbering to suit one scrambles the other by
+  exactly as much. The shortname is the handle that does not depend on either ordering. A
+  mistyped name now reports the nearest matches and exits 1, instead of raising a traceback.
+
+- docs: **the examples index is grouped by capability rather than by biological subject**, in
+  the same six groups the paper uses, with no example renumbered. The old grouping had drifted:
+  its heading claimed "Diverse Applications (Examples 18-25)" over a section that listed 18
+  through 26, because example 26 was appended after the heading was written. Section headings no
+  longer name id ranges, so they cannot go stale that way again. `build-example`'s page also
+  claimed "There are 26 example systems"; there are 27.
+
 ## [3.20.0] - 2026-09-05
 
 - feat: **new `pressure-profile-ewald` subcommand** reconstructs a *complete* NAMD pressure
