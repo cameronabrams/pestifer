@@ -1,6 +1,7 @@
 import unittest
 from pathlib import Path
 from pestifer.core.example import Example, ExampleList
+from pestifer.core.errors import PestiferError
 
 class TestExample(unittest.TestCase):
     
@@ -64,3 +65,50 @@ class TestExample(unittest.TestCase):
         self.assertEqual(len(loaded_list), 2)
         self.assertEqual(loaded_list[0].shortname, "example1")
         self.assertEqual(loaded_list[1].shortname, "example2")
+
+class TestExampleResolve(unittest.TestCase):
+    """
+    ``resolve`` lets a caller name an example by id or by shortname.  The two orderings the
+    examples are presented in -- by biological subject in the repo, by pestifer capability in
+    the paper -- cannot both be made sequential by one integer, so the shortname is the handle
+    that does not depend on either.
+    """
+
+    def setUp(self):
+        self.examples = ExampleList([
+            Example(example_id=23, shortname='subtilisin-dmso', title='dmso'),
+            Example(example_id=24, shortname='subtilisin-acetone', title='acetone'),
+            Example(example_id=26, shortname='subtilisin-acetonitrile', title='acetonitrile'),
+        ])
+
+    def test_resolves_int_id(self):
+        self.assertEqual(self.examples.resolve(24).shortname, 'subtilisin-acetone')
+
+    def test_resolves_digit_string_as_id(self):
+        # argparse hands the token over as a string; '24' must stay an id, not become a name
+        self.assertEqual(self.examples.resolve('24').shortname, 'subtilisin-acetone')
+
+    def test_resolves_shortname(self):
+        self.assertEqual(self.examples.resolve('subtilisin-acetone').example_id, 24)
+
+    def test_unknown_id_reports_the_range(self):
+        with self.assertRaises(PestiferError) as cm:
+            self.examples.resolve(99)
+        self.assertIn('ids run 1-26', str(cm.exception))
+
+    def test_unknown_name_suggests_near_misses(self):
+        with self.assertRaises(PestiferError) as cm:
+            self.examples.resolve('subtilisin-aceton')
+        msg = str(cm.exception)
+        self.assertIn('did you mean', msg)
+        self.assertIn('subtilisin-acetone', msg)
+
+    def test_unrecognizable_name_points_at_the_listing(self):
+        with self.assertRaises(PestiferError) as cm:
+            self.examples.resolve('zzzzzzzz')
+        self.assertIn('show-resources examples', str(cm.exception))
+
+    def test_raises_pestifer_error_not_keyerror(self):
+        # the CLI turns PestiferError into a one-line message; a KeyError would traceback
+        with self.assertRaises(PestiferError):
+            self.examples.resolve('nope')

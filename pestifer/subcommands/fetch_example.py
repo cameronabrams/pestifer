@@ -17,7 +17,10 @@ class FetchExampleSubcommand(Subcommand):
     group: str = 'Build a system'
     func_returns_type: type = str
     short_help: str = "copy the example\'s YAML config file to the CWD"
-    long_help: str = "Fetch the YAML configuration file for a specific example by its ID. This command will copy the example's configuration file to the current working directory, allowing you to run simulations or analyses based on that configuration."
+    long_help: str = ("Fetch the YAML configuration file for a specific example, named either by its "
+                      "id (24) or by its shortname (subtilisin-acetone). This command will copy the "
+                      "example's configuration file to the current working directory, allowing you "
+                      "to run simulations or analyses based on that configuration.")
 
     @staticmethod
     def func(args: Namespace, **kwargs):
@@ -28,5 +31,7 @@ class FetchExampleSubcommand(Subcommand):
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
-        self.parser.add_argument('example_id', type=int, help='the ID of the example to fetch')
+        self.parser.add_argument('example_id', type=str, metavar='EXAMPLE',
+                                 help='the example to fetch, by id (24) or shortname '
+                                      '(subtilisin-acetone)')
         return self.parser

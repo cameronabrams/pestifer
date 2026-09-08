@@ -96,14 +96,14 @@ class ExampleManager:
     def outputspath(self, example: Example) -> Path:
         return self.path / example.outputspath
 
-    def checkout_example(self, example_id: int) -> Example:
+    def checkout_example(self, example_id: int | str) -> Example:
         """
         Copy example YAML file and associated companion files by example ID to the current working directory.
 
         Parameters
         ----------
-        example_id : int
-            The ID of the example to check out.
+        example_id : int | str
+            The ID of the example to check out, or its shortname.
 
         Returns
         -------
@@ -112,14 +112,12 @@ class ExampleManager:
 
         Raises
         ------
-        IndexError
-            If the index is out of range for the examples list.
+        KeyError
+            If no example matches the given id or shortname.
         FileNotFoundError
             If the example YAML file does not exist in the specified path.
         """
-        example = self.examples.get_example_by_example_id(example_id)
-        if not example:
-            raise IndexError(f'Example with ID {example_id} not found')
+        example = self.examples.resolve(example_id)
         with open(example.scriptname, 'w') as f:
             f.write(self.scriptpath(example).read_text())
         # copy companion files: any other files directly in inputs/, plus every file in inputs/aux/

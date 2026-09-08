@@ -23,13 +23,17 @@ class RunExampleSubcommand(RunSubcommand):
     group: str = 'Build a system'
     aliases: list = field(default_factory=lambda: ['run-example'])
     short_help: str = "build a specific example system"
-    long_help: str = "Run the system preparation for a specific example by its ID; \'pestifer show-resources examples\' to see the list."
+    long_help: str = ("Run the system preparation for a specific example, named either by its id "
+                      "(24) or by its shortname (subtilisin-acetone); 'pestifer show-resources "
+                      "examples' to see the list.")
     func_returns_type: type = RunSubcommand.func_returns_type
 
     def add_subparser(self, subparsers):
         super().add_subparser(subparsers)
         remove_argument(self.parser, 'config')  # Remove the config argument since we will fetch it
-        self.parser.add_argument('example_id', type=int, help='the ID of the example to run')
+        self.parser.add_argument('example_id', type=str, metavar='EXAMPLE',
+                                 help='the example to run, by id (24) or shortname '
+                                      '(subtilisin-acetone)')
         return self.parser
 
     @staticmethod
@@ -41,11 +45,11 @@ class RunExampleSubcommand(RunSubcommand):
         # helper-02-fabdonor -> helper-03-position-fab{1,2,3}), so their outputs
         # (base.psf, fab_p*.psf, ...) exist before the main script consumes them.
         em = ResourceManager().example_manager
-        example = em.examples.get_example_by_example_id(args.example_id)
+        example = em.examples.resolve(args.example_id)
         aux_dir = em.auxpath(example)
         aux_scripts = sorted(p.name for p in aux_dir.glob('*.yaml')) if aux_dir.is_dir() else []
         for aux in aux_scripts:
-            logger.info(f'Example {args.example_id}: running auxiliary helper script {aux}')
+            logger.info(f'Example {example.example_id} ({example.shortname}): running auxiliary helper script {aux}')
             aux_args = copy.copy(args)
             aux_args.config = aux
             aux_controller = RunSubcommand.func(aux_args, **kwargs)
@@ -54,7 +58,7 @@ class RunExampleSubcommand(RunSubcommand):
             # stale artifact from a previous run.
             aux_rc = getattr(aux_controller, 'exit_code', 0)
             if aux_rc:
-                logger.error(f'Example {args.example_id}: auxiliary script {aux} failed; '
+                logger.error(f'Example {example.example_id} ({example.shortname}): auxiliary script {aux} failed; '
                              f'not running the main script')
                 return aux_rc
         args.config = config

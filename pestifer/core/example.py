@@ -4,10 +4,13 @@ Defines the :class:`Example` class for managing examples.
 """
 import yaml
 import logging
+
+from difflib import get_close_matches
 from pathlib import Path
 from pydantic import Field
 from typing import ClassVar
 from .baseobj import BaseObj, BaseObjList
+from .errors import PestiferError
 
 logger = logging.getLogger(__name__)
 
@@ -287,6 +290,47 @@ class ExampleList(BaseObjList[Example]):
             return query_result
         return None
     
+    def resolve(self, token: str | int) -> Example:
+        """
+        Resolve an example from either its numeric id or its shortname.
+
+        The numeric id is an *identifier*, not a position: the shipped examples are grouped by
+        biological subject, while the paper that describes them groups by pestifer capability, and
+        no single numbering can make both orders sequential.  Accepting the shortname gives both
+        a stable handle that does not depend on either ordering.
+
+        Parameters
+        ----------
+        token : str | int
+            An example id (``24``, or the string ``"24"``) or a shortname
+            (``"subtilisin-acetone"``).
+
+        Returns
+        -------
+        Example
+            The matching example.
+
+        Raises
+        ------
+        PestiferError
+            If nothing matches, naming the closest shortnames so the message is actionable.
+            ``PestiferError`` rather than ``KeyError`` so the CLI reports a mistyped name as a
+            one-line error instead of a traceback.
+        """
+        if isinstance(token, int) or (isinstance(token, str) and token.isdigit()):
+            found = self.get_example_by_example_id(int(token))
+            if found:
+                return found
+            raise PestiferError(f'no example with id {int(token)}; '
+                           f'ids run 1-{max(e.example_id for e in self.data)}')
+        found = self.get_example_by_shortname(str(token))
+        if found:
+            return found
+        near = get_close_matches(str(token), [e.shortname for e in self.data], n=3, cutoff=0.4)
+        hint = f'; did you mean {", ".join(near)}?' if near else \
+               "; 'pestifer show-resources examples' lists them"
+        raise PestiferError(f'no example named {token!r}{hint}')
+
     def get_example_by_example_id(self, example_id: int) -> Example:
         query_result = self.get(lambda x: x.example_id == example_id)
         if query_result:
