@@ -45,7 +45,7 @@ The following procedure was used to parameterize 83G.
 
 4. Copy the contents of ``83G-cgenff.str`` into a new file called ``83G-cgenff.str`` in the ``pestifer/resources/charmmff/custom/`` directory.  This makes pestifer aware of the new residue.
 
-5. Ensure that ``83G`` is listed in one of the segtypes in :mod:`pestifer/core/labels`.  For example, it can be added to the ``ligand`` segtype:
+5. Ensure that ``83G`` is listed in one of the segtypes in :mod:`pestifer.core.labels`.  For example, it can be added to the ``ligand`` segtype:
 
     .. code-block:: python
 
