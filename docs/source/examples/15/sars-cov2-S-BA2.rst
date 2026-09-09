@@ -5,6 +5,8 @@ Example 15: Fully Glycosylated, Closed SARS-CoV-2 Omicron BA.2 Variant Spike
 
 This example highlights the use of Pestifer to build a fully glycosylated SARS-CoV2 Spike protein (BA.2 strain) using grafted glycans and cleaving at the furin cleavage sites.  This build is based on the `PDB entry 7xix <https://www.rcsb.org/structure/7XIX>`_, which contains a spike protein in the closed conformation.  The PDB file contains glycans, but they are not fully resolved, so we graft glycans from prototypical structures.
 
+The configuration also reverts the **2P prefusion-stabilizing substitutions** -- K986P and V987P, the pair introduced to lock the spike in its prefusion form and carried by 7xix -- back to the wild-type lysine and valine.  The resulting system is therefore of the native sequence, not of the stabilized immunogen construct, which is a difference worth stating explicitly in any methods section that cites this build.  Drop the ``mutations`` block to keep the 2P construct instead.
+
 The glycans taken from prototypical structures are the following:
 
 - `PDB ID 2wah <https://www.rcsb.org/structure/2WAH>`_ chain C is a "high-mannose" glycan with 9 mannoses; its full name is alpha-D-mannopyranose-(1-2)-alpha-D-mannopyranose-(1-6)-[alpha-D-mannopyranose-(1-3)]alpha-D-mannopyranose-(1-6)-[alpha-D-mannopyranose-(1-2)-alpha-D-mannopyranose-(1-3)]beta-D-mannopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose-(1-4)-2-acetamido-2-deoxy-beta-D-glucopyranose

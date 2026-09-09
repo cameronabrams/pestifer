@@ -4,6 +4,21 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- docs: **example 7 said pestifer undoes engineered mutations "by default". It does not.** The
+  three SOSIP reversions in that build happen because the config's `mutations` block asks for
+  them; the only `fixEngineeredMutations` machinery in the tree is under
+  `pestifer/resources/_archive/` and defaulted to off even there. A reader who believed the page
+  would drop that block and silently build the stabilized SOSIP construct instead of wild-type
+  Env. Corrected, and the same reversion is now described on examples 8, 11 and 12, which
+  perform it and never mentioned it.
+
+- docs: **example 15 never mentioned that it reverts the 2P prefusion-stabilizing substitutions.**
+  K986P and V987P, carried by 7xix, are returned to the wild-type lysine and valine, so the
+  system is of the native sequence rather than the stabilized immunogen -- a distinction that
+  belongs in any methods section citing this build. Example 12 likewise never described the
+  Gly-Gly-Gly stubs replacing its missing V1/V2 loops, though its own config title and the
+  examples index both advertise them.
+
 - feat: **`build-example` and `fetch-example` now accept an example's shortname**, not only its
   numeric id -- `pestifer build-example subtilisin-acetone` is equivalent to `pestifer
   build-example 24`. The id is an identifier, not a position: the examples are numbered by
