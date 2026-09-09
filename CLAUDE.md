@@ -217,6 +217,46 @@ renamed. They do not. Chain A stays A; it is the *derived* water and ion segment
 the freed pool. Same symptom, different mechanism, and the difference decides the fix.
 
 
+## Partner order in a Link is an invariant, not a convention two places happen to share
+
+Found 2026-09-09 from a Rosetta-written PDB. Both the PDB `LINK` convention and the CHARMM
+carbohydrate `PRES` definitions put the **anomeric carbon second** -- `O4 -> C1`, `ND2 -> C1`,
+`O6 -> C2` for sialic acids. Other producers sometimes write the reverse. Nothing about the bond
+changes, and the atom identifiers are perfectly good, but two independent things downstream read
+the order and *both* fail silently:
+
+- `Link.set_patchname()` keys every glycan branch on `name2` being the anomeric carbon. A
+  reversed link matches nothing, falls to the terminal `else`, and ends `UNFOUND`. At
+  `scripters/psfgen.py:848` that writes a comment and **no `patch` line**, so the build
+  *succeeds* with the glycosidic bond simply absent from the PSF.
+- `Residue.link_to()` is directional -- `self.down.append(other)`, so partner 1 is the parent and
+  partner 2 the child. A reversed link builds that branch of the glycan tree **upside down**, and
+  anything walking it with `get_down_group()` works from the wrong end. The mutation-driven
+  pruning in `segment.py` then deletes the wrong subtree, and that one does not even warn.
+
+Both consumers sit downstream of `LinkList.assign_residues`, so one canonicalization there fixes
+both: `Link.canonicalize_glycan_orientation()` is called after segtypes and resnames are set and
+**before** `link_to` and `set_patchname`. Do not move it after either.
+
+Two things not to redo the hard way:
+
+- **Do not fix this in `set_patchname` alone.** It is the visible half. The inverted tree is the
+  worse half precisely because it warns about nothing.
+- **Do not hand-list the fields to swap.** `Link` carries 16 partner-indexed pairs in two naming
+  shapes (`chainID1`/`chainID2` and `ptnr1_label_asym_id`/`ptnr2_label_asym_id`), and a partial
+  swap is how "the atom identifiers are fine" stops being true. `Link._paired_fields()` derives
+  them from `model_fields`, so a pair added later cannot be forgotten.
+
+`segment.py`'s glycan-adjacency builder was already order-agnostic (it handles either partner
+being the protein); the pruning code was not. That inconsistency is why normalizing at the
+boundary beats teaching each consumer both orders -- every future consumer gets it for free.
+
+`tests/unit/test_objs/test_link.py::TestLinkOrientationAgainstRealStructure` pins the invariant
+against 4zmj's 25 real glycan links across seven patch types: the same bonds written either way
+round must give the same patches *and* the same parent/child directions. It asserts the canonical
+run resolved real patches, so the comparison cannot pass as two piles of `UNFOUND` agreeing with
+each other. With the canonicalization disabled, all 25 come back `UNFOUND` with inverted parents.
+
 ## An xsc that exists is not a promise of a periodic cell — and sweep by call site, not module
 
 `cell_from_xsc` returns `(None, None)` for any xsc it cannot get a cell out of. The common case is

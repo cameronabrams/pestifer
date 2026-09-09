@@ -107,3 +107,124 @@ class TestLinkList(unittest.TestCase):
         self.assertEqual(links[2].residue2, residues[5])
         self.assertEqual(len(ignored_by_ptnr1), 1)  # last link references residues that are not in the list
         self.assertEqual(len(ignored_by_ptnr2), 0)  # all links have valid residue2 since the previous link was removed by assign_objs_to_attr
+
+class TestLinkOrientation(unittest.TestCase):
+    """
+    A LINK record may list a glycosidic bond either way round.  The PDB convention and the
+    CHARMM ``PRES`` definitions both put the anomeric carbon second (``O4 -> C1``), but other
+    producers -- Rosetta output is the case that prompted this -- sometimes write ``C1 -> O4``.
+    Pestifer canonicalizes on ingest; these pin that it happens, that it is complete, and that
+    it never fires on a link that already works.
+    """
+
+    def _link(self, n1, n2, st1, st2, rn1='BGLC', rn2='BGLC'):
+        L = Link(chainID1='A', resid1=ResID(1), name1=n1,
+                 chainID2='B', resid2=ResID(2), name2=n2)
+        L.segtype1, L.segtype2, L.resname1, L.resname2 = st1, st2, rn1, rn2
+        return L
+
+    def test_paired_fields_are_derived_not_hand_listed(self):
+        # A partner field left out of the swap corrupts atom identity silently, so the pairing
+        # is derived from the model's fields.  Both naming shapes must be picked up.
+        pairs = dict(Link._paired_fields())
+        for a, b in [('chainID1', 'chainID2'), ('resid1', 'resid2'), ('name1', 'name2'),
+                     ('atom1', 'atom2'), ('residue1', 'residue2'), ('segtype1', 'segtype2'),
+                     ('altloc1', 'altloc2'), ('sym1', 'sym2'), ('segname1', 'segname2'),
+                     ('resname1', 'resname2'),
+                     ('ptnr1_label_asym_id', 'ptnr2_label_asym_id'),
+                     ('ptnr1_auth_seq_id', 'ptnr2_auth_seq_id')]:
+            self.assertEqual(pairs.get(a), b, f'{a} is not paired with {b}')
+        # non-partner fields must never be swapped
+        for solo in ('patchname', 'patchhead', 'link_distance', 'empty'):
+            self.assertNotIn(solo, pairs)
+
+    def test_reverse_is_involutive(self):
+        L = self._link('C1', 'O4', 'glycan', 'glycan')
+        before = L.shortcode()
+        L.reverse(); L.reverse()
+        self.assertEqual(L.shortcode(), before)
+
+    def test_inverted_glycan_glycan_is_reversed(self):
+        L = self._link('C1', 'O4', 'glycan', 'glycan')
+        self.assertTrue(L.canonicalize_glycan_orientation())
+        self.assertEqual(L.name1, 'O4')
+        self.assertEqual(L.name2, 'C1')
+
+    def test_inverted_glycan_protein_is_reversed(self):
+        L = self._link('C1', 'ND2', 'glycan', 'protein', 'BGLC', 'ASN')
+        self.assertTrue(L.canonicalize_glycan_orientation())
+        self.assertEqual((L.name1, L.resname1), ('ND2', 'ASN'))
+        self.assertEqual((L.name2, L.resname2), ('C1', 'BGLC'))
+
+    def test_inverted_sialic_acid_is_reversed(self):
+        # sialic acids are anomeric at C2, not C1
+        L = self._link('C2', 'O6', 'glycan', 'glycan', 'ANE5', 'BGAL')
+        self.assertTrue(L.canonicalize_glycan_orientation())
+        self.assertEqual((L.name1, L.name2), ('O6', 'C2'))
+
+    def test_canonical_links_are_left_alone(self):
+        for n1, n2, st1, st2, rn1, rn2 in [('O4', 'C1', 'glycan', 'glycan', 'BGLC', 'BGLC'),
+                                           ('ND2', 'C1', 'protein', 'glycan', 'ASN', 'BGLC'),
+                                           ('O6', 'C2', 'glycan', 'glycan', 'BGAL', 'ANE5')]:
+            L = self._link(n1, n2, st1, st2, rn1, rn2)
+            self.assertFalse(L.canonicalize_glycan_orientation(), f'{n1}->{n2} was reversed')
+            self.assertEqual((L.name1, L.name2), (n1, n2))
+
+    def test_non_glycan_links_are_left_alone(self):
+        for n1, n2, st1, st2, rn1, rn2 in [('ZN', 'NE2', 'ion', 'protein', 'ZN', 'HIS'),
+                                           ('NE2', 'FE', 'protein', 'ligand', 'HIS', 'HEM'),
+                                           ('C', 'N', 'protein', 'protein', 'ALA', 'GLY')]:
+            L = self._link(n1, n2, st1, st2, rn1, rn2)
+            self.assertFalse(L.canonicalize_glycan_orientation())
+
+    def test_anomeric_carbon_on_both_sides_is_not_guessed(self):
+        # not a glycosidic linkage; there is no basis for a direction, so leave it to fail loudly
+        L = self._link('C1', 'C1', 'glycan', 'glycan')
+        self.assertFalse(L.canonicalize_glycan_orientation())
+
+
+class TestLinkOrientationAgainstRealStructure(unittest.TestCase):
+    """
+    The invariant that matters: the same bonds, written either way round, must produce the same
+    patches and the same glycan tree.  4zmj carries 25 glycan links spanning seven patch types.
+    """
+
+    def setUp(self):
+        self.inputs_path = Path(__file__).parent.parent.parent / 'inputs'
+
+    def _fresh(self):
+        p = PDBParser(filepath=str(self.inputs_path / '4zmj.pdb')).parse().parsed
+        residues = ResidueList.from_residuegrouped_atomlist(AtomList.from_pdb(p))
+        residues.apply_segtypes()
+        return LinkList.from_pdb(p), residues
+
+    @staticmethod
+    def _as_written_by_an_inverting_producer(L):
+        # built by crossing the fields directly, not by calling Link.reverse(), so the test does
+        # not depend on the method it is meant to exercise
+        return LinkList([Link(chainID1=l.chainID2, resid1=l.resid2, name1=l.name2,
+                              chainID2=l.chainID1, resid2=l.resid1, name2=l.name1,
+                              resname1=l.resname2, resname2=l.resname1,
+                              altloc1=l.altloc2, altloc2=l.altloc1) for l in L])
+
+    @staticmethod
+    def _fingerprint(L):
+        # patch, emission order, and the parent/child direction link_to established
+        return sorted((l.patchname, l.patchhead,
+                       (l.residue1.chainID, str(l.residue1.resid)),
+                       (l.residue2.chainID, str(l.residue2.resid))) for l in L)
+
+    def test_inverted_links_give_the_same_patches_and_tree(self):
+        Lc, rc = self._fresh()
+        Lc.assign_residues(rc)
+        Li, ri = self._fresh()
+        Li = self._as_written_by_an_inverting_producer(Li)
+        Li.assign_residues(ri)
+
+        self.assertEqual(len(Lc), 25)
+        self.assertEqual(self._fingerprint(Lc), self._fingerprint(Li))
+        # and the canonical run really did resolve patches, so the comparison is not
+        # two piles of UNFOUND agreeing with each other
+        self.assertNotIn('UNFOUND', {l.patchname for l in Lc})
+        self.assertEqual({l.patchname for l in Lc},
+                         {'NGLA', 'NGLB', '12ba', '13ba', '14ab', '14bb', '16AT'})

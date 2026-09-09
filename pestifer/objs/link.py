@@ -418,6 +418,92 @@ class Link(BaseObj):
             logger.warning(f'Could not identify patch for link {self.resname1}-{self.resname2}')
             self.patchname = 'UNFOUND'
 
+    _anomeric_carbon_names: ClassVar[set] = {'C1', 'C2'}
+    """
+    Atom names of the anomeric carbon: ``C1`` for hexoses and hexosamines, ``C2`` for sialic
+    acids.  In a glycosidic linkage the anomeric carbon is the donor, and both the PDB LINK
+    convention and the CHARMM ``PRES`` definitions place it on the *second* partner.  See
+    :meth:`canonicalize_glycan_orientation`.
+    """
+
+    @classmethod
+    def _paired_fields(cls) -> list[tuple[str, str]]:
+        """
+        Return every ``(field1, field2)`` pair of partner-indexed attributes, derived from the
+        model's own field list rather than a hand-written table -- so a partner field added
+        later cannot be forgotten by :meth:`reverse`, which is how a swap silently corrupts
+        atom identity.
+
+        Two naming shapes are in use: a trailing index (``chainID1``/``chainID2``) and the
+        mmCIF partner prefix (``ptnr1_label_asym_id``/``ptnr2_label_asym_id``).
+        """
+        names = set(cls.model_fields)
+        pairs = []
+        for n in sorted(names):
+            if n.startswith('ptnr1_'):
+                partner = 'ptnr2_' + n[len('ptnr1_'):]
+            elif n.endswith('1'):
+                partner = n[:-1] + '2'
+            else:
+                continue
+            if partner in names:
+                pairs.append((n, partner))
+        return pairs
+
+    def reverse(self):
+        """
+        Exchange the two partners of this link, moving *every* partner-indexed attribute
+        together so the link still describes the same bond between the same two atoms.
+        """
+        for a, b in self._paired_fields():
+            self.swap_attr(a, b)
+
+    def canonicalize_glycan_orientation(self) -> bool:
+        """
+        Put a glycan link into the orientation the rest of pestifer assumes, reversing it if
+        the source file listed the two partners the other way round.
+
+        Both the PDB ``LINK`` convention and the CHARMM carbohydrate ``PRES`` definitions put
+        the **anomeric carbon second**: ``O4 -> C1``, ``ND2 -> C1``, ``O6 -> C2``.  Files
+        written by other producers -- Rosetta output is the case that prompted this --
+        sometimes emit the reverse, ``C1 -> O4``.  Nothing about the bond changes, but two
+        things downstream depend on the order and both go wrong silently:
+
+        - :meth:`set_patchname` keys every glycan branch on ``name2`` being the anomeric
+          carbon, so a reversed link matches nothing, ends as ``UNFOUND``, and no ``patch``
+          line is written.  The build then *succeeds* with the glycosidic bond simply absent
+          from the PSF.
+        - :meth:`~pestifer.molecule.residue.Residue.link_to` is directional -- partner 1
+          becomes the parent, partner 2 the child -- so a reversed link builds that branch of
+          the glycan tree upside down, and anything walking it with ``get_down_group()``
+          (notably the mutation-driven pruning in
+          :meth:`~pestifer.molecule.segment.SegmentList.injest_mutations`) works from the
+          wrong end.  That one does not even warn.
+
+        The test is the convention itself, not a guess: reverse only when partner 1 is a
+        glycan whose named atom is an anomeric carbon and partner 2 is not.  A canonical link
+        never satisfies it, and neither does any non-glycan link (metal coordination, heme),
+        so links that work today are untouched.
+
+        Returns
+        -------
+        bool
+            True if the link was reversed.
+        """
+        if self.segtype1 != 'glycan':
+            return False
+        if self.name1 not in self._anomeric_carbon_names:
+            return False
+        if self.segtype2 == 'glycan' and self.name2 in self._anomeric_carbon_names:
+            # Anomeric carbon on both sides is not a glycosidic linkage; there is no basis for
+            # choosing a direction, so leave it alone and let patch assignment report it.
+            return False
+        was = self.shortcode()
+        self.reverse()
+        logger.info(f'Link {was} lists the anomeric carbon first; reversed to {self.shortcode()} '
+                    f'to match the LINK/PRES convention')
+        return True
+
     def update_residue(self, idx, **fields):
         """
         Updates the chainID of the residue in the link based on the index provided
@@ -545,6 +631,10 @@ class LinkList(BaseObjList[Link]):
                 link.resname1 = link.residue1.resname
             if link.residue2 is not None and link.resname2 is None:
                 link.resname2 = link.residue2.resname
+            # Orientation must be settled BEFORE link_to, which is directional and builds the
+            # glycan tree, and before set_patchname, which keys on the anomeric carbon being
+            # partner 2.  Both are downstream of this point, so one canonicalization fixes both.
+            link.canonicalize_glycan_orientation()
             try:
                 link.residue1.link_to(link.residue2, link)
             except:

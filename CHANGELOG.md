@@ -4,6 +4,17 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a `LINK` record that lists the anomeric carbon first silently lost the bond.** The PDB
+  convention and the CHARMM `PRES` definitions both put the anomeric carbon second (`O4 -> C1`,
+  `ND2 -> C1`); some producers -- Rosetta output is the reported case -- write the reverse. The
+  bond is the same and the atom identifiers are fine, but pestifer kept the file's order and two
+  things broke without failing: patch assignment matched no branch and ended `UNFOUND`, so **no
+  `patch` line was written and the build completed with the glycosidic bond missing from the
+  PSF**; and `link_to` is directional, so the glycan tree was built upside down and
+  `get_down_group()` walked it from the wrong end, which is what the mutation-driven residue
+  pruning uses. Links are now canonicalized on ingest, before both consumers, and the reversal is
+  logged. Canonical links and non-glycan links (metal coordination, heme) are untouched.
+
 - docs: **example 7 said pestifer undoes engineered mutations "by default". It does not.** The
   three SOSIP reversions in that build happen because the config's `mutations` block asks for
   them; the only `fixEngineeredMutations` machinery in the tree is under
