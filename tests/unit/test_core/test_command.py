@@ -83,3 +83,25 @@ class TestChildShutdown(unittest.TestCase):
         command_mod.install_signal_handlers()
         self.assertIs(signal.getsignal(signal.SIGINT), before)
         self.assertIsNot(signal.getsignal(signal.SIGINT), command_mod._signal_handler)
+
+
+class TestCommandStderrNotPiped(unittest.TestCase):
+    """
+    With ``log_stderr=True`` stderr is redirected into stdout, so ``communicate()`` returns
+    ``None`` for it rather than ``''``.  Every consumer sits on the *error* path, so a
+    ``len(None)`` there replaces the real failure message with a traceback from the code meant
+    to report it.  The pdb2pqr task is the only caller that passes ``log_stderr=True``.
+    """
+
+    def test_nonzero_exit_with_merged_stderr_reports_instead_of_raising(self):
+        c = Command('sh -c "echo out; echo err 1>&2; exit 3"')
+        rc = c.run(log_stderr=True)       # stderr -> STDOUT, so self.stderr becomes None
+        self.assertEqual(rc, 3)
+        self.assertIsNone(c.stderr)
+
+    def test_override_needle_search_survives_merged_stderr(self):
+        # the override path greps both buffers; it must not blow up on the None one
+        c = Command('sh -c "echo NEEDLE; exit 4"')
+        rc = c.run(log_stderr=True, override=('NEEDLE', 'a friendlier message'))
+        self.assertEqual(rc, 4)
+        self.assertIsNone(c.stderr)

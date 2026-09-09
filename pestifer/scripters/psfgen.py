@@ -933,7 +933,7 @@ class PsfgenScripter(VMDScripter):
         for k, v in options.items():
             if v == '' and k in clean_options:
                 clean_options.pop(k)
-        c = Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}', **clean_options)
+        c = Command(f'VMDNORLWRAP=1 {self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}', **clean_options)
         progress_struct = None
         if self.progress:
             progress_struct = PsfgenProgress()
@@ -941,8 +941,11 @@ class PsfgenScripter(VMDScripter):
         else:
             logger.debug('Progress bar is disabled for psfgen script')
         # Same launch conditions as VMDScripter.runscript: VMD stays in pestifer's session and
-        # gets /dev/null on stdin, or an rlwrap-wrapping VMD launcher exits immediately with
-        # rc 0 and no output, never running the psfgen script (see the guard below).
+        # gets /dev/null on stdin, and VMDNORLWRAP=1 is set, or an rlwrap-wrapping VMD launcher
+        # never runs the psfgen script (see the guard below): with a controlling terminal it
+        # exits rc 0 and silent, without one it errors.  The stock VMD 2.x launcher takes rlwrap
+        # on `hash rlwrap` alone -- it tests no terminal and no stdin -- so VMDNORLWRAP, its own
+        # opt-out, is the only thing that reliably keeps us out of it.
         result = c.run(logfile=self.logname, logparser=self.logparser,
                        new_session=False, stdin=subprocess.DEVNULL)
         logger.debug(f'FileCollector:')

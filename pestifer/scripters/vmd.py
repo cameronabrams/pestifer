@@ -261,7 +261,7 @@ class VMDScripter(TcLScripter):
         self.logname = f'{self.basename}.log'
         self.logparser = VMDLogParser(basename=self.basename)
         logger.debug(f'Log file: {self.logname}')
-        c = Command(f'{self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}', **options)
+        c = Command(f'VMDNORLWRAP=1 {self.vmd} -dispdev text -startup {self.vmd_startup} -e {self.scriptname} -args --tcl-root {self.tcl_root}', **options)
         progress_struct = None
         progress_title = options.get('progress_title', '')
         if self.progress and progress_title != '':
@@ -269,8 +269,11 @@ class VMDScripter(TcLScripter):
             self.logparser.enable_progress_bar(progress_struct)
         # VMD runs in pestifer's own session (not a new one): a detached session strips
         # the controlling terminal, and an rlwrap-wrapping VMD launcher then exits without
-        # running the script.  Feeding /dev/null on stdin also keeps such a launcher from
-        # choosing rlwrap at all (VMD -dispdev text -e … reads no stdin).
+        # running the script.  /dev/null on stdin keeps a launcher that *tests* stdin from
+        # choosing rlwrap -- but the stock VMD 2.x launcher does not test anything: it takes
+        # rlwrap whenever `hash rlwrap` succeeds.  VMDNORLWRAP is that launcher's own opt-out
+        # and is the only deterministic way to stay out of rlwrap; without it, a build with no
+        # controlling terminal (a detached sweep, an sbatch job) gets rlwrap errors instead.
         return c.run(logfile=self.logname, logparser=self.logparser,
                      new_session=False, stdin=subprocess.DEVNULL)
 

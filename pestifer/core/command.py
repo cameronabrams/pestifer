@@ -222,6 +222,12 @@ class Command:
             if logfile:
                 logger.debug(f'Log written to {logfile}')
                 log.close()
+            # communicate() returns None -- not '' -- for a stream that was not separately
+            # piped.  With log_stderr=True stderr is redirected into stdout, so self.stderr
+            # becomes None; today that is reachable only from the pdb2pqr task, the one caller
+            # that passes it.  Every consumer below must be falsy-tested, never len()'d: they
+            # all run on the error path, so a TypeError here replaces the real failure message
+            # with a traceback from the code meant to report it.
             remaining_stdout, self.stderr = process.communicate()
             self.stdout += remaining_stdout
         finally:
@@ -236,18 +242,18 @@ class Command:
                 logparser.write_csv()
         if process.returncode != 0 and not process.returncode in ignore_codes:
             logger.error(f'Returncode: {process.returncode}')
-            if len(self.stdout) > 0:
+            if self.stdout:
                 logger.error('stdout buffer follows\n' + '*' * self.divider_line_length + '\n' + self.stdout + '\n' + '*' * self.divider_line_length)
-            if len(self.stderr) > 0:
+            if self.stderr:
                 logger.error('stderr buffer follows\n' + '*' * self.divider_line_length + '\n' + self.stderr + '\n' + '*' * self.divider_line_length)
             return process.returncode
         if len(override) == 2:
             needle, msg = override
-            if needle in self.stdout or needle in self.stderr:
+            if (self.stdout and needle in self.stdout) or (self.stderr and needle in self.stderr):
                 logger.info(f'Returncode: {process.returncode}, but another error was detected:')
                 logger.error(msg)
                 if len(self.stdout) > 0 and needle in self.stdout:
                     logger.error('stdout buffer follows\n' + '*' * self.divider_line_length + '\n' + self.stdout + '\n' + '*' * self.divider_line_length)
-                if len(self.stderr) > 0 and needle in self.stderr:
+                if self.stderr and needle in self.stderr:
                     logger.error('stderr buffer follows\n' + '*' * self.divider_line_length + '\n' + self.stderr + '\n' + '*' * self.divider_line_length)
         return 0

@@ -208,6 +208,49 @@ class Config(Yclept):
             vmd_startup_script = self.vmd_startup_script,
         )
 
+    def _usable_ncpus(self) -> int:
+        """
+        Cores this process may actually *use* on this node.
+
+        ``os.cpu_count()`` reports the machine's cores and is wrong under any cpu restriction
+        -- a SLURM cgroup, a container, a cpuset, ``taskset``.  Inside a 24-core allocation on
+        a 48-core node it says 48, and NAMD is then launched with more PEs than Charm++ is
+        allowed to bind, which it refuses.
+
+        Sources, most trustworthy first:
+
+        - ``SLURM_CPUS_PER_TASK`` / ``SLURM_CPUS_ON_NODE`` -- what the scheduler granted.  Some
+          sites do not enforce that with cgroup affinity, in which case affinity over-reports.
+        - ``os.sched_getaffinity(0)`` -- what the kernel will actually schedule us on.  Correct
+          under cgroups, containers and ``taskset`` alike, and needs no scheduler-specific
+          knowledge.  Absent on non-Linux.
+        - ``os.cpu_count()`` -- last resort.
+
+        Where two disagree the smaller is right: each is an upper bound on what we may use.
+
+        This is deliberately a *per-node* count.  It feeds NAMD's ``+p``, which for the
+        multicore build wants cores on this node; the multi-node launcher decision is made
+        separately from ``SLURM_NNODES`` in :mod:`pestifer.scripters.namd`.
+        """
+        candidates = []
+        for var in ('SLURM_CPUS_PER_TASK', 'SLURM_CPUS_ON_NODE'):
+            raw = self.slurmvars.get(var)
+            if raw:
+                try:
+                    n = int(raw)
+                except ValueError:
+                    logger.debug(f'{var}={raw!r} is not an integer; ignoring')
+                    continue
+                if n > 0:
+                    candidates.append(n)
+        try:
+            candidates.append(len(os.sched_getaffinity(0)))
+        except AttributeError:
+            pass  # not Linux
+        if not candidates:
+            candidates.append(os.cpu_count() or 1)
+        return min(candidates)
+
     def _set_processor_info(self):
         """ 
         Determine the number of CPUs and GPUs available for this process.
@@ -225,20 +268,18 @@ class Config(Yclept):
             A string summarizing the number of CPUs and GPUs available.
         """
         self.slurmvars = {k: os.environ[k] for k in os.environ if 'SLURM' in k}
-        self.local_ncpus = os.cpu_count()
-        self.gpus_allocated = ''
+        self.local_ncpus = self._usable_ncpus()
         self.ngpus = 0
         self.gpu_devices = ''
         retstr = ''
-        if self.slurmvars and 'SLURM_NNODES' in self.slurmvars and 'SLURM_NTASKS_PER_NODE' in self.slurmvars:
-            # we are in a batch execution managed by slurm
-            nnodes = int(self.slurmvars['SLURM_NNODES'])
-            ntaskspernode = int(self.slurmvars['SLURM_NTASKS_PER_NODE'])
-            ncpus = nnodes * ntaskspernode
-            retstr += f'SLURM: {nnodes} nodes; {ncpus} cpus'
+        in_slurm = bool(self.slurmvars) and 'SLURM_JOB_ID' in self.slurmvars
+        if in_slurm:
+            nnodes = int(self.slurmvars.get('SLURM_NNODES', 1))
+            ncpus = self.local_ncpus
+            retstr += f'SLURM: {nnodes} node{"s" if nnodes > 1 else ""}; {ncpus} cpus'
             if 'SLURM_JOB_GPUS' in self.slurmvars:
                 self.gpu_devices = self.slurmvars['SLURM_JOB_GPUS']
-                self.ngpus = len(self.gpus_allocated.split(','))
+                self.ngpus = len([g for g in self.gpu_devices.split(',') if g])
                 ess = 's' if self.ngpus > 1 else ''
                 retstr += f'; {self.ngpus} gpu{ess}'
         else:
@@ -309,8 +350,23 @@ class Config(Yclept):
                     _missing(f'Cannot find or execute required command {self.shell_commands[rq]!r}.')
             if rq_resolved is not None and verify_access:
                 assert os.access(rq_resolved, os.X_OK), f'You do not have permission to execute {rq_resolved}'
+        # Invoked by literal name rather than through `paths`, so there is no key to resolve --
+        # only something to probe.  Kept separate from optional_commands for exactly that reason.
+        probe_only_commands = ['pdb2pqr']
         for opt in optional_commands:
             self.shell_commands[opt] = self['user']['paths'][opt]
+        if verify_access:
+            # Probe, never fail: an optional command is used by a minority of builds and
+            # requiring it would break the majority who never touch it.  The *timing* is the
+            # point -- a sweep that dies fifteen builds in because example 6 wants `pdb2pqr`
+            # spent an hour to report something knowable at second one.  The task itself still
+            # raises by name when it is actually reached.
+            for opt in list(optional_commands) + probe_only_commands:
+                exe = self.shell_commands.get(opt, opt)
+                if not shutil.which(exe):
+                    logger.warning(f'Optional command {exe!r} was not found on PATH. Builds that '
+                                   f'do not use it are unaffected; one that does will fail by '
+                                   f'name when it reaches that task.')
 
         if verify_access:
             self._verify_catdcd_version()

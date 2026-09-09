@@ -4,6 +4,42 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **pestifer read the node's core count inside a SLURM allocation, not the allocation's.**
+  `os.cpu_count()` reports the machine and is blind to any cpu restriction -- a SLURM cgroup, a
+  container, a cpuset, `taskset` -- so a 24-core job on a 48-core node launched NAMD with 48 PEs
+  and Charm++ refused it. The SLURM branch that was meant to prevent this was gated on
+  `SLURM_NTASKS_PER_NODE`, which `sbatch` sets only for `--ntasks-per-node`; with `--ntasks`
+  plus `--cpus-per-task` it is unset and control fell through. When that branch *did* fire it
+  computed `nnodes * ntaskspernode` -- **tasks, not cpus** -- so `--ntasks=1 --cpus-per-task=24`
+  yielded a single PE: a job that finishes correctly and about 24x slow, with nothing in the log
+  to say so. `--cpus-per-task` was never read anywhere in the tree. Detection now takes the
+  smallest of `SLURM_CPUS_PER_TASK`, `SLURM_CPUS_ON_NODE` and `os.sched_getaffinity(0)` --
+  each an upper bound on what this process may use -- falling back to `os.cpu_count()` only
+  where affinity is unavailable. Reported by an 81-task Picotte sweep; `--ncpus N` remains a
+  valid override. Present since 1.6.0, not a 3.21.0 regression.
+
+- fix: **`ngpus` was 1 for every SLURM allocation, however many GPUs were granted.** The count
+  was taken from `gpus_allocated`, which is initialized to `''` and never assigned; the value
+  actually parsed from `SLURM_JOB_GPUS` went into `gpu_devices`. `''.split(',')` has length 1,
+  so a four-GPU job reported one. Same vintage as the above.
+
+- fix: **an external command that failed could raise a `TypeError` instead of reporting why.**
+  With `log_stderr=True` stderr is redirected into stdout, so `communicate()` returns `None` for
+  it rather than `''`, and three `len(self.stderr)`/`in self.stderr` sites on the *error* path
+  then replaced the real failure message with a traceback from the code meant to report it. The
+  `pdb2pqr` task is the only caller that passes `log_stderr=True`, which is where it was hit.
+
+- fix: **`pdb2pqr` is now probed at startup rather than fifteen builds into a sweep.** It is
+  optional -- only examples 6 and 20 use it -- so it is warned about, never required, reusing the
+  existing warn-vs-die split. The task still raises by name when actually reached; only the
+  timing of the news changes.
+
+- fix: **VMD is launched with `VMDNORLWRAP=1`.** The mitigation for rlwrap-wrapping VMD launchers
+  assumed such a launcher inspects stdin, and fed it `/dev/null` to steer it away. The stock
+  VMD 2.x launcher inspects nothing: it takes rlwrap whenever `hash rlwrap` succeeds. With a
+  controlling terminal that launcher exits 0 having run nothing; without one -- a detached sweep,
+  an sbatch job -- it errors. `VMDNORLWRAP` is the launcher's own opt-out and is deterministic.
+
 ## [3.21.0] - 2026-09-09
 
 - fix: **a `LINK` record that lists the anomeric carbon first silently lost the bond.** The PDB
