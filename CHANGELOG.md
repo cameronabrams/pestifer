@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.21.1] - 2026-09-09
+
 - fix: **pestifer read the node's core count inside a SLURM allocation, not the allocation's.**
   `os.cpu_count()` reports the machine and is blind to any cpu restriction -- a SLURM cgroup, a
   container, a cpuset, `taskset` -- so a 24-core job on a 48-core node launched NAMD with 48 PEs
