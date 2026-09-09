@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.21.0] - 2026-09-09
+
 - fix: **a `LINK` record that lists the anomeric carbon first silently lost the bond.** The PDB
   convention and the CHARMM `PRES` definitions both put the anomeric carbon second (`O4 -> C1`,
   `ND2 -> C1`); some producers -- Rosetta output is the reported case -- write the reverse. The
