@@ -4,6 +4,19 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **new example 28 -- installing a post-translational modification that is not in the
+  input.** Ordinary ubiquitin (1ubq) is phosphorylated at Ser65 -- the PINK1 site, whose
+  phosphorylation activates parkin -- by mutating the serine to `SEP`. It documents two things
+  that are easy to get wrong and that nothing else says: the topology defining the residue
+  (`toppar_all36_prot_na_combined.str`, shared by `TPO` and `PTR`) is **not** in the default set
+  and must be added, or psfgen stops with "unknown residue type SEP"; and the minimize is not
+  optional, because the phosphate has no input coordinates and `guesscoord` places its atoms at
+  placeholder 1.0 A bond lengths, which the minimize resolves to 1.46-1.59 A. The `validate` task
+  runs after the minimize and checks the phosphorus, rather than assuming the mutation implies it.
+  A modification already present in a deposit needs none of this: `SEP` is already classified as
+  a protein residue and nothing aliases it away, unlike `MSE`, which is deliberately aliased to
+  `MET` as a phasing substitution rather than chemistry to preserve.
+
 ## [3.21.2] - 2026-09-10
 
 - fix: **a mistyped `patches:` name was accepted and silently did nothing.** psfgen ignores a

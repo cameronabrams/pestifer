@@ -18,6 +18,7 @@ Examples
    examples/20/methylmalonyl-coa-mutase
    examples/21/groel-groes-adp
    examples/22/ferredoxin-fad
+   examples/28/phosphoubiquitin
    examples/07/hiv-sosip-env-ectodomain1
    examples/08/hiv-sosip-env-ectodomain2
    examples/09/hiv-ad8-env-ectodomain
@@ -51,8 +52,9 @@ Cofactors, metals and protonation
 ---------------------------------
 
 Systems whose chemistry lives outside the standard amino-acid topologies: bound ligands,
-heme and FAD cofactors, metal ions, oligomeric assemblies, and residue protonation states
-assigned from the structure rather than assumed.
+heme and FAD cofactors, metal ions, oligomeric assemblies, post-translational modifications
+carried through from the deposit, and residue protonation states assigned from the structure
+rather than assumed.
 
 - :doc:`Example 5 <examples/05/hiv-protease>` — HIV-1 protease dimer (1f7a); including small-molecule acetate ligands; reversing engineered mutations
 - :doc:`Example 6 <examples/06/green-mamba-toxin>` — fasciculin 1 from green mamba snake venom (1fas); automatic ionization state assignment via ``pdb2pqr``
@@ -61,6 +63,7 @@ assigned from the structure rather than assumed.
 - :doc:`Example 20 <examples/20/methylmalonyl-coa-mutase>` — mitochondrial methylmalonyl-CoA mutase; AlphaFold model (UniProt P22033) as the input source
 - :doc:`Example 21 <examples/21/groel-groes-adp>` — asymmetric GroEL/GroES chaperonin complex (1aon); 21-chain assembly with ADP ligands
 - :doc:`Example 22 <examples/22/ferredoxin-fad>` — ferredoxin-NADP(H) reductase (2bgj); FAD cofactor; chain exclusion
+- :doc:`Example 28 <examples/28/phosphoubiquitin>` — Ser65-phosphorylated ubiquitin (1ubq); installing a post-translational modification that is *not* in the input, by mutating the serine to ``SEP``
 
 Model building: loops, glycans and cleavage
 -------------------------------------------

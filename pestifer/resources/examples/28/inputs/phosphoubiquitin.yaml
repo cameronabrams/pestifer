@@ -1,0 +1,78 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+#
+# Ser65-phosphorylated ubiquitin, phosphorylated in silico
+#
+# Notes:
+#   - 1ubq is ORDINARY ubiquitin; nothing in it is phosphorylated.  Ser65 is converted to
+#     phosphoserine by a mutation to SEP, the CHARMM residue for phosphoserine.  Ser65 is the
+#     PINK1 site: its phosphorylation activates parkin and is the committing step of mitophagy.
+#   - SEP is defined in toppar_all36_prot_na_combined.str, which is NOT in the default topology
+#     set, so it is added under charmmff.standard.str below.  Without it psfgen stops with
+#     "unknown residue type SEP".
+#   - The phosphate has no coordinates in the input -- psfgen builds those atoms from topology
+#     and guesscoord places them, initially at placeholder bond lengths of 1.0 A.  The minimize
+#     that follows is therefore NOT optional; it is what turns the guessed phosphate into real
+#     geometry.  The validate task after it checks the P-O bond lengths, not just the atom count.
+#   - A self-terminating density_equilibrate task settles the box density
+#   - A production tarball is generated: my_1ubq_pS65.tgz
+
+title: Ser65-phosphorylated ubiquitin
+charmmff:
+  standard:
+    str:
+      - toppar_water_ions.str
+      - toppar_all36_carb_glycopeptide.str
+      - toppar_all36_carb_imlab.str
+      - toppar_all36_prot_modify_res.str
+      - toppar_all36_prot_na_combined.str
+tasks:
+  - fetch:
+      sourceID: 1ubq
+  - psfgen:
+      source:
+        exclude:
+          - resname == 'HOH'
+      mods:
+        mutations:
+          - A:SER,65,SEP
+  - md:
+      ensemble: minimize
+  - validate:
+      tests:
+        - residue_test:
+            name: Ser65 is now phosphoserine
+            selection: resname SEP
+            measure: residue_count
+            value: 1
+        - residue_test:
+            name: no unphosphorylated serine remains at 65
+            selection: resname SER and resid 65
+            measure: residue_count
+            value: 0
+        - residue_test:
+            name: the phosphate was built
+            selection: resname SEP and name P
+            measure: atom_count
+            value: 1
+  - solvate:
+      salt_con: 0.15
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - density_equilibrate:
+  - mdplot:
+      basename: solvated
+      grid: true
+      timeseries:
+        - - a_x
+          - b_y
+          - c_z
+  - terminate:
+      basename: my_1ubq_pS65
+      package:
+        basename: my_1ubq_pS65
+        namd:
+          ensemble: NPT
