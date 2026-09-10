@@ -48,10 +48,15 @@ class RunExampleSubcommand(RunSubcommand):
         example = em.examples.resolve(args.example_id)
         aux_dir = em.auxpath(example)
         aux_scripts = sorted(p.name for p in aux_dir.glob('*.yaml')) if aux_dir.is_dir() else []
-        for aux in aux_scripts:
+        for n, aux in enumerate(aux_scripts, start=1):
             logger.info(f'Example {example.example_id} ({example.shortname}): running auxiliary helper script {aux}')
             aux_args = copy.copy(args)
             aux_args.config = aux
+            # Each helper is a separate build in the SAME directory.  Without a distinct
+            # controller index every one of them names its artifacts `00-...`, and the last
+            # writer of `00-NN-000_<task>_minimal.prm` wins -- a system with more atom types
+            # then reads a narrower file and NAMD fails on a missing vdW parameter.
+            aux_args.controller_index = n
             aux_controller = RunSubcommand.func(aux_args, **kwargs)
             # A helper builds an input the main script consumes, so carrying on after one fails
             # only produces a second, more confusing failure -- or worse, a build resting on a

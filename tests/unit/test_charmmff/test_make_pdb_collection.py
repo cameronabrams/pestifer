@@ -388,8 +388,14 @@ class TestDoResi(_Sandbox):
         os.makedirs('data', exist_ok=True)
         os.makedirs('fails', exist_ok=True)
         if prebuilt:
+            # A committed entry is a conformer set, not just a manifest: all 58 real entries
+            # carry info.yaml AND a PSF AND conformer PDBs.  The cache-hit guard now requires
+            # substance, so that an interrupted cross-filesystem copy -- which can leave a
+            # directory holding only some of these -- is not mistaken for a complete set.
             os.makedirs(os.path.join('data', 'POPC'))
             open(os.path.join('data', 'POPC', 'info.yaml'), 'w').close()
+            open(os.path.join('data', 'POPC', 'POPC-00.pdb'), 'w').close()
+            open(os.path.join('data', 'POPC', 'POPC.psf'), 'w').close()
 
         def fake_psfgen(resi, DB, **kw):
             # do_psfgen runs inside the scratch dir do_resi created

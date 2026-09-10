@@ -656,6 +656,36 @@ def do_cleanup(resname, dirname):
         os.remove(f)
     os.chdir(cwd)
 
+COMPLETION_MARKER = '.pestifer-complete'
+"""Written last inside a committed cache entry.  Its presence is what makes the entry a hit;
+existence of the directory alone is not enough (see :func:`_cache_entry_is_complete`)."""
+
+
+def _cache_entry_is_complete(entry_dir: str) -> bool:
+    """True when *entry_dir* is a cache entry whose commit finished.
+
+    An entry without the marker is either partial (an interrupted cross-filesystem move) or was
+    written by a pestifer predating the marker.  In the second case the directory is intact, so
+    fall back to a substantive check -- a PSF and at least one conformer PDB -- rather than
+    forcing every existing cache to regenerate.
+    """
+    if not os.path.isdir(entry_dir):
+        return False
+    if os.path.exists(os.path.join(entry_dir, COMPLETION_MARKER)):
+        return True
+    names = os.listdir(entry_dir)
+    return any(n.endswith('.psf') for n in names) and any(n.endswith('.pdb') for n in names)
+
+
+def _mark_cache_entry_complete(entry_dir: str) -> None:
+    """Write the completion marker, last, into a committed cache entry."""
+    try:
+        with open(os.path.join(entry_dir, COMPLETION_MARKER), 'w') as fh:
+            fh.write('pestifer conformer cache entry committed\n')
+    except OSError as exc:
+        logger.warning(f'could not mark {entry_dir} complete: {exc}')
+
+
 def do_resi(resi: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             outdir: str = 'data', faildir: str = 'fails', force: bool = False,
             lenfac: float = 1.2, cleanup: bool = True, minimize_steps: int = 500,
@@ -696,7 +726,12 @@ def do_resi(resi: str, DB: CHARMMFFContent, RM: ResourceManager = None,
     cwd = os.getcwd()
     successdir = os.path.join(outdir, resi)
     failuredir = os.path.join(faildir, resi)
-    if (not os.path.exists(successdir)) or force:
+    # Existence alone is not completeness.  `shutil.move` below is atomic only when tmp/ and
+    # outdir are on ONE filesystem; across filesystems it degrades to copy-then-delete, and an
+    # interrupted copy (a killed sweep, a walltime kill) leaves a partial directory that this
+    # guard would read as a hit and silently supply as a conformer set.  The marker is written
+    # last, inside the committed directory, so its presence means the move finished.
+    if (not _cache_entry_is_complete(successdir)) or force:
         if os.path.exists(successdir):
             shutil.rmtree(successdir)
         if os.path.exists('tmp'): shutil.rmtree('tmp')
@@ -715,7 +750,9 @@ def do_resi(resi: str, DB: CHARMMFFContent, RM: ResourceManager = None,
         if result == 0:
             if cleanup: 
                 do_cleanup(resi, 'tmp')
-            shutil.move('tmp', os.path.join(outdir, resi))
+            dest = os.path.join(outdir, resi)
+            shutil.move('tmp', dest)
+            _mark_cache_entry_complete(dest)
         elif result == -2:
             my_logger(f'RESI {resi} is not found', logger.warning, just='^', frame='*', fill='*')
         else:

@@ -207,6 +207,23 @@ class NAMDScripter(TcLScripter):
 
         minimal = combined.extract_for_atomtypes(atomtypes)
         outname = f'{self.basename}_minimal.prm'
+        # Two sub-builds that restart task numbering both name this file the same, and the last
+        # writer wins.  A narrower file then feeds a wider system and NAMD dies far away on a
+        # missing vdW parameter -- or, where the surviving file is a superset drawn from a
+        # DIFFERENT merged source set, does not die at all and quietly uses other values
+        # (`merge` is last-wins, and the source list is per-task).  Warn at the moment of the
+        # overwrite, where both names are still in hand.
+        if os.path.exists(outname):
+            try:
+                previous = len(CharmmParamFile.from_file(outname).nonbonded)
+            except Exception:
+                previous = None
+            if previous is not None and previous != len(minimal.nonbonded):
+                logger.warning(
+                    f'consolidate_params: overwriting {outname}, which held {previous} nonbonded '
+                    f'entries, with {len(minimal.nonbonded)} for {psf_path}. Two sub-builds are '
+                    f'sharing one artifact name; whichever runs last wins. If a run then fails '
+                    f'with "DIDN\'T FIND vdW PARAMETER", this is why.')
         minimal.write(outname, title=f'Minimal CHARMM parameters for {self.basename}',
                       stamp=provenance_stamp(getattr(self, 'build_seed', None)))
         logger.debug(f'consolidate_params: wrote {outname} ({minimal.summary()})')

@@ -256,7 +256,11 @@ class RunSubcommand(Subcommand):
         # Record the whole toolchain before anything runs, so this build's log is self-describing
         # and its results never have to have their environment reconstructed after the fact.
         config.environment_report = log_environment(config)
-        C = Controller().configure(config)
+        # Sibling sub-builds run in one directory and every artifact name begins with the
+        # controller index, so they must not all be 0: `build-example` runs each auxiliary
+        # helper through here, and identical indices made them emit identically-named
+        # artifacts -- including `<basename>_minimal.prm`, which a later run then read.
+        C = Controller().configure(config, index=getattr(args, 'controller_index', 0))
         C.restart = getattr(args, 'restart', False)
         C.fresh = getattr(args, 'fresh', False)
         C.from_task = getattr(args, 'from_task', None)

@@ -4,6 +4,31 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **sibling sub-builds shared one set of artifact names, and the last writer won.** Every
+  artifact name begins with the controller index, and each sub-build started a fresh controller
+  at `00`, so several builds running in one directory all emitted `00-NN-000_<task>_*`. The
+  casualty was `<basename>_minimal.prm`: a system needing 54 atom types could read a 40-type file
+  written by a different sub-build, and NAMD died on a missing vdW parameter (`OT` in example 25,
+  `OSL` in the membrane examples). `build-example` now gives each auxiliary helper a distinct
+  controller index. Reported by pestifer-sweep from a Picotte sweep, where a site layer stages
+  parameter files into one flat per-job directory and so collapses names that are unique only by
+  path.
+
+- fix: **`consolidate_params` now says so when it overwrites a differing minimal .prm.** Where
+  the collision above cannot be prevented -- pestifer cannot see a staging layer that flattens
+  paths -- it is at least reported where both names are still in hand, instead of surfacing much
+  later as a NAMD parameter error. The silent case is real and worth naming: `merge` is last-wins
+  and the parameter source list is per-task, so a *superset* file drawn from a different source
+  set can supply standard values where the build intended a custom override, with no error at all.
+
+- fix: **a conformer cache entry is now a hit only when its commit finished.** The generator
+  builds in `tmp/` and commits with `shutil.move`, which is atomic only within one filesystem;
+  across filesystems it degrades to copy-then-delete, so an interrupted copy can leave a partial
+  directory. The guard tested existence alone, so such a directory would have been read as a
+  complete conformer set and used silently. A marker is now written last inside the committed
+  entry; entries predating it are still accepted on substance (a PSF and conformer PDBs), so no
+  existing cache regenerates.
+
 ## [3.21.1] - 2026-09-09
 
 - fix: **pestifer read the node's core count inside a SLURM allocation, not the allocation's.**

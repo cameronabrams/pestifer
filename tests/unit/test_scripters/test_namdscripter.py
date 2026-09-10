@@ -164,3 +164,37 @@ class TestConsolidateParams(unittest.TestCase):
             self.assertIsNone(p.consolidate_params(self.PSF))
             p = self._make_scripter(tmp, 'mysys', ['some.prm'])
             self.assertIsNone(p.consolidate_params(os.path.join(tmp, 'nope.psf')))
+
+
+class TestConsolidateParamsCollision(unittest.TestCase):
+    """Sibling sub-builds restart task numbering, so two of them name this file identically and
+    the last writer wins.  Downstream that is either a loud NAMD failure on a missing vdW
+    parameter, or -- where the surviving file is a superset drawn from a different merged source
+    set -- no failure at all and quietly different values.  Warn where both names are in hand."""
+
+    PSF = TestConsolidateParams.PSF
+
+    def _prm(self, path, types):
+        with open(path, 'w') as fh:
+            fh.write('* test\n*\n\nNONBONDED\n')
+            for t in types:
+                fh.write(f'{t}  0.0  -0.1  1.9\n')
+            fh.write('\nEND\n')
+        return path
+
+    def test_overwriting_a_differing_file_warns(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            src = self._prm(os.path.join(tmp, 'src.prm'),
+                            ['CT1', 'CT2', 'CT3', 'HA1', 'HA2', 'HA3', 'NH1', 'O', 'C', 'OT'])
+            p = TestConsolidateParams()._make_scripter(tmp, 'shared', [src])
+            cwd = os.getcwd()
+            try:
+                os.chdir(tmp)
+                # a previous sub-build already wrote this name, with a different content
+                self._prm('shared_minimal.prm', ['CT1'])
+                with self.assertLogs('pestifer.scripters.namd', level='WARNING') as cm:
+                    p.consolidate_params(self.PSF)
+                self.assertTrue(any('sharing one artifact name' in m for m in cm.output),
+                                cm.output)
+            finally:
+                os.chdir(cwd)
