@@ -12,7 +12,7 @@ from pidibble.pdbrecord import PDBRecordDict
 
 from pestifer.molecule.atom import AtomList
 from pestifer.molecule.residue import Residue, ResidueList
-from pestifer.objs.link import Link, LinkList
+from pestifer.objs.link import Link, LinkList, ic_reference_closest
 from pestifer.objs.resid import ResID
 from pestifer.psfutil.psfpatch import PSFLinkPatch
 
@@ -227,8 +227,14 @@ class TestLinkOrientationAgainstRealStructure(unittest.TestCase):
         # and the canonical run really did resolve patches, so the comparison is not
         # two piles of UNFOUND agreeing with each other
         self.assertNotIn('UNFOUND', {l.patchname for l in Lc})
+        # These are the patches 4zmj's geometry actually selects.  They changed when the
+        # periodicity bug in ic_reference_closest was fixed: the old code misclassified every
+        # reference point, so the set pinned here previously was the buggy classification.
+        # Within a family the patches are topologically identical -- same dele/ATOM/BOND, same
+        # types and charges, differing only in IC seed values -- so the correction changes the
+        # geometry unresolved atoms are built from, not the chemistry.
         self.assertEqual({l.patchname for l in Lc},
-                         {'NGLA', 'NGLB', '12ba', '13ba', '14ab', '14bb', '16AT'})
+                         {'NGLA', 'NGLB', '12ab', '13bb', '14aa', '16BT'})
 
 
 class TestOGlycanPatchSelection(unittest.TestCase):
@@ -273,3 +279,80 @@ class TestOGlycanPatchSelection(unittest.TestCase):
     def test_serine_and_threonine_use_different_hydroxyl_atoms(self):
         self.assertEqual(Link._patch_atomnames['SGPA'][0], 'OG')
         self.assertEqual(Link._patch_atomnames['TGPA'][0], 'OG1')
+
+
+class TestICReferenceClosest(unittest.TestCase):
+    """
+    ``ic_reference_closest`` picks the patch whose reference IC values are nearest the measured
+    ones, in periodic dihedral space.  The periodicity correction was two sequential ifs --
+    a 180-degree SHIFT, not a wrap -- which sent a perfect match to the maximum per-component
+    distance and a near-opposite to nearly zero.
+    """
+
+    # every mapping that appears in set_patchname, family by family
+    FAMILIES = {
+        'NGL': {'NGLA': [168.99], 'NGLB': [-70.91]},
+        'SGP': {'SGPA': [45.37], 'SGPB': [19.87]},
+        'TGP': {'TGPA': [69.9], 'TGPB': [33.16]},
+        '11': {'11aa': [103.46, 103.54], '11ab': [121.75, 51.80], '11bb': [-56.58, -79.64]},
+        '12': {'12aa': [-132.81, 47.16], '12ab': [115.32, 86.93],
+               '12ba': [-133.78, 168.07], '12bb': [117.14, -168.07]},
+        '13': {'13aa': [113.19, 65.46], '13ab': [-141.32, 65.46],
+               '13ba': [-131.68, -100.16], '13bb': [-141.32, -130.16]},
+        '14': {'14aa': [-86.29, 133.57], '14ab': [72.71, 48.64],
+               '14ba': [-86.3, -130.97], '14bb': [81.86, -130.97]},
+        '16': {'16AT': [71.24], '16BT': [-63.49]},
+    }
+
+    class _Res:
+        class _Atoms:
+            def get(self, f):
+                return type('A', (), {'name': 'x', 'resname': 'R', 'resseqnum': 1})()
+        atoms = _Atoms()
+
+    def _pick(self, mapping, measured_degrees):
+        import numpy as np
+        icmaps = [{'ICatomnames': ['1A', '2B', '2C', '2D'],
+                   'mapping': {k: v[i] for k, v in mapping.items()}}
+                  for i in range(len(next(iter(mapping.values()))))]
+        vals = iter([d * np.pi / 180.0 for d in measured_degrees])
+        with mock.patch('pestifer.objs.link.measure_dihedral', side_effect=lambda *a: next(vals)):
+            return ic_reference_closest([self._Res(), self._Res()], icmaps)
+
+    def test_every_reference_point_selects_its_own_patch(self):
+        """Fed a patch's own reference geometry, the lookup must return that patch.  Before the
+        fix this failed for all 23 reference points across all eight families."""
+        for family, mapping in self.FAMILIES.items():
+            for patch, refs in mapping.items():
+                with self.subTest(family=family, patch=patch):
+                    self.assertEqual(self._pick(mapping, refs), patch)
+
+    def test_wrap_treats_plus_and_minus_180_as_adjacent(self):
+        # 179 and -179 are 2 degrees apart, not 358
+        mapping = {'near': [179.0], 'far': [90.0]}
+        self.assertEqual(self._pick(mapping, [-179.0]), 'near')
+
+
+class TestOneToOneLinkICMap(unittest.TestCase):
+    """The 1->1 branch had one IC entry keyed ``atomnames`` where every other entry -- and the
+    loop that reads them -- uses ``ICatomnames``, so any 1->1 glycosidic link raised KeyError
+    before it could be classified."""
+
+    def test_no_ic_entry_uses_the_wrong_key(self):
+        import inspect
+        src = inspect.getsource(Link.set_patchname)
+        self.assertNotIn("{'atomnames'", src.replace(' ', ''))
+        self.assertNotIn("{'atomnames':", src)
+
+    def test_one_to_one_link_reaches_the_geometry_lookup(self):
+        L = Link(chainID1='A', resid1=ResID(1), name1='O1',
+                 chainID2='B', resid2=ResID(2), name2='C1')
+        L.resname1, L.resname2 = 'BGLC', 'BGLC'
+        L.segtype1, L.segtype2 = 'glycan', 'glycan'
+        L.residue1, L.residue2 = 'r1', 'r2'
+        with mock.patch('pestifer.objs.link.ic_reference_closest', return_value='11aa') as m:
+            L.set_patchname()
+        m.assert_called_once()
+        self.assertEqual(L.patchname, '11aa')
+        # all three IC entries must have been offered, not two
+        self.assertEqual(len(m.call_args[0][1]), 3)

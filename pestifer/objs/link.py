@@ -351,7 +351,7 @@ class Link(BaseObj):
                     {'ICatomnames':'1C1  1O1  2C1  2O5'.split(),
                      'mapping':{'11aa':103.54,'11ab':51.80,'11bb':-79.64}
                     },
-                    {'atomnames':'1O1  2C1  2O5  2C5'.split(),
+                    {'ICatomnames':'1O1  2C1  2O5  2C5'.split(),
                      'mapping':{'11aa':64.56,'11ab':167.51,'11bb':172.18}}
                 ]
                 self.patchname = ic_reference_closest(my_res12, ICmap)
@@ -820,13 +820,16 @@ def ic_reference_closest(res12: list["Residue"], ICmaps: list[dict]) -> str:
     # logger.debug(f'ic the point: {the_point}')
     # calculate Euclidean distance adhering to the periodicity
     # of dihedral-angle space
+    # Wrap each displacement into (-180, 180].  This was two SEQUENTIAL ifs -- `if d < 180:
+    # d += 180` then `if d > 180: d -= 180` -- which is a 180-degree shift, not a wrap: it sends
+    # a perfect match (d = 0) to 180, the largest per-component distance there is, and sends a
+    # 170-degree error to 10.  Fed each patch's own reference geometry, the old form picked a
+    # different patch for all 23 reference points across every family; this form picks the right
+    # one for all 23.
     displacements = {k: (the_point - v) for k, v in map_points.items()}
     for n, d in displacements.items():
         for i in range(len(d)):
-            if d[i] < 180.0:
-                d[i] += 180.0
-            if d[i] > 180.0:
-                d[i] -= 180.0
+            d[i] = (d[i] + 180.0) % 360.0 - 180.0
     norms = {k: np.linalg.norm(d) for k, d in displacements.items()}
     # logger.debug(f'norms {norms}')
     the_one = [k for (k, v) in sorted(norms.items(), key=lambda x: x[1])][0]

@@ -4,6 +4,24 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **glycan patch selection picked the wrong patch for every reference geometry.**
+  `ic_reference_closest` compares measured dihedrals against each patch's reference values, and
+  its periodicity correction was two *sequential* ifs -- `if d < 180: d += 180` then
+  `if d > 180: d -= 180`. That is a 180-degree shift, not a wrap: a perfect match (d = 0) scored
+  180, the largest per-component distance there is, while a 170-degree error scored 10. Fed each
+  patch's own reference geometry, the old form selected a different patch for **all 23 reference
+  points across all eight families** (NGL, SGP, TGP, 1->1, 1->2, 1->3, 1->4, 1->6); the wrap now
+  selects the right one for all 23. Consequences are bounded: within a family the patches are
+  topologically identical -- same `dele`/`ATOM`/`BOND` lines, same atom types and charges --
+  differing only in their IC tables, so this changes the seed geometry `guesscoord` builds
+  unresolved atoms from, not the chemistry, the topology or the force field. It matters where
+  sugars are *built* rather than read: grafts and missing-residue completion. Real output does
+  change: 4zmj's 25 glycan links now resolve to NGLA/NGLB/12ab/13bb/14aa/16BT.
+
+- fix: **any 1->1 glycosidic link raised `KeyError`.** One IC entry in that branch was keyed
+  `atomnames` where every other entry -- and the loop that reads them -- uses `ICatomnames`. It
+  was the only such key in the file. Both reported by build-psf-2-6f.
+
 - fix: **threonine O-glycosylation emitted the serine patch.** The `THR` branch of
   `Link.set_patchname` carried the correct atom (`1OG1`) and the correct reference dihedrals
   (69.9/33.16, distinct from serine's 45.37/19.87) but named the patches `SGPA`/`SGPB` --

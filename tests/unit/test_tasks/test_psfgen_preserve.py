@@ -116,8 +116,11 @@ class TestPsfgenPreserveMode(unittest.TestCase):
     def test_preserve_applies_link(self):
         # P2.4: a `links` mod's patch is resolved from the residues' geometry (assign_residues ->
         # set_patchname) using the lazily-built molecule, then emitted. On the committed glycoprotein
-        # fixture, the ASN A:61 -- glycan V:1304 attachment resolves to NGLA and is emitted as
-        # `patch NGLA A:61 V:1304`. (The fixture's glycan is already linked, so this verifies
+        # fixture, the ASN A:61 -- glycan V:1304 attachment resolves to NGLB and is emitted as
+        # `patch NGLB A:61 V:1304`.  (It read NGLA until the periodicity bug in
+        # ic_reference_closest was fixed; NGLA and NGLB are topologically identical -- same
+        # dele/ATOM lines, types and charges -- and differ only in IC seed geometry, so this
+        # changes which conformation guesscoord starts from, not the chemistry.) (The fixture's glycan is already linked, so this verifies
         # resolution + emission; the atom-changing mechanism is covered by the patches test.)
         gdir = Path('../fixtures/cleave_inputs')
         for ext in ('psf', 'pdb'):
@@ -134,7 +137,7 @@ class TestPsfgenPreserveMode(unittest.TestCase):
         import glob
         tcl = glob.glob('*psfgen-build.tcl')
         self.assertTrue(tcl, 'psfgen build script not found')
-        self.assertIn('patch NGLA A:61 V:1304', Path(tcl[0]).read_text())
+        self.assertIn('patch NGLB A:61 V:1304', Path(tcl[0]).read_text())
 
     def _setup_glycoprotein(self):
         gdir = Path('../fixtures/cleave_inputs')
