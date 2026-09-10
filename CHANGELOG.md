@@ -4,6 +4,17 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a mistyped `patches:` name was accepted and silently did nothing.** psfgen ignores a
+  patch it does not recognize, so a typo cost the modification without costing the build: it
+  succeeded, the log looked normal, and the system simply did not carry the change that was
+  asked for -- the same shape as the schema defect where a mistyped `measure:` emitted no check.
+  Patch names are now checked against the force field before the build starts. The index already
+  existed (`ResourceManager.lookup_resname` reports `kind`), covers `user_custom` streams on the
+  same terms, and a lookup that cannot answer is not treated as a typo. A name that *is* defined
+  but as a whole residue -- `SEP`, `TPO`, `PTR`, `TYS` and the several hundred other modified
+  amino acids CHARMM ships as `RESI` -- is reported as such and pointed at `mutations`, since
+  reaching for one of those here is a likelier mistake than a typo.
+
 - fix: **glycan patch selection picked the wrong patch for every reference geometry.**
   `ic_reference_closest` compares measured dihedrals against each patch's reference values, and
   its periodicity correction was two *sequential* ifs -- `if d < 180: d += 180` then

@@ -19,6 +19,8 @@ from typing import ClassVar
 from .basetask import VMDTask
 from ..molecule.chainidmanager import ChainIDManager
 from ..molecule.molecule import Molecule
+from difflib import get_close_matches
+
 from ..core.objmanager import ObjManager
 from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
@@ -87,6 +89,7 @@ class PsfgenTask(VMDTask):
         It also handles any necessary coormods and declashing of loops and glycans based on the task specifications.
         The results of the psfgen process are saved as a PSF/PDB fileset, and the state is updated accordingly.
         """
+        self._validate_patch_names()
         incoming = self._incoming_state_without_source()
         incoming_xsc = None
         if incoming:
@@ -125,6 +128,54 @@ class PsfgenTask(VMDTask):
     #: seq mods that require rebuilding a segment's topology (they cannot be layered onto a readpsf'd
     #: system); their presence on an incoming STATE routes psfgen to build-mode re-segmentation (P3).
     _RESEGMENTING_MODS: ClassVar[tuple] = ('mutations', 'deletions', 'insertions', 'substitutions')
+
+    def _validate_patch_names(self) -> None:
+        """Refuse a ``patches:`` entry whose name is not a CHARMM ``PRES``.
+
+        ``patches`` takes a raw patch name and hands it to psfgen, which ignores one it does not
+        recognize.  A typo therefore costs a modification silently: the build succeeds, the log
+        looks normal, and the system simply does not carry the change that was asked for -- the
+        same shape as the schema defect recorded in this repo's CLAUDE.md, where a mistyped
+        ``measure:`` emitted no check and a test that never ran looked exactly like one that
+        passed.
+
+        The force field is the authority and it is already indexed: ``lookup_resname`` reports
+        ``kind == 'patch (PRES)'`` and covers ``user_custom`` files as well as the standard set,
+        so a user's own stream is validated on the same terms.  Names are only rejected when the
+        index is actually available; a lookup that cannot answer is not evidence of a typo.
+        """
+        patches = (self.specs.get('mods', {}) or {}).get('patches', []) or []
+        if not patches:
+            return
+        # `resource_manager` is the canonical accessor, provisioned onto every task; a task
+        # constructed outside a pipeline has none, and that is not evidence of a typo.
+        RM = getattr(self, 'resource_manager', None)
+        if RM is None or not hasattr(RM, 'lookup_resname'):
+            return
+        bad = []
+        for p in patches:
+            name = (p.split(':')[0] if isinstance(p, str) else getattr(p, 'patchname', '')).strip()
+            if not name:
+                continue
+            try:
+                info = RM.lookup_resname(name)
+            except Exception as exc:                       # an index that cannot answer is not a typo
+                logger.debug(f'patch name check skipped for {name!r}: {exc}')
+                return
+            kind = info.get('kind')
+            if kind == 'patch (PRES)':
+                continue
+            if kind == 'residue (RESI)':
+                # the likeliest real mistake, not a typo: many modified amino acids ship as whole
+                # residues (SEP, TPO, PTR, TYS, MLZ ...), which are reached by `mutations`, not here
+                bad.append(f'{name!r} is a CHARMM residue (RESI), not a patch (PRES); '
+                           f'a whole modified residue is applied as a mutation, not a patch')
+            else:
+                near = get_close_matches(name.upper(), sorted(RM.all_resnames()), n=3, cutoff=0.6)
+                hint = f'; closest known names are {", ".join(near)}' if near else ''
+                bad.append(f'{name!r} is not defined in the force field{hint}')
+        if bad:
+            raise PestiferBuildError('unknown patch name(s) in this task\'s `patches`: ' + '; '.join(bad))
 
     def _has_resegmenting_mods(self) -> bool:
         mods = self.specs.get('mods', {}) or {}
