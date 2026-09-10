@@ -4,6 +4,18 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **threonine O-glycosylation emitted the serine patch.** The `THR` branch of
+  `Link.set_patchname` carried the correct atom (`1OG1`) and the correct reference dihedrals
+  (69.9/33.16, distinct from serine's 45.37/19.87) but named the patches `SGPA`/`SGPB` --
+  copy-paste from the serine branch above. The two are not interchangeable: `SGPA` retypes
+  `1CB` to `CT2` (serine's CH2) and bonds through `1OG`, while `TGPA` retypes it to `CT1`
+  (threonine's CH) and bonds through `1OG1`, so a threonine took a patch for an atom it does not
+  have and NAMD died on a missing `CT1 CT2 HA1` angle. `_patch_atomnames` gained `TGPA`/`TGPB`
+  as well -- it is read when links are reconstructed from a pre-built PSF's patch REMARKs, so
+  emitting `TGPA` without registering it would have turned the bug into a `KeyError` on re-read.
+  Latent rather than observed: no shipped example has a threonine O-glycan. Reported by
+  build-psf-2-6f.
+
 - fix: **sibling sub-builds shared one set of artifact names, and the last writer won.** Every
   artifact name begins with the controller index, and each sub-build started a fresh controller
   at `00`, so several builds running in one directory all emitted `00-NN-000_<task>_*`. The

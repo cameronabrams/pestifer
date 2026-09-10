@@ -2,6 +2,7 @@
 
 import logging
 import unittest
+from unittest import mock
 
 
 from pathlib import Path
@@ -228,3 +229,47 @@ class TestLinkOrientationAgainstRealStructure(unittest.TestCase):
         self.assertNotIn('UNFOUND', {l.patchname for l in Lc})
         self.assertEqual({l.patchname for l in Lc},
                          {'NGLA', 'NGLB', '12ba', '13ba', '14ab', '14bb', '16AT'})
+
+
+class TestOGlycanPatchSelection(unittest.TestCase):
+    """
+    Serine and threonine take DIFFERENT O-glycosylation patches.  SGPA/SGPB retype 1CB to CT2 (a
+    CH2) and bond through 1OG; TGPA/TGPB retype it to CT1 (a CH) and bond through 1OG1.  Emitting
+    the serine patch for a threonine asks NAMD for a CT1 CT2 HA1 angle that does not exist.
+    """
+
+    def _patches_offered_for(self, resname1, name1):
+        """The patch names set_patchname actually offers the geometry lookup for this link."""
+        L = Link(chainID1='A', resid1=ResID(1), name1=name1,
+                 chainID2='B', resid2=ResID(2), name2='C1')
+        L.resname1, L.resname2 = resname1, 'BGLC'
+        L.segtype1, L.segtype2 = 'protein', 'glycan'
+        L.residue1, L.residue2 = 'r1', 'r2'
+        seen = set()
+
+        def capture(res12, ICmap):
+            for entry in ICmap:
+                seen.update(entry['mapping'])
+            return next(iter(seen))
+
+        with mock.patch('pestifer.objs.link.ic_reference_closest', side_effect=capture):
+            L.set_patchname()
+        return seen
+
+    def test_threonine_offers_the_threonine_patches(self):
+        self.assertEqual(self._patches_offered_for('THR', 'OG1'), {'TGPA', 'TGPB'})
+
+    def test_serine_still_offers_the_serine_patches(self):
+        self.assertEqual(self._patches_offered_for('SER', 'OG'), {'SGPA', 'SGPB'})
+
+    def test_threonine_patches_are_addressable_when_read_back_from_a_psf(self):
+        # _from_psflinkpatch looks the patch up here; without these entries a PSF carrying a
+        # TGPA patch raises KeyError on re-read, so emitting TGPA without adding them would be
+        # worse than the bug it fixes
+        for p in ('TGPA', 'TGPB'):
+            self.assertIn(p, Link._patch_atomnames, f'{p} missing from _patch_atomnames')
+            self.assertEqual(Link._patch_atomnames[p], ['OG1', 'C1'])
+
+    def test_serine_and_threonine_use_different_hydroxyl_atoms(self):
+        self.assertEqual(Link._patch_atomnames['SGPA'][0], 'OG')
+        self.assertEqual(Link._patch_atomnames['TGPA'][0], 'OG1')

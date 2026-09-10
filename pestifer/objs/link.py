@@ -145,6 +145,8 @@ class Link(BaseObj):
         'NGLB':['ND2','C1'],
         'SGPA':['OG','C1'],
         'SGPB':['OG','C1'],
+        'TGPA':['OG1','C1'],   # threonine's hydroxyl is OG1, not serine's OG
+        'TGPB':['OG1','C1'],
         '11aa':['O1','C1'],
         '11ab':['O1','C1'],
         '11bb':['O1','C1'],
@@ -328,10 +330,14 @@ class Link(BaseObj):
             ]
             self.patchname = ic_reference_closest(my_res12, ICmap)
         elif self.resname1 == 'THR' and self.segtype2 == 'glycan':
-            # O-linked to threonine (toppar_all36_carb_glycopeptide)
+            # O-linked to threonine (toppar_all36_carb_glycopeptide).  TGPA/TGPB, not SGPA/SGPB:
+            # the serine patches retype 1CB to CT2 (a CH2) and bond 1OG, while threonine's CB is
+            # a CH (CT1) bonded through OG1.  Applying the serine patch to a threonine therefore
+            # asks NAMD for a CT1 CT2 HA1 angle that does not exist.  The reference dihedrals
+            # below are already the TGPA/TGPB values; only the keys were wrong.
             ICmap=[
                 {'ICatomnames':['1CB','1OG1','2C1','2O5'],
-                 'mapping':{'SGPA':69.9,'SGPB':33.16}}
+                 'mapping':{'TGPA':69.9,'TGPB':33.16}}
             ]
             self.patchname = ic_reference_closest(my_res12, ICmap)
         elif self.name2 == 'C1' and self.segtype2 == 'glycan' and self.segtype1 == 'glycan':
