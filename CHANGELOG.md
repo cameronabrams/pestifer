@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.21.2] - 2026-09-10
+
 - fix: **a mistyped `patches:` name was accepted and silently did nothing.** psfgen ignores a
   patch it does not recognize, so a typo cost the modification without costing the build: it
   succeeded, the log looked normal, and the system simply did not carry the change that was
