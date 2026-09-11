@@ -421,17 +421,17 @@ class CharmmParamFile:
     def _dihedral_key(d: 'CharmmDihedralParam') -> tuple:
         # Different n values are distinct terms (they are summed), so n is
         # part of the key.  The quartet is canonicalised by reversibility.
-        fwd = (d.type1, d.type2, d.type3, d.type4)
-        rev = (d.type4, d.type3, d.type2, d.type1)
+        fwd = (d.type1.upper(), d.type2.upper(), d.type3.upper(), d.type4.upper())
+        rev = fwd[::-1]
         return (min(fwd, rev), d.n)
 
     @staticmethod
     def _improper_key(i: 'CharmmImproperParam') -> tuple:
-        return (i.type1, i.type2, i.type3, i.type4)
+        return (i.type1.upper(), i.type2.upper(), i.type3.upper(), i.type4.upper())
 
     @staticmethod
     def _nbfix_key(n: 'CharmmNBFixParam') -> tuple:
-        return tuple(sorted([n.type1, n.type2]))
+        return tuple(sorted([n.type1.upper(), n.type2.upper()]))
 
     # ------------------------------------------------------------------
     # Merging
@@ -487,10 +487,13 @@ class CharmmParamFile:
         # the PSF psfgen writes -- says `ON2B`.  Matching case-sensitively silently DROPS such
         # records from the minimal file: the result looks complete (its counts are
         # self-consistent) and NAMD then dies far away on a missing parameter.  Phosphotyrosine
-        # was unusable for exactly this reason.  The wildcard is affected too -- it appears as
-        # lowercase `x` in places, which a `t == 'X'` test reads as a real atom type nothing can
-        # match.  13 atom types across the shipped release are written with lowercase letters,
-        # including Br, Cl and Ni1p, so this is not one residue's problem.
+        # was unusable for exactly this reason.  Upper-casing the `X` test below is defensive
+        # only: no lowercase wildcard occurs in the shipped release -- every standalone
+        # lowercase `x` in it sits after a `!`, inside a comment.  56 MASS-declared types do
+        # carry lowercase letters, but every one is a metal ion (Ag1p, Fe2p, Ni1p, ...), so
+        # ON2b's three-way split is the case that actually bites protein builds.  (An earlier
+        # version of this comment cited "13 types including Br and Cl"; those Br/Cl are the
+        # element-symbol column of a MASS line, not atom types.  Corrected 2026-09-11.)
         wanted = {t.upper() for t in atomtypes}
 
         def match(types: list[str]) -> bool:

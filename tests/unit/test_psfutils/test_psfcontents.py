@@ -181,6 +181,37 @@ class TestPSFContents(unittest.TestCase):
         self.assertEqual(psf.dihedrals[1].serial3,firstdihedralline[6])
         self.assertEqual(psf.dihedrals[1].serial4,firstdihedralline[7])
 
+    def test_psf_impropercount(self):
+        """``'impropers'`` parsed the IMPHI section into ``self.dihedrals``, so asking for both
+        silently replaced the dihedrals with the impropers.  Nothing caught it: no call site
+        requested ``'impropers'``, which made the attribute write-only."""
+        source='test.psf'
+        def header(token):
+            for line in open(source):
+                if token in line:
+                    return int(line.split()[0])
+            self.fail(f'{token} not found in {source}')
+        n_phi=header('!NPHI')
+        n_imphi=header('!NIMPHI')
+        # the fixture must distinguish the two, or agreement proves nothing
+        self.assertNotEqual(n_phi,n_imphi)
+        self.assertTrue(n_imphi>0)
+
+        psf=PSFContents(source,parse_topology=['dihedrals','impropers'])
+        self.assertEqual(len(psf.dihedrals),n_phi)
+        self.assertEqual(len(psf.impropers),n_imphi)
+
+        firstimproper=None
+        with open(source) as f:
+            for line in f:
+                if '!NIMPHI' in line:
+                    firstimproper=[int(_) for _ in next(f).strip().split()]
+                    break
+        self.assertEqual(psf.impropers[0].serial1,firstimproper[0])
+        self.assertEqual(psf.impropers[0].serial2,firstimproper[1])
+        self.assertEqual(psf.impropers[0].serial3,firstimproper[2])
+        self.assertEqual(psf.impropers[0].serial4,firstimproper[3])
+
     def test_psf_get_toppar_from_psf(self):
         source='test.psf'
         toppars=get_toppar_from_psf(source)

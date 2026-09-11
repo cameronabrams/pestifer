@@ -5,7 +5,8 @@ from pathlib import Path
 import tempfile
 
 from pestifer.charmmff.charmmffprm import CharmmParamFile
-from pestifer.charmmff.psf_param_check import check_psf_parameters, format_missing
+from pestifer.charmmff.psf_param_check import (check_psf_parameters, format_missing,
+                                               MissingParameters)
 from pestifer.psfutil.psfcontents import PSFContents
 
 
@@ -74,6 +75,45 @@ PSF EXT
 """
 
 
+# The real force field spells one atom type several ways in a single file:
+# toppar_all36_prot_na_combined.str declares `MASS -1 ON2B`, writes `ATOM OH ON2b` in the TP1
+# patch that uses it, gives every bonded parameter as `ON2b`, and gives the vdW record as
+# `ON2B`.  psfgen writes the MASS spelling, so a real phosphotyrosine PSF carries `ON2B`
+# (verified against a built PTR system): its vdW lookup succeeds and every bonded term fails a
+# case-sensitive match.  Both directions are exercised below, since the release contains both.
+_PRM_MIXED_CASE = """\
+* synthetic parameters in the shipped release's own mixed case
+*
+
+BONDS
+NH1  CT1   300.0   1.45
+CT1  C     250.0   1.49
+C    ON2b  620.0   1.23
+
+ANGLES
+NH1  CT1  C     50.0   110.0
+CT1  C    ON2b  80.0   121.0
+
+DIHEDRALS
+X    CT1  C    X      0.2000  1   0.00
+
+IMPROPER
+C    X    X    ON2b   120.0   0   0.00
+
+NONBONDED nbxmod 5 atom cdiel fshift vatom vdistance vfswitch -
+cutnb 16.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
+NH1   0.0  -0.20   1.85
+CT1   0.0  -0.032  2.00
+C     0.0  -0.11   2.00
+ON2B  0.0  -0.12   1.70
+"""
+
+# what psfgen really writes: the MASS spelling, upper-case
+_PSF_UPPER = _PSF_TEMPLATE.replace('O        O     -0.510000', 'O        ON2B  -0.510000')
+# the opposite direction, for the vdW/atom-type half of the comparison
+_PSF_LOWER = _PSF_TEMPLATE.replace('O        O     -0.510000', 'O        ON2b  -0.510000')
+
+
 def _write_psf(dirpath, resname='ALA'):
     p = Path(dirpath) / f'{resname}_test.psf'
     p.write_text(_PSF_TEMPLATE.replace('RESNM', resname))
@@ -124,6 +164,57 @@ class TestPsfParamCheck(unittest.TestCase):
         self.param.dihedrals = []   # remove the only (wildcard) dihedral
         missing = check_psf_parameters(psf, self.param)
         self.assertEqual(len(missing.dihedrals), 1)
+
+    def _write(self, template, name):
+        p = Path(self.dir) / name
+        p.write_text(template.replace('RESNM', 'PTR'))
+        return PSFContents(str(p))
+
+    def test_real_phosphotyrosine_shape_resolves(self):
+        """The shape that actually reaches this code: PSF upper-case (psfgen writes the MASS
+        spelling), bonded parameters lower-case.  Case-sensitively, every bonded term fails."""
+        param = CharmmParamFile.from_text(_PRM_MIXED_CASE)
+        # guard the fixture: the two sides must really differ, or agreement proves nothing
+        self.assertIn('ON2B', param.nonbonded)
+        self.assertTrue(any('ON2b' in (b.type1, b.type2) for b in param.bonds))
+
+        psf = self._write(_PSF_UPPER, 'upper.psf')
+        self.assertEqual(psf.atoms.data[3].atomtype, 'ON2B')
+
+        missing = check_psf_parameters(psf, param)
+        self.assertEqual(missing.bonds, [])
+        self.assertEqual(missing.angles, [])
+        self.assertFalse(missing.any(), f'false positives: {missing}')
+
+    def test_the_opposite_casing_also_resolves(self):
+        """A PSF carrying the lower-case spelling must resolve against the upper-case vdW
+        record, so the atom-type half of the comparison is covered too."""
+        param = CharmmParamFile.from_text(_PRM_MIXED_CASE)
+        self.assertNotIn('ON2b', param.nonbonded)          # vdW record is upper-case only
+        psf = self._write(_PSF_LOWER, 'lower.psf')
+        self.assertEqual(psf.atoms.data[3].atomtype, 'ON2b')
+        missing = check_psf_parameters(psf, param)
+        self.assertEqual(missing.atomtypes, [])
+        self.assertFalse(missing.any(), f'false positives: {missing}')
+
+    def test_a_genuinely_absent_term_is_still_caught_in_a_mixed_case_set(self):
+        """Case-insensitivity must not become 'matches everything'."""
+        param = CharmmParamFile.from_text(_PRM_MIXED_CASE)
+        param.bonds = [b for b in param.bonds
+                       if tuple(sorted((b.type1.upper(), b.type2.upper()))) != ('C', 'ON2B')]
+        psf = self._write(_PSF_UPPER, 'absent.psf')
+        missing = check_psf_parameters(psf, param)
+        self.assertEqual(len(missing.bonds), 1)
+        term, where = missing.bonds[0]
+        self.assertIn('ON2B', term)          # reported in the PSF's own spelling
+        self.assertEqual(where, 'PTR PROA1')
+
+    def test_subtract_splits_absent_from_dropped(self):
+        from pestifer.charmmff.psf_param_check import subtract
+        a, b = MissingParameters(), MissingParameters()
+        a.bonds = [('X-Y', 'r1'), ('P-Q', 'r2')]
+        b.bonds = [('X-Y', 'r1')]
+        self.assertEqual(subtract(a, b).bonds, [('P-Q', 'r2')])
 
     def test_unknown_resname_parses_without_crashing(self):
         # A resname unknown to pestifer's segtype table must not crash PSF parsing;

@@ -7,7 +7,9 @@ import tempfile
 
 from .tcl import TcLScripter
 from ..charmmff.charmmffprm import CharmmParamFile
+from ..charmmff.psf_param_check import check_psf_parameters, format_missing, subtract
 from ..core.command import Command
+from ..core.errors import PestiferBuildError
 from ..util.provenance import stamp as provenance_stamp
 from ..logparsers import NAMDLogParser, NAMDxstParser
 from ..psfutil.psfcontents import PSFContents
@@ -191,7 +193,8 @@ class NAMDScripter(TcLScripter):
             self._point_script_at(outname)
             return outname
 
-        atomtypes = set(a.atomtype for a in PSFContents(psf_path).atoms)
+        psf = PSFContents(psf_path)
+        atomtypes = set(a.atomtype for a in psf.atoms)
         logger.debug(f'consolidate_params: {len(atomtypes)} unique atom types in {psf_path}')
 
         combined = CharmmParamFile()
@@ -228,11 +231,66 @@ class NAMDScripter(TcLScripter):
                       stamp=provenance_stamp(getattr(self, 'build_seed', None)))
         logger.debug(f'consolidate_params: wrote {outname} ({minimal.summary()})')
 
+        self._verify_params_cover_psf(psf, psf_path, minimal, combined, outname)
+
         # Rewrite script: replace all 'parameters X' lines with the single minimal file
         self._point_script_at(outname)
 
         self.parameters = [outname]
         return outname
+
+    def _verify_params_cover_psf(self, psf, psf_path, minimal, combined, outname):
+        """Raise unless *minimal* resolves every bonded term and atom type in *psf*.
+
+        A parameter that the PSF needs and the run does not have is fatal to NAMD either way.
+        Checking here makes it fatal at the moment the parameter file is written, where the
+        offending residue and term can still be named, instead of hundreds of lines into a NAMD
+        log as ``DIDN'T FIND vdW PARAMETER FOR ATOM TYPE`` or a bonded-parameter abort that
+        names only atom indices.
+
+        The two causes are separated because their remedies are opposite:
+
+        - missing from the **merged** set too -- none of the files in ``self.parameters`` define
+          it, so the build needs another stream listed under ``charmmff.standard.str``.  The
+          motivating case is ``GLYM`` (myristoylated glycine), whose ``C CTL2 CTL2`` angle lives
+          in ``toppar_all36_lipid_sphingo.str``, a file unrelated to the one that defines the
+          residue.
+        - present in the merged set but **not** in the consolidated file -- ``extract_for_atomtypes``
+          dropped a record it should have kept.  That is a pestifer bug, and saying so here is
+          what keeps it from being debugged as a user configuration problem.
+
+        The PSF is the one already parsed for its atom types, so this costs no extra I/O: about
+        a second of scanning on a half-million-atom system.
+        """
+        missing = check_psf_parameters(psf, minimal)
+        if not missing.any():
+            logger.debug(f'consolidate_params: {outname} resolves every atom type and bonded '
+                         f'term in {psf_path}')
+            return
+
+        absent = check_psf_parameters(psf, combined)     # in none of the source files
+        dropped = subtract(missing, absent)              # loaded, but lost in consolidation
+
+        parts = []
+        if absent.any():
+            parts.append(format_missing(
+                absent, '',
+                header=f'{psf_path} needs force-field terms that none of this run\'s '
+                       f'{len(self.parameters)} parameter file(s) define:',
+                advice='Add the stream file that carries them to charmmff.standard.str (or '
+                       'charmmff.custom.str) in your config. A residue\'s parameters are not '
+                       'always in the file that defines the residue: GLYM is defined in the '
+                       'protein modification stream but takes an angle from '
+                       'toppar_all36_lipid_sphingo.str.'))
+        if dropped.any():
+            parts.append(format_missing(
+                dropped, '',
+                header=f'THIS IS A PESTIFER BUG. The following terms were present in the merged '
+                       f'parameter set but are absent from the consolidated {outname}, so '
+                       f'extract_for_atomtypes dropped records it should have kept:',
+                advice='Please report this, with the .psf and the config, at '
+                       'https://github.com/cameronabrams/pestifer/issues.'))
+        raise PestiferBuildError('\n'.join(parts))
 
     def _stage_params_to_local_scratch(self):
         """Copy parameter files to node-local scratch and rewrite the script to use absolute local paths.

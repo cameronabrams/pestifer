@@ -24,6 +24,20 @@ Matching mirrors CHARMM's own parameter lookup:
 - **impropers**: matched against each parameter's quartet with ``X`` wildcards in
   any position, in either direction (CHARMM improper matching is permissive).
 
+**Atom types are compared case-insensitively**, because CHARMM's are.  A single force-field
+file routinely spells one type three ways -- ``toppar_all36_prot_na_combined.str`` declares
+``MASS -1 ON2B``, writes ``ATOM OH ON2b`` in the ``TP1`` patch that uses it, gives every bonded
+parameter as ``ON2b``, and gives the vdW record as ``ON2B``.  psfgen writes the **MASS**
+spelling, so a real phosphotyrosine PSF carries ``ON2B`` (verified against a built PTR system);
+its vdW lookup then succeeds while every one of its bonded terms fails a case-sensitive match.
+Every comparison here therefore runs over upper-cased tuples, while the PSF's own spelling is
+what gets reported.
+
+CMAP cross-terms are **not** checked.  They are filtered into the minimal parameter set by
+the same case-insensitive matcher as every other record, and the protein backbone types they
+key on are present in any PSF that has cross-terms at all, so a CMAP gap has not been observed;
+the omission is recorded here so it is not mistaken for coverage.
+
 Terms are deduplicated by their atom-type tuple, so the scan is cheap even on a
 multi-million-atom system: each distinct type-tuple is looked up once.
 """
@@ -61,6 +75,11 @@ def _serial_chunks(lines, n):
             yield tuple(vals[i:i + n])
 
 
+def _u(types) -> tuple:
+    """Upper-case a tuple of atom types, for case-insensitive comparison."""
+    return tuple(t.upper() for t in types)
+
+
 def _quartet_match(pattern, quartet) -> bool:
     """True if a parameter ``pattern`` (may contain ``'X'``) matches ``quartet`` in either direction."""
     def m(p, q):
@@ -70,21 +89,23 @@ def _quartet_match(pattern, quartet) -> bool:
 
 def _index_params(param):
     """Build fast lookup structures from a merged :class:`CharmmParamFile`."""
-    bondset = {tuple(sorted((b.type1, b.type2))) for b in param.bonds}
-    angleset = {min((a.type1, a.type2, a.type3), (a.type3, a.type2, a.type1))
-                for a in param.angles}
+    bondset = {tuple(sorted(_u((b.type1, b.type2)))) for b in param.bonds}
+    angleset = set()
+    for a in param.angles:
+        t = _u((a.type1, a.type2, a.type3))
+        angleset.add(min(t, t[::-1]))
     dih_exact = set()
     dih_wild_mid = set()   # central pair (b,c) for the common 'X b c X' form
     dih_wild_other = []    # rarer partial-wildcard quartets, matched directly
     for d in param.dihedrals:
-        q = (d.type1, d.type2, d.type3, d.type4)
+        q = _u((d.type1, d.type2, d.type3, d.type4))
         if 'X' not in q:
             dih_exact.add(min(q, q[::-1]))
         elif q[0] == 'X' and q[3] == 'X' and q[1] != 'X' and q[2] != 'X':
             dih_wild_mid.add(min((q[1], q[2]), (q[2], q[1])))
         else:
             dih_wild_other.append(q)
-    improper_quartets = [(i.type1, i.type2, i.type3, i.type4) for i in param.impropers]
+    improper_quartets = [_u((i.type1, i.type2, i.type3, i.type4)) for i in param.impropers]
     return bondset, angleset, dih_exact, dih_wild_mid, dih_wild_other, improper_quartets
 
 
@@ -114,13 +135,13 @@ def check_psf_parameters(psf, param) -> MissingParameters:
 
     # --- atom types (vdW / nonbonded): exact membership, no wildcards ---
     seen_at = set()
-    nonbonded = param.nonbonded
+    nonbonded = {k.upper() for k in param.nonbonded}
     for a in psf.atoms:
         at = a.atomtype
-        if at in seen_at:
+        if at.upper() in seen_at:
             continue
-        seen_at.add(at)
-        if at not in nonbonded:
+        seen_at.add(at.upper())
+        if at.upper() not in nonbonded:
             missing.atomtypes.append((at, f'{a.resname} {a.segname}{a.resid.resid}'))
 
     # --- bonded terms: dedupe by type-tuple so each distinct term is checked once ---
@@ -131,11 +152,12 @@ def check_psf_parameters(psf, param) -> MissingParameters:
                 types = tuple(typ(s) for s in serials)
             except KeyError:
                 continue  # a term referencing an atom serial not in ATOM (malformed PSF) -- skip
-            k = key_fn(types)
+            utypes = _u(types)
+            k = key_fn(utypes)
             if k in seen:
                 continue
             seen.add(k)
-            if not ok_fn(types):
+            if not ok_fn(utypes):
                 out.append(('-'.join(types), label(serials[0])))
 
     scan('BOND', 2, lambda t: tuple(sorted(t)),
@@ -161,9 +183,29 @@ def check_psf_parameters(psf, param) -> MissingParameters:
     return missing
 
 
-def format_missing(missing: MissingParameters, release: str) -> str:
-    """Render a :class:`MissingParameters` into an actionable multi-line error message."""
-    lines = [f'The incoming PSF references force-field terms that charmmff {release} does not '
+def subtract(a: MissingParameters, b: MissingParameters) -> MissingParameters:
+    """Return the entries of *a* whose term does not also appear in *b*.
+
+    Used to split "this term is in none of the loaded parameter files" from "this term was
+    loaded but the consolidated file does not carry it" -- two failures that look identical
+    from NAMD but have opposite remedies.
+    """
+    out = MissingParameters()
+    for kind in ('atomtypes', 'bonds', 'angles', 'dihedrals', 'impropers'):
+        seen = {term for term, _ in getattr(b, kind)}
+        setattr(out, kind, [(t, w) for t, w in getattr(a, kind) if t not in seen])
+    return out
+
+
+def format_missing(missing: MissingParameters, release: str,
+                   header: str = '', advice: str = '') -> str:
+    """Render a :class:`MissingParameters` into an actionable multi-line error message.
+
+    *header* and *advice* replace the first and last lines, for callers other than the
+    incoming-PSF preflight (the build path has a different cause and a different remedy).
+    """
+    lines = [header or
+             f'The incoming PSF references force-field terms that charmmff {release} does not '
              f'resolve. This usually means the PSF was built against a different CHARMM version.']
     if missing.atomtypes:
         lines.append(f'  Unresolved atom type(s) [{len(missing.atomtypes)}] (no vdW parameter):')
@@ -175,6 +217,7 @@ def format_missing(missing: MissingParameters, release: str) -> str:
             lines.append(f'  Unresolved {kind} term(s) [{len(items)}]:')
             for term, where in items:
                 lines.append(f"    '{term}'  (e.g. residue {where})")
-    lines.append('Rebuild the topology against this release, add the missing parameters to your '
+    lines.append(advice or
+                 'Rebuild the topology against this release, add the missing parameters to your '
                  'build, or bring the correct parameter/stream files into the run directory.')
     return '\n'.join(lines)

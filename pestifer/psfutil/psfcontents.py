@@ -234,6 +234,9 @@ class PSFContents:
     dihedrals : PSFDihedralList, optional
         A list of dihedrals parsed from the PSF file, represented as instances of the :class:`PSFDihedral <.psfdihedral.PSFDihedral>` class.
         This attribute is only set if the ``parse_topology`` parameter includes ``dihedrals``.
+    impropers : PSFDihedralList, optional
+        A list of improper dihedrals parsed from the PSF file, represented as instances of the :class:`PSFDihedral <.psfdihedral.PSFDihedral>` class.
+        This attribute is only set if the ``parse_topology`` parameter includes ``impropers``.
     pairex : PSFPairExList, optional
         A list of cross-topology non-bonded pair exclusions parsed from the PSF file, represented as instances of the :class:`PSFPairEx <.psfpairex.PSFPairEx>` class.
         Used in the dual-topology alchemical free energy paradigm to suppress interactions between atoms belonging to opposite end-states.
@@ -353,7 +356,7 @@ class PSFContents:
             if 'dihedrals' in parse_topology:
                 self.dihedrals = PSFDihedralList(LineList(self.token_lines['PHI']),include_serials=include_serials)
             if 'impropers' in parse_topology:
-                self.dihedrals = PSFDihedralList(LineList(self.token_lines['IMPHI']),include_serials=include_serials)
+                self.impropers = PSFDihedralList(LineList(self.token_lines['IMPHI']),include_serials=include_serials)
             if 'pairex' in parse_topology:
                 if self.token_count.get('NB', 0) > 0:
                     self.pairex = PSFPairExList(LineList(self.token_lines['NB']), include_serials=include_serials)

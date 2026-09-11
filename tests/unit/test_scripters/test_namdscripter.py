@@ -1,7 +1,11 @@
 import os
 import tempfile
 import unittest
+from unittest.mock import patch
+
+from pestifer.charmmff.charmmffprm import CharmmParamFile
 from pestifer.core.config import Config
+from pestifer.core.errors import PestiferBuildError
 from pestifer.scripters import NAMDScripter
 
 class TestNAMDScripter(unittest.TestCase):
@@ -193,8 +197,154 @@ class TestConsolidateParamsCollision(unittest.TestCase):
                 # a previous sub-build already wrote this name, with a different content
                 self._prm('shared_minimal.prm', ['CT1'])
                 with self.assertLogs('pestifer.scripters.namd', level='WARNING') as cm:
-                    p.consolidate_params(self.PSF)
+                    # this .prm carries vdW records only, so it genuinely cannot cover the PSF's
+                    # bonded terms; the overwrite warning is emitted before that check fires
+                    with self.assertRaises(PestiferBuildError):
+                        p.consolidate_params(self.PSF)
                 self.assertTrue(any('sharing one artifact name' in m for m in cm.output),
                                 cm.output)
             finally:
                 os.chdir(cwd)
+
+
+# A complete parameter set for the 4-atom PSF below: every bond, angle, dihedral, improper
+# and vdW record its topology needs, and nothing else.
+_COMPLETE_PRM = """\
+* complete synthetic parameters
+*
+
+BONDS
+NH1  CT1   300.0   1.45
+CT1  C     250.0   1.49
+C    O     620.0   1.23
+
+ANGLES
+NH1  CT1  C    50.0   110.0
+CT1  C    O    80.0   121.0
+
+DIHEDRALS
+X    CT1  C    X     0.2000  1   0.00
+
+IMPROPER
+C    X    X    O    120.0   0   0.00
+
+NONBONDED nbxmod 5 atom cdiel fshift vatom vdistance vfswitch -
+cutnb 16.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
+NH1   0.0  -0.20   1.85
+CT1   0.0  -0.032  2.00
+C     0.0  -0.11   2.00
+O     0.0  -0.12   1.70
+"""
+
+_TINY_PSF = """\
+PSF EXT
+
+       3 !NTITLE
+ REMARKS tiny test system
+ REMARKS topology top_all36_prot.rtf
+ REMARKS segment PROA { first NTER; last CTER; auto angles dihedrals }
+
+       4 !NATOM
+       1 PROA     7        THR       N        NH1   -0.470000       14.0070           0
+       2 PROA     7        THR       CA       CT1    0.070000       12.0110           0
+       3 PROA     7        THR       C        C      0.510000       12.0110           0
+       4 PROA     7        THR       O        O     -0.510000       15.9990           0
+
+       3 !NBOND: bonds
+       1       2       2       3       3       4
+
+       2 !NTHETA: angles
+       1       2       3       2       3       4
+
+       1 !NPHI: dihedrals
+       1       2       3       4
+
+       1 !NIMPHI: impropers
+       3       1       2       4
+
+       0 !NDON: donors
+
+       0 !NACC: acceptors
+
+       0 !NNB
+"""
+
+
+class TestConsolidateParamsVerifiesCoverage(unittest.TestCase):
+    """A parameter the PSF needs and the run does not have is fatal to NAMD either way.
+
+    Checking it where the minimal .prm is written turns it into an error that names the residue
+    and the term, instead of a NAMD abort that names only atom serials.  Validated against 63
+    real builds: 62 clean, and the one flagged (a THR whose CB was retyped CT2 by a patch that
+    left HB as HA1) is a build NAMD really did kill with
+    ``UNABLE TO FIND ANGLE PARAMETERS FOR CT1 CT2 HA1 (ATOMS 3790 3792 3794)``.
+    """
+
+    def _setup(self, tmp, prm_text):
+        psf = os.path.join(tmp, 'tiny.psf')
+        open(psf, 'w').write(_TINY_PSF)
+        prm = os.path.join(tmp, 'src.prm')
+        open(prm, 'w').write(prm_text)
+        p = NAMDScripter.__new__(NAMDScripter)
+        p.basename = 'tiny'
+        p.scriptname = os.path.join(tmp, 'tiny.namd')
+        p.parameters = [prm]
+        with open(p.scriptname, 'w') as fh:
+            fh.write(f'structure tiny.psf\nparameters {prm}\nminimize 100\n')
+        return p, psf
+
+    def test_complete_set_consolidates_without_complaint(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            p, psf = self._setup(tmp, _COMPLETE_PRM)
+            cwd = os.getcwd()
+            try:
+                os.chdir(tmp)
+                out = p.consolidate_params(psf)
+                self.assertEqual(out, 'tiny_minimal.prm')
+                self.assertTrue(os.path.exists(out))
+            finally:
+                os.chdir(cwd)
+
+    def test_a_term_absent_from_every_source_file_raises_naming_the_residue(self):
+        """The failure the check exists for, exercised through consolidate_params itself --
+        not through the helper -- so removing the call makes this test go red."""
+        with tempfile.TemporaryDirectory() as tmp:
+            p, psf = self._setup(tmp, _COMPLETE_PRM.replace('CT1  C    O    80.0   121.0', ''))
+            cwd = os.getcwd()
+            try:
+                os.chdir(tmp)
+                with self.assertRaises(PestiferBuildError) as cm:
+                    p.consolidate_params(psf)
+            finally:
+                os.chdir(cwd)
+            msg = str(cm.exception)
+            self.assertIn('CT1-C-O', msg)
+            self.assertIn('THR PROA7', msg)      # names the residue NAMD would not
+            self.assertIn('charmmff.standard.str', msg)
+            self.assertNotIn('PESTIFER BUG', msg)
+
+    def test_a_term_lost_in_consolidation_is_reported_as_a_pestifer_bug(self):
+        """Present in the merged set but absent from the consolidated file is the opposite
+        failure -- an extraction bug -- and must not be reported as a user misconfiguration."""
+        real = CharmmParamFile.extract_for_atomtypes
+
+        def lossy(self, atomtypes):
+            out = real(self, atomtypes)
+            out.angles = [a for a in out.angles
+                          if (a.type1, a.type2, a.type3) != ('CT1', 'C', 'O')]
+            return out
+
+        with tempfile.TemporaryDirectory() as tmp:
+            p, psf = self._setup(tmp, _COMPLETE_PRM)
+            cwd = os.getcwd()
+            try:
+                os.chdir(tmp)
+                with patch.object(CharmmParamFile, 'extract_for_atomtypes', lossy):
+                    with self.assertRaises(PestiferBuildError) as cm:
+                        p.consolidate_params(psf)
+            finally:
+                os.chdir(cwd)
+            msg = str(cm.exception)
+            self.assertIn('PESTIFER BUG', msg)
+            self.assertIn('CT1-C-O', msg)
+            self.assertNotIn('charmmff.standard.str', msg)

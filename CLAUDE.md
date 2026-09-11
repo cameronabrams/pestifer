@@ -328,3 +328,79 @@ One unguarded deref remains, deliberately: `make_solvent_box.py:432` indexes `fi
 straight from `cell_from_xsc`. It reads the last xsc of a solvent-box NPT equilibration that
 pestifer itself just ran, so a missing cell there means the pipeline is already broken and there is
 no user input that reaches it. Left alone rather than papered over.
+
+## CHARMM atom types are case-insensitive, and the shipped release relies on it
+
+Found 2026-09-10 chasing "phosphotyrosine has no CHARMM parameters", which was wrong. A single
+shipped file, `toppar_all36_prot_na_combined.str`, spells one type three ways:
+
+```
+MASS  -1  ON2B     15.99940 O ! ...        <- the type declaration; psfgen writes THIS spelling
+ATOM  OH  ON2b     -0.36                   <- the TP1 patch that uses it
+CA    ON2b  340.0   1.38                   <- every bonded parameter
+ON2B  0.0  -0.1521  1.77                   <- the vdW record
+```
+
+CHARMM does not care. Anything in pestifer that compares an atom type as a Python string does,
+and gets it **half** right, which is worse than getting it wrong. A real built phosphotyrosine
+PSF carries `ON2B` (checked against one, rather than reasoned about -- the first version of this
+note had the direction backwards). So its *vdW* lookup succeeds and every one of its *bonded*
+terms fails: `('CA','ON2B')` is not `('CA','ON2b')`. That is precisely why
+`extract_for_atomtypes` used to drop phosphotyrosine's parameters from the minimal file while
+leaving a result whose own counts looked self-consistent.
+
+What is actually in the shipped release, measured rather than assumed: **56** `MASS`-declared
+types contain a lowercase letter, and every one is a metal ion (`Ag1p`, `Fe2p`, `Ni1p`, ...
+all ending in `p`); `ON2B`/`ON2b` above is the case *split*, where one type is declared, used
+and parameterised in three different spellings. An earlier version of this note, and the code
+comment in `extract_for_atomtypes`, claimed "13 types ... including `Br` and `Cl`" and a
+lowercase `x` wildcard. Both are wrong and were corrected 2026-09-11: `Br`/`Cl` on those `MASS`
+lines are the *element-symbol* column, not the atom type (the types are `BRGA1`, `CL`, both
+upper-case), and every lowercase standalone `x` in the release sits after a `!`, inside a
+comment. Check the column before counting a token as a type.
+
+**Upper-case both sides of every atom-type comparison.** The fixes so far:
+`CharmmParamFile.extract_for_atomtypes` and its five `_*_key` dedup functions
+(`charmmff/charmmffprm.py`), and every comparison in `charmmff/psf_param_check.py`.
+
+The instructive part is the second one. `extract_for_atomtypes` was fixed in `5b2b6fd8`; the
+`_key` functions were fixed in the *same file* at the same time -- but only `_bond_key` and
+`_angle_key`, leaving `_dihedral_key`, `_improper_key` and `_nbfix_key` case-sensitive. And
+`psf_param_check.py` builds its own lookup structures from the same `CharmmParamFile` and was
+not touched at all, so it shipped the identical false positive to `ContinuationTask` for a
+month. This is the `cell_from_xsc` lesson again in a different costume: a module is not a unit
+of correctness, and neither is a commit. Sweep with
+`grep -rn 'type1\|atomtype' pestifer/charmmff/` and check every *comparison*, not every file.
+
+## The consolidated .prm is verified against the PSF before NAMD sees either
+
+`NAMDScripter.consolidate_params` writes `{basename}_minimal.prm` and then calls
+`_verify_params_cover_psf`, which raises `PestiferBuildError` if the file does not resolve every
+atom type and every bond/angle/dihedral/improper type-tuple in the PSF. The engine is
+`charmmff/psf_param_check.py`, already written for incoming foreign PSFs and now used on the
+normal build path too.
+
+Why raise rather than warn: a missing parameter is fatal to NAMD regardless, so the only
+question is whether it fails somewhere it can be diagnosed. NAMD reports one term, by atom
+serial, after minimization setup:
+
+```
+FATAL ERROR: UNABLE TO FIND ANGLE PARAMETERS FOR C CTL2 CTL2 (ATOMS 8 10 13)
+```
+
+The check reports all of them, by residue, before NAMD launches -- six terms for that same
+1UPH build, because NAMD dies on the first one it meets and hides the rest.
+
+The two causes are separated because the remedies are opposite. Missing from the *merged* set
+means no file in `self.parameters` defines it, and the build needs another stream: the case
+that motivated this is `GLYM`, defined in the protein modification stream but taking
+`C CTL2 CTL2` from `toppar_all36_lipid_sphingo.str`, a file with no other reason to be loaded.
+Missing from the consolidated file *only* means `extract_for_atomtypes` dropped a record it
+should have kept -- a pestifer bug, and the message says so, because otherwise it gets debugged
+as a user configuration problem.
+
+Validated before shipping the raise, since a false positive here stops every build: 63 real
+builds under `~/devtests`, 62 clean, and the one flagged was a build NAMD had already killed on
+the same term -- a THR whose CB a patch retyped `CT2` while leaving HB as `HA1`, and `CT2 HA1`
+exists nowhere in the release. CMAP cross-terms are deliberately not checked; the omission is
+recorded in the module docstring so it is not mistaken for coverage.
