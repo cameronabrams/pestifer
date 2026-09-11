@@ -33,6 +33,43 @@ failure the export is meant to catch. uv ignores the active venv (it says so: `V
 be ignored`) and resolves the export's `pyproject.toml` into a fresh one. The cost is that this
 check now needs the network, and a resolution failure is a different red than a test failure.
 
+## A check that passes is not evidence the check ran
+
+The section above is one instance of a wider failure, and the wider one cost more time here in a
+week than any bug did. **A command can complete successfully without checking the thing you
+meant**, and the result then looks exactly like a pass. Seven of these in early September 2026,
+most of them self-inflicted:
+
+| the check | what it actually verified |
+| :--- | :--- |
+| `uv run --with /path/to/ycleptic` + a green suite | PyPI's ycleptic. The `>=2.3.0` floor was already satisfied so uv never used the path, and the branch reported the same version number. |
+| a docs build reporting `0 warnings` | nothing. sphinx exited 127 -- its venv had been cleaned out of `/tmp` -- and zero warnings meant zero of anything. |
+| a CI waiter reporting "finished" | a failed `gh` query. The loop treated an empty result as "nothing incomplete". |
+| conformer-cache tests passing | the helper function, not that the cache guard *calls* it. Reverting the call site left every test green. |
+| the SLURM cpu-detection test passing | nothing: this box has 24 cores, the expected value, so `os.cpu_count()` returned the right answer and the test passed against the bug it existed to catch. |
+| `git push`, exit 0, "Everything up-to-date" | that a detached HEAD had nothing to push. The commit was not on `main`. |
+| a peer's `grep -E` positive control | the pattern's *syntax*. The alternation was written BRE-style with an escaped pipe, which in ERE matches a literal pipe character, so every search could only return zero -- and the control still passed. |
+
+Two habits catch all of them.
+
+**Gate on positive evidence of the specific claim, never on the absence of a contrary one.** "No
+failures appeared" is not "it ran". Before trusting a dependency test, diff the installed file
+against the source you meant to test -- a version string cannot tell you (ycleptic's branch and
+its release both said 2.3.0). Before trusting a wait, require the thing you are waiting for to
+say it is done. Before trusting a push, read its output, not its exit code.
+
+**Prove the check can fail, at the level the fix actually lives.** Revert the fix and confirm the
+test goes red. Rows 4 and 5 are the sharp ones: in both, a negative control existed and was
+aimed one level off -- at the helper rather than its call site, and at affinity rather than
+`cpu_count` as well. A negative control that cannot fail is the same bug as the one it is
+guarding against.
+
+This is why the clean-export gate above is written as it is, and why
+`tests/unit/test_core/test_processor_info.py` is deliberately **not** marked `needs_tools`: it
+is pure logic over environment variables, and it is exactly the code that misbehaves on a
+cluster CI cannot reach, so it has to run everywhere. Marking a test `needs_tools` that does not
+need them is how a guard against silent failure becomes silent itself.
+
 ## The test suite dirties the working tree
 
 Several tracked files under `tests/unit/test_tasks/` are generated test output, rewritten on every
