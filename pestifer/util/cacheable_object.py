@@ -155,7 +155,18 @@ class CacheableObject:
         if isinstance(resource_root, str):
             resource_root = Path(resource_root)
         self.resource_root = resource_root
-        label = resource_label if resource_label else _hash_resource(resource_root)
+        # The label alone is not a key.  A caller-supplied label names the force-field RELEASE
+        # ("feb26"), which two pestifer installations share while their files do not: the cached
+        # object stores ABSOLUTE paths, including to the package's own charmmff/custom/ files,
+        # which sit beside resource_root inside whichever install built the cache.  Keyed on the
+        # release alone, a run from a throwaway tree -- a clean-export CI check, a tox env, a pip
+        # install in a container -- overwrites the shared entry with paths into itself, and every
+        # later run from the real install fails on a FileNotFoundError naming a directory the
+        # user never typed and which no longer exists.  Observed 2026-09-11 after a clean-export
+        # gate poisoned six custom-file entries.  Fold the resolved root into the key so each
+        # install gets its own entry; the readable release name is kept for the filename.
+        label = (f"{resource_label}-{_hash_resource(resource_root)}"
+                 if resource_label else _hash_resource(resource_root))
         base_key = f"{self.__class__.__name__.lower()}-{label}"
         vtag = self._version_tag()
         key = f"{base_key}-{vtag}" if vtag else base_key

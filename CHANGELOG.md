@@ -4,6 +4,18 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **running pestifer from a throwaway directory poisoned the user's persistent cache.** The
+  CHARMM force-field cache was keyed on the force-field RELEASE (`feb26`) and not on where those
+  files live, so two pestifer installations sharing a release shared one cache entry -- while the
+  object cached inside it stores ABSOLUTE paths, including to the package's own
+  `charmmff/custom/` files beside the resource root. A run from a temporary tree (a clean-export
+  CI check, a tox environment, a pip install in a container) therefore overwrote the shared entry
+  with paths into itself, and every later run from the real installation died with a
+  `FileNotFoundError` naming a directory the user never typed and which no longer existed. The
+  resolved resource root is now folded into the cache key, so each installation gets its own
+  entry; the readable release name is kept in the filename. Found when the repo's own mandated
+  clean-export gate poisoned six custom-file entries and broke ordinary builds afterwards.
+
 - feat: **new example 28 -- installing a post-translational modification that is not in the
   input.** Ordinary ubiquitin (1ubq) is phosphorylated at Ser65 -- the PINK1 site, whose
   phosphorylation activates parkin -- by mutating the serine to `SEP`. It documents two things
