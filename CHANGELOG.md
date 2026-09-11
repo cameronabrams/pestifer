@@ -4,6 +4,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **every build opened a VMD window and could hang for two minutes doing it.** The
+  build-provenance record probes `vmd` for its version by running `vmd --version` -- but VMD has
+  no `--version` flag, so it started normally, initialised its **graphical display** (measured:
+  three X11 connection attempts, i.e. a window on any machine with a `DISPLAY`), and then sat at
+  its interactive prompt reading whatever stdin it had inherited. On a live terminal that meant
+  waiting out the 120-second probe timeout and then recording the version as `unknown`, which is
+  indistinguishable in the record from VMD being absent. The probe now asks for `-dispdev text`,
+  and **all** version probes get `/dev/null` on stdin so none can ever sit at a prompt. Same
+  version string, no display touched, 0.48 s instead of 120.
+
 - fix: **running pestifer from a throwaway directory poisoned the user's persistent cache.** The
   CHARMM force-field cache was keyed on the force-field RELEASE (`feb26`) and not on where those
   files live, so two pestifer installations sharing a release shared one cache entry -- while the

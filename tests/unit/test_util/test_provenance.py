@@ -167,3 +167,42 @@ class TestProbeFailureIsVisible(unittest.TestCase):
     def test_timeout_is_generous_enough_for_a_vmd_startup(self):
         # vmd --version performs a full startup; a tight bound silently degrades the record
         self.assertGreaterEqual(provenance._PROBE_TIMEOUT, 60)
+
+
+class TestProbesNeverOpenADisplayOrWaitOnStdin(unittest.TestCase):
+    """
+    VMD has no ``--version`` flag, so a probe that omits ``-dispdev text`` starts VMD normally:
+    it initialises the graphical display -- three X11 connections, i.e. a window on any machine
+    with a DISPLAY -- and then sits at its interactive prompt reading the caller's stdin until
+    the probe timeout.  Every pestifer build runs this probe.
+    """
+
+    def _capture(self, fn, *args):
+        seen = {}
+
+        def fake_run(cmd, **kw):
+            seen['cmd'] = list(cmd)
+            seen['kw'] = kw
+            return SimpleNamespace(stdout='Info) VMD for LINUXAMD64, version 2.0.0 (March 25, 2026)\n')
+
+        with mock.patch.object(provenance.subprocess, 'run', side_effect=fake_run):
+            fn(*args)
+        return seen
+
+    def test_the_vmd_probe_requests_the_text_display(self):
+        seen = self._capture(provenance.vmd_version, 'vmd')
+        self.assertIn('-dispdev', seen['cmd'])
+        self.assertEqual(seen['cmd'][seen['cmd'].index('-dispdev') + 1], 'text')
+        # and the flag must precede the one VMD does not understand, or VMD never reads it
+        self.assertLess(seen['cmd'].index('-dispdev'), seen['cmd'].index('--version'))
+
+    def test_every_probe_gets_devnull_on_stdin(self):
+        import subprocess as sp
+        seen = self._capture(provenance.vmd_version, 'vmd')
+        self.assertEqual(seen['kw'].get('stdin'), sp.DEVNULL,
+                         'a probe that inherits a terminal can sit at a prompt until the timeout')
+
+    def test_the_version_is_still_parsed(self):
+        with mock.patch.object(provenance, '_run',
+                               return_value='Info) VMD for LINUXAMD64, version 2.0.0 (March 25, 2026)\n'):
+            self.assertEqual(provenance.vmd_version('vmd'), '2.0.0 (March 25, 2026)')

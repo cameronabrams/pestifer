@@ -45,7 +45,11 @@ def _run(cmd, cwd=None):
     banner and *then* complains about the deliberately empty config it was handed.
     """
     try:
+        # /dev/null on stdin, always.  A probe inherits the caller's terminal otherwise, and a
+        # program that does not recognise the flag it was handed can sit at an interactive prompt
+        # until the timeout -- which is what made `vmd --version` take 120s instead of 0.4s.
         p = subprocess.run(cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                           stdin=subprocess.DEVNULL,
                            timeout=_PROBE_TIMEOUT, text=True, errors='replace')
         return p.stdout or ''
     except subprocess.TimeoutExpired:
@@ -141,7 +145,11 @@ def package_versions():
 
 def vmd_version(cmd):
     """Version string reported by the ``vmd`` at ``cmd``, e.g. ``2.0.0 (March 25, 2026)``."""
-    m = re.search(r'VMD for \S+, version (.+?)\s*$', _run([cmd, '--version']), re.M)
+    # `-dispdev text` FIRST, and not optional: VMD has no --version flag, so it starts normally
+    # and initialises its graphical display -- measured here as three X11 connections, i.e. a
+    # window opening on any machine with a DISPLAY, for every build pestifer runs.  With the flag
+    # the same probe takes 0.4s, touches no display, and prints the same banner.
+    m = re.search(r'VMD for \S+, version (.+?)\s*$', _run([cmd, '-dispdev', 'text', '--version']), re.M)
     return m.group(1).strip() if m else _UNKNOWN
 
 
