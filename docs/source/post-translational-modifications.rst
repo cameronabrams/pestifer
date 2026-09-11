@@ -107,32 +107,37 @@ Put an ``md`` minimize immediately after the ``psfgen`` task, and put any ``vali
 **Check the charge state.**  A residue name carries one protonation state, and it may not be the
 one you want.  ``RESI SEP`` is the **monoanionic** phosphoserine, while the dianion dominates at
 pH 7.  Where the charge state matters, use the patch route instead: build the ordinary residue
-and apply ``SP1`` (mono) or ``SP2`` (di) for phosphoserine, ``THP1``/``THPB`` for
-phosphothreonine, ``TP1``/``TP2`` for phosphotyrosine.
+and apply ``SP1`` (mono) or ``SP2`` (di) for phosphoserine, and ``THP1``/``THPB`` for
+phosphothreonine.  (The phosphotyrosine patches are unusable for the reason below.)
 
-Ser, Thr and Tyr phosphorylation: one extra line
-------------------------------------------------
+Phosphorylation
+---------------
 
-``SEP``, ``TPO`` and ``PTR`` are shipped residues like the rest, but they live in
-``toppar_all36_prot_na_combined.str``, which is **not** in pestifer's default topology set.
-Without it psfgen stops with ``unknown residue type SEP``.  Add the stream:
+``SEP`` (phosphoserine) and ``TPO`` (phosphothreonine) are mutation targets like any other:
 
 .. code-block:: yaml
 
-    charmmff:
-      standard:
-        str:
-          - toppar_water_ions.str
-          - toppar_all36_carb_glycopeptide.str
-          - toppar_all36_carb_imlab.str
-          - toppar_all36_prot_modify_res.str
-          - toppar_all36_prot_na_combined.str    # SEP, TPO, PTR
+    mutations:
+      - A:SER,65,SEP      # the PINK1 site of ubiquitin
 
-:ref:`Example 28 <example phosphoubiquitin>` does exactly this, phosphorylating Ser65 of
-ubiquitin -- the PINK1 site -- and is the worked version of everything on this page.
+They live in ``toppar_all36_prot_na_combined.str``, which is not among the topology files
+pestifer loads by default -- but it does not have to be listed.  The topology that defines a
+mutation target is pulled in automatically, so nothing beyond the line above is required.
+:ref:`Example 28 <example phosphoubiquitin>` is the worked case.
 
-Note the asymmetry: a deposit that *already contains* ``SEP`` builds without this, because the
-residue arrives with the structure rather than being introduced by a mutation.
+Phosphohistidine (``NEP``, ``HIP``) and aspartyl phosphate (``PHD``) are ordinary mutation
+targets too; they are defined in a stream that is loaded anyway.
+
+.. warning::
+
+   **Phosphotyrosine does not work in this CHARMM release, by either route.**  ``RESI PTR``
+   types the phenol oxygen as ``ON2B``, a nucleic-acid ester oxygen, and the angles it then
+   needs -- ``CA ON2B P`` for the residue, ``ON2B P ON3`` for the ``TP1``/``TP2`` patches -- are
+   **absent from the entire shipped force field**.  Checked against the whole toppar tree with a
+   positive control; the standard nucleic-acid ``ON2 P ON3`` is present, the ``ON2B`` forms are
+   not.  A build fails at the first dynamics step with ``UNABLE TO FIND ANGLE PARAMETERS``.
+   This is upstream of pestifer: it needs parameters CHARMM has not published for this typing,
+   or a retyped residue.
 
 Not yet supported
 -----------------

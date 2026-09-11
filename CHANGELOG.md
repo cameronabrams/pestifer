@@ -4,6 +4,23 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a mutation to a modified residue could not load the topology that defines it.** A
+  mutation is emitted as a psfgen `mutate` command and never changes the molecule's own residue
+  list, so the topology collection that walks that list saw the residue being mutated *away* and
+  never the one being mutated *to*. Any target whose defining stream was not loaded for some
+  other reason therefore failed with `unknown residue type`. That is why a deposited `SEP` built
+  while an introduced one did not: the deposited residue is in the list and pulls its own
+  topology in. `SEP` and `TPO` now need no configuration at all -- example 28 lists no
+  force-field files whatever -- and the fix is general, covering any modified residue CHARMM
+  defines in a non-default stream.
+
+- docs: **phosphotyrosine does not work in this CHARMM release, by either route**, and the guide
+  now says so. `RESI PTR` types the phenol oxygen as `ON2B`, a nucleic-acid ester oxygen, and
+  the angles it then needs -- `CA ON2B P` for the residue, `ON2B P ON3` for the `TP1`/`TP2`
+  patches -- are absent from the entire shipped force field. Verified against the whole toppar
+  tree with a positive control: the standard `ON2 P ON3` is present, the `ON2B` forms are not.
+  This is upstream of pestifer.
+
 - docs: **new guide, "Post-translational modifications"**, documenting a capability pestifer
   already had and nothing told anyone about. CHARMM ships several hundred modified amino acids as
   whole `RESI` residues, pestifer already classifies them as protein, and a `mutations` line

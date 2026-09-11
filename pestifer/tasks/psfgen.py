@@ -743,6 +743,38 @@ class PsfgenTask(VMDTask):
                 raise PestiferBuildError(f'No topology file found for residue name {resname}')
         return list(new_topfiles)
 
+    def mutation_topologies(self):
+        """
+        Collect the topology files needed for the residues a ``mutations`` mod introduces.
+
+        A mutation is emitted as a psfgen ``mutate`` command inside the segment stanza; it never
+        changes the molecule's own residue list.  So :meth:`resi_topologies`, which walks that
+        list, sees the residue that is being mutated AWAY and never the one being mutated TO --
+        and psfgen stops with ``unknown residue type`` for any target whose defining topology is
+        not loaded for some other reason.
+
+        That is how the modified amino acids CHARMM defines in non-default streams became
+        unreachable by mutation while being perfectly reachable when they arrived in the input:
+        a deposited ``SEP`` is in the residue list and pulls its own topology in, an introduced
+        one is not.  ``SEP``, ``TPO`` and ``PTR`` all live in
+        ``toppar_all36_prot_na_combined.str``, so all three phosphorylations were affected.
+
+        A target the force field does not define at all is left alone here, not raised on:
+        psfgen reports it by name, and mutating to a nonexistent residue is the user's error to
+        see rather than a topology-resolution failure to guess at.
+        """
+        objmanager = self.base_molecule.objmanager
+        seqmods = objmanager.get('seq', {})
+        CC = self.resource_manager.charmmff_content
+        new_topfiles = set()
+        for mutation in seqmods.get('mutations', []):
+            topfile = CC.get_topfile_of_resname(mutation.newresname)
+            if topfile:
+                new_topfiles.add(topfile)
+            else:
+                logger.debug(f'no topology file defines {mutation.newresname!r}; leaving it to psfgen')
+        return list(new_topfiles)
+
     def patch_topologies(self):
         """
         Collect the topology files that are needed for the patches and links in the base molecule.
@@ -775,7 +807,8 @@ class PsfgenTask(VMDTask):
         """
         self.next_basename('build')
         pg: PsfgenScripter = self.scripters['psfgen']
-        required_topology_files = list(set(self.patch_topologies() + self.resi_topologies()))
+        required_topology_files = list(set(self.patch_topologies() + self.resi_topologies()
+                                           + self.mutation_topologies()))
         pg.newscript(self.basename, packages=['PestiferCRot'], additional_topologies=required_topology_files)
         pg.set_molecule(self.base_molecule, altcoords=self.specs.get('source', {}).get('altcoords', None))
         pg.describe_molecule(self.base_molecule)

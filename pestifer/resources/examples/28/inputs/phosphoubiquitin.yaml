@@ -8,9 +8,9 @@
 #   - 1ubq is ORDINARY ubiquitin; nothing in it is phosphorylated.  Ser65 is converted to
 #     phosphoserine by a mutation to SEP, the CHARMM residue for phosphoserine.  Ser65 is the
 #     PINK1 site: its phosphorylation activates parkin and is the committing step of mitophagy.
-#   - SEP is defined in toppar_all36_prot_na_combined.str, which is NOT in the default topology
-#     set, so it is added under charmmff.standard.str below.  Without it psfgen stops with
-#     "unknown residue type SEP".
+#   - SEP is defined in toppar_all36_prot_na_combined.str, which is not among the topology
+#     files loaded by default -- but it does not need listing here: the topology that defines a
+#     mutation target is pulled in automatically.
 #   - The phosphate has no coordinates in the input -- psfgen builds those atoms from topology
 #     and guesscoord places them, initially at placeholder bond lengths of 1.0 A.  The minimize
 #     that follows is therefore NOT optional; it is what turns the guessed phosphate into real
@@ -22,14 +22,6 @@
 #   - A production tarball is generated: my_1ubq_pS65.tgz
 
 title: Ser65-phosphorylated ubiquitin
-charmmff:
-  standard:
-    str:
-      - toppar_water_ions.str
-      - toppar_all36_carb_glycopeptide.str
-      - toppar_all36_carb_imlab.str
-      - toppar_all36_prot_modify_res.str
-      - toppar_all36_prot_na_combined.str
 tasks:
   - fetch:
       sourceID: 1ubq
