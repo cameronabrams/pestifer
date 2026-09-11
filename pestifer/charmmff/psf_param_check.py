@@ -33,10 +33,11 @@ its vdW lookup then succeeds while every one of its bonded terms fails a case-se
 Every comparison here therefore runs over upper-cased tuples, while the PSF's own spelling is
 what gets reported.
 
-CMAP cross-terms are **not** checked.  They are filtered into the minimal parameter set by
-the same case-insensitive matcher as every other record, and the protein backbone types they
-key on are present in any PSF that has cross-terms at all, so a CMAP gap has not been observed;
-the omission is recorded here so it is not mistaken for coverage.
+- **CMAP cross-terms**: the 8-type tuple, matched exactly.  CHARMM's CMAP records carry no
+  wildcards (the shipped release defines six, all fully specified) and the tuple is a phi
+  quartet followed by a psi quartet, so it is directional -- reversing it would swap the two
+  angles and mean something else.  Checked against real builds: every cross-term in each of
+  them matched a parameter record exactly, with no reversal needed.
 
 Terms are deduplicated by their atom-type tuple, so the scan is cheap even on a
 multi-million-atom system: each distinct type-tuple is looked up once.
@@ -61,10 +62,11 @@ class MissingParameters:
     angles: list = field(default_factory=list)
     dihedrals: list = field(default_factory=list)
     impropers: list = field(default_factory=list)
+    cmaps: list = field(default_factory=list)
 
     def any(self) -> bool:
         return bool(self.atomtypes or self.bonds or self.angles
-                    or self.dihedrals or self.impropers)
+                    or self.dihedrals or self.impropers or self.cmaps)
 
 
 def _serial_chunks(lines, n):
@@ -106,7 +108,9 @@ def _index_params(param):
         else:
             dih_wild_other.append(q)
     improper_quartets = [_u((i.type1, i.type2, i.type3, i.type4)) for i in param.impropers]
-    return bondset, angleset, dih_exact, dih_wild_mid, dih_wild_other, improper_quartets
+    cmapset = {_u(tuple(c.types)) for c in param.cmaps}
+    return (bondset, angleset, dih_exact, dih_wild_mid, dih_wild_other,
+            improper_quartets, cmapset)
 
 
 def check_psf_parameters(psf, param) -> MissingParameters:
@@ -120,7 +124,7 @@ def check_psf_parameters(psf, param) -> MissingParameters:
         The merged parameter set for the build's CHARMM release.
     """
     (bondset, angleset, dih_exact, dih_wild_mid,
-     dih_wild_other, improper_quartets) = _index_params(param)
+     dih_wild_other, improper_quartets, cmapset) = _index_params(param)
 
     serial_to_atom = {int(a.serial): a for a in psf.atoms}
 
@@ -180,6 +184,9 @@ def check_psf_parameters(psf, param) -> MissingParameters:
 
     scan('IMPHI', 4, lambda t: min(t, t[::-1]), improper_ok, missing.impropers)
 
+    # CMAP: exact 8-tuple, no wildcards, direction significant (phi quartet then psi quartet)
+    scan('CRTERM', 8, lambda t: t, lambda t: t in cmapset, missing.cmaps)
+
     return missing
 
 
@@ -191,7 +198,7 @@ def subtract(a: MissingParameters, b: MissingParameters) -> MissingParameters:
     from NAMD but have opposite remedies.
     """
     out = MissingParameters()
-    for kind in ('atomtypes', 'bonds', 'angles', 'dihedrals', 'impropers'):
+    for kind in ('atomtypes', 'bonds', 'angles', 'dihedrals', 'impropers', 'cmaps'):
         seen = {term for term, _ in getattr(b, kind)}
         setattr(out, kind, [(t, w) for t, w in getattr(a, kind) if t not in seen])
     return out
@@ -211,10 +218,12 @@ def format_missing(missing: MissingParameters, release: str,
         lines.append(f'  Unresolved atom type(s) [{len(missing.atomtypes)}] (no vdW parameter):')
         for at, where in missing.atomtypes:
             lines.append(f"    '{at}'  (e.g. residue {where})")
-    for kind, items in (('bond', missing.bonds), ('angle', missing.angles),
-                        ('dihedral', missing.dihedrals), ('improper', missing.impropers)):
+    for label, items in (('bond term', missing.bonds), ('angle term', missing.angles),
+                         ('dihedral term', missing.dihedrals),
+                         ('improper term', missing.impropers),
+                         ('CMAP cross-term', missing.cmaps)):
         if items:
-            lines.append(f'  Unresolved {kind} term(s) [{len(items)}]:')
+            lines.append(f'  Unresolved {label}(s) [{len(items)}]:')
             for term, where in items:
                 lines.append(f"    '{term}'  (e.g. residue {where})")
     lines.append(advice or

@@ -32,6 +32,11 @@ X    CT1  C    X     0.2000  1   0.00
 IMPROPER
 C    X    X    O    120.0   0   0.00
 
+CMAP
+NH1  CT1  C    O    NH1  CT1  C    O      2
+0.0 0.0
+0.0 0.0
+
 NONBONDED nbxmod 5 atom cdiel fshift vatom vdistance vfswitch -
 cutnb 16.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
 NH1   0.0  -0.20   1.85
@@ -72,6 +77,9 @@ PSF EXT
        0 !NACC: acceptors
 
        0 !NNB
+
+       1 !NCRTERM: cross-terms
+       1       2       3       4       1       2       3       4
 """
 
 
@@ -99,6 +107,11 @@ X    CT1  C    X      0.2000  1   0.00
 
 IMPROPER
 C    X    X    ON2b   120.0   0   0.00
+
+CMAP
+NH1  CT1  C    ON2b NH1  CT1  C    ON2b   2
+0.0 0.0
+0.0 0.0
 
 NONBONDED nbxmod 5 atom cdiel fshift vatom vdistance vfswitch -
 cutnb 16.0 ctofnb 12.0 ctonnb 10.0 eps 1.0 e14fac 1.0 wmin 1.5
@@ -208,6 +221,42 @@ class TestPsfParamCheck(unittest.TestCase):
         term, where = missing.bonds[0]
         self.assertIn('ON2B', term)          # reported in the PSF's own spelling
         self.assertEqual(where, 'PTR PROA1')
+
+    def test_cmap_cross_term_resolves(self):
+        psf = PSFContents(_write_psf(self.dir))
+        # the fixture must actually carry a cross-term and a CMAP record
+        self.assertEqual(len(psf.token_lines.get('CRTERM', [])), 1)
+        self.assertEqual(len(self.param.cmaps), 1)
+        missing = check_psf_parameters(psf, self.param)
+        self.assertEqual(missing.cmaps, [])
+        self.assertFalse(missing.any())
+
+    def test_missing_cmap_is_flagged_with_its_residue(self):
+        psf = PSFContents(_write_psf(self.dir))
+        self.param.cmaps = []
+        missing = check_psf_parameters(psf, self.param)
+        self.assertEqual(len(missing.cmaps), 1)
+        term, where = missing.cmaps[0]
+        self.assertEqual(term, 'NH1-CT1-C-O-NH1-CT1-C-O')
+        self.assertEqual(where, 'ALA PROA1')
+        msg = format_missing(missing, 'feb26')
+        self.assertIn('CMAP cross-term', msg)
+
+    def test_cmap_direction_matters(self):
+        """The 8-tuple is a phi quartet then a psi quartet, so it is not reversible the way a
+        bond or an angle is: a reversed record must not be accepted as a match."""
+        psf = PSFContents(_write_psf(self.dir))
+        for c in self.param.cmaps:
+            c.types = list(reversed(c.types))
+        missing = check_psf_parameters(psf, self.param)
+        self.assertEqual(len(missing.cmaps), 1)
+
+    def test_cmap_is_matched_case_insensitively(self):
+        param = CharmmParamFile.from_text(_PRM_MIXED_CASE)
+        self.assertTrue(any('ON2b' in c.types for c in param.cmaps))   # record is lower-case
+        psf = self._write(_PSF_UPPER, 'cmapcase.psf')                  # PSF is upper-case
+        missing = check_psf_parameters(psf, param)
+        self.assertEqual(missing.cmaps, [])
 
     def test_subtract_splits_absent_from_dropped(self):
         from pestifer.charmmff.psf_param_check import subtract

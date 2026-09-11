@@ -433,6 +433,12 @@ class CharmmParamFile:
     def _nbfix_key(n: 'CharmmNBFixParam') -> tuple:
         return tuple(sorted([n.type1.upper(), n.type2.upper()]))
 
+    @staticmethod
+    def _cmap_key(c: 'CharmmCMAPParam') -> tuple:
+        # The 8-tuple is a phi quartet followed by a psi quartet, so it is directional: no
+        # reversal canonicalisation here, unlike bonds/angles/dihedrals.
+        return tuple(t.upper() for t in c.types)
+
     # ------------------------------------------------------------------
     # Merging
     # ------------------------------------------------------------------
@@ -457,7 +463,7 @@ class CharmmParamFile:
         self.impropers = _merge_list(self.impropers, other.impropers, self._improper_key)
         self.nonbonded.update(other.nonbonded)
         self.nbfix     = _merge_list(self.nbfix,     other.nbfix,     self._nbfix_key)
-        self.cmaps.extend(other.cmaps)
+        self.cmaps     = _merge_list(self.cmaps,     other.cmaps,     self._cmap_key)
 
     # ------------------------------------------------------------------
     # Filtering

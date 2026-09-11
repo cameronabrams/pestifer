@@ -402,5 +402,14 @@ as a user configuration problem.
 Validated before shipping the raise, since a false positive here stops every build: 63 real
 builds under `~/devtests`, 62 clean, and the one flagged was a build NAMD had already killed on
 the same term -- a THR whose CB a patch retyped `CT2` while leaving HB as `HA1`, and `CT2 HA1`
-exists nowhere in the release. CMAP cross-terms are deliberately not checked; the omission is
-recorded in the module docstring so it is not mistaken for coverage.
+exists nowhere in the release.
+
+CMAP cross-terms are checked too, added 2026-09-11 after the rest. They are matched on the full
+8-type tuple, **exactly**: the shipped release's six CMAP records carry no wildcards, and the
+tuple is a phi quartet followed by a psi quartet, so it is directional in a way a bond or angle
+is not -- reversing it names a different thing. Every cross-term in every build swept matched a
+record exactly, with no reversal needed, which is the evidence for matching that strictly.
+`CharmmParamFile.merge` also gained a `_cmap_key`; it was the one section merged by
+`list.extend` with no dedup key, so an overlapping stream would have duplicated records. No
+duplicate arises from the default file set, so that one is latent, not a fix for an observed
+failure.
