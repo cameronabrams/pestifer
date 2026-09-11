@@ -45,7 +45,19 @@ _segtypes = {
         'resnames': [
             'ALA', 'ARG', 'ASN', 'ASP', 'CYS', 'GLN', 'GLU', 'GLY',
             'HIS', 'HSP', 'HSD', 'HSE', 'ILE', 'LEU', 'LYS', 'MET',
-            'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL'],
+            'MSE', 'PHE', 'PRO', 'SER', 'THR', 'TRP', 'TYR', 'VAL',
+            # Lipidated amino acids.  These are curated here because the derived
+            # classification keys on which force-field FILE defines a residue, and all six live
+            # in stream/lipid/toppar_all36_lipid_prot.str -- so they were derived as `lipid` and
+            # a palmitoylated cysteine could not be built into the protein segment it belongs
+            # to (`Residue 14 in segname A has segtype lipid, expected protein`).  Each carries
+            # a full N/CA/C/O backbone; they are amino acids wherever they are defined.
+            'CYSP',   # S-palmitoyl-cysteine
+            'CYSF',   # S-farnesyl-cysteine
+            'CYSG',   # S-geranylgeranyl-cysteine
+            'CYSL',   # S-triacylhexadecane-cysteine
+            'GLYM',   # N-myristoyl-glycine
+            'LYSM'],  # N-myristoyl-lysine
         'rescodes': {
             'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D',
             'CYS': 'C', 'GLN': 'Q', 'GLU': 'E', 'GLY': 'G',

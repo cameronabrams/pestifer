@@ -4,6 +4,18 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **lipidated amino acids were classified as lipids and could not be built into their own
+  chain.** `CYSP` (S-palmitoyl-cysteine), `CYSF` (farnesyl), `CYSG` (geranylgeranyl), `CYSL`,
+  `GLYM` (N-myristoyl-glycine) and `LYSM` (N-myristoyl-lysine) all carry a full N/CA/C/O
+  backbone, but pestifer derives a residue's segtype from which force-field *file* defines it
+  and all six live in a lipid stream. Palmitoylating a cysteine therefore failed with
+  `Residue 14 in segname A has segtype lipid, expected protein`. They are now curated as
+  protein, which wins over the derivation. Verified by building one: 6pti CYS14 to `CYSP` gives
+  all 58 atoms, a palmitoyl chain **19.1 A from C1 to C16** against ~19 fully extended, C-C
+  bonds 1.53-1.54 A, and no atom within 2.5 A of the protein. What pestifer still cannot do is
+  put such a tail *into a bilayer*: the chain is built relative to the residue it hangs off, so
+  for a membrane system check where it ended up rather than assuming it inserted.
+
 - fix: **CHARMM atom types are case-insensitive and pestifer was not, silently dropping
   parameters.** `extract_for_atomtypes` matched the PSF's types against the parameter records
   with `t in atomtypes`, a case-sensitive test. The shipped release writes the phenol-phosphate

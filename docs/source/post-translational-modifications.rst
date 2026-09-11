@@ -138,15 +138,28 @@ phosphotyrosine fail at the first dynamics step with ``UNABLE TO FIND ANGLE PARA
 -- but the shape is worth knowing if you ever meet a missing-parameter error for a residue whose
 parameters you can see in the force field with your own eyes.
 
-Not yet supported
------------------
+Limitations
+-----------
 
-**Lipidation and prenylation.**  ``CYSP`` (palmitoyl), ``GLYM`` and ``LYSM`` (myristoyl),
-``CYSF`` (farnesyl), ``CYSG`` (geranyl) and ``CYSL`` are all parameterized -- but they are
-defined in a *lipid* stream, so pestifer classifies them as ``lipid`` rather than ``protein``
-and would segment them away from the chain they belong to.  Correcting that also requires
-placing the acyl or prenyl tail in the bilayer, which pestifer has no machinery for, so the two
-have to be solved together.
+**Lipidation and prenylation build, with one caveat.**  ``CYSP`` (S-palmitoyl), ``CYSF``
+(farnesyl), ``CYSG`` (geranylgeranyl), ``CYSL``, ``GLYM`` (N-myristoyl-glycine) and ``LYSM``
+(N-myristoyl-lysine) are mutation targets like any other:
+
+.. code-block:: yaml
+
+    mutations:
+      - A:CYS,14,CYSP     # palmitoylate a cysteine
+
+The acyl chain is built from the topology's internal coordinates and comes out in a proper
+extended conformation -- a palmitoyl measures 19.1 Å from C1 to C16, against ~19 Å fully
+extended, with no clash against the protein.
+
+The caveat is **placement, in a membrane build**.  pestifer has no machinery that puts a
+protein-attached acyl or prenyl tail *into the bilayer*; the chain is built relative to the
+residue it hangs off, wherever that points.  For a soluble protein that is the right answer and
+the tail is simply solvent-exposed.  For a membrane system, check where the tail ended up rather
+than assuming it inserted -- a palmitoylated cytoplasmic tail whose chain is lying in water is
+a system that will run and will be wrong.
 
 **Glycosylation is a different mechanism.**  Sugars are separate residues joined to the protein
 by a patch, not substituted for it; see :ref:`links <subs_buildtasks_psfgen_mods_links>` and
@@ -155,8 +168,10 @@ by a patch, not substituted for it; see :ref:`links <subs_buildtasks_psfgen_mods
 .. note::
 
    The segtype of a modified residue is derived from *which force-field file defines it*, not
-   from its chemistry.  That is right for almost everything, and wrong for a handful that live
-   in non-protein streams: the six lipidated amino acids above classify as ``lipid``, and
-   ``LYX`` (a coenzyme-A lysine adduct) classifies as ``glycan``.  If a modified amino acid
-   behaves as though it is not part of the chain, check its segtype first with
-   ``pestifer show-resources resname``.
+   from its chemistry.  That is right for almost everything, and wrong for anything defined in a
+   non-protein stream.  The six lipidated amino acids were derived as ``lipid`` for exactly this
+   reason -- a palmitoylated cysteine could not be built into its own chain -- and are now
+   curated as protein.  ``LYX``, a coenzyme-A lysine adduct, still derives as ``glycan``.  If a
+   modified amino acid behaves as though it is not part of the chain, check its segtype first
+   with ``pestifer show-resources resname``; the fix is a curated entry, which wins over the
+   derivation.
