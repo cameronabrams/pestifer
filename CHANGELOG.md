@@ -4,6 +4,21 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **a lipidation deposited as a separate ligand is fused into the residue CHARMM defines
+  it as part of.** The PDB writes a myristoylated glycine as a `MYR` ligand bonded to a `GLY` by
+  a `LINK`; CHARMM defines a single `GLYM` whose heavy atoms are exactly the union of the two,
+  name for name. Nothing reconciled them, and the failure was worse than a stopped build: `MYR`
+  is itself a CHARMM residue (free myristic acid), so a build could succeed and leave a
+  **detached fatty acid** beside the protein it was covalently attached to. Fusion runs on atoms
+  before they are grouped, so the existing grouping performs the merge. The `LINK` is the
+  trigger and the table names the bonded atoms, so a free fatty acid, or an unrelated contact
+  between the same residue types, is never fused.
+
+  This is what makes a *deposited* modification usable: building 1uph, HIV-1 myristoylated
+  matrix, preserves the sequestered myristoyl -- C2-C14 span 13.4 A against the deposit's 13.4,
+  and 13 of 13 carbons still buried within 5 A of the protein. That is the myr(+) switch state,
+  and no rebuild reproduces it; an installed `GLYM` comes out extended and pointing away.
+
 - fix: **lipidated amino acids were classified as lipids and could not be built into their own
   chain.** `CYSP` (S-palmitoyl-cysteine), `CYSF` (farnesyl), `CYSG` (geranylgeranyl), `CYSL`,
   `GLYM` (N-myristoyl-glycine) and `LYSM` (N-myristoyl-lysine) all carry a full N/CA/C/O

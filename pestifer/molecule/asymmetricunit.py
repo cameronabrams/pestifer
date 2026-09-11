@@ -20,6 +20,7 @@ from ..core.objmanager import ObjManager
 
 from ..objs.graft import GraftList
 from ..objs.link import LinkList
+from .residue_fusion import fuse_linked_ligands
 from ..objs.mutation import Mutation, MutationList
 from ..objs.patch import PatchList
 from ..objs.seqadv import SeqadvList
@@ -266,6 +267,14 @@ class AsymmetricUnit:
             assert len(atoms) == len(self.psfcontents.atoms), f'Atom logic is not consistent between PDB and PSF'
             assert ignored_psfatom_count == ignored_atom_count, f'Ignored atom count is not consistent between PDB and PSF'
             logger.debug(f'Ignored {ignored_psfatom_count} atoms from PSF by inclusion/exclusion logic')
+        # Fuse any ligand the PDB deposits separately but CHARMM defines as part of the polymer
+        # residue it is bonded to -- a MYR bonded to a GLY's N is CHARMM's GLYM.  Done on ATOMS,
+        # before grouping, so the existing grouping performs the merge.  Must precede
+        # `apply_segtypes` too: the fused residue's segtype follows its combined name.
+        n_fused = fuse_linked_ligands(atoms, links)
+        if n_fused:
+            logger.info(f'fused {n_fused} deposited ligand(s) into the residue CHARMM defines '
+                        f'them as part of')
         fromAtoms = ResidueList.from_residuegrouped_atomlist(atoms)
         fromResiduePlaceholders = ResidueList.from_ResiduePlaceholderlist(missings)
         if self.psfcontents is not None:

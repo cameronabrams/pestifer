@@ -39,6 +39,27 @@ def _load_derived_segtypes() -> dict:
         return {}
 
 
+# Residues the PDB deposits as a separate ligand bonded to a polymer residue by a LINK, while
+# CHARMM defines the two together as ONE residue.  1uph -- HIV-1 myristoylated matrix -- writes
+#
+#     HETATM  C1  MYR A 1          <- the myristate, its own residue
+#     ATOM    N   GLY A 2
+#     LINK    C1  MYR A 1   N  GLY A 2   1.33
+#
+# where CHARMM has RESI GLYM, whose heavy atoms are exactly the union of GLY's and MYR's, name
+# for name.  Without fusing them a build either fails or -- worse -- produces a DETACHED fatty
+# acid beside the protein, since MYR is itself a CHARMM residue (free myristic acid, in the
+# detergent stream).
+#
+# Keyed by (ligand resname, partner resname) -> (combined resname, ligand bond atom, partner
+# bond atom).  The bond atoms are checked against the LINK, so an unrelated LINK between the
+# same two residue types cannot trigger a fusion.  The LINK is the trigger: a ligand that is
+# merely PRESENT, such as a free fatty acid, is never fused.
+_fusible_ligands = {
+    ('MYR', 'GLY'): ('GLYM', 'C1', 'N'),    # N-myristoyl-glycine; 73 PDB entries carry MYR
+    ('MYR', 'LYS'): ('LYSM', 'C1', 'NZ'),   # N-myristoyl-lysine
+}
+
 _segtypes = {
     'protein': {
         'macro': False,
@@ -200,6 +221,7 @@ class LabelMappers:
         self.aliases['residue'] = _residue_aliases
         self.residue_fullnames = _residue_fullnames
         self.segtypes = _segtypes
+        self.fusible_ligands = _fusible_ligands
         self.segtype_of_resname = {}
         self.charmm_resname_of_pdb_resname = {}
         self.pdb_resname_of_charmm_resname = {}
