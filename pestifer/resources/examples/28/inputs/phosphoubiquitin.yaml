@@ -14,7 +14,10 @@
 #   - The phosphate has no coordinates in the input -- psfgen builds those atoms from topology
 #     and guesscoord places them, initially at placeholder bond lengths of 1.0 A.  The minimize
 #     that follows is therefore NOT optional; it is what turns the guessed phosphate into real
-#     geometry.  The validate task after it checks the P-O bond lengths, not just the atom count.
+#     geometry (measured: every P-O bond 1.00 A before, 1.46-1.59 A after, against CHARMM ideals
+#     of 1.51-1.60).  The validate task runs AFTER the minimize and asserts the phosphorus is
+#     present -- it cannot check bond lengths, since `validate` measures only atom_count and
+#     residue_count -- so the geometry claim above rests on the measurement, not on the task.
 #   - A self-terminating density_equilibrate task settles the box density
 #   - A production tarball is generated: my_1ubq_pS65.tgz
 
