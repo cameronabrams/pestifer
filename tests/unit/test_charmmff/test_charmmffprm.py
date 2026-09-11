@@ -464,3 +464,66 @@ class TestCharmmParamFileRoundTrip(unittest.TestCase):
         original, reread = self._round_trip(_STR_TEXT, 'test_str_rt.prm')
         self.assertEqual(len(original.bonds), len(reread.bonds))
         self.assertEqual(len(original.nonbonded), len(reread.nonbonded))
+
+
+CASE_PRM = """* case test
+*
+
+BONDS
+CA   ON2b   250.0   1.40
+
+ANGLES
+CA   ON2b P     90.0   120.0  20.  2.30
+ON3  P    ON2b  98.9   103.0
+CA   CA   CA   100.0   120.0
+
+DIHEDRALS
+x    CA   ON2b x      1.0  2  180.0
+
+NONBONDED
+ON2b  0.0  -0.1521  1.77
+CA    0.0  -0.0700  1.99
+
+END
+"""
+
+
+class TestAtomTypeMatchingIsCaseInsensitive(unittest.TestCase):
+    """
+    CHARMM atom types are case-insensitive and the shipped release relies on it: the phenol-
+    phosphate angles are written ``ON2b`` while the ``MASS`` record -- and so the PSF psfgen
+    writes -- says ``ON2B``.  Matching case-sensitively silently dropped those records from the
+    consolidated parameter file, whose counts stay self-consistent, and NAMD then failed far
+    away with ``UNABLE TO FIND ANGLE PARAMETERS``.  Phosphotyrosine was unusable because of it.
+    """
+
+    def setUp(self):
+        import tempfile
+        self.tmp = tempfile.mkdtemp()
+        self.path = os.path.join(self.tmp, 'case.prm')
+        with open(self.path, 'w') as f:
+            f.write(CASE_PRM)
+        self.p = CharmmParamFile.from_file(self.path)
+
+    def test_a_psf_uppercase_type_matches_a_lowercase_parameter_record(self):
+        # the PSF carries ON2B; the file writes ON2b
+        out = self.p.extract_for_atomtypes({'CA', 'ON2B', 'P', 'ON3'})
+        self.assertEqual(len(out.angles), 3, 'the ON2b angles were dropped')
+        self.assertEqual(len(out.bonds), 1)
+
+    def test_the_nonbonded_entry_is_kept_too(self):
+        out = self.p.extract_for_atomtypes({'CA', 'ON2B', 'P', 'ON3'})
+        self.assertEqual(len(out.nonbonded), 2)
+
+    def test_a_lowercase_wildcard_is_still_a_wildcard(self):
+        # `x` appears lowercase in the shipped force field; a `t == 'X'` test reads it as a
+        # real atom type that nothing can ever match, dropping the record
+        out = self.p.extract_for_atomtypes({'CA', 'ON2B'})
+        self.assertEqual(len(out.dihedrals), 1, 'the lowercase-wildcard dihedral was dropped')
+
+    def test_an_absent_type_still_filters_its_records_out(self):
+        # the fix must not turn the filter into a pass-through
+        out = self.p.extract_for_atomtypes({'CA'})
+        self.assertEqual(len(out.angles), 1)          # only CA CA CA survives
+        self.assertEqual(len(out.bonds), 0)
+        self.assertEqual(len(out.nonbonded), 1)

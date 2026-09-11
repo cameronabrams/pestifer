@@ -409,12 +409,12 @@ class CharmmParamFile:
 
     @staticmethod
     def _bond_key(b: 'CharmmBondParam') -> tuple:
-        return tuple(sorted([b.type1, b.type2]))
+        return tuple(sorted([b.type1.upper(), b.type2.upper()]))
 
     @staticmethod
     def _angle_key(a: 'CharmmAngleParam') -> tuple:
-        fwd = (a.type1, a.type2, a.type3)
-        rev = (a.type3, a.type2, a.type1)
+        fwd = (a.type1.upper(), a.type2.upper(), a.type3.upper())
+        rev = (a.type3.upper(), a.type2.upper(), a.type1.upper())
         return min(fwd, rev)
 
     @staticmethod
@@ -482,8 +482,19 @@ class CharmmParamFile:
         CharmmParamFile
             A new instance containing the filtered records.
         """
+        # CHARMM atom types are CASE-INSENSITIVE, and the force field exploits that: the shipped
+        # release writes `ON2b` in the phenol-phosphate angles while the MASS record -- and so
+        # the PSF psfgen writes -- says `ON2B`.  Matching case-sensitively silently DROPS such
+        # records from the minimal file: the result looks complete (its counts are
+        # self-consistent) and NAMD then dies far away on a missing parameter.  Phosphotyrosine
+        # was unusable for exactly this reason.  The wildcard is affected too -- it appears as
+        # lowercase `x` in places, which a `t == 'X'` test reads as a real atom type nothing can
+        # match.  13 atom types across the shipped release are written with lowercase letters,
+        # including Br, Cl and Ni1p, so this is not one residue's problem.
+        wanted = {t.upper() for t in atomtypes}
+
         def match(types: list[str]) -> bool:
-            return all(t == 'X' or t in atomtypes for t in types)
+            return all(t.upper() == 'X' or t.upper() in wanted for t in types)
 
         result = CharmmParamFile()
         result.nonbonded_header = self.nonbonded_header
@@ -491,7 +502,7 @@ class CharmmParamFile:
         result.angles    = [a for a in self.angles    if match([a.type1, a.type2, a.type3])]
         result.dihedrals = [d for d in self.dihedrals if match([d.type1, d.type2, d.type3, d.type4])]
         result.impropers = [i for i in self.impropers if match([i.type1, i.type2, i.type3, i.type4])]
-        result.nonbonded = {t: v for t, v in self.nonbonded.items() if t in atomtypes}
+        result.nonbonded = {t: v for t, v in self.nonbonded.items() if t.upper() in wanted}
         result.nbfix     = [n for n in self.nbfix     if match([n.type1, n.type2])]
         result.cmaps     = [c for c in self.cmaps     if match(c.types)]
         return result

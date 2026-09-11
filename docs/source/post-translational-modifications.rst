@@ -107,8 +107,8 @@ Put an ``md`` minimize immediately after the ``psfgen`` task, and put any ``vali
 **Check the charge state.**  A residue name carries one protonation state, and it may not be the
 one you want.  ``RESI SEP`` is the **monoanionic** phosphoserine, while the dianion dominates at
 pH 7.  Where the charge state matters, use the patch route instead: build the ordinary residue
-and apply ``SP1`` (mono) or ``SP2`` (di) for phosphoserine, and ``THP1``/``THPB`` for
-phosphothreonine.  (The phosphotyrosine patches are unusable for the reason below.)
+and apply ``SP1`` (mono) or ``SP2`` (di) for phosphoserine, ``THP1``/``THPB`` for phosphothreonine, and
+``TP1``/``TP2`` for phosphotyrosine.
 
 Phosphorylation
 ---------------
@@ -128,16 +128,15 @@ mutation target is pulled in automatically, so nothing beyond the line above is 
 Phosphohistidine (``NEP``, ``HIP``) and aspartyl phosphate (``PHD``) are ordinary mutation
 targets too; they are defined in a stream that is loaded anyway.
 
-.. warning::
-
-   **Phosphotyrosine does not work in this CHARMM release, by either route.**  ``RESI PTR``
-   types the phenol oxygen as ``ON2B``, a nucleic-acid ester oxygen, and the angles it then
-   needs -- ``CA ON2B P`` for the residue, ``ON2B P ON3`` for the ``TP1``/``TP2`` patches -- are
-   **absent from the entire shipped force field**.  Checked against the whole toppar tree with a
-   positive control; the standard nucleic-acid ``ON2 P ON3`` is present, the ``ON2B`` forms are
-   not.  A build fails at the first dynamics step with ``UNABLE TO FIND ANGLE PARAMETERS``.
-   This is upstream of pestifer: it needs parameters CHARMM has not published for this typing,
-   or a retyped residue.
+Phosphotyrosine (``PTR``) works too, and its parameters are worth a note.  ``RESI PTR`` types
+the phenol oxygen as ``ON2B``, a nucleic-acid ester oxygen, and the angles it needs are the
+phenol-phosphate set published in 1994 -- ``CA ON2b P``, ``ON3 P ON2b``, ``ON4 P ON2b``.  Those
+are written with a lowercase ``b`` in the force field while the ``MASS`` record, and therefore
+the PSF, says ``ON2B``.  CHARMM atom types are case-insensitive, so this is perfectly legal; it
+was pestifer that matched them case-sensitively and silently dropped the records, which made
+phosphotyrosine fail at the first dynamics step with ``UNABLE TO FIND ANGLE PARAMETERS``.  Fixed
+-- but the shape is worth knowing if you ever meet a missing-parameter error for a residue whose
+parameters you can see in the force field with your own eyes.
 
 Not yet supported
 -----------------

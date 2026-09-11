@@ -17,7 +17,7 @@ A modified residue is reached by ``mutations``, not by ``patches``: CHARMM ships
 
 Two things about this build are worth reading before adapting it.
 
-**The topology that defines the residue is pulled in automatically.**  ``SEP`` lives in ``toppar_all36_prot_na_combined.str``, which is not among the files pestifer loads by default; the topology defining a mutation target is added for you, so this config lists no force-field files at all.  (``TPO`` shares that file and works the same way.  ``PTR`` does not work in this CHARMM release -- see the warning in :ref:`Post-translational modifications <post_translational_modifications>`.)
+**The topology that defines the residue is pulled in automatically.**  ``SEP`` lives in ``toppar_all36_prot_na_combined.str``, which is not among the files pestifer loads by default; the topology defining a mutation target is added for you, so this config lists no force-field files at all.  (``TPO`` and ``PTR`` share that file and work the same way; see :ref:`Post-translational modifications <post_translational_modifications>`.)
 
 **The minimize is not optional.**  The phosphate has no coordinates in the input; psfgen creates those atoms from the topology and ``guesscoord`` places them, initially at placeholder bond lengths of exactly 1.0 Å:
 

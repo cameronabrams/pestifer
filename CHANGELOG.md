@@ -4,6 +4,22 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **CHARMM atom types are case-insensitive and pestifer was not, silently dropping
+  parameters.** `extract_for_atomtypes` matched the PSF's types against the parameter records
+  with `t in atomtypes`, a case-sensitive test. The shipped release writes the phenol-phosphate
+  angles as `CA ON2b P`, `ON3 P ON2b`, `ON4 P ON2b` -- published by the MacKerell lab in 1994 --
+  while the `MASS` record, and therefore the PSF psfgen writes, says `ON2B`. Those records were
+  filtered out of the consolidated parameter file, whose record counts stay self-consistent, and
+  NAMD then failed at the first dynamics step with `UNABLE TO FIND ANGLE PARAMETERS FOR CA ON2B
+  P`. **Phosphotyrosine was unusable because of it** -- by the `RESI PTR` route and the
+  `TP1`/`TP2` patch route alike. The wildcard was affected too: it appears as lowercase `x` in
+  places, which a `t == 'X'` test reads as a real atom type nothing can match. Matching is now
+  case-insensitive, as is the merge key, so two spellings of one record no longer survive as two.
+  Eleven atom types are written inconsistently in the shipped release (`CT1`, `CT2`, `CC`, `CD`,
+  `NH2`, `OH1`, `CN8`, `CN9`, `CL`, `ON2B`, `X`); of the 24 affected records, most sit in a
+  constant-pH stream pestifer does not load, but five are phosphotyrosine's and two are
+  nucleic-acid dihedrals in a file it does.
+
 - fix: **a mutation to a modified residue could not load the topology that defines it.** A
   mutation is emitted as a psfgen `mutate` command and never changes the molecule's own residue
   list, so the topology collection that walks that list saw the residue being mutated *away* and
