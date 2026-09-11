@@ -4,6 +4,20 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- docs: **new guide, "Post-translational modifications"**, documenting a capability pestifer
+  already had and nothing told anyone about. CHARMM ships several hundred modified amino acids as
+  whole `RESI` residues, pestifer already classifies them as protein, and a `mutations` line
+  installs one -- so sulfotyrosine, the lysine acyl ladder (`ALY`, `KCR`, `PRK`, `KHB`, `KCX`),
+  lysine and arginine methylation (`MLZ`, `MLY`, `M3L`, `AGM`, `2MR`), histidine methylation,
+  hydroxyproline, the cysteine oxidation series (`CSO`, `CSX`, `OCS`, `SNC`), gamma-carboxy-
+  glutamate, citrulline, and His/Asp phosphorylation all work today with no configuration at all.
+  Verified by building five of them. The page also records the two things that bite -- a minimize
+  is mandatory, because `guesscoord` places a newly built modification at placeholder 1.0 A bond
+  lengths; and a residue name carries one protonation state, so `RESI SEP` is monoanionic where
+  the dianion dominates at pH 7 -- and the one family needing an extra topology stream
+  (`SEP`/`TPO`/`PTR`). `mutations` and `patches` gained sections on the distinction between a
+  modified residue and a patch, which is the commonest way to get this wrong.
+
 - fix: **every build opened a VMD window and could hang for two minutes doing it.** The
   build-provenance record probes `vmd` for its version by running `vmd --version` -- but VMD has
   no `--version` flag, so it started normally, initialised its **graphical display** (measured:

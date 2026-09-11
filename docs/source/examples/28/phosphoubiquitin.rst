@@ -37,6 +37,12 @@ A build that skipped straight from the mutation to dynamics would start from a c
 
 A modification that is *already* in the input needs none of this.  A deposit carrying ``SEP`` -- declared by a ``MODRES`` record -- builds with no configuration at all, because the residue is already classified as protein and nothing aliases it away.  Selenomethionine is the deliberate exception: ``MSE`` **is** aliased to ``MET``, since it is a phasing substitution rather than chemistry to preserve.
 
+Most other modifications need no extra stream either: sulfotyrosine, the lysine acyl and methyl
+ladders, hydroxyproline and the cysteine oxidation series are all reachable with a single
+``mutations`` line and nothing else.  :ref:`Post-translational modifications
+<post_translational_modifications>` lists what is available and why phosphoserine is one of the
+few that needs the configuration above.
+
 .. literalinclude:: ../../../../pestifer/resources/examples/28/inputs/phosphoubiquitin.yaml
     :language: yaml
 
