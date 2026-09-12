@@ -49,8 +49,9 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
   This is what makes a *deposited* modification usable: building 1uph, HIV-1 myristoylated
   matrix, preserves the sequestered myristoyl -- C2-C14 span 13.4 A against the deposit's 13.4,
-  and 13 of 13 carbons still buried within 5 A of the protein. That is the myr(+) switch state,
-  and no rebuild reproduces it; an installed `GLYM` comes out extended and pointing away.
+  and 13 of 13 carbons still buried within 5 A of the protein. That is the myristate-sequestered
+  state, myr(s) in the notation of the paper that deposited 1uph (Tang et al., PNAS 2004), and no
+  rebuild reproduces it; an installed `GLYM` comes out extended and pointing away.
 
 - fix: **lipidated amino acids were classified as lipids and could not be built into their own
   chain.** `CYSP` (S-palmitoyl-cysteine), `CYSF` (farnesyl), `CYSG` (geranylgeranyl), `CYSL`,
