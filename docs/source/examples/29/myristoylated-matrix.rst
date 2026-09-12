@@ -41,7 +41,7 @@ Entries under ``charmmff.standard.str`` are *added* to the default set, not subs
 
 ``LYSM`` and ``CYSL`` need the same stream, for the same six terms; the thioester ``CYSP`` and the prenylated ``CYSF`` and ``CYSG`` need nothing extra.  See :ref:`Post-translational modifications <post_translational_modifications>`.
 
-**The chain starts without an N-terminal patch.**  ``GLYM`` acylates its own backbone nitrogen, so the usual ``NTER`` -- which turns that nitrogen into NH\ :sub:`3`\ :sup:`+` -- must not be applied.  pestifer writes ``first none`` for any segment that begins with such a residue.  It has to: CHARMM's stream deliberately sets no terminal default, so the residue otherwise inherits whatever default the previously read topology file left in force, and with ``NTER`` in force psfgen builds an NH\ :sub:`3` nitrogen still bonded to the myristoyl carbonyl without complaint.
+**The chain starts without an N-terminal patch.**  ``GLYM`` acylates its own backbone nitrogen, so the usual ``NTER`` -- which turns that nitrogen into NH\ :sub:`3`\ :sup:`+` -- must not be applied.  pestifer writes ``first none`` for a segment that begins with ``GLYM``.  It has to: CHARMM's stream deliberately sets no terminal default, so the residue otherwise inherits whatever default the previously read topology file left in force, and with ``NTER`` in force psfgen builds an NH\ :sub:`3` nitrogen still bonded to the myristoyl carbonyl without complaint.
 
 The ``validate`` task checks the outcome rather than assuming it: exactly one ``GLYM``, no free ``MYR`` left over, and 49 atoms in the fused residue (7 from glycine, 42 from the myristoyl chain).
 

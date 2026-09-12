@@ -69,7 +69,7 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   parameters.** `extract_for_atomtypes` matched the PSF's types against the parameter records
   with `t in atomtypes`, a case-sensitive test. The shipped release writes the phenol-phosphate
   angles as `CA ON2b P`, `ON3 P ON2b`, `ON4 P ON2b` -- published by the MacKerell lab in 1994 --
-  while the `MASS` record, and therefore the PSF psfgen writes, says `ON2B`. Those records were
+  while the `MASS` record and `RESI PTR`, and therefore the PSF, say `ON2B`. Those records were
   filtered out of the consolidated parameter file, whose record counts stay self-consistent, and
   NAMD then failed at the first dynamics step with `UNABLE TO FIND ANGLE PARAMETERS FOR CA ON2B
   P`. **Phosphotyrosine was unusable because of it** -- by the `RESI PTR` route and the

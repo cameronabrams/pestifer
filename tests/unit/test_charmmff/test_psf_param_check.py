@@ -86,7 +86,7 @@ PSF EXT
 # The real force field spells one atom type several ways in a single file:
 # toppar_all36_prot_na_combined.str declares `MASS -1 ON2B`, writes `ATOM OH ON2b` in the TP1
 # patch that uses it, gives every bonded parameter as `ON2b`, and gives the vdW record as
-# `ON2B`.  psfgen writes the MASS spelling, so a real phosphotyrosine PSF carries `ON2B`
+# `ON2B`.  RESI PTR spells it `ON2B`, so a real phosphotyrosine PSF carries `ON2B`
 # (verified against a built PTR system): its vdW lookup succeeds and every bonded term fails a
 # case-sensitive match.  Both directions are exercised below, since the release contains both.
 _PRM_MIXED_CASE = """\
@@ -121,7 +121,7 @@ C     0.0  -0.11   2.00
 ON2B  0.0  -0.12   1.70
 """
 
-# what psfgen really writes: the MASS spelling, upper-case
+# what a real PTR PSF carries: RESI PTR's own spelling, upper-case
 _PSF_UPPER = _PSF_TEMPLATE.replace('O        O     -0.510000', 'O        ON2B  -0.510000')
 # the opposite direction, for the vdW/atom-type half of the comparison
 _PSF_LOWER = _PSF_TEMPLATE.replace('O        O     -0.510000', 'O        ON2b  -0.510000')
@@ -184,7 +184,7 @@ class TestPsfParamCheck(unittest.TestCase):
         return PSFContents(str(p))
 
     def test_real_phosphotyrosine_shape_resolves(self):
-        """The shape that actually reaches this code: PSF upper-case (psfgen writes the MASS
+        """The shape that actually reaches this code: PSF upper-case (RESI PTR's own
         spelling), bonded parameters lower-case.  Case-sensitively, every bonded term fails."""
         param = CharmmParamFile.from_text(_PRM_MIXED_CASE)
         # guard the fixture: the two sides must really differ, or agreement proves nothing

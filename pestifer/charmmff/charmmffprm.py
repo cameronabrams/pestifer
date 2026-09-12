@@ -489,8 +489,8 @@ class CharmmParamFile:
             A new instance containing the filtered records.
         """
         # CHARMM atom types are CASE-INSENSITIVE, and the force field exploits that: the shipped
-        # release writes `ON2b` in the phenol-phosphate angles while the MASS record -- and so
-        # the PSF psfgen writes -- says `ON2B`.  Matching case-sensitively silently DROPS such
+        # release writes `ON2b` in the phenol-phosphate angles while the MASS record -- and RESI
+        # PTR, whose spelling is what reaches the PSF -- says `ON2B`.  Matching case-sensitively silently DROPS such
         # records from the minimal file: the result looks complete (its counts are
         # self-consistent) and NAMD then dies far away on a missing parameter.  Phosphotyrosine
         # was unusable for exactly this reason.  Upper-casing the `X` test below is defensive

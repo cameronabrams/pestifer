@@ -26,9 +26,9 @@ Matching mirrors CHARMM's own parameter lookup:
 
 **Atom types are compared case-insensitively**, because CHARMM's are.  A single force-field
 file routinely spells one type three ways -- ``toppar_all36_prot_na_combined.str`` declares
-``MASS -1 ON2B``, writes ``ATOM OH ON2b`` in the ``TP1`` patch that uses it, gives every bonded
-parameter as ``ON2b``, and gives the vdW record as ``ON2B``.  psfgen writes the **MASS**
-spelling, so a real phosphotyrosine PSF carries ``ON2B`` (verified against a built PTR system);
+``MASS -1 ON2B``, writes ``ATOM OH ON2B`` in ``RESI PTR`` but ``ON2b`` in ``PRES TP1``, gives every bonded
+parameter as ``ON2b``, and gives the vdW record as ``ON2B``.  A real phosphotyrosine PSF carries
+``ON2B``, because that is how ``RESI PTR`` spells it (verified against a built PTR system);
 its vdW lookup then succeeds while every one of its bonded terms fails a case-sensitive match.
 Every comparison here therefore runs over upper-cased tuples, while the PSF's own spelling is
 what gets reported.

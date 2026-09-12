@@ -335,16 +335,26 @@ Found 2026-09-10 chasing "phosphotyrosine has no CHARMM parameters", which was w
 shipped file, `toppar_all36_prot_na_combined.str`, spells one type three ways:
 
 ```
-MASS  -1  ON2B     15.99940 O ! ...        <- the type declaration; psfgen writes THIS spelling
-ATOM  OH  ON2b     -0.36                   <- the TP1 patch that uses it
+MASS  -1  ON2B     15.99940 O ! ...        <- the type declaration
+ATOM  OH  ON2B     -0.36                   <- RESI PTR (and PRES TP2) -- what reaches a PTR PSF
+ATOM  OH  ON2b     -0.36                   <- PRES TP1 only
 CA    ON2b  340.0   1.38                   <- every bonded parameter
 ON2B  0.0  -0.1521  1.77                   <- the vdW record
 ```
 
+**psfgen does not normalize the case.** An earlier version of this note said psfgen writes the
+`MASS` spelling into the PSF. It does not: pestifer runs psfgen under `psfcontext mixedcase`,
+where a residue's `ATOM` type is taken verbatim and must match a `MASS` record exactly. A PTR PSF
+carries `ON2B` because `RESI PTR` spells it that way. `PRES TP1`, which spells it `ON2b`, cannot be
+applied at all -- psfgen stops with `unknown atom type ON2b` / `MOLECULE DESTROYED BY FATAL ERROR`
+(found 2026-09-12 building every PTM route; `TP2`, spelled `ON2B`, builds). CHARMM itself would
+accept `TP1`. Across the release that mismatch otherwise appears only in model compounds and in
+lowercase-named protonation patches in a stream pestifer does not load.
+
 CHARMM does not care. Anything in pestifer that compares an atom type as a Python string does,
 and gets it **half** right, which is worse than getting it wrong. A real built phosphotyrosine
 PSF carries `ON2B` (checked against one, rather than reasoned about -- the first version of this
-note had the direction backwards). So its *vdW* lookup succeeds and every one of its *bonded*
+note had the direction backwards, and the second had the reason wrong; see above). So its *vdW* lookup succeeds and every one of its *bonded*
 terms fails: `('CA','ON2B')` is not `('CA','ON2b')`. That is precisely why
 `extract_for_atomtypes` used to drop phosphotyrosine's parameters from the minimal file while
 leaving a result whose own counts looked self-consistent.
@@ -439,3 +449,11 @@ that position. Guarded in `tests/unit/test_scripters/test_psfgenscripter.py::Tes
 
 If you reorder topology loading, or add a residue defined in a stream with no `DEFA`, check its
 terminal patches in the built PSF -- not in the script, which will look fine either way.
+
+**Known gap: `CYSL`.** It also acylates its backbone N (`BOND N CA1` -- the N-palmitoyl,
+S-diacylglyceryl cysteine of bacterial lipoproteins) and lives in the same stream, but the set is
+derived from the fusion table, which only has `GLYM`/`LYSM`. So an N-terminal `CYSL` is still
+right by load order alone. Deriving the set from the topology instead -- a residue whose `N` bonds
+to a carbon other than `CA` -- would cover it and anything added later; not done, because no build
+has needed an N-terminal `CYSL`. Found 2026-09-12 by the PTM audit, where `CYSL` mid-chain
+(correctly) failed the parameter check on the junction it cannot have.

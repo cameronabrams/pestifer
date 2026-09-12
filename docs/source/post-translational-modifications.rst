@@ -107,8 +107,12 @@ Put an ``md`` minimize immediately after the ``psfgen`` task, and put any ``vali
 **Check the charge state.**  A residue name carries one protonation state, and it may not be the
 one you want.  ``RESI SEP`` is the **monoanionic** phosphoserine, while the dianion dominates at
 pH 7.  Where the charge state matters, use the patch route instead: build the ordinary residue
-and apply ``SP1`` (mono) or ``SP2`` (di) for phosphoserine, ``THP1``/``THPB`` for phosphothreonine, and
-``TP1``/``TP2`` for phosphotyrosine.
+and apply ``SP1`` (mono) or ``SP2`` (di) for phosphoserine, or ``THP1``/``THPB`` for
+phosphothreonine.  For phosphotyrosine use ``TP2`` for the dianion; for the monoanion use
+``RESI PTR`` by mutation, **not** ``TP1`` -- ``PRES TP1`` spells one atom type ``ON2b`` where the
+force field declares ``ON2B``, and psfgen as pestifer runs it matches atom types exactly, so the
+patch fails with ``unknown atom type ON2b``.  All the other routes here were built and minimized
+on ubiquitin to confirm them.
 
 Phosphorylation
 ---------------
@@ -131,8 +135,8 @@ targets too; they are defined in a stream that is loaded anyway.
 Phosphotyrosine (``PTR``) works too, and its parameters are worth a note.  ``RESI PTR`` types
 the phenol oxygen as ``ON2B``, a nucleic-acid ester oxygen, and the angles it needs are the
 phenol-phosphate set published in 1994 -- ``CA ON2b P``, ``ON3 P ON2b``, ``ON4 P ON2b``.  Those
-are written with a lowercase ``b`` in the force field while the ``MASS`` record, and therefore
-the PSF, says ``ON2B``.  CHARMM atom types are case-insensitive, so this is perfectly legal; it
+are written with a lowercase ``b`` in the force field while the ``MASS`` record and ``RESI PTR``,
+and therefore the PSF, say ``ON2B``.  CHARMM atom types are case-insensitive, so this is perfectly legal; it
 was pestifer that matched them case-sensitively and silently dropped the records, which made
 phosphotyrosine fail at the first dynamics step with ``UNABLE TO FIND ANGLE PARAMETERS``.  Fixed
 -- but the shape is worth knowing if you ever meet a missing-parameter error for a residue whose
@@ -161,6 +165,11 @@ defines them.  Add it under ``charmmff.standard.str`` -- entries there extend th
 ``CYSP``, ``CYSF`` and ``CYSG`` need nothing extra.  (Measured by building each residue and
 checking every term against the default parameter set, with and without that stream.)  A build
 that is missing it stops before NAMD runs and names the residue and each unresolved term.
+
+**``GLYM`` and ``CYSL`` can only begin a chain.**  Both acylate their own backbone nitrogen --
+``CYSL`` is the N-palmitoyl, S-diacylglyceryl cysteine of bacterial lipoproteins -- so neither can
+follow another residue.  Mutating an internal residue to either stops the build before NAMD, with
+the missing junction terms named (``C-NH1-C`` for ``CYSL`` after an arginine).
 
 **A lipid already in the deposit is fused, not mutated.**  The PDB writes a myristoylated
 glycine as a ``MYR`` ligand joined to the glycine by a ``LINK``; CHARMM defines ``GLYM`` as one
