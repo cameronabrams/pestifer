@@ -4,6 +4,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **acetate (`ACET`) was classified as protein and acetone (`ACO`) as glycan.** pestifer
+  derives a residue's segtype from the file that defines it, and these small-molecule model
+  compounds live in `toppar_all36_prot_model.str` and `toppar_all36_carb_model.str`. Example 5
+  carries acetate as a crystallographic ligand; example 24 solvates in acetone, whose 1,753
+  molecules were classified as sugar. Both are now curated as `ligand`, matching DMSO and
+  acetonitrile. The same cause affects roughly 150 other model compounds -- methanol, ethanol and
+  2-propanol derive as protein; ethylene glycol and cyclohexane as glycan -- which are not changed
+  here.
+
 - feat: **example 29, myristoylated HIV-1 matrix protein (1uph).** Builds a lipidation that is
   already in the deposit, where example 28 installs one that is not: the `MYR` ligand is fused
   into Gly2 as `GLYM` with its NMR conformation kept (all nine distal carbons packed against the

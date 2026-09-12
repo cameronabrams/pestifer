@@ -104,7 +104,12 @@ _segtypes = {
         # HEME is defined in a CHARMM prot_heme stream (would derive to 'protein'); pestifer
         # treats it (and the custom EIC/VCG) as a ligand.  ADP/ATP live in a nucleic-acid
         # stream but are used here as ligands.
-        'resnames': ['ADP', 'ATP', 'EIC', 'HEM', 'HEME', 'VCG']},
+        # ACET (acetate) and ACO (acetone) are small-molecule model compounds that happen to live
+        # in a protein and a carbohydrate stream (toppar_all36_prot_model.str,
+        # toppar_all36_carb_model.str), so they derived as 'protein' and 'glycan'.  Example 5
+        # carries acetate as a crystallographic ligand and example 24 uses acetone as its
+        # solvent; the other organic solvents (DMSO, ACN) already classify as ligand.
+        'resnames': ['ACET', 'ACO', 'ADP', 'ATP', 'EIC', 'HEM', 'HEME', 'VCG']},
     'cofactor': {
         'macro': True,
         # FMN/NAD/NADP are defined in prot/na streams; COA/PLP/TPP are aliases with no RESI
