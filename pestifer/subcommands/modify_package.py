@@ -28,6 +28,7 @@ import argparse as ap
 import logging
 import os
 import re
+from pathlib import Path
 
 from . import Subcommand
 
@@ -72,6 +73,28 @@ def _add_pdb_entry(RM, args, out=print):
             f"{', '.join(result['created_collections'])}")
     out('  resource cache cleared; it will rebuild on the next run.')
     return result['touched_paths'], result
+
+
+_NOT_CHANGED_BEFORE = object()
+
+
+def _content_digest(path):
+    """Digest of a working-tree path: a file's bytes, a directory's files (paths and bytes, in
+    sorted order), or None for a path that no longer exists (a deletion)."""
+    import hashlib
+    p = Path(path)
+    if not p.exists():
+        return None
+    h = hashlib.sha256()
+    files = [p] if p.is_file() else sorted(q for q in p.rglob('*') if q.is_file())
+    for q in files:
+        h.update(str(q.relative_to(p.parent)).encode())
+        h.update(q.read_bytes())
+    return h.hexdigest()
+
+
+def _content_snapshot(paths) -> dict:
+    return {p: _content_digest(p) for p in paths}
 
 
 def _do_example(RM, args):
@@ -266,10 +289,15 @@ class ModifyPackageSubcommand(Subcommand):
 
         # ---- apply the modification -------------------------------------------------------
         if category == 'example':
+            # Example management touches files it does not enumerate, so what it changed is read
+            # back from git.  In contribute mode the tree was required clean, but --no-branch
+            # never requires that: reading every changed path then attributes the user's own
+            # unrelated edits to this operation, and a later `ledger revert` of the entry would
+            # silently undo them.  Record only paths whose content this operation changed.
+            before = _content_snapshot(gitutil.changed_paths(repo_root))
             _do_example(RM, args)
-            # example management touches files it does not enumerate; with a clean tree
-            # (contribute mode) every current change is attributable to this operation
-            touched = gitutil.changed_paths(repo_root)
+            touched = [p for p in gitutil.changed_paths(repo_root)
+                       if _content_digest(p) != before.get(p, _NOT_CHANGED_BEFORE)]
 
         elif category == 'pdb-repo':
             if verb == 'add-entry':

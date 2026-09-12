@@ -435,6 +435,12 @@ class PsfgenScripter(VMDScripter):
         for cf in seg_Cfusions.data:
             self.write_cfusion_insegment(cf)
         self.write_mutations(seg_mutations)
+        if not any(p.use_in_segment == 'first' for p in seg_patches.data):
+            first_resname = self._first_built_resname(segment, seg_mutations)
+            if first_resname in Labels.backbone_acylated_resnames:
+                # see Labels.backbone_acylated_resnames: correct by construction, not load order
+                self.comment(f'{first_resname} acylates its own backbone N: no N-terminal patch')
+                self.addline('first none', indents=1)
         for p in seg_patches.data:
             if p.use_in_segment == 'first':
                 self.addline(f'first {p.patchname}', indents=1)
@@ -781,6 +787,19 @@ class PsfgenScripter(VMDScripter):
             The Cfusion object representing the fusion segment to be finalized.
         """
         self.addline(f'coordpdb {C.segfile} {C.chainID}')
+
+    @staticmethod
+    def _first_built_resname(segment: Segment, mutations: MutationList) -> str:
+        """CHARMM resname of the first residue this segment stanza actually builds, after any
+        mutation at that position."""
+        if not segment.subsegments.data:
+            return ''
+        first = segment.residues[segment.subsegments.data[0].bounds[0]]
+        resname = first.resname
+        for m in mutations:
+            if m.resid.resid == first.resid.resid and getattr(m, 'chainID', first.chainID) == first.chainID:
+                resname = m.newresname
+        return Labels.charmm_resname_of_pdb_resname.get(resname, resname)
 
     def write_mutations(self, mutations: MutationList):
         for mutation in mutations:

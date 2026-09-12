@@ -1,7 +1,9 @@
-import pytest
-# these tests construct a verify_access Config, which requires the external
-# vmd/namd/charmrun toolchain; skip them where those binaries are absent
-pytestmark = pytest.mark.needs_tools
+# NOT marked needs_tools.  It was, on the claim that these tests construct a verify_access Config;
+# none does, and all of them pass with vmd/namd/charmrun hidden from PATH (checked 2026-09-12).
+# The marker kept the whole module off CI, where the example-management code it guards also runs.
+# It also hid that this module's working directory was never tracked (conftest's chdir then falls
+# back a level and setUp's cwd assertion fails in any fresh checkout); test_examplemanager/.gitkeep
+# is what makes it exist there.
 
 import unittest
 import shutil
@@ -95,6 +97,22 @@ class TestExampleManager(unittest.TestCase):
         toctree = open(self.manager.sphinx_example_manager.examples_rst).read()
         self.assertIn('03/exB', toctree)
         self.assertNotIn(os.path.abspath('userspace'), toctree)
+
+    def test_append_example_takes_title_and_db_id_from_the_script(self):
+        # the docstring promised this and the body never did it: every `example add` produced a
+        # docs stub reading "Example 29: " and "PDB ID  <...>" (found adding example 29)
+        ex = self.manager.append_example(3, os.path.abspath('userspace/exB.yaml'))
+        self.assertEqual(ex.title, 'analog cell phone')
+        self.assertEqual(ex.db_id, '1acp')
+        stub = open(os.path.join(self.manager.sphinx_example_manager.examples_folder_path,
+                                 '03', 'exB.rst')).read()
+        self.assertIn('Example 3: analog cell phone', stub)
+        self.assertIn('1acp', stub)
+
+    def test_explicit_title_and_db_id_still_win(self):
+        ex = self.manager.append_example(3, os.path.abspath('userspace/exB.yaml'),
+                                         title='given', db_id='9xyz')
+        self.assertEqual((ex.title, ex.db_id), ('given', '9xyz'))
 
     def test_example_manager_delete_example(self):
         self._build_example_set()

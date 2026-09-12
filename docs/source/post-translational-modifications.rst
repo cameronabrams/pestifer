@@ -154,6 +154,22 @@ The acyl chain is built from the topology's internal coordinates and comes out i
 extended conformation -- a palmitoyl measures 19.1 Å from C1 to C16, against ~19 Å fully
 extended, with no clash against the protein.
 
+**Three of the six need one more stream.**  The N-acyl amides ``GLYM``, ``LYSM`` and ``CYSL``
+take the parameters at their acyl carbonyl (``C-CTL2``, ``C-CTL2-CTL2`` and four related terms)
+from ``toppar_all36_lipid_sphingo.str``, which is not loaded by default and is not the file that
+defines them.  Add it under ``charmmff.standard.str`` -- entries there extend the default set.
+``CYSP``, ``CYSF`` and ``CYSG`` need nothing extra.  (Measured by building each residue and
+checking every term against the default parameter set, with and without that stream.)  A build
+that is missing it stops before NAMD runs and names the residue and each unresolved term.
+
+**A lipid already in the deposit is fused, not mutated.**  The PDB writes a myristoylated
+glycine as a ``MYR`` ligand joined to the glycine by a ``LINK``; CHARMM defines ``GLYM`` as one
+residue.  pestifer fuses a linked ``MYR`` into its glycine (or lysine) on reading, carrying the
+deposited coordinates, so the chain keeps the conformation the structure gives it.  A chain
+beginning with ``GLYM`` is written with ``first none`` automatically, because that residue
+acylates its own backbone nitrogen and must not receive ``NTER``.
+:ref:`Example 29 <example myristoylated-matrix>` builds exactly this, from 1UPH.
+
 The caveat is **placement, in a membrane build**.  pestifer has no machinery that puts a
 protein-attached acyl or prenyl tail *into the bilayer*; the chain is built relative to the
 residue it hangs off, wherever that points.  For a soluble protein that is the right answer and

@@ -1,0 +1,76 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+#
+# HIV-1 matrix protein with its N-terminal myristoyl group
+#
+# Notes:
+#   - 1UPH is an NMR ensemble of myristoylated HIV-1 matrix (MA); `model: 1` builds the first
+#     conformer.  Without it every model's coordinates are read, and the myristate alone arrives
+#     as twenty superimposed copies.
+#   - The deposit writes the myristate as a separate ligand, MYR A:1, joined to Gly2 by a LINK
+#     record.  CHARMM instead defines N-myristoyl-glycine as ONE residue, GLYM
+#     (toppar_all36_lipid_prot.str).  pestifer fuses the linked MYR into Gly2 as GLYM when it
+#     reads the structure, carrying the deposited heavy-atom coordinates and dropping the ligand's
+#     hydrogens for psfgen to rebuild -- so the myristate keeps the conformation the NMR structure
+#     gives it, with its distal carbons packed against the protein, rather than being modeled.
+#   - GLYM acylates the backbone nitrogen, so the chain must start with no N-terminal patch;
+#     pestifer writes `first none` for that segment itself.
+#   - GLYM's topology loads automatically, but one of its parameters does not: the C-CTL2-CTL2
+#     angle at the acyl carbonyl lives in toppar_all36_lipid_sphingo.str, which has no other
+#     reason to be loaded.  It is listed below; entries under charmmff.standard.str are ADDED to
+#     the default set, not substituted for it.  Leave it out and the build stops before NAMD runs,
+#     naming GLYM A2 and every unresolved term.
+#   - A self-terminating density_equilibrate task settles the box density
+#   - A production tarball is generated: my_1uph_myrMA.tgz
+
+title: Myristoylated HIV-1 matrix protein
+charmmff:
+  standard:
+    str:
+      - toppar_all36_lipid_sphingo.str
+tasks:
+  - fetch:
+      sourceID: 1uph
+  - psfgen:
+      source:
+        model: 1
+  - md:
+      ensemble: minimize
+  - validate:
+      tests:
+        - residue_test:
+            name: the myristate was fused into Gly2 as GLYM
+            selection: resname GLYM
+            measure: residue_count
+            value: 1
+        - residue_test:
+            name: no free myristate ligand remains
+            selection: resname MYR
+            measure: residue_count
+            value: 0
+        - residue_test:
+            name: GLYM carries the whole myristoyl chain (7 glycine + 42 acyl atoms)
+            selection: resname GLYM
+            measure: atom_count
+            value: 49
+  - solvate:
+      salt_con: 0.15
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - density_equilibrate:
+  - mdplot:
+      basename: solvated
+      grid: true
+      timeseries:
+        - - a_x
+          - b_y
+          - c_z
+  - terminate:
+      basename: my_1uph_myrMA
+      package:
+        basename: my_1uph_myrMA
+        namd:
+          ensemble: NPT

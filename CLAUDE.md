@@ -393,7 +393,7 @@ The check reports all of them, by residue, before NAMD launches -- six terms for
 
 The two causes are separated because the remedies are opposite. Missing from the *merged* set
 means no file in `self.parameters` defines it, and the build needs another stream: the case
-that motivated this is `GLYM`, defined in the protein modification stream but taking
+that motivated this is `GLYM`, defined in `toppar_all36_lipid_prot.str` but taking
 `C CTL2 CTL2` from `toppar_all36_lipid_sphingo.str`, a file with no other reason to be loaded.
 Missing from the consolidated file *only* means `extract_for_atomtypes` dropped a record it
 should have kept -- a pestifer bug, and the message says so, because otherwise it gets debugged
@@ -413,3 +413,29 @@ record exactly, with no reversal needed, which is the evidence for matching that
 `list.extend` with no dedup key, so an overlapping stream would have duplicated records. No
 duplicate arises from the default file set, so that one is latent, not a fix for an observed
 failure.
+
+## A residue's terminal patch is decided by topology load order unless something says otherwise
+
+Found 2026-09-12 building example 29. psfgen gives each residue the `DEFA FIRS ... LAST ...`
+default **in force when that residue's definition is read**, not when the segment is built. Most
+CHARMM files set their own default, so this never shows. `toppar_all36_lipid_prot.str` does not
+-- its `DEFA` line is commented out -- so `GLYM`, `LYSM`, `CYSP` and the rest inherit whatever
+the previously loaded file left behind. For `GLYM` that matters: it acylates its own backbone N
+and must start a chain with no `NTER`.
+
+pestifer auto-loads that stream last, after `top_all35_ethers.rtf` ends on `DEFAULT FIRST NONE`,
+so every build was correct and nothing hinted it was an accident. Built directly with
+`prot_modify_res.str` (`DEFA FIRS NTER`) read just before it, psfgen produced:
+
+```
+default order:   N:NH1  HN:H                          <- amide, correct
+NTER in force:   N:NH3  HT1:HC HT2:HC HT3:HC  C1:C    <- NH3 still bonded to the acyl carbon
+```
+
+with no error and no warning. The fix does not touch load order: `PsfgenScripter` writes
+`first none` when a segment's first built residue is in `Labels.backbone_acylated_resnames`,
+derived from `_fusible_ligands` (entries whose bond lands on `N`), after applying any mutation at
+that position. Guarded in `tests/unit/test_scripters/test_psfgenscripter.py::TestBackboneAcylatedFirstResidue`.
+
+If you reorder topology loading, or add a residue defined in a stream with no `DEFA`, check its
+terminal patches in the built PSF -- not in the script, which will look fine either way.

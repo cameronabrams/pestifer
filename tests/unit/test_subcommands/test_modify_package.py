@@ -167,5 +167,26 @@ class TestModifyPackageLedger(unittest.TestCase):
         self.assertEqual(_current_branch(d), 'main' if gitutil.branch_exists(d, 'main') else 'master')
 
 
+    def test_no_branch_does_not_claim_unrelated_dirty_files(self):
+        """--no-branch never requires a clean tree, so files the user had already changed must
+        not be recorded as part of this operation -- `ledger revert` would silently undo them.
+        Found adding example 29 with unrelated source fixes uncommitted: the entry listed
+        labels.py, psfgen.py, namd.py and CLAUDE.md as belonging to the example."""
+        d = _init_repo()
+        (d / 'seed.txt').write_text('an unrelated edit the user made first\n')   # tracked, dirty
+        (d / 'scratch.txt').write_text('untracked, also pre-existing\n')         # untracked
+        rm = self._rm(d)                                                          # op writes foo.txt
+        self._run(d, rm, ['modify-package', 'example', 'rename', '19', 'n', '--no-branch'])
+        files = ledger.read(str(d))[-1]['files']
+        self.assertEqual(files, ['foo.txt'])
+
+    def test_no_branch_records_a_pre_dirty_file_the_operation_changes_again(self):
+        d = _init_repo()
+        (d / 'foo.txt').write_text('already here, untracked\n')
+        rm = self._rm(d)                                  # op rewrites foo.txt with new content
+        self._run(d, rm, ['modify-package', 'example', 'rename', '19', 'n', '--no-branch'])
+        self.assertEqual(ledger.read(str(d))[-1]['files'], ['foo.txt'])
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -417,6 +417,13 @@ class ExampleManager:
         if not os.path.isfile(scriptname):
             raise FileNotFoundError(f'Example scriptfile {scriptname} does not exist in the CWD.')
 
+        # Honor the docstring: a title or database ID not given is taken from the script.  Without
+        # this the generated docs stub read "Example 29: " and "PDB ID  <...>" -- every add.
+        if not title or not db_id:
+            implied_title, implied_db_id = Example._get_implied_metadata(scriptname)
+            title = title or implied_title
+            db_id = db_id or implied_db_id
+
         new_example = Example(
             example_id=example_id,
             # shortname is a bare identifier (no directory, no extension); the toctree entry and

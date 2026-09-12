@@ -222,6 +222,13 @@ class LabelMappers:
         self.residue_fullnames = _residue_fullnames
         self.segtypes = _segtypes
         self.fusible_ligands = _fusible_ligands
+        # Residues whose own topology already acylates the BACKBONE nitrogen (the fusion bond
+        # lands on 'N').  Such a residue can only begin a chain, and must begin it with no
+        # N-terminal patch: NTER on an N-myristoyl nitrogen would make it NH3+ while still bonded
+        # to C1.  CHARMM's lipid_prot stream deliberately sets no DEFA (its line is commented
+        # out), so without an explicit `first none` the residue inherits whatever default the
+        # previously read topology left in force -- correct or not by load order alone.
+        self.backbone_acylated_resnames = {v[0] for v in _fusible_ligands.values() if v[2] == 'N'}
         self.segtype_of_resname = {}
         self.charmm_resname_of_pdb_resname = {}
         self.pdb_resname_of_charmm_resname = {}

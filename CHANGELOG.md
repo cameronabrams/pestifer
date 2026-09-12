@@ -4,6 +4,39 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **example 29, myristoylated HIV-1 matrix protein (1uph).** Builds a lipidation that is
+  already in the deposit, where example 28 installs one that is not: the `MYR` ligand is fused
+  into Gly2 as `GLYM` with its NMR conformation kept (all nine distal carbons packed against the
+  protein; 0.45 A mean from the deposit after minimization). It uses `model: 1` -- without it the
+  NMR ensemble's twenty myristates are all carried -- and lists `toppar_all36_lipid_sphingo.str`,
+  the only file defining `GLYM`'s acyl-carbonyl terms. Built end to end: 38,681 atoms, neutral,
+  validate 3 pass / 0 fail.
+
+- fix: **a chain beginning with `GLYM` got its N-terminal patch by topology load order.**
+  `GLYM` acylates its own backbone nitrogen, so it must start a chain with no `NTER`. CHARMM's
+  `toppar_all36_lipid_prot.str` sets no `DEFA` (its line is commented out), and psfgen gives each
+  residue the default in force when that residue is read -- so the answer depended on which file
+  pestifer happened to load before it. pestifer's current order made it right; built directly
+  with `NTER` in force, psfgen made the nitrogen `NH3` with three `HT` hydrogens *while still
+  bonded to the myristoyl carbonyl*, and reported nothing. pestifer now writes `first none` for a
+  segment whose first residue acylates its backbone N (derived from the fusion table, so it
+  covers `GLYM` whether it came from a deposit or a mutation).
+
+- fix: **`modify-package ... --no-branch` recorded the user's unrelated uncommitted edits as part
+  of the operation.** Example management reads what it changed back from `git status`, which is
+  only attributable when the tree was clean -- required with a branch, never with `--no-branch`.
+  A later `ledger revert` of that entry would have silently undone the unrelated edits. Only
+  paths whose content the operation changed are recorded now.
+
+- fix: **`modify-package example add` wrote a docs stub with no title and no PDB ID.** The
+  docstring promised both are taken from the script when not given; the body never did it.
+
+- test: `tests/unit/test_core/test_examplemanager.py` was marked `needs_tools`, on the claim that
+  it constructs a verify_access Config. None of its tests does, and all pass with the tools
+  hidden, so the marker only kept them off CI. Removed -- and removing it exposed that the
+  module's working directory was never tracked, so every test failed in a fresh checkout.
+  The marker had been hiding the same untracked-directory failure recorded in CLAUDE.md.
+
 - feat: **a lipidation deposited as a separate ligand is fused into the residue CHARMM defines
   it as part of.** The PDB writes a myristoylated glycine as a `MYR` ligand bonded to a `GLY` by
   a `LINK`; CHARMM defines a single `GLYM` whose heavy atoms are exactly the union of the two,

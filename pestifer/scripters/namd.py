@@ -279,8 +279,8 @@ class NAMDScripter(TcLScripter):
                        f'{len(self.parameters)} parameter file(s) define:',
                 advice='Add the stream file that carries them to charmmff.standard.str (or '
                        'charmmff.custom.str) in your config. A residue\'s parameters are not '
-                       'always in the file that defines the residue: GLYM is defined in the '
-                       'protein modification stream but takes an angle from '
+                       'always in the file that defines the residue: GLYM is defined in '
+                       'toppar_all36_lipid_prot.str but takes an angle from '
                        'toppar_all36_lipid_sphingo.str.'))
         if dropped.any():
             parts.append(format_missing(
