@@ -15,6 +15,20 @@ class TestSegtypeClassifier(unittest.TestCase):
         self.assertEqual(segtype_of_topfile('83G-cgenff.str'), 'ligand')
         self.assertEqual(segtype_of_topfile('toppar_all36_moreions.str'), 'ion')
 
+    def test_model_compound_streams_are_ligands(self):
+        # The four *_model.str streams hold small standalone molecules used to parameterize the
+        # family their file is named for; matched by family they became protein/glycan/lipid/NA.
+        for f in ('toppar_all36_prot_model.str', 'toppar_all36_carb_model.str',
+                  'toppar_all36_lipid_model.str', 'toppar_all36_na_model.str'):
+            with self.subTest(topfile=f):
+                self.assertEqual(segtype_of_topfile(f), 'ligand')
+
+    def test_model_rule_does_not_catch_real_residue_files(self):
+        # `_model` must not match the family files that hold real residues
+        self.assertEqual(segtype_of_topfile('toppar_all36_prot_modify_res.str'), 'protein')
+        self.assertEqual(segtype_of_topfile('toppar_all36_lipid_prot.str'), 'lipid')
+        self.assertEqual(segtype_of_topfile('toppar_all36_carb_glycopeptide.str'), 'glycan')
+
     def test_none_when_unmatched(self):
         # a PDB-style alias not defined in a force-field file has no topfile
         self.assertIsNone(segtype_of_topfile(None))

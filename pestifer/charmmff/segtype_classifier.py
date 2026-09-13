@@ -19,6 +19,14 @@ mapping) so it can be exercised in isolation and reused by the persist-time gene
 # before the ion rules and split downstream (water resnames vs everything-else-is-an-ion).
 _TOPFILE_RULES = [
     ('cgenff', 'ligand'),        # top_all36_cgenff*.rtf, <resi>-cgenff.str
+    # The four toppar_all36_{prot,carb,lipid,na}_model.str streams hold MODEL COMPOUNDS: small
+    # standalone molecules used to parameterize the family the file is named for -- methanol,
+    # ethanol, acetate, acetone, butane, choline, nucleotide fragments.  Matching them by family
+    # classified 193 small molecules as protein, glycan, lipid or nucleic acid, including the
+    # methanol and ethanol pestifer ships as solvents.  This rule must precede the family rules.
+    # Exceptions are curated in labels.py, which wins: MLYS (a methylated lysine with -C/+N
+    # neighbor bonds -- a real chain residue) and the methyl/dimethyl phosphates DMP, MP_1, MP_2.
+    ('_model', 'ligand'),        # toppar_all36_*_model.str
     ('water_ions', 'water_ions'),  # toppar_water_ions.str -> split into water / ion
     ('moreions', 'ion'),         # toppar_all36_moreions.str
     ('lipid', 'lipid'),          # top_all36_lipid.rtf, toppar_all36_lipid_*.str

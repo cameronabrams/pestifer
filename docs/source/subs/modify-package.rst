@@ -202,7 +202,7 @@ Each entry goes to its own default collection (its residue's segtype), so a mixe
 Regenerating the derived segtype classification
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Pestifer classifies most residues into a *segtype* (protein, lipid, glycan, nucleicacid, ligand, ion, water) by the CHARMM topology/stream file each residue is defined in, rather than from a hand-maintained list.  This classification is stored in the generated resource ``pestifer/resources/labels/derived_segtypes.json`` and merged into :attr:`Labels.segtype_of_resname <pestifer.core.labels.LabelMappers.segtype_of_resname>` at import.  After updating the bundled CHARMM force field (or adding a residue whose classification should follow from its defining file), regenerate it with
+Pestifer classifies most residues into a *segtype* (protein, lipid, glycan, nucleicacid, ligand, ion, water) by the CHARMM topology/stream file each residue is defined in, rather than from a hand-maintained list.  This classification is stored in the generated resource ``pestifer/resources/labels/derived_segtypes.json`` and merged into :attr:`Labels.segtype_of_resname <pestifer.core.labels.LabelMappers.segtype_of_resname>` at import.  One family is deliberately not classified by its name: the ``toppar_all36_*_model.str`` streams hold small model compounds -- methanol, acetone, choline, nucleotide fragments -- and every residue in them is a ``ligand``, whichever family its file is named for.  After updating the bundled CHARMM force field (or adding a residue whose classification should follow from its defining file), regenerate it with
 
 .. code-block:: bash
 

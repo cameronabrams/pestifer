@@ -4,14 +4,19 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
-- fix: **acetate (`ACET`) was classified as protein and acetone (`ACO`) as glycan.** pestifer
-  derives a residue's segtype from the file that defines it, and these small-molecule model
-  compounds live in `toppar_all36_prot_model.str` and `toppar_all36_carb_model.str`. Example 5
-  carries acetate as a crystallographic ligand; example 24 solvates in acetone, whose 1,753
-  molecules were classified as sugar. Both are now curated as `ligand`, matching DMSO and
-  acetonitrile. The same cause affects roughly 150 other model compounds -- methanol, ethanol and
-  2-propanol derive as protein; ethylene glycol and cyclohexane as glycan -- which are not changed
-  here.
+- fix: **193 small-molecule model compounds were classified as protein, glycan, lipid or
+  nucleic acid.** pestifer derives a residue's segtype from the file that defines it, and CHARMM
+  keeps model compounds -- small standalone molecules used to parameterize a family -- in
+  `toppar_all36_{prot,carb,lipid,na}_model.str`. They are now classified `ligand`, like DMSO and
+  acetonitrile, by a `_model` file rule rather than by name, so a model compound CHARMM adds later
+  is covered too. Among them: acetate (example 5's crystallographic ligand), acetone (example 24's
+  solvent, 1,753 molecules classified as sugar), and the methanol and ethanol pestifer ships as
+  solvent boxes, both classified as protein. Two exceptions are curated: `MLYS`, a methylated
+  lysine defined in the protein model stream that bonds to its chain neighbors, stays `protein`;
+  the methyl/dimethyl phosphates `DMP`, `MP_1`, `MP_2` stay `lipid` as before. None of this changed a
+  built system: examples 5 and 24, and ubiquitin solvated in methanol and in ethanol, rebuild with
+  the same atoms, segments and patches. `macros.tcl`, whose VMD macros are generated separately and
+  are already out of step with the curated table, is not regenerated.
 
 - feat: **example 29, myristoylated HIV-1 matrix protein (1uph).** Builds a lipidation that is
   already in the deposit, where example 28 installs one that is not: the `MYR` ligand is fused

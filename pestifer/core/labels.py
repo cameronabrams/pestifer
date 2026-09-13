@@ -78,7 +78,10 @@ _segtypes = {
             'CYSG',   # S-geranylgeranyl-cysteine
             'CYSL',   # S-triacylhexadecane-cysteine
             'GLYM',   # N-myristoyl-glycine
-            'LYSM'],  # N-myristoyl-lysine
+            'LYSM',   # N-myristoyl-lysine
+            # Defined in toppar_all36_prot_model.str, whose residues derive as ligand (they are
+            # model compounds), but MLYS bonds -C/+N to its neighbors: a real chain residue.
+            'MLYS'],  # methylated lysine
         'rescodes': {
             'ALA': 'A', 'ARG': 'R', 'ASN': 'N', 'ASP': 'D',
             'CYS': 'C', 'GLN': 'Q', 'GLU': 'E', 'GLY': 'G',
@@ -104,12 +107,9 @@ _segtypes = {
         # HEME is defined in a CHARMM prot_heme stream (would derive to 'protein'); pestifer
         # treats it (and the custom EIC/VCG) as a ligand.  ADP/ATP live in a nucleic-acid
         # stream but are used here as ligands.
-        # ACET (acetate) and ACO (acetone) are small-molecule model compounds that happen to live
-        # in a protein and a carbohydrate stream (toppar_all36_prot_model.str,
-        # toppar_all36_carb_model.str), so they derived as 'protein' and 'glycan'.  Example 5
-        # carries acetate as a crystallographic ligand and example 24 uses acetone as its
-        # solvent; the other organic solvents (DMSO, ACN) already classify as ligand.
-        'resnames': ['ACET', 'ACO', 'ADP', 'ATP', 'EIC', 'HEM', 'HEME', 'VCG']},
+        # (Acetate and acetone were curated here on 2026-09-12; they now derive as ligand with
+        # every other *_model.str compound -- see segtype_classifier._TOPFILE_RULES.)
+        'resnames': ['ADP', 'ATP', 'EIC', 'HEM', 'HEME', 'VCG']},
     'cofactor': {
         'macro': True,
         # FMN/NAD/NADP are defined in prot/na streams; COA/PLP/TPP are aliases with no RESI
