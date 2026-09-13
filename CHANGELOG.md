@@ -4,6 +4,36 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **glycan link patches were chosen by conformation, so most glycosidic links got the wrong
+  anomer's patch.** CHARMM names every glycosidic patch by whether the link is axial or equatorial
+  on the sugar ring -- `NGLB` for a beta-GlcNAc on asparagine, `16AT` for an alpha(1->6) mannose,
+  `14ab` for "axial at C1 and equatorial at C4". pestifer chose among them by whichever patch's
+  reference *dihedral* was nearest the deposited geometry, and a torsion about the glycosidic bond
+  cannot tell which face of C1 the bond is on. On example 7 (4zmj) all 54 Asn-linked GlcNAc are beta
+  and all three 1->6 mannoses alpha: 3.21.2 gave 45 of the 54 the alpha patch and all three 1->6
+  links the beta one, and 3.19.1 was wrong on 39 of the 54. The patch now comes from what each
+  sugar is -- its CHARMM residue carries its anomer, and a table generated from CHARMM's own
+  geometry gives which ring positions are axial -- with the coordinates as a fallback for an unknown
+  residue. Checked against CHARMM itself: all 23 patches pestifer chooses between, built by psfgen
+  from their internal coordinates alone, come back under their own names. A deposited ring far
+  from a chair is now reported rather than silently misread (4zmj's Man A5 is boat-like and would
+  have read equatorial). Within a family the patches differ only in their internal-coordinate
+  tables, not in atoms, charges or bonds, so fully resolved glycans in existing builds keep the
+  same force field; what changes is the recorded patch and the geometry any IC-built link atom
+  starts from. Also fixes 1<->1 links, which CHARMM names from residue 1 first.
+
+- feat: **the parameter file is checked against the structure before NAMD runs.** After writing the
+  consolidated `*_minimal.prm`, pestifer verifies that it resolves every atom type and every bond,
+  angle, dihedral, improper and CMAP cross-term in the PSF, and stops with `PestiferBuildError`
+  otherwise -- naming each unresolved term and a residue that carries it, instead of NAMD dying on
+  the first one with bare atom serials. It separates a term missing from every loaded parameter
+  file (add a stream: `GLYM` needs `toppar_all36_lipid_sphingo.str`) from one the consolidation
+  dropped (a pestifer bug, and the message says so). Validated on 64 existing builds before the
+  check was made fatal: no false positives, and the one it flagged was a build NAMD had already
+  killed on the same term. The checker, previously used only for incoming PSFs, also matched atom
+  types case-sensitively, which falsely rejected phosphotyrosine; fixed, along with a PSF parser
+  bug that stored impropers in place of dihedrals.
+
 - fix: **193 small-molecule model compounds were classified as protein, glycan, lipid or
   nucleic acid.** pestifer derives a residue's segtype from the file that defines it, and CHARMM
   keeps model compounds -- small standalone molecules used to parameterize a family -- in

@@ -227,14 +227,118 @@ class TestLinkOrientationAgainstRealStructure(unittest.TestCase):
         # and the canonical run really did resolve patches, so the comparison is not
         # two piles of UNFOUND agreeing with each other
         self.assertNotIn('UNFOUND', {l.patchname for l in Lc})
-        # These are the patches 4zmj's geometry actually selects.  They changed when the
-        # periodicity bug in ic_reference_closest was fixed: the old code misclassified every
-        # reference point, so the set pinned here previously was the buggy classification.
-        # Within a family the patches are topologically identical -- same dele/ATOM/BOND, same
-        # types and charges, differing only in IC seed values -- so the correction changes the
-        # geometry unresolved atoms are built from, not the chemistry.
-        self.assertEqual({l.patchname for l in Lc},
-                         {'NGLA', 'NGLB', '12ab', '13bb', '14aa', '16BT'})
+        # The chemically correct patch for each of 4zmj's 25 links, from what the sugars ARE:
+        # NAG is beta-GlcNAc (equatorial at C1), MAN alpha-mannose (axial at C1, axial O2), BMA
+        # beta-mannose.  This previously pinned {NGLA, NGLB, 12ab, 13bb, 14aa, 16BT} -- the choice
+        # a nearest-reference-DIHEDRAL lookup made, which gave most beta-GlcNAc-Asn links the alpha
+        # patch.  A torsion about the glycosidic bond is conformation and cannot see configuration.
+        self.assertEqual(sorted((l.resname1, l.name1, l.resname2, l.patchname) for l in Lc), sorted(
+            [('ASN', 'ND2', 'NAG', 'NGLB')] * 18 +
+            [('NAG', 'O4', 'NAG', '14bb')] * 3 +
+            [('NAG', 'O4', 'BMA', '14bb'),
+             ('BMA', 'O3', 'MAN', '13ab'),
+             ('BMA', 'O6', 'MAN', '16AT'),
+             ('MAN', 'O2', 'MAN', '12aa')]))
+
+    def test_identity_wins_over_a_distorted_ring_and_says_so(self):
+        # Man A5 has alpha handedness at C1 but sits in a boat-like ring, where "axial" means
+        # nothing and the coordinates read equatorial.  The residue's identity decides.
+        L, r = self._fresh()
+        with self.assertLogs('pestifer.objs.link', level='WARNING') as cm:
+            L.assign_residues(r)
+        man_man = [l for l in L if l.resname1 == 'MAN' and l.resname2 == 'MAN']
+        self.assertEqual([l.patchname for l in man_man], ['12aa'])
+        self.assertTrue(any('MAN A5 C1' in m and 'distorted' in m for m in cm.output), cm.output)
+
+
+class TestGlycanPatchNamesMatchCharmmGeometry(unittest.TestCase):
+    """
+    CHARMM names each glycosidic patch by axial/equatorial ring geometry.  Every patch pestifer
+    chooses between was built by psfgen from its own internal coordinates alone; measuring that
+    geometry must give back the same name, for both the coordinate classifier and residue identity.
+    The fixture is what makes this checkable without psfgen.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        import json
+        from types import SimpleNamespace
+        path = Path(__file__).parent.parent.parent / 'inputs' / 'glycan_patch_reference_geometry.json'
+        cls.cases = json.load(open(path))['cases']
+        cls.NS = SimpleNamespace
+
+    def _residue(self, atoms, segname, resname):
+        class _Atoms(list):
+            def get(self, f):
+                m = [a for a in self if f(a)]
+                return None if not m else (m[0] if len(m) == 1 else m)
+        pick = [self.NS(name=a['name'], x=a['xyz'][0], y=a['xyz'][1], z=a['xyz'][2])
+                for a in atoms if a['segname'] == segname[0] and a['resid'] == segname[1]]
+        return self.NS(resname=resname, chainID=segname[0], resid=self.NS(resid=segname[1]),
+                       atoms=_Atoms(pick))
+
+    def _labels(self, patch, case, label_fn):
+        from pestifer.objs import link as linkmod
+        atoms, r1, r2 = case['atoms'], case['residue1'], case['residue2']
+        if case['kind'] == 'prot':
+            aa = self._residue(atoms, ('P', '1'), r1)
+            sugar = self._residue(atoms, ('G', '1'), r2)
+            x = linkmod._atom(aa, linkmod._PROTEIN_GLYCOSYLATION[r1][1])
+            return linkmod._PROTEIN_GLYCOSYLATION[r1][0] + label_fn(sugar, '1', x).upper()
+        acceptor = self._residue(atoms, ('G', '1'), r1)
+        donor = self._residue(atoms, ('G', '2'), r2)
+        n = patch[1]
+        sub = linkmod._atom(acceptor, f'O{n}')
+        d = label_fn(donor, '1', sub)
+        if n == '6':
+            return '16' + ('AT' if d == 'a' else 'BT')
+        if n == '1':   # CHARMM names 1<->1 from residue 1's C1 first
+            return f'11{label_fn(acceptor, n, sub)}{d}'
+        return f'1{n}{d}{label_fn(acceptor, n, sub)}'
+
+    def test_geometry_reproduces_every_patch_name(self):
+        from pestifer.objs import link as linkmod
+        geom = lambda res, pos, sub: linkmod._anomeric_label(res, f'C{pos}', sub)
+        self.assertEqual(len(self.cases), 23)
+        for patch, case in self.cases.items():
+            with self.subTest(patch=patch):
+                self.assertEqual(self._labels(patch, case, geom), patch)
+
+    def test_residue_identity_reproduces_every_patch_name(self):
+        from pestifer.objs import link as linkmod
+        for patch, case in self.cases.items():
+            with self.subTest(patch=patch):
+                ident = lambda res, pos, sub: linkmod._identity_label(res, pos)
+                self.assertEqual(self._labels(patch, case, ident), patch)
+
+    def test_set_patchname_itself_reproduces_every_patch_name(self):
+        # the wiring, not just the helpers: set_patchname orders the letters itself, and 1<->1 is
+        # named residue-1-first where every other link is donor-first
+        for patch, case in self.cases.items():
+            with self.subTest(patch=patch):
+                atoms, r1, r2 = case['atoms'], case['residue1'], case['residue2']
+                if case['kind'] == 'prot':
+                    res1, res2 = self._residue(atoms, ('P', '1'), r1), self._residue(atoms, ('G', '1'), r2)
+                    name1, seg1 = {'ASN': 'ND2', 'SER': 'OG', 'THR': 'OG1'}[r1], 'protein'
+                else:
+                    res1, res2 = self._residue(atoms, ('G', '1'), r1), self._residue(atoms, ('G', '2'), r2)
+                    name1, seg1 = f'O{patch[1]}', 'glycan'
+                L = Link(chainID1='A', resid1=ResID(1), name1=name1, chainID2='B', resid2=ResID(2), name2='C1')
+                L.resname1, L.resname2, L.segtype1, L.segtype2 = r1, r2, seg1, 'glycan'
+                L.residue1, L.residue2 = res1, res2
+                L.set_patchname()
+                self.assertEqual(L.patchname, patch)
+
+    def test_axial_table_is_consistent_with_its_anomer_prefix(self):
+        from pestifer.objs.link import _AXIAL_POSITIONS
+        for resname, axial in _AXIAL_POSITIONS.items():
+            with self.subTest(residue=resname):
+                self.assertEqual(resname.startswith('A'), '1' in axial)
+        # textbook stereochemistry, spot-checked: manno O2, galacto O4, allo O3 axial
+        self.assertEqual(_AXIAL_POSITIONS['AMAN'], '12')
+        self.assertEqual(_AXIAL_POSITIONS['BGAL'], '4')
+        self.assertEqual(_AXIAL_POSITIONS['BALL'], '3')
+        self.assertEqual(_AXIAL_POSITIONS['BGLCNA'], '')
 
 
 class TestOGlycanPatchSelection(unittest.TestCase):

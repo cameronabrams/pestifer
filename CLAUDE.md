@@ -457,3 +457,31 @@ right by load order alone. Deriving the set from the topology instead -- a resid
 to a carbon other than `CA` -- would cover it and anything added later; not done, because no build
 has needed an N-terminal `CYSL`. Found 2026-09-12 by the PTM audit, where `CYSL` mid-chain
 (correctly) failed the parameter check on the junction it cannot have.
+
+## Glycan link patches are chosen by what the sugar IS, not by how the link is twisted
+
+Found 2026-09-13 while asking whether the example set covered the week's glycan fixes. CHARMM names
+each glycosidic patch by **configuration** -- axial or equatorial on the ring, and its PRES comments
+say so ("(i)1->4(i-1) axial at C1 and equatorial at C4" is `14ab`). pestifer used to pick whichever
+patch's reference **dihedral** was closest to the deposit's. A torsion about the glycosidic bond is
+conformation; it cannot see which face of C1 the bond is on. On 4zmj it gave 45 of 54 beta-GlcNAc-Asn
+links the alpha patch. The periodicity fix in `fc2b881f` made that lookup mathematically correct and
+changed which wrong answers it gave -- a correct fix to the wrong method. Nothing broke, because the
+alpha/beta patches in a family differ only in their IC tables, so a wrong one changes no force-field
+term for a fully resolved glycan. That is exactly why it survived: nothing downstream could see it.
+
+`Link.set_patchname` now takes the anomer from the CHARMM residue name and the acceptor position
+from `_AXIAL_POSITIONS`, a table **generated** by building every CHARMM pyranose from its internal
+coordinates and measuring which substituents are axial. Geometry is the fallback, not the primary,
+because deposited rings are not always chairs: 4zmj's Man A5 is boat-like and reads equatorial despite
+alpha handedness. A disagreement between identity and geometry is logged.
+
+Two things to keep:
+
+- **The oracle is CHARMM, not a textbook.** `tests/inputs/glycan_patch_reference_geometry.json` holds
+  all 23 patches built by psfgen from ICs alone; every one must come back under its own name, through
+  `set_patchname` itself. That test caught a real bug in the fix: CHARMM names 1<->1 links from
+  residue 1 first, the reverse of every other family.
+- **Do not re-pin a set of "patches the geometry selects".** The test that did so enshrined the wrong
+  answer for a week, with a comment explaining why it was right. Pin per-link expectations derived
+  from what the residues are.

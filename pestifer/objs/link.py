@@ -16,6 +16,7 @@ from .mutation import MutationList
 from .resid import ResID
 
 from ..core.baseobj import BaseObj, BaseObjList
+from ..core.labels import Labels
 from ..util.coord import measure_dihedral
 
 if TYPE_CHECKING:
@@ -315,80 +316,43 @@ class Link(BaseObj):
             return
         logger.debug(f'resname1 {self.resname1} segtype2 {self.segtype2}')
         my_res12 = [self.residue1, self.residue2]
-        if self.resname1 == 'ASN' and self.segtype2 == 'glycan':
-            # N-linked glycosylation site (toppar_all36_carb_glycopeptide)
-            ICmap=[
-                {'ICatomnames': ['1CG','1ND2','2C1','2O5'],
-                 'mapping': {'NGLA':168.99,'NGLB':-70.91}}
-            ]
-            self.patchname = ic_reference_closest(my_res12, ICmap)
-        elif self.resname1 == 'SER' and self.segtype2 == 'glycan':
-            # O-linked to serine (toppar_all36_carb_glycopeptide)
-            ICmap=[
-                {'ICatomnames':['1CB','1OG','2C1','2O5'],
-                 'mapping':{'SGPA':45.37,'SGPB':19.87}}
-            ]
-            self.patchname = ic_reference_closest(my_res12, ICmap)
-        elif self.resname1 == 'THR' and self.segtype2 == 'glycan':
-            # O-linked to threonine (toppar_all36_carb_glycopeptide).  TGPA/TGPB, not SGPA/SGPB:
-            # the serine patches retype 1CB to CT2 (a CH2) and bond 1OG, while threonine's CB is
-            # a CH (CT1) bonded through OG1.  Applying the serine patch to a threonine therefore
-            # asks NAMD for a CT1 CT2 HA1 angle that does not exist.  The reference dihedrals
-            # below are already the TGPA/TGPB values; only the keys were wrong.
-            ICmap=[
-                {'ICatomnames':['1CB','1OG1','2C1','2O5'],
-                 'mapping':{'TGPA':69.9,'TGPB':33.16}}
-            ]
-            self.patchname = ic_reference_closest(my_res12, ICmap)
+        if self.resname1 in _PROTEIN_GLYCOSYLATION and self.segtype2 == 'glycan':
+            # N- or O-linked glycosylation (toppar_all36_carb_glycopeptide).  The patch letter is the
+            # configuration at the sugar's anomeric carbon: A = axial (alpha for a D-pyranose in its
+            # 4C1 chair), B = equatorial (beta).  THR takes TGPA/TGPB, not SGPA/SGPB: the serine
+            # patches retype 1CB to CT2 and bond 1OG, threonine's CB is a CH (CT1) bonded through
+            # OG1, and the serine patch asks NAMD for a CT1 CT2 HA1 angle that does not exist.
+            family, x_atom, fallback = _PROTEIN_GLYCOSYLATION[self.resname1]
+            at_c1 = _link_label(self.residue2, '1', _atom(self.residue1, x_atom))
+            self.patchname = (f'{family}{at_c1.upper()}' if at_c1
+                              else ic_reference_closest(my_res12, fallback()))
         elif self.name2 == 'C1' and self.segtype2 == 'glycan' and self.segtype1 == 'glycan':
-            # all taken from 1xyz pres in top_all36_carb.rtf
-            # including PHI angles of ICs with atoms in both residues
-            if self.name1 == 'O1':  # 1->1 link
-                ICmap=[
-                    {'ICatomnames':'1O5  1C1  1O1  2C1'.split(),
-                     'mapping':{'11aa':103.46,'11ab':121.75,'11bb':-56.58}
-                    },
-                    {'ICatomnames':'1C1  1O1  2C1  2O5'.split(),
-                     'mapping':{'11aa':103.54,'11ab':51.80,'11bb':-79.64}
-                    },
-                    {'ICatomnames':'1O1  2C1  2O5  2C5'.split(),
-                     'mapping':{'11aa':64.56,'11ab':167.51,'11bb':172.18}}
-                ]
-                self.patchname = ic_reference_closest(my_res12, ICmap)
-            elif self.name1 == 'O2':  # 1->2 link
-                ICmap=[
-                    {'ICatomnames':'1C1  1C2  1O2  2C1'.split(),
-                     'mapping':{'12aa':-132.81,'12ab':115.32,'12ba':-133.78,'12bb':117.14}
-                    },
-                    {'ICatomnames':'1C2  1O2  2C1  2O5'.split(),
-                     'mapping':{'12aa':47.16,'12ab':86.93,'12ba':168.07,'12bb':-168.07}
-                    }
-                ]
-                self.patchname = ic_reference_closest(my_res12, ICmap)
-            elif self.name1 == 'O3':  # 1->3 link
-                ICmap=[
-                    {'ICatomnames':'1C2  1C3  1O3  2C1'.split(),
-                     'mapping':{'13aa':113.19,'13ab':-141.32,'13ba':-131.68,'13bb':-141.32}
-                    },
-                    {'ICatomnames':'1C3  1O3  2C1  2O5'.split(),
-                     'mapping':{'13aa':65.46,'13ab':65.46,'13ba':-100.16,'13bb':-130.16}
-                    }
-                ]
-                self.patchname = ic_reference_closest(my_res12, ICmap)
-            elif self.name1 == 'O4':  # 1->4 link
-                ICmap=[
-                    {'ICatomnames':'1C3  1C4  1O4  2C1'.split(),
-                     'mapping':{'14aa':-86.29,'14ab':72.71,'14ba':-86.3,'14bb':81.86}},
-                    {'ICatomnames':'1C4  1O4  2C1  2O5'.split(),
-                     'mapping':{'14aa':133.57,'14ab':48.64,'14ba':-130.97,'14bb':-130.97}}
-                ]
-                self.patchname = ic_reference_closest(my_res12, ICmap)
-            elif self.name1 == 'O6':  # 1->6 link
-                ICmap=[
-                    {'ICatomnames':'1C6  1O6  2C1  2O5'.split(),
-                     'mapping':{'16AT':71.24,'16BT':-63.49}}
-                ]
-                self.patchname = ic_reference_closest(my_res12, ICmap)
+            # Sugar-sugar links, top_all36_carb.rtf.  CHARMM names them by GEOMETRY, and says so in
+            # every PRES comment -- "(i)1->4(i-1) axial at C1 and equatorial at C4" is 14ab: first
+            # letter at the donor's anomeric C1, second at the acceptor carbon.
+            n = self.name1[1:] if self.name1[:1] == 'O' else ''
+            donor_c1 = _link_label(self.residue2, '1', _atom(self.residue1, self.name1))
+            if n == '6':
+                self.patchname = (f"16{'AT' if donor_c1 == 'a' else 'BT'}" if donor_c1
+                                  else ic_reference_closest(my_res12, _SUGAR_FALLBACK_ICS['6']))
+            elif n in ('1', '2', '3', '4'):
+                acceptor = _link_label(self.residue1, n, _atom(self.residue1, self.name1))
+                if not (donor_c1 and acceptor):
+                    name = None
+                elif n == '1':
+                    # 1<->1 is named from RESIDUE 1 first ("axial to C1 and equat to C1'" is 11ab with
+                    # residue 1, which keeps O1, axial) -- the reverse of the other links' order
+                    name = f'11{acceptor}{donor_c1}'
+                else:
+                    name = f'1{n}{donor_c1}{acceptor}'
+                if name == '11ba':
+                    # CHARMM has 11aa, 11ab and 11bb only: the mixed patch puts the axial end on
+                    # residue 1, which keeps O1 and cannot be swapped here
+                    logger.warning(f'{self.residue1.resname}-{self.residue2.resname} 1<->1 link is '
+                                   f'equatorial/axial, which CHARMM has no patch for in this '
+                                   f'orientation; falling back to the reference-dihedral choice')
+                    name = None
+                self.patchname = name or ic_reference_closest(my_res12, _SUGAR_FALLBACK_ICS[n])
         elif self.name2 == 'C2' and self.segtype2 == 'glycan' and self.segtype1 == 'glycan':
             if self.name1 == 'O6':
                 self.patchname = 'SA26AT'
@@ -765,6 +729,155 @@ class LinkList(BaseObjList[Link]):
         """
         return "\n".join([str(l) for l in self])
     
+
+# --- glycan link patch selection -------------------------------------------------------------------
+#
+# CHARMM names every glycosidic patch by whether the linking bond is AXIAL or EQUATORIAL on the sugar
+# ring in its standard chair -- at the anomeric C1 of the donor and, for sugar-sugar links, at the
+# acceptor carbon.  Its PRES comments say so: 14ab is "(i)1->4(i-1) axial at C1 and equatorial at C4".
+#
+# That is fixed by WHICH sugar each residue is, so it is read from residue identity first
+# (_AXIAL_POSITIONS, generated from CHARMM's own geometry) and from the coordinates only for a
+# residue the table does not know.  Both beat what this replaced -- choosing the patch whose
+# reference DIHEDRAL is nearest the deposit's.  A torsion about the glycosidic bond is conformation;
+# it cannot say which face of C1 the bond is on.  On 4zmj it gave 45 of 54 beta-GlcNAc-Asn links the
+# alpha patch and every alpha(1->6) mannose the beta patch.
+#
+# Identity comes first rather than geometry because deposited glycans are not always chairs: 4zmj's
+# Man A5 has alpha handedness at C1 (the same signed volume as the known alpha-mannoses) in a
+# boat-like ring, where "axial" means nothing and the measurement reads equatorial.  When a
+# measurement disagrees with the residue's identity, that is reported.
+#
+# Within a family the patches are topologically identical (same atoms, charges, bonds, impropers;
+# only their IC tables differ), so a wrong choice mislabels the link and seeds any atom built from
+# ICs with the wrong geometry -- it does not change the force field of a fully resolved glycan.
+
+_RING_ATOMS = ('C1', 'C2', 'C3', 'C4', 'C5', 'O5')
+_AXIAL_COS = 0.73                 # midway between the measured equatorial max and axial min
+_AMBIGUOUS_COS = (0.60, 0.85)     # a deposit this far from a chair is reported, not trusted silently
+
+
+def _atom(residue, name):
+    if residue is None or not hasattr(residue, 'atoms'):
+        return None
+    a = residue.atoms.get(lambda x: x.name == name)
+    return a if (a is not None and not isinstance(a, list) and hasattr(a, 'x')) else None
+
+
+def _anomeric_label(ring_residue, carbon, substituent) -> str | None:
+    """
+    Return ``'a'`` if the bond from ``carbon`` of ``ring_residue`` to ``substituent`` is axial on
+    that residue's pyranose ring, ``'b'`` if equatorial, or ``None`` when the geometry cannot be
+    measured (a non-pyranose ring, or missing atoms/coordinates).
+    """
+    ring = [_atom(ring_residue, n) for n in _RING_ATOMS]
+    center = _atom(ring_residue, carbon)
+    if substituent is None or center is None or any(r is None for r in ring):
+        return None
+    pts = np.array([[r.x, r.y, r.z] for r in ring], dtype=float)
+    normal = np.linalg.svd(pts - pts.mean(axis=0))[2][-1]
+    bond = np.array([substituent.x - center.x, substituent.y - center.y, substituent.z - center.z])
+    length = np.linalg.norm(bond)
+    if length == 0.0:
+        return None
+    c = abs(float(bond @ normal)) / length
+    if _AMBIGUOUS_COS[0] < c < _AMBIGUOUS_COS[1]:
+        logger.warning(f'{ring_residue.resname} {ring_residue.chainID}{ring_residue.resid.resid} '
+                       f'{carbon}-{substituent.name}: |cos| to the ring normal is {c:.2f}, between '
+                       f'axial and equatorial; the ring is far from a chair -- check this glycan')
+    return 'a' if c > _AXIAL_COS else 'b'
+
+
+# Generated 2026-09-13 by building each CHARMM residue from its internal coordinates alone
+# (psfgen guesscoord, top_all36_carb.rtf, February2026 release) and measuring which ring
+# substituents are axial.  Keys: CHARMM residue; value: ring positions carrying an axial
+# substituent in that residue's standard chair.  Position 1 is the anomeric carbon.
+_AXIAL_POSITIONS = {
+    'AGLC': '1',
+    'BGLC': '',
+    'AALT': '123',
+    'BALT': '23',
+    'AALL': '13',
+    'BALL': '3',
+    'AGAL': '14',
+    'BGAL': '4',
+    'AGUL': '134',
+    'BGUL': '34',
+    'AIDO': '1234',
+    'BIDO': '234',
+    'AMAN': '12',
+    'BMAN': '2',
+    'ATAL': '124',
+    'BTAL': '24',
+    'AXYL': '1',
+    'BXYL': '',
+    'AFUC': '14',
+    'BFUC': '4',
+    'ARHM': '12',
+    'BRHM': '2',
+    'AGLCA': '1',
+    'BGLCA': '',
+    'BGLCA0': '',
+    'AIDOA': '1234',
+    'BIDOA': '234',
+    'AGLCNA': '1',
+    'BGLCNA': '',
+    'BGLCN0': '',
+    'AGALNA': '14',
+    'BGALNA': '4',
+    'ABEQ': '14',
+    'ARHMOA': '12',
+}
+
+
+def _identity_label(residue, position: str) -> str | None:
+    """'a'/'b' for ring position ``position`` of ``residue`` from its CHARMM identity, or None."""
+    if residue is None or not hasattr(residue, 'resname'):
+        return None
+    charmm = Labels.charmm_resname_of_pdb_resname.get(residue.resname, residue.resname)
+    axial = _AXIAL_POSITIONS.get(charmm)
+    return None if axial is None else ('a' if position in axial else 'b')
+
+
+def _link_label(ring_residue, position: str, substituent) -> str | None:
+    """
+    Axial (``'a'``) or equatorial (``'b'``) for the bond from ring ``position`` of ``ring_residue``
+    to ``substituent``: residue identity first, measured geometry for an unknown residue.  A
+    disagreement between the two is reported -- it means a distorted ring or a mislabelled residue.
+    """
+    ident = _identity_label(ring_residue, position)
+    geom = _anomeric_label(ring_residue, f'C{position}', substituent)
+    if ident and geom and ident != geom:
+        logger.warning(f'{ring_residue.resname} {ring_residue.chainID}{ring_residue.resid.resid} C{position}: '
+                       f'{"axial" if ident == "a" else "equatorial"} by residue identity but '
+                       f'{"axial" if geom == "a" else "equatorial"} in the coordinates -- the ring is '
+                       f'distorted from its chair, or the residue is mislabelled; using identity')
+    return ident or geom
+
+
+def _ics(atomnames, mapping):
+    return [{'ICatomnames': atomnames.split(), 'mapping': mapping}]
+
+
+# The former reference-dihedral tables, used only when geometry cannot be measured.
+_PROTEIN_GLYCOSYLATION = {
+    'ASN': ('NGL', 'ND2', lambda: _ics('1CG 1ND2 2C1 2O5', {'NGLA': 168.99, 'NGLB': -70.91})),
+    'SER': ('SGP', 'OG', lambda: _ics('1CB 1OG 2C1 2O5', {'SGPA': 45.37, 'SGPB': 19.87})),
+    'THR': ('TGP', 'OG1', lambda: _ics('1CB 1OG1 2C1 2O5', {'TGPA': 69.9, 'TGPB': 33.16})),
+}
+_SUGAR_FALLBACK_ICS = {
+    '1': [{'ICatomnames': '1O5 1C1 1O1 2C1'.split(), 'mapping': {'11aa': 103.46, '11ab': 121.75, '11bb': -56.58}},
+          {'ICatomnames': '1C1 1O1 2C1 2O5'.split(), 'mapping': {'11aa': 103.54, '11ab': 51.80, '11bb': -79.64}},
+          {'ICatomnames': '1O1 2C1 2O5 2C5'.split(), 'mapping': {'11aa': 64.56, '11ab': 167.51, '11bb': 172.18}}],
+    '2': [{'ICatomnames': '1C1 1C2 1O2 2C1'.split(), 'mapping': {'12aa': -132.81, '12ab': 115.32, '12ba': -133.78, '12bb': 117.14}},
+          {'ICatomnames': '1C2 1O2 2C1 2O5'.split(), 'mapping': {'12aa': 47.16, '12ab': 86.93, '12ba': 168.07, '12bb': -168.07}}],
+    '3': [{'ICatomnames': '1C2 1C3 1O3 2C1'.split(), 'mapping': {'13aa': 113.19, '13ab': -141.32, '13ba': -131.68, '13bb': -141.32}},
+          {'ICatomnames': '1C3 1O3 2C1 2O5'.split(), 'mapping': {'13aa': 65.46, '13ab': 65.46, '13ba': -100.16, '13bb': -130.16}}],
+    '4': [{'ICatomnames': '1C3 1C4 1O4 2C1'.split(), 'mapping': {'14aa': -86.29, '14ab': 72.71, '14ba': -86.3, '14bb': 81.86}},
+          {'ICatomnames': '1C4 1O4 2C1 2O5'.split(), 'mapping': {'14aa': 133.57, '14ab': 48.64, '14ba': -130.97, '14bb': -130.97}}],
+    '6': [{'ICatomnames': '1C6 1O6 2C1 2O5'.split(), 'mapping': {'16AT': 71.24, '16BT': -63.49}}],
+}
+
 def ic_reference_closest(res12: list["Residue"], ICmaps: list[dict]) -> str:
     """
     Given the two Residues in res12 and the maps in ICmaps, 

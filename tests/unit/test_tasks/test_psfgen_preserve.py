@@ -117,10 +117,9 @@ class TestPsfgenPreserveMode(unittest.TestCase):
         # P2.4: a `links` mod's patch is resolved from the residues' geometry (assign_residues ->
         # set_patchname) using the lazily-built molecule, then emitted. On the committed glycoprotein
         # fixture, the ASN A:61 -- glycan V:1304 attachment resolves to NGLB and is emitted as
-        # `patch NGLB A:61 V:1304`.  (It read NGLA until the periodicity bug in
-        # ic_reference_closest was fixed; NGLA and NGLB are topologically identical -- same
-        # dele/ATOM lines, types and charges -- and differ only in IC seed geometry, so this
-        # changes which conformation guesscoord starts from, not the chemistry.) (The fixture's glycan is already linked, so this verifies
+        # `patch NGLB A:61 V:1304`: the sugar is beta-GlcNAc, equatorial at C1.  The patch is now
+        # chosen from the sugar's identity (see Link.set_patchname); NGLA and NGLB are topologically
+        # identical and differ only in IC seed geometry. (The fixture's glycan is already linked, so this verifies
         # resolution + emission; the atom-changing mechanism is covered by the patches test.)
         gdir = Path('../fixtures/cleave_inputs')
         for ext in ('psf', 'pdb'):
