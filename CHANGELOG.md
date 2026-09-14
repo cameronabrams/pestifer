@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.22.1] - 2026-09-14
+
 - fix: **a beta-glucose named `BGLC` was silently built as GlcNAc.** pestifer carried a psfgen
   alias `BGLC -> BGLCNA` to repair GlcNAc whose name had been cut to four characters -- which
   pestifer's own output PDBs do (example 7's output writes all 63 GlcNAc as `BGLC`). psfgen applies
