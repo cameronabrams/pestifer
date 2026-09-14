@@ -2,26 +2,31 @@
 #
 # pestifer input script
 #
-# Ser65-phosphorylated ubiquitin, phosphorylated in silico
+# Ubiquitin phosphorylated in silico at Ser65 and Ser57, by the two routes CHARMM offers
 #
 # Notes:
 #   - 1ubq is ORDINARY ubiquitin; nothing in it is phosphorylated.  Ser65 is converted to
 #     phosphoserine by a mutation to SEP, the CHARMM residue for phosphoserine.  Ser65 is the
 #     PINK1 site: its phosphorylation activates parkin and is the committing step of mitophagy.
+#   - Ser57 is phosphorylated the OTHER way: the ordinary serine is kept and the SP2 patch adds a
+#     phosphate to it.  The two routes differ in charge.  RESI SEP is the MONOANION (net -1, one
+#     P-OH); SP2 gives the DIANION (net -2), which dominates at pH 7 (SP1 gives the monoanion).
+#     The residue built by SP2 is still named SER.  This build uses both only to show them side by
+#     side; a real study picks one charge state and applies it consistently.
 #   - SEP is defined in toppar_all36_prot_na_combined.str, which is not among the topology
 #     files loaded by default -- but it does not need listing here: the topology that defines a
 #     mutation target is pulled in automatically.
 #   - The phosphate has no coordinates in the input -- psfgen builds those atoms from topology
 #     and guesscoord places them, initially at placeholder bond lengths of 1.0 A.  The minimize
 #     that follows is therefore NOT optional; it is what turns the guessed phosphate into real
-#     geometry (measured: every P-O bond 1.00 A before, 1.46-1.59 A after, against CHARMM ideals
-#     of 1.51-1.60).  The validate task runs AFTER the minimize and asserts the phosphorus is
-#     present -- it cannot check bond lengths, since `validate` measures only atom_count and
+#     geometry (measured: every P-O bond 1.00 A before; after, 1.48-1.60 A, the protonated
+#     P-OH of SEP being the longest).  The validate task runs AFTER the minimize and asserts each
+#     phosphorus is present -- it cannot check bond lengths, since `validate` measures only atom_count and
 #     residue_count -- so the geometry claim above rests on the measurement, not on the task.
 #   - A self-terminating density_equilibrate task settles the box density
-#   - A production tarball is generated: my_1ubq_pS65.tgz
+#   - A production tarball is generated: my_1ubq_pS57_pS65.tgz
 
-title: Ser65-phosphorylated ubiquitin
+title: Ubiquitin phosphorylated at Ser65 and Ser57
 tasks:
   - fetch:
       sourceID: 1ubq
@@ -32,6 +37,8 @@ tasks:
       mods:
         mutations:
           - A:SER,65,SEP
+        patches:
+          - SP2:A:57
   - md:
       ensemble: minimize
   - validate:
@@ -51,6 +58,11 @@ tasks:
             selection: resname SEP and name P
             measure: atom_count
             value: 1
+        - residue_test:
+            name: Ser57 carries the dianionic phosphate from the SP2 patch
+            selection: resid 57 and name P
+            measure: atom_count
+            value: 1
   - solvate:
       salt_con: 0.15
   - md:
@@ -66,8 +78,8 @@ tasks:
           - b_y
           - c_z
   - terminate:
-      basename: my_1ubq_pS65
+      basename: my_1ubq_pS57_pS65
       package:
-        basename: my_1ubq_pS65
+        basename: my_1ubq_pS57_pS65
         namd:
           ensemble: NPT

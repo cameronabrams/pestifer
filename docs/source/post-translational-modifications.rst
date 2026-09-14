@@ -97,12 +97,14 @@ at *placeholder* bond lengths of exactly 1.0 Å:
 
 .. code-block:: text
 
-    straight out of psfgen        after a minimize        CHARMM
-      OG-P    1.00 Å                1.54 Å                 ~1.60
-      P-O1P   1.00 Å                1.49 Å                 ~1.51
+    straight out of psfgen        after a minimize        CHARMM b0
+      P-OG    1.00 Å                1.58 Å                  1.60
+      P-O1P   1.00 Å                1.48 Å                  1.48
 
 Put an ``md`` minimize immediately after the ``psfgen`` task, and put any ``validate`` test
-*after* the minimize -- checking bond lengths, not just that the atom exists.
+*after* the minimize.  ``validate`` can confirm the phosphorus exists; it cannot measure a bond
+length, so check the geometry of a new modification yourself before trusting it.
+:ref:`Example 28 <example phosphoubiquitin>` shows both phosphorylation routes and their numbers.
 
 **Check the charge state.**  A residue name carries one protonation state, and it may not be the
 one you want.  ``RESI SEP`` is the **monoanionic** phosphoserine, while the dianion dominates at

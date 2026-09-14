@@ -67,7 +67,7 @@ rather than assumed.
 - :doc:`Example 20 <examples/20/methylmalonyl-coa-mutase>` — mitochondrial methylmalonyl-CoA mutase; AlphaFold model (UniProt P22033) as the input source
 - :doc:`Example 21 <examples/21/groel-groes-adp>` — asymmetric GroEL/GroES chaperonin complex (1aon); 21-chain assembly with ADP ligands
 - :doc:`Example 22 <examples/22/ferredoxin-fad>` — ferredoxin-NADP(H) reductase (2bgj); FAD cofactor; chain exclusion
-- :doc:`Example 28 <examples/28/phosphoubiquitin>` — Ser65-phosphorylated ubiquitin (1ubq); installing a post-translational modification that is *not* in the input, by mutating the serine to ``SEP``
+- :doc:`Example 28 <examples/28/phosphoubiquitin>` — ubiquitin phosphorylated at Ser65 and Ser57 (1ubq); installing a modification that is *not* in the input, by mutation (``SEP``, monoanion) and by patch (``SP2``, dianion)
 - :doc:`Example 29 <examples/29/myristoylated-matrix>` — myristoylated HIV-1 matrix protein (1uph); a lipid deposited as a separate ligand is fused into the residue CHARMM defines it as part of, keeping its NMR conformation
 
 Model building: loops, glycans and cleavage

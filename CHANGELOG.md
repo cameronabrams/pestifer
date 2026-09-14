@@ -4,6 +4,14 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **example 28 now shows both ways to phosphorylate a serine.** Ser65 is still converted by a
+  mutation to `SEP` (the monoanion, net -1); Ser57 is now phosphorylated in the same build by the
+  `SP2` patch (the dianion, net -2, dominant at pH 7), which keeps the residue named `SER`. A new
+  validate test requires Ser57's phosphorus and fails when the patch is removed. Rebuilt end to end,
+  validate 4 pass / 0 fail. The page's bond table is re-measured from that build against the force
+  field's own equilibrium lengths, which corrects its unprotonated P-O ideal from ~1.51 to 1.48 A,
+  and its note no longer recommends `TP1`, which cannot be applied.
+
 - feat: **example 30, one copy of a two-copy crystal (8dx0).** The VanSC histidine kinase catalytic
   domain's asymmetric unit holds two copies; `biological_assembly: 1` builds chain A with its own
   waters and magnesium and nothing else. Its validate task checks the counts that tell one copy from

@@ -1,7 +1,7 @@
 .. _example phosphoubiquitin:
 
-Example 28: Ser65-phosphorylated ubiquitin
-------------------------------------------
+Example 28: Ubiquitin phosphorylated at Ser65 and Ser57
+-------------------------------------------------------
 
 `PDB ID 1ubq <https://www.rcsb.org/structure/1UBQ>`_ is ordinary human ubiquitin.  Nothing in it is phosphorylated.  This example installs a post-translational modification that is *not* in the input: Ser65 is converted to phosphoserine by mutating it to ``SEP``, the CHARMM residue for phosphoserine.
 
@@ -13,6 +13,24 @@ Ser65 is the PINK1 site.  Its phosphorylation activates parkin and is the commit
       mutations:
         - A:SER,65,SEP
 
+Ser57, also a reported ubiquitin phosphosite, is phosphorylated in the same build by the *other* route, and the difference between the two is the reason both are here:
+
+.. code-block:: yaml
+
+    mods:
+      mutations:
+        - A:SER,65,SEP     # a whole phosphoserine residue: the MONOanion
+      patches:
+        - SP2:A:57         # a phosphate added to the serine: the DIanion
+
+.. code-block:: text
+
+              route              residue name   net charge   phosphate
+    Ser65     mutation to SEP    SEP            -1           one P-OH, two P-O
+    Ser57     SP2 patch          SER            -2           three equivalent P-O
+
+At pH 7 phosphoserine is mostly dianionic, so ``SP2`` is usually the physically right choice, and ``SP1`` gives the monoanion by the patch route.  This build uses one of each only to show them side by side; a real study picks one charge state and uses it throughout.
+
 A modified residue is reached by ``mutations``, not by ``patches``: CHARMM ships several hundred modified amino acids -- ``SEP``, ``TPO``, ``PTR``, ``TYS``, ``MLZ`` and the rest -- as whole ``RESI`` residues rather than as patches, and a mutation is how a whole residue is swapped in.  (``patches`` is for true ``PRES`` entries; giving it a residue name is now reported rather than silently ignored.)
 
 Two things about this build are worth reading before adapting it.
@@ -23,17 +41,20 @@ Two things about this build are worth reading before adapting it.
 
 .. code-block:: text
 
-    straight out of psfgen        after the minimize
-      OG-P    1.00 A                OG-P    1.54 A     (CHARMM ~1.60)
-      P-O1P   1.00 A                P-O1P   1.49 A     (CHARMM ~1.51)
-      P-O2P   1.00 A                P-O2P   1.46 A     (CHARMM ~1.51)
-      P-O3P   1.00 A                P-O3P   1.59 A     (CHARMM ~1.58)
+                        straight out of psfgen    after the minimize    CHARMM b0
+    Ser65 (SEP, -1)
+      P-OG                    1.00 A                  1.58 A              1.60
+      P-O1P, P-O2P            1.00 A                  1.48 A              1.48
+      P-O3P (the P-OH)        1.00 A                  1.60 A              1.58
+    Ser57 (SP2, -2)
+      P-OG                    1.00 A                  1.58 A              1.60
+      P-O1P, P-O2P, P-OT      1.00 A                  1.48 A              1.48
 
-A build that skipped straight from the mutation to dynamics would start from a collapsed phosphate.  The ``validate`` task therefore runs *after* the minimize, and checks that the phosphorus exists rather than assuming the mutation implies it.
+A build that skipped straight from the mutation to dynamics would start from a collapsed phosphate.  The ``validate`` task therefore runs *after* the minimize, and checks that each phosphorus exists rather than assuming the mutation or the patch implies it.  (Removing the ``SP2`` line makes the Ser57 test fail: it finds no phosphorus.)
 
 .. note::
 
-   ``RESI SEP`` is the **monoanionic** phosphoserine.  The dianion dominates at pH 7, so a study in which the charge state matters should instead build an ordinary ``SER`` and apply the ``SP2`` patch (``SP1`` gives the monoanion explicitly).  The same choice exists for phosphothreonine (``THP1``/``THPB``) and phosphotyrosine (``TP1``/``TP2``).  The mutation route used here matches the residue a depositor would have annotated; the patch route gives control of protonation.
+   The same two routes exist for phosphothreonine (``TPO`` by mutation; ``THP1``/``THPB`` by patch).  For phosphotyrosine use ``TP2`` for the dianion, and ``PTR`` by mutation for the monoanion: the ``TP1`` patch spells one atom type ``ON2b`` where the force field declares ``ON2B``, and psfgen as pestifer runs it rejects the mismatch.  The mutation route matches the residue a depositor would have annotated; the patch route gives control of protonation.
 
 A modification that is *already* in the input needs none of this.  A deposit carrying ``SEP`` -- declared by a ``MODRES`` record -- builds with no configuration at all, because the residue is already classified as protein and nothing aliases it away.  Selenomethionine is the deliberate exception: ``MSE`` **is** aliased to ``MET``, since it is a phasing substitution rather than chemistry to preserve.
 
