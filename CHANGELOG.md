@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.22.0] - 2026-09-14
+
 - feat: **example 28 now shows both ways to phosphorylate a serine.** Ser65 is still converted by a
   mutation to `SEP` (the monoanion, net -1); Ser57 is now phosphorylated in the same build by the
   `SP2` patch (the dianion, net -2, dominant at pH 7), which keeps the residue named `SER`. A new
