@@ -14,6 +14,7 @@ Examples
    examples/05/hiv-protease
    examples/06/green-mamba-toxin
    examples/13/insulin-hexamer
+   examples/30/vansc-catalytic-domain
    examples/19/sperm-whale-myoglobin
    examples/20/methylmalonyl-coa-mutase
    examples/21/groel-groes-adp
@@ -28,6 +29,7 @@ Examples
    examples/12/hiv-sosip-env-ectodomain4
    examples/14/insulin-receptor-ectodomain
    examples/15/sars-cov2-S-BA2
+   examples/31/notch2-egf-o-glycans
    examples/16/hiv-mpertm3-membrane1
    examples/17/hiv-mpertm3-membrane2
    examples/23/subtilisin-dmso
@@ -60,6 +62,7 @@ rather than assumed.
 - :doc:`Example 5 <examples/05/hiv-protease>` — HIV-1 protease dimer (1f7a); including small-molecule acetate ligands; reversing engineered mutations
 - :doc:`Example 6 <examples/06/green-mamba-toxin>` — fasciculin 1 from green mamba snake venom (1fas); automatic ionization state assignment via ``pdb2pqr``
 - :doc:`Example 13 <examples/13/insulin-hexamer>` — hexameric insulin (2ins); homo-oligomeric assembly from the asymmetric unit
+- :doc:`Example 30 <examples/30/vansc-catalytic-domain>` — VanSC histidine kinase catalytic domain (8dx0); building one copy of a two-copy asymmetric unit by selecting its biological assembly
 - :doc:`Example 19 <examples/19/sperm-whale-myoglobin>` — sperm whale myoglobin (1mob); heme cofactor handled via standard CHARMM parameters
 - :doc:`Example 20 <examples/20/methylmalonyl-coa-mutase>` — mitochondrial methylmalonyl-CoA mutase; AlphaFold model (UniProt P22033) as the input source
 - :doc:`Example 21 <examples/21/groel-groes-adp>` — asymmetric GroEL/GroES chaperonin complex (1aon); 21-chain assembly with ADP ligands
@@ -82,6 +85,7 @@ cleave a chain -- the work of turning a deposited structure into a simulatable m
 - :doc:`Example 12 <examples/12/hiv-sosip-env-ectodomain4>` — 5vn3; Gly\ :sub:`3` stub substitutions for missing V1/V2 loops; sCD4 and Fab exclusion
 - :doc:`Example 14 <examples/14/insulin-receptor-ectodomain>` — insulin receptor ectodomain (4zxb); large multi-chain complex with bound Fabs removed
 - :doc:`Example 15 <examples/15/sars-cov2-S-BA2>` — BA.2 spike 7xix; N-glycan grafting from three donor PDB structures; loop modeling; furin cleavage
+- :doc:`Example 31 <examples/31/notch2-egf-o-glycans>` — human Notch-2 EGF repeats 11-13 (5mwb); O-linked glycans on serine and threonine: O-fucose, O-glucose and a xylose extension
 
 Membrane systems
 ----------------

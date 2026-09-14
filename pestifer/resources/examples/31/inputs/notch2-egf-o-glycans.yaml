@@ -1,0 +1,83 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+#
+# Human Notch-2 EGF repeats 11-13 with their O-linked glycans
+#
+# Notes:
+#   - 5MWB carries three O-glycans, each attached to a serine or threonine hydroxyl rather than to
+#     an asparagine: O-fucose on Thr470, O-glucose on Ser500, and O-glucose on Ser462 extended by
+#     a xylose.  O-fucosylation of Notch EGF repeats is what Fringe glycosyltransferases act on to
+#     tune Notch-ligand binding.
+#   - A sugar on a serine takes CHARMM's SGPA/SGPB patch and on a threonine TGPA/TGPB, with A for
+#     an axial (alpha) and B for an equatorial (beta) link.  pestifer chooses from what each sugar
+#     is: beta-glucose on serine gets SGPB, alpha-L-fucose on threonine gets TGPA.
+#   - The deposit codes the xylose as XYP, beta-D-xylopyranose, and pestifer builds what the deposit
+#     declares.  The Notch O-glucose xylose is usually described as alpha-1,3; a study that wants it
+#     that way can alias it instead:  psfgen: aliases: residue: ["XYP AXYL"].
+#   - The three calcium ions bound between the EGF repeats need the CA -> CAL alias below, or
+#     psfgen builds the wrong residue.
+#   - A self-terminating density_equilibrate task settles the box density
+#   - A production tarball is generated: prod_5mwb.tgz
+
+title: Human Notch-2 EGF11-13 with O-fucose and O-glucose
+psfgen:
+  aliases:
+    residue: ["CA CAL"]
+    atom: ["CAL CA CAL"]
+tasks:
+  - fetch:
+      sourceID: 5mwb
+  - psfgen:
+      source:
+        exclude:
+          - resname == 'HOH'
+  - md:
+      ensemble: minimize
+  - validate:
+      tests:
+        - connection_test:
+            name: three O-glycans on serine or threonine
+            selection: protein and resname SER THR
+            connection_type: glycosylation
+            connection_count: 3
+        - residue_test:
+            name: O-fucose
+            selection: resname AFUC
+            measure: residue_count
+            value: 1
+        - residue_test:
+            name: two O-glucoses
+            selection: resname BGLC
+            measure: residue_count
+            value: 2
+        - residue_test:
+            name: the xylose extension
+            selection: resname BXYL
+            measure: residue_count
+            value: 1
+        - residue_test:
+            name: the three bound calciums
+            selection: resname CAL
+            measure: residue_count
+            value: 3
+  - solvate:
+      salt_con: 0.15
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - density_equilibrate:
+  - mdplot:
+      basename: solvated
+      grid: true
+      timeseries:
+        - - a_x
+          - b_y
+          - c_z
+  - terminate:
+      basename: my_5mwb
+      package:
+        basename: prod_5mwb
+        namd:
+          ensemble: NPT

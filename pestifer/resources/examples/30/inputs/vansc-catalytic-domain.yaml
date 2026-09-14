@@ -1,0 +1,66 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+#
+# VanSC histidine kinase catalytic domain -- one copy of the two in the crystal
+#
+# Notes:
+#   - 8DX0's asymmetric unit holds TWO copies of the domain, chains A and B.  Its authors define
+#     each as its own monomeric biological unit: assembly 1 is chain A, assembly 2 is chain B.
+#     `biological_assembly: 1` builds chain A and everything belonging to it, and nothing else.
+#   - Chain A carries 139 resolved residues, 123 crystal waters and one magnesium; chain B has its
+#     own waters and two magnesiums.  pestifer rebuilds a 10-residue loop that is missing from
+#     chain A, so the protein comes out at 149 residues.
+#   - The validate task checks the three counts that distinguish one copy from the whole
+#     asymmetric unit (which would give 298 residues, 228 waters and 3 magnesiums), and it checks
+#     them by residue type rather than by chain letter: a built system's letters are assigned by
+#     pestifer, not inherited from the deposit.
+#   - A self-terminating density_equilibrate task settles the box density
+#   - A production tarball is generated: prod_8dx0_A.tgz
+
+title: VanSC histidine kinase catalytic domain, biological assembly 1
+tasks:
+  - fetch:
+      sourceID: 8dx0
+  - psfgen:
+      source:
+        biological_assembly: 1
+  - md:
+      ensemble: minimize
+  - validate:
+      tests:
+        - residue_test:
+            name: one protein copy, with its rebuilt loop
+            selection: protein and name CA
+            measure: residue_count
+            value: 149
+        - residue_test:
+            name: only that copy's magnesium
+            selection: resname MG
+            measure: residue_count
+            value: 1
+        - residue_test:
+            name: only that copy's crystal waters
+            selection: resname TIP3
+            measure: residue_count
+            value: 123
+  - solvate:
+      salt_con: 0.15
+  - md:
+      ensemble: minimize
+  - md:
+      ensemble: NVT
+  - density_equilibrate:
+  - mdplot:
+      basename: solvated
+      grid: true
+      timeseries:
+        - - a_x
+          - b_y
+          - c_z
+  - terminate:
+      basename: my_8dx0_A
+      package:
+        basename: prod_8dx0_A
+        namd:
+          ensemble: NPT

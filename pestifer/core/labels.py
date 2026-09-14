@@ -192,6 +192,11 @@ _residue_aliases = [
     "FUC AFUC",
     "FUL BFUC",
     "GAL BGAL",
+    # O-glycan sugars (checked against the PDB chemical component dictionary: BGC is
+    # beta-D-glucopyranose, XYP beta-D-xylopyranose).  Without these, O-glucose and its xylose
+    # extension on Notch EGF repeats (5mwb) stopped with "No topology file found".
+    "BGC BGLC",
+    "XYP BXYL",
     "SIA ANE5AC",
     "ANE5 ANE5AC",
     "EIC LIN",

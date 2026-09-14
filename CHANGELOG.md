@@ -4,6 +4,22 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- feat: **example 30, one copy of a two-copy crystal (8dx0).** The VanSC histidine kinase catalytic
+  domain's asymmetric unit holds two copies; `biological_assembly: 1` builds chain A with its own
+  waters and magnesium and nothing else. Its validate task checks the counts that tell one copy from
+  two -- 149 protein residues, 1 magnesium, 123 waters, against 298, 3 and 228 for the whole
+  asymmetric unit, both measured -- so the subset-assembly bug fixed in 3.19.2 cannot return
+  unnoticed. Built end to end: 40,539 atoms.
+
+- feat: **example 31, O-linked glycans (5mwb).** Human Notch-2 EGF11-13 carries O-fucose on Thr470,
+  O-glucose on Ser500, and O-glucose extended by a xylose on Ser462 -- the first O-glycans in the
+  example set. The build gets `TGPA`, two `SGPB` and `13bb`, each matching what the sugar is. Built
+  end to end: 27,640 atoms, validate 5 pass / 0 fail.
+
+- fix: **O-glucose and xylose could not be built.** The PDB codes for beta-D-glucopyranose (`BGC`)
+  and beta-D-xylopyranose (`XYP`) had no residue alias, so psfgen stopped with "No topology file
+  found for residue name XYP". They now map to CHARMM's `BGLC` and `BXYL`.
+
 - fix: **glycan link patches were chosen by conformation, so most glycosidic links got the wrong
   anomer's patch.** CHARMM names every glycosidic patch by whether the link is axial or equatorial
   on the sugar ring -- `NGLB` for a beta-GlcNAc on asparagine, `16AT` for an alpha(1->6) mannose,

@@ -460,3 +460,21 @@ class TestOneToOneLinkICMap(unittest.TestCase):
         self.assertEqual(L.patchname, '11aa')
         # all three IC entries must have been offered, not two
         self.assertEqual(len(m.call_args[0][1]), 3)
+
+
+class TestOGlycanSugarCodes(unittest.TestCase):
+    """O-glucose and its xylose extension (Notch EGF repeats, 5mwb) arrive under PDB codes BGC and
+    XYP.  Without a residue alias psfgen stopped with "No topology file found"; with one, the
+    patch must still follow the sugar's anomer."""
+
+    def test_pdb_codes_map_to_the_charmm_residues(self):
+        from pestifer.core.labels import Labels
+        self.assertEqual(Labels.charmm_resname_of_pdb_resname.get('BGC'), 'BGLC')   # beta-D-glucopyranose
+        self.assertEqual(Labels.charmm_resname_of_pdb_resname.get('XYP'), 'BXYL')   # beta-D-xylopyranose
+
+    def test_their_identity_labels_are_beta_at_c1_and_equatorial_at_o3(self):
+        from types import SimpleNamespace as NS
+        from pestifer.objs.link import _identity_label
+        self.assertEqual(_identity_label(NS(resname='BGC'), '1'), 'b')
+        self.assertEqual(_identity_label(NS(resname='XYP'), '1'), 'b')
+        self.assertEqual(_identity_label(NS(resname='BGC'), '3'), 'b')
