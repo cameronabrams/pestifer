@@ -57,11 +57,6 @@ def segtype_of_topfile(topfile, water_resnames=frozenset(), resname=None):
     return None
 
 
-# Streams in the protein and nucleic-acid families whose standalone molecules are cofactors rather
-# than generic small molecules (coenzymes, pterins, folates; free nucleotides such as AMP and GTP).
-_COFACTOR_TOPFILE_FRAGMENTS = ('prot_cofactors', 'na_nad_ppi')
-
-
 def derive_segtypes(resi_to_topfile_map, curated_names=frozenset(), water_resnames=frozenset(),
                     standalone=None):
     """
@@ -80,8 +75,8 @@ def derive_segtypes(resi_to_topfile_map, curated_names=frozenset(), water_resnam
     standalone : set, optional
         Residue names whose topology has no bond to a neighbouring residue (no ``+``/``-`` atom).
         A residue the file rule places in ``protein`` or ``nucleicacid`` cannot be a chain residue
-        if it bonds to nothing, so it becomes ``cofactor`` when it comes from a cofactor stream and
-        ``ligand`` otherwise.  Protein and nucleic-acid streams are full of such molecules --
+        if it bonds to nothing, so it becomes ``ligand`` -- coenzymes and free nucleotides included,
+        consistent with the curated ADP and ATP.  Protein and nucleic-acid streams are full of such molecules --
         dipeptide models, pyridines, CO and O2 for heme, free nucleotides -- which the filename
         alone cannot tell from real residues.  ``None`` skips the check.
 
@@ -100,7 +95,6 @@ def derive_segtypes(resi_to_topfile_map, curated_names=frozenset(), water_resnam
         if segtype is None:
             continue
         if standalone is not None and segtype in ('protein', 'nucleicacid') and resname in standalone:
-            t = topfile.lower()
-            segtype = 'cofactor' if any(f in t for f in _COFACTOR_TOPFILE_FRAGMENTS) else 'ligand'
+            segtype = 'ligand'
         out.setdefault(segtype, []).append(resname)
     return {segtype: sorted(names) for segtype, names in sorted(out.items())}

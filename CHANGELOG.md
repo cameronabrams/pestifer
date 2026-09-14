@@ -4,6 +4,13 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a residue pestifer could not classify crashed the build with a bare `KeyError`.** 5a2k
+  carries ethylene glycol (`EDO`), a crystallization additive; ingest died inside residue grouping
+  with `KeyError: 'EDO'` and nothing to say why. The build now stops before that, names every
+  unclassified residue with where it occurs, and prints the exact `exclude` lines to paste into the
+  psfgen task -- or points at `pestifer make-ligand-mol2` for a ligand that should stay. Following
+  the printed advice on 5a2k builds cleanly.
+
 - fix: **a `psfgen.segtypes` entry in a config was ignored for any residue pestifer already
   classified.** The override applied only to names pestifer did not know, so it failed for exactly the
   residues a user would want to reclassify. Example 5's `other: [ACET, ACT]` changed `ACT` and left
@@ -27,8 +34,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 - fix: **346 standalone molecules in protein and nucleic-acid streams were classified as chain
   residues.** A residue from those files that bonds to no neighbouring residue (no `+`/`-` atom in
   its topology) cannot be part of a chain. Examples are CO, O2 and CO2 for heme, dipeptide and
-  pyridine models, coenzymes, and free nucleotides. Those from the cofactor and NAD/nucleotide
-  streams are now `cofactor` (54, e.g. `AMP`, `GTP`, `DHF`), the rest `ligand` (292). Chain residues are
+  pyridine models, coenzymes, and free nucleotides. All 346 are now `ligand` -- coenzymes and free
+  nucleotides included (`AMP`, `GTP`, `DHF`), consistent with the curated `ADP` and `ATP`. Chain residues are
   untouched, including the modified residues `SEP`, `PTR`, `TYS` and the capping groups.
 
 - fix: **the VMD atomselect macros (`resources/tcl/macros.tcl`) were out of step with pestifer's

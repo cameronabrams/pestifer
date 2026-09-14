@@ -97,3 +97,31 @@ class TestAsymmetricUnit(unittest.TestCase):
             for seg in AU.segments:
                 for res in seg.residues.data:
                     self.assertNotEqual(res.resname, 'HOH', f"{fmt}: HOH residue found in segment {seg.segname}")
+
+class TestUnclassifiedResidues(unittest.TestCase):
+    """An unclassified residue (5a2k's ethylene glycol, EDO) used to crash ingest with a bare
+    KeyError.  It must stop with a message naming the residue and the exclude line that fixes it --
+    and excluding it must be enough."""
+
+    def setUp(self):
+        self.pdb = Path(__file__).parent.parent.parent / 'inputs' / '6pti_with_edo.pdb'
+
+    def _au(self, sourcespecs):
+        pstruct = PDBParser(filepath=self.pdb, input_format='PDB').parse().parsed
+        return AsymmetricUnit(parsed=pstruct, chainIDmanager=ChainIDManager(format='PDB'),
+                              objmanager=ObjManager(), sourcespecs=sourcespecs, source_format='PDB')
+
+    def test_an_unclassified_residue_stops_with_an_actionable_message(self):
+        from pestifer.core.errors import PestiferBuildError
+        with self.assertRaises(PestiferBuildError) as cm:
+            self._au({})
+        msg = str(cm.exception)
+        self.assertIn('EDO', msg)
+        self.assertIn("- resname == 'EDO'", msg)
+        self.assertIn('A:101', msg)
+
+    def test_excluding_it_is_enough(self):
+        AU = self._au({'exclude': ["resname == 'EDO'"]})
+        names = {r.resname for seg in AU.segments for r in seg.residues.data}
+        self.assertNotIn('EDO', names)
+        self.assertIn('ALA', names)

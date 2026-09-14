@@ -74,11 +74,12 @@ class TestStandaloneMoleculesInPolymerStreams(unittest.TestCase):
                              'ALA': 'top_all36_prot.rtf'}, standalone={'CO2'})
         self.assertEqual(d, {'ligand': ['CO2'], 'protein': ['ALA']})
 
-    def test_cofactor_streams_give_cofactor(self):
+    def test_coenzymes_and_free_nucleotides_are_ligands_too(self):
+        # consistent with the curated ADP and ATP
         d = derive_segtypes({'DHF': 'toppar_all36_prot_cofactors.str',
                              'AMP': 'toppar_all36_na_nad_ppi.str',
                              'ADE': 'top_all36_na.rtf'}, standalone={'DHF', 'AMP'})
-        self.assertEqual(d, {'cofactor': ['AMP', 'DHF'], 'nucleicacid': ['ADE']})
+        self.assertEqual(d, {'ligand': ['AMP', 'DHF'], 'nucleicacid': ['ADE']})
 
     def test_only_polymer_families_are_affected(self):
         # sugars and lipids are standalone even when real; the rule must not touch them

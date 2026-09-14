@@ -21,6 +21,8 @@ from ..core.objmanager import ObjManager
 from ..objs.graft import GraftList
 from ..objs.link import LinkList
 from .residue_fusion import fuse_linked_ligands
+from ..core.errors import PestiferBuildError
+from ..core.labels import Labels
 from ..objs.mutation import Mutation, MutationList
 from ..objs.patch import PatchList
 from ..objs.seqadv import SeqadvList
@@ -275,6 +277,7 @@ class AsymmetricUnit:
         if n_fused:
             logger.info(f'fused {n_fused} deposited ligand(s) into the residue CHARMM defines '
                         f'them as part of')
+        _raise_on_unclassified_residues(atoms)
         fromAtoms = ResidueList.from_residuegrouped_atomlist(atoms)
         fromResiduePlaceholders = ResidueList.from_ResiduePlaceholderlist(missings)
         if self.psfcontents is not None:
@@ -584,3 +587,36 @@ class AsymmetricUnit:
                 overwrites.append(ar)
         logger.debug(f'set_coords: {len(overwrites)} residues overwritten')
 
+
+def _raise_on_unclassified_residues(atoms) -> None:
+    """
+    Stop, naming every residue pestifer cannot classify, before one reaches ``Residue``.
+
+    Classification is how a residue gets a segment and a topology; a residue with none cannot be
+    built.  This used to surface as a bare ``KeyError: 'EDO'`` from deep inside residue grouping --
+    5a2k carries ethylene glycol, a crystallization additive -- with nothing to say what to do.
+    Exclusions are applied before this point, so excluding the residue is enough.
+    """
+    unknown: dict[str, list] = {}
+    for a in atoms:
+        if a.resname not in Labels.segtype_of_resname:
+            where = f'{a.chainID}:{a.resid.resid}'
+            sites = unknown.setdefault(a.resname, [])
+            if where not in sites:
+                sites.append(where)
+    if not unknown:
+        return
+    lines = ['The input contains residue(s) pestifer does not know, so it cannot build them:']
+    for resname, sites in sorted(unknown.items()):
+        shown = ', '.join(sites[:5]) + (f' and {len(sites) - 5} more' if len(sites) > 5 else '')
+        lines.append(f'    {resname}  ({len(sites)} residue(s): {shown})')
+    lines.append('If they are crystallization additives or anything else not wanted in the model, exclude them')
+    lines.append('in the psfgen task:')
+    lines.append('    tasks:')
+    lines.append('      - psfgen:')
+    lines.append('          source:')
+    lines.append('            exclude:')
+    for resname in sorted(unknown):
+        lines.append(f"              - resname == '{resname}'")
+    lines.append('If one is a ligand to keep, it needs a topology: `pestifer make-ligand-mol2` prepares it for CGenFF.')
+    raise PestiferBuildError('\n'.join(lines))
