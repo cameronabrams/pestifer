@@ -17,6 +17,9 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   example 31's glucoses stay `BGLC`, and example 7's 63 GlcNAc come back as `BGLCNA`, with every
   heavy atom from the coordinates. A residue identified as a long name with no such code (177 rare
   sugars) is left as is with a warning, where the alias turned all of them into GlcNAc silently.
+  The same mapping applies to every segment PDB psfgen reads, not just ingested ones: a system
+  continued from a PSF carries full CHARMM names, and without it the `cleave` test rebuilt its 126
+  GlcNAc as glucose (62,142 atoms to 61,386) and still passed. It now asserts the glycans survive.
 
 - fix: **a residue pestifer could not classify crashed the build with a bare `KeyError`.** 5a2k
   carries ethylene glycol (`EDO`), a crystallization additive; ingest died inside residue grouping

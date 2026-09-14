@@ -178,3 +178,26 @@ class TestBackboneAcylatedFirstResidue(unittest.TestCase):
         text = self._stanza(self._segment('GLY', mutations=MutationList([Mutation('A:ALA,3,GLYM')])))
         seg = text[text.index('segment A {'):text.index('}', text.index('segment A {'))]
         self.assertNotIn('first none', seg)
+
+
+class TestSegmentPdbResidueNames(unittest.TestCase):
+    """Segment PDBs keep four columns of a residue name.  A CHARMM name longer than that must reach
+    psfgen as the PDB code aliased to it, or psfgen builds the residue the stub names: BGLCNA cut to
+    BGLC was built as glucose."""
+
+    def test_long_charmm_names_are_written_as_their_pdb_code(self):
+        import tempfile
+        from pestifer.molecule.atom import Atom, AtomList
+        from pestifer.scripters.psfgen import PsfgenScripter
+        from pestifer.objs.resid import ResID
+        def atom(serial, name, resname):
+            return Atom({'serial': serial, 'name': name, 'altloc': '', 'resname': resname, 'chainID': 'G',
+                         'resid': ResID(1), 'x': 1.0, 'y': 2.0, 'z': 3.0, 'occ': 1.0, 'beta': 0.0,
+                         'elem': name[0], 'charge': ''})
+        atoms = AtomList([atom(1, 'C1', 'BGLCNA'), atom(2, 'C1', 'BGLC')])
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, 'seg.pdb')
+            PsfgenScripter._write_segment_pdb(atoms, path)
+            written = [l[17:21].strip() for l in open(path) if l.startswith(('ATOM', 'HETATM'))]
+        self.assertEqual(written, ['NAG', 'BGLC'])
+        self.assertEqual([a.resname for a in atoms], ['BGLCNA', 'BGLC'])   # caller's atoms untouched

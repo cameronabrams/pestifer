@@ -124,3 +124,17 @@ def repair_truncated_resnames(atoms, table: dict | None = None) -> int:
             logger.warning(f'residue {stem} {chain}:{resid} could be a truncated name, but is {reason}; '
                            f'left as {stem}')
     return renamed
+
+
+def psfgen_segment_resname(resname: str) -> str:
+    """
+    The residue name to put in a segment PDB that psfgen reads, so that it builds ``resname``.
+
+    Segment PDBs are written in standard columns, which keep four characters of a name: BGLCNA is
+    written BGLC and psfgen builds glucose.  A longer name is written as the PDB code a residue alias
+    maps to it (BGLCNA -> NAG), which psfgen then aliases back.  A long name with no such code is
+    returned unchanged -- it is truncated as before, which cannot be made right from here.
+    """
+    if len(resname) <= 4:
+        return resname
+    return _writable_name(resname) or resname

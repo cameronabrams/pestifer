@@ -48,5 +48,20 @@ class TestCleaveTask(unittest.TestCase):
        ]
        self.controller.reconfigure_tasks(tasklist)
        result = self.controller.do_tasks()
+       # Cleaving the protein must not change the glycans.  This test once passed while every GlcNAc
+       # came out as glucose (126 BGLCNA -> BGLC, 756 acetyl atoms gone): the segment PDBs psfgen
+       # reads keep four columns of a residue name, and nothing here looked at what was built.
+       self.assertEqual(self._glycan_composition('my_system.psf'), self._glycan_composition('../fixtures/cleave_inputs/in.psf'))
+       self.assertEqual(self._glycan_composition('my_system.psf')['BGLCNA'], 126)
        Path('my_system.tar.gz').unlink(missing_ok=True)
        Path('artifacts.tar.gz').unlink(missing_ok=True)
+
+    @staticmethod
+    def _glycan_composition(psf):
+       import collections
+       from pestifer.core.labels import Labels
+       lines = open(psf).read().splitlines()
+       i = next(k for k, l in enumerate(lines) if '!NATOM' in l)
+       n = int(lines[i].split()[0])
+       residues = {(t[1], t[2]): t[3] for t in (l.split() for l in lines[i + 1:i + 1 + n])}
+       return collections.Counter(r for r in residues.values() if Labels.segtype_of_resname.get(r) == 'glycan')

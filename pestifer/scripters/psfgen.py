@@ -307,6 +307,22 @@ class PsfgenScripter(VMDScripter):
         else:
             self.write_generic_stanza(segment, transform)
 
+    @staticmethod
+    def _write_segment_pdb(atoms, path):
+        """
+        Write a coordinate PDB for psfgen's ``pdb``/``coordpdb``, from copies of ``atoms``.
+
+        Standard columns keep four characters of a residue name, so a CHARMM name such as BGLCNA is
+        written as the PDB code aliased to it (NAG) rather than cut to BGLC -- which psfgen built as
+        glucose once the BGLC -> BGLCNA alias was removed.  The atoms are copied first: graft movers
+        and C-terminal fusions hand over the donor's own atom objects.
+        """
+        from ..molecule.resname_repair import psfgen_segment_resname
+        out = AtomList([a.copy() for a in atoms])
+        for a in out:
+            a.resname = psfgen_segment_resname(a.resname)
+        out.write_pdb(path, dialect='standard')
+
     def _author_subsegment_pdb(self, source_atoms, pdb, image_seglabel, chainID, transform, is_image):
         """
         Author a subsegment coordinate PDB directly from asymmetric-unit atoms -- the numpy
@@ -342,7 +358,7 @@ class PsfgenScripter(VMDScripter):
                 a.chainID = chainID
         if is_image:
             transform.apply(sub)
-        sub.write_pdb(pdb, dialect='standard')
+        self._write_segment_pdb(sub, pdb)
 
     def write_polymer_stanza(self, segment: Segment, transform: Transform = None):
         """
@@ -690,7 +706,7 @@ class PsfgenScripter(VMDScripter):
         for a in movers.data:
             a.chainID = G.residues[0].chainID
             a.segname = G.graft_segname
-        movers.write_pdb(G.segfile, dialect='standard')
+        self._write_segment_pdb(movers, G.segfile)
 
     def write_cfusion_presegment(self, C: Cfusion, newstart: int, segment: Segment):
         """
@@ -733,7 +749,7 @@ class PsfgenScripter(VMDScripter):
         fusres.sort(by=['serial'])
         if len(fusres) == 0:
             logger.warning(f'Cfusion {C.sourcefile}:{C.sourceseg} resid {r1}-{r2} selected no atoms')
-            fusres.write_pdb(C.segfile, dialect='standard')
+            self._write_segment_pdb(fusres, C.segfile)
             return
         # Renumber so the fused block appends after the base C-terminus (starts at newstart),
         # avoiding a resid collision that would make psfgen overwrite/merge residues.
@@ -764,7 +780,7 @@ class PsfgenScripter(VMDScripter):
                 base_C=[bC.x, bC.y, bC.z], base_CA=[bCA.x, bCA.y, bCA.z], base_O=[bO.x, bO.y, bO.z])
         else:
             logger.warning(f'Could not orient Cfusion {C.sourcefile}:{C.sourceseg}; using raw donor coordinates')
-        fusres.write_pdb(C.segfile, dialect='standard')
+        self._write_segment_pdb(fusres, C.segfile)
 
     def write_cfusion_insegment(self, C: Cfusion):
         """
