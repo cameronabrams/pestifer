@@ -27,6 +27,53 @@ _CONSOLE_HANDLER: StreamHandler | None = None
 _LOGFILE: Path | None = None
 
 @pytest.fixture(autouse=True)
+def isolate_labels():
+    """Restore the process-wide residue classification after every test.
+
+    ``Labels`` is a module-level singleton, and loading a config mutates it: ``psfgen.segtypes``
+    and ``psfgen.aliases`` extend its tables.  Example 5's config reclassifies ACET as ``other``,
+    so any test that loaded it changed what every later test in the run saw -- a classification
+    test passed alone and failed in the full suite.  Restoring in place keeps the list and dict
+    objects other modules already hold references to.
+    """
+    import copy
+    from pestifer.core import labels as L
+    saved_segtypes = copy.deepcopy(L._segtypes)
+    saved = {name: copy.deepcopy(getattr(L.Labels, name)) for name in
+             ('segtype_of_resname', 'charmm_resname_of_pdb_resname', 'pdb_resname_of_charmm_resname', 'aliases')
+             if hasattr(L.Labels, name)}
+    yield
+    for key in list(L._segtypes):
+        if key not in saved_segtypes:
+            del L._segtypes[key]
+    for key, data in saved_segtypes.items():
+        if key in L._segtypes:
+            for field, value in data.items():
+                current = L._segtypes[key].get(field)
+                if isinstance(current, list) and isinstance(value, list):
+                    current[:] = value
+                elif isinstance(current, dict) and isinstance(value, dict):
+                    current.clear(); current.update(value)
+                else:
+                    L._segtypes[key][field] = value
+        else:
+            L._segtypes[key] = data
+    for name, value in saved.items():
+        current = getattr(L.Labels, name)
+        if isinstance(current, dict):
+            if all(isinstance(v, list) for v in value.values()) and all(isinstance(current.get(k), list) for k in value):
+                for k in list(current):
+                    if k not in value:
+                        del current[k]
+                for k, v in value.items():
+                    current[k][:] = v
+            else:
+                current.clear(); current.update(value)
+        else:
+            setattr(L.Labels, name, value)
+
+
+@pytest.fixture(autouse=True)
 def change_test_dir(request, monkeypatch):
     """Causes each test to run in the directory in which the module is found **or** a subdirectory with the same base name as the module
 

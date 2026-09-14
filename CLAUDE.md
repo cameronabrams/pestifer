@@ -38,7 +38,7 @@ check now needs the network, and a resolution failure is a different red than a 
 The section above is one instance of a wider failure, and the wider one cost more time here in a
 week than any bug did. **A command can complete successfully without checking the thing you
 meant**, and the result then looks exactly like a pass. Seven of these in early September 2026,
-most of them self-inflicted:
+most of them self-inflicted (two more added since):
 
 | the check | what it actually verified |
 | :--- | :--- |
@@ -49,6 +49,8 @@ most of them self-inflicted:
 | the SLURM cpu-detection test passing | nothing: this box has 24 cores, the expected value, so `os.cpu_count()` returned the right answer and the test passed against the bug it existed to catch. |
 | `git push`, exit 0, "Everything up-to-date" | that a detached HEAD had nothing to push. The commit was not on `main`. |
 | a peer's `grep -E` positive control | the pattern's *syntax*. The alternation was written BRE-style with an escaped pipe, which in ERE matches a literal pipe character, so every search could only return zero -- and the control still passed. |
+| "0 unset coordinates" on a sugar, grepping the psfgen log for `AGALNA` | nothing. psfgen logs coordinate warnings under the residue's *PDB* name (`A2G`); the grep could not match, so the control without the fix also read 0. (2026-09-14) |
+| VMD selecting the right number of lipid atoms after regenerating `macros.tcl` | VMD's *built-in* `lipid` keyword. One hyphenated name made VMD reject pestifer's whole macro and fall back silently; the count was identical. Read the macro back with `atomselect macro lipid`. (2026-09-14) |
 
 Two habits catch all of them.
 
@@ -485,3 +487,18 @@ Two things to keep:
 - **Do not re-pin a set of "patches the geometry selects".** The test that did so enshrined the wrong
   answer for a week, with a comment explaining why it was right. Pin per-link expectations derived
   from what the residues are.
+
+## A residue alias renames every residue of that name -- including CHARMM's own
+
+`_residue_aliases` becomes `pdbalias residue` in every psfgen script, and psfgen applies it to any
+residue it reads with that name, including one pestifer wrote itself. So an alias from a PDB code
+that is *also* a CHARMM residue name turns one molecule into another. Found 2026-09-14 before it
+shipped: `GLA` is alpha-galactose in the PDB and gamma-linolenic acid in CHARMM
+(`toppar_all36_lipid_detergent.str`), and "GLA AGAL" would have made every such fatty acid a sugar.
+
+Check a new alias against `CHARMMFFContent(...).resi_to_topfile_map` before adding it.
+`tests/unit/test_core/test_labels.py::TestResidueAliasesDoNotReclassifyCharmmResidues` fails if an
+alias moves a derived CHARMM residue into a different segtype, and lists the four deliberate
+collisions it tolerates. One of them, `BGLC BGLCNA`, is a hazard. It restores a 6-character name
+truncated to 4 columns, and it also turns CHARMM beta-glucose into GlcNAc for any input that names
+it `BGLC`. It is kept because removing it needs the truncation case re-examined; it is not safe.

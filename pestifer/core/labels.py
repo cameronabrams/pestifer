@@ -6,7 +6,9 @@ CHARMM and PDB files, along with their mappings. It also provides
 a class for managing these labels and mappings.
 """
 import ast
+import copy
 import json
+import re
 import logging
 
 from pathlib import Path
@@ -124,12 +126,13 @@ _segtypes = {
         # PDB/IUPAC sugar codes: CHARMM has no RESI of these names (its sugars are
         # alpha/beta-prefixed, e.g. AGLC/BMAN/BGLCNA), so they cannot be derived
         'resnames': [
-            '4YS', 'ABE', 'ADA', 'AHR', 'ALL', 'ALT', 'API', 'BAC', 'BEM', 'BGC',
-            'BMA', 'COL', 'DIG', 'FRU', 'FUC', 'FUL', 'GAL', 'GCS', 'GCU', 'GL0',
-            'GLC', 'GMH', 'GUL', 'GUP', 'IDO', 'IDS', 'KDN', 'KDO', 'LGU', 'LXC',
-            'LYX', 'MAL', 'MAN', 'MAV', 'MUR', 'NAG', 'NDG', 'NEU', 'NGA', 'OLI',
-            'PAR', 'PSI', 'QUI', 'RAM', 'RIB', 'SGN', 'SIA', 'SOR', 'TAL', 'TYV',
-            'WOO', 'XYL', 'XYP', 'XYS']},
+            '4YS', 'A2G', 'ABE', 'ADA', 'AHR', 'ALL', 'ALT', 'ANE5', 'API', 'BAC',
+            'BDP', 'BEM', 'BGC', 'BMA', 'COL', 'DIG', 'FRU', 'FUC', 'FUL', 'GAL',
+            'GCS', 'GCU', 'GL0', 'GLC', 'GMH', 'GUL', 'GUP', 'IDO', 'IDR',
+            'IDS', 'KDN', 'KDO', 'LGU', 'LXC', 'LYX', 'MAL', 'MAN', 'MAV', 'MUR',
+            'NAG', 'NDG', 'NEU', 'NGA', 'OLI', 'PAR', 'PSI', 'QUI', 'RAM', 'RIB',
+            'RM4', 'SGN', 'SIA', 'SLB', 'SOR', 'TAL', 'TYV', 'WOO', 'XYL', 'XYP',
+            'XYS']},
     'lipid': {
         'macro': True,
         # lipids whose RESI is not captured by the topfile map (aliases like TOCL->TOCL1,
@@ -149,6 +152,25 @@ _segtypes = {
         'resnames': ['CAF']},
     }
 
+# The curated classification exactly as this module defines it, before any configuration or
+# auto-classified user residue extends the live tables.  Anything generated into the package from the
+# classification (macros.tcl) must come from this and the derived table only, or it varies with the
+# machine and the process that generated it -- a residue in ~/.pestifer/toppar once leaked in.
+_CURATED_AT_IMPORT = copy.deepcopy(_segtypes)
+
+
+def package_classification() -> dict:
+    """``resname -> segtype`` as shipped: curated entries, then the derived table for the rest."""
+    mapping = {}
+    for segtype, data in _CURATED_AT_IMPORT.items():
+        for resname in data.get('resnames', []):
+            mapping[resname] = segtype
+    for segtype, resnames in _load_derived_segtypes().items():
+        for resname in resnames:
+            mapping.setdefault(resname, segtype)
+    return mapping
+
+
 _atom_aliases = [
     "ILE CD1 CD",
     "MET SE SD",   # selenomethionine's selenium (SE) -> methionine sulfur (SD); pairs with the MSE->MET residue alias
@@ -162,6 +184,34 @@ _atom_aliases = [
     "ANE5AC O1A O11",
     "ANE5AC O1B O12",
     "ANE5AC O10 O",
+    # The same N-acetyl and carboxylate renames for every sugar the residue aliases below reach.
+    # Each PDB/CHARMM name pair was checked against the PDB chemical component dictionary and the
+    # CHARMM RESI (2026-09-14).  AGLCNA's were missing although NDG -> AGLCNA has long been
+    # aliased, so an alpha-GlcNAc's acetyl atoms were never read from the coordinates.
+    "AGLCNA C7 C",
+    "AGLCNA O7 O",
+    "AGLCNA C8 CT",
+    "AGLCNA N2 N",
+    "AGALNA C7 C",
+    "AGALNA O7 O",
+    "AGALNA C8 CT",
+    "AGALNA N2 N",
+    "BGALNA C7 C",
+    "BGALNA O7 O",
+    "BGALNA C8 CT",
+    "BGALNA N2 N",
+    "BNE5AC C10 C",
+    "BNE5AC C11 CT",
+    "BNE5AC N5 N",
+    "BNE5AC O1A O11",
+    "BNE5AC O1B O12",
+    "BNE5AC O10 O",
+    "AGLCA O6A O61",
+    "AGLCA O6B O62",
+    "BGLCA O6A O61",
+    "BGLCA O6B O62",
+    "AIDOA O6A O61",
+    "AIDOA O6B O62",
     "VCG C01 C1",
     "VCG C01 C1",
     "VCG C02 C2",
@@ -197,6 +247,18 @@ _residue_aliases = [
     # extension on Notch EGF repeats (5mwb) stopped with "No topology file found".
     "BGC BGLC",
     "XYP BXYL",
+    # NOT GLA (alpha-D-galactopyranose in the PDB): CHARMM defines its own RESI GLA, gamma-linolenic
+    # acid, a lipid, and an alias would rename it.  A deposit's GLA needs a config alias to AGAL.
+    "GLC AGLC",     # alpha-D-glucopyranose
+    "A2G AGALNA",   # N-acetyl-alpha-D-galactosamine: the mucin-type O-glycan core (Tn antigen)
+    "NGA BGALNA",   # N-acetyl-beta-D-galactosamine
+    "XYS AXYL",     # alpha-D-xylopyranose
+    "RAM ARHM",     # alpha-L-rhamnopyranose
+    "RM4 BRHM",     # beta-L-rhamnopyranose
+    "GCU AGLCA",    # alpha-D-glucuronic acid
+    "BDP BGLCA",    # beta-D-glucuronic acid
+    "IDR AIDOA",    # alpha-L-iduronic acid
+    "SLB BNE5AC",   # N-acetyl-beta-neuraminic acid
     "SIA ANE5AC",
     "ANE5 ANE5AC",
     "EIC LIN",
@@ -302,25 +364,42 @@ class LabelMappers:
         logger.debug(f'Updating segtypes with {new_segtypes}')
         for segtype, data in new_segtypes.items():
             if segtype not in self.segtypes:
-                self.segtypes[segtype] = {}
-                self.segtypes[segtype]['resnames'] = data
-            else:
-                assert 'resnames' in self.segtypes[segtype], f'Segtype {segtype} does not have a "resnames" key.'
-                self.segtypes[segtype]['resnames'].extend(data)
-            # update segtype_of_resname mapping for this segtype
-            for resname in self.segtypes[segtype]['resnames']:
-                if resname not in self.segtype_of_resname:
-                    self.segtype_of_resname[resname] = segtype
+                self.segtypes[segtype] = {'resnames': []}
+            assert 'resnames' in self.segtypes[segtype], f'Segtype {segtype} does not have a "resnames" key.'
+            for resname in data:
+                # A name given here is an explicit classification, and it wins -- over the derived
+                # table and over a curated entry alike.  This used to set the mapping only for names
+                # pestifer did not already know, so the request was silently ignored for exactly the
+                # residues a user would want to reclassify: example 5 asks for `other: [ACET, ACT]`,
+                # and ACET stayed protein (later ligand) while being listed under `other`.
+                previous = self.segtype_of_resname.get(resname)
+                for other, other_data in self.segtypes.items():
+                    if other != segtype and resname in other_data.get('resnames', []):
+                        other_data['resnames'].remove(resname)
+                if resname not in self.segtypes[segtype]['resnames']:
+                    self.segtypes[segtype]['resnames'].append(resname)
+                self.segtype_of_resname[resname] = segtype
+                if previous is not None and previous != segtype:
+                    logger.info(f'segtype of {resname} set to {segtype} by configuration (was {previous})')
 
-    def update_atomselect_macros(self, fp):
+    def update_atomselect_macros(self, fp, resnames_by_segtype: dict | None = None):
         """
         Update the atomselect macros in the file ``fp`` based on the ``segtypes`` dict.
         This is a developer-only feature.  Access to this method is provided by the ``pestifer modify-package`` command (see :func:`pestifer.cli.pestifer.modify_package`).
+
+        ``resnames_by_segtype`` supplies the names for each macro; without it only the curated
+        lists are used, which since the move to a derived classification is a small fraction of
+        what pestifer actually classifies (see ResourceManager.update_atomselect_macros).
         """
         for segtype, data in self.segtypes.items():
             if data['macro']:
-                resnames = data['resnames']
-                macro_content = ' '.join(resnames)
+                resnames = (sorted(resnames_by_segtype.get(segtype, ())) if resnames_by_segtype is not None
+                            else data['resnames'])
+                # VMD's selection parser rejects a bare name containing anything but letters,
+                # digits and underscore -- SB3-10 made the whole lipid macro "cannot be parsed",
+                # VMD fell back to its built-in lipid keyword, and nothing else complained.
+                # Quoted names parse and match normally.
+                macro_content = ' '.join(r if re.fullmatch(r'[A-Za-z0-9_]+', r) else f"'{r}'" for r in resnames)
                 vmd_lt = data.get('vmd_version_lt', '')
                 if vmd_lt:
                     vmd_major_lt = int(str(vmd_lt).split('.')[0])

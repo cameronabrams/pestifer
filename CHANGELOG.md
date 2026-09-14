@@ -4,6 +4,46 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a `psfgen.segtypes` entry in a config was ignored for any residue pestifer already
+  classified.** The override applied only to names pestifer did not know, so it failed for exactly the
+  residues a user would want to reclassify. Example 5's `other: [ACET, ACT]` changed `ACT` and left
+  `ACET` as it was, while listing it under `other`. A configured segtype now wins over pestifer's
+  own classification, and the residue is moved out of any other list.
+
+- fix: **several common sugar codes could not be built, and alpha-GlcNAc lost its acetyl
+  coordinates.** Added residue aliases for `GLC`, `A2G` (the mucin-type O-GalNAc core), `NGA`,
+  `XYS`, `RAM`, `RM4`, `GCU`, `BDP`, `IDR` and `SLB`, each checked against both the PDB chemical
+  component dictionary and the CHARMM residue. Added the matching atom aliases: N-acetyl atoms for
+  `AGLCNA`, `AGALNA` and `BGALNA`, carboxylate oxygens for the uronic acids, and the sialic set for
+  `BNE5AC`. `AGLCNA` had a residue alias from `NDG` but none of the acetyl atom aliases, so an
+  alpha-GlcNAc's acetyl group was never read from its coordinates. Seven sugar codes that could be
+  reached had no glycan classification and now do. Verified on MUC1 Tn-antigen glycopeptides:
+  5a2k and 5a2i build `AGALNA` with every heavy atom from the deposit (without the atom aliases,
+  four are left unset) and get `TGPA`/`SGPA`. Deliberately **not** aliased: `GLA` (PDB
+  alpha-galactose). CHARMM defines its own `RESI GLA`, gamma-linolenic acid, and an alias renames
+  every residue of that name. A new test rejects any alias that would move a CHARMM residue into a
+  different segtype.
+
+- fix: **346 standalone molecules in protein and nucleic-acid streams were classified as chain
+  residues.** A residue from those files that bonds to no neighbouring residue (no `+`/`-` atom in
+  its topology) cannot be part of a chain. Examples are CO, O2 and CO2 for heme, dipeptide and
+  pyridine models, coenzymes, and free nucleotides. Those from the cofactor and NAD/nucleotide
+  streams are now `cofactor` (54, e.g. `AMP`, `GTP`, `DHF`), the rest `ligand` (292). Chain residues are
+  untouched, including the modified residues `SEP`, `PTR`, `TYS` and the capping groups.
+
+- fix: **the VMD atomselect macros (`resources/tcl/macros.tcl`) were out of step with pestifer's
+  classification.** They were generated from the curated lists only, which since the move to a derived
+  classification are a small part of it, and regenerating would have shrunk the `lipid` and `glycan`
+  keywords pestifer's Tcl uses. They are now generated from the full classification, except CGenFF's
+  2,000-residue general library, which makes a keyword ~400x slower. The first regeneration exposed
+  that a hyphenated residue name (`SB3-10`) makes VMD reject an entire macro and silently fall back
+  to its built-in keyword. Such names are now quoted, and a test keeps the file equal to the
+  generator's output.
+
+- test: the unit-test session restores the residue classification after every test. Loading a config
+  mutates the shared `Labels` tables, so a test could pass alone and fail after one that loaded
+  example 5.
+
 ## [3.22.0] - 2026-09-14
 
 - feat: **example 28 now shows both ways to phosphorylate a serine.** Ser65 is still converted by a

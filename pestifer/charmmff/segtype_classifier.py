@@ -57,7 +57,13 @@ def segtype_of_topfile(topfile, water_resnames=frozenset(), resname=None):
     return None
 
 
-def derive_segtypes(resi_to_topfile_map, curated_names=frozenset(), water_resnames=frozenset()):
+# Streams in the protein and nucleic-acid families whose standalone molecules are cofactors rather
+# than generic small molecules (coenzymes, pterins, folates; free nucleotides such as AMP and GTP).
+_COFACTOR_TOPFILE_FRAGMENTS = ('prot_cofactors', 'na_nad_ppi')
+
+
+def derive_segtypes(resi_to_topfile_map, curated_names=frozenset(), water_resnames=frozenset(),
+                    standalone=None):
     """
     Classify every residue in ``resi_to_topfile_map`` by its defining topology file.
 
@@ -71,6 +77,13 @@ def derive_segtypes(resi_to_topfile_map, curated_names=frozenset(), water_resnam
         never overridden by a derived one.
     water_resnames : set
         Residue names treated as water when they come from ``water_ions``.
+    standalone : set, optional
+        Residue names whose topology has no bond to a neighbouring residue (no ``+``/``-`` atom).
+        A residue the file rule places in ``protein`` or ``nucleicacid`` cannot be a chain residue
+        if it bonds to nothing, so it becomes ``cofactor`` when it comes from a cofactor stream and
+        ``ligand`` otherwise.  Protein and nucleic-acid streams are full of such molecules --
+        dipeptide models, pyridines, CO and O2 for heme, free nucleotides -- which the filename
+        alone cannot tell from real residues.  ``None`` skips the check.
 
     Returns
     -------
@@ -86,5 +99,8 @@ def derive_segtypes(resi_to_topfile_map, curated_names=frozenset(), water_resnam
         segtype = segtype_of_topfile(topfile, water_resnames=water_resnames, resname=resname)
         if segtype is None:
             continue
+        if standalone is not None and segtype in ('protein', 'nucleicacid') and resname in standalone:
+            t = topfile.lower()
+            segtype = 'cofactor' if any(f in t for f in _COFACTOR_TOPFILE_FRAGMENTS) else 'ligand'
         out.setdefault(segtype, []).append(resname)
     return {segtype: sorted(names) for segtype, names in sorted(out.items())}

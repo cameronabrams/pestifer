@@ -62,3 +62,30 @@ class TestSegtypeClassifier(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestStandaloneMoleculesInPolymerStreams(unittest.TestCase):
+    """A residue from a protein or nucleic-acid file that bonds to no neighbour is a molecule, not a
+    chain residue.  348 were misclassified this way: dipeptide models, pyridines, CO/O2 for heme,
+    coenzymes, free nucleotides."""
+
+    def test_protein_file_standalone_becomes_ligand(self):
+        d = derive_segtypes({'CO2': 'toppar_all36_prot_heme_for_new_psf_gen_code_2022.str',
+                             'ALA': 'top_all36_prot.rtf'}, standalone={'CO2'})
+        self.assertEqual(d, {'ligand': ['CO2'], 'protein': ['ALA']})
+
+    def test_cofactor_streams_give_cofactor(self):
+        d = derive_segtypes({'DHF': 'toppar_all36_prot_cofactors.str',
+                             'AMP': 'toppar_all36_na_nad_ppi.str',
+                             'ADE': 'top_all36_na.rtf'}, standalone={'DHF', 'AMP'})
+        self.assertEqual(d, {'cofactor': ['AMP', 'DHF'], 'nucleicacid': ['ADE']})
+
+    def test_only_polymer_families_are_affected(self):
+        # sugars and lipids are standalone even when real; the rule must not touch them
+        d = derive_segtypes({'BGLC': 'top_all36_carb.rtf', 'POPC': 'top_all36_lipid.rtf'},
+                            standalone={'BGLC', 'POPC'})
+        self.assertEqual(d, {'glycan': ['BGLC'], 'lipid': ['POPC']})
+
+    def test_without_bond_information_nothing_changes(self):
+        d = derive_segtypes({'CO2': 'toppar_all36_prot_heme_for_new_psf_gen_code_2022.str'})
+        self.assertEqual(d, {'protein': ['CO2']})
