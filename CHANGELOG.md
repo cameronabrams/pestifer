@@ -4,6 +4,20 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a beta-glucose named `BGLC` was silently built as GlcNAc.** pestifer carried a psfgen
+  alias `BGLC -> BGLCNA` to repair GlcNAc whose name had been cut to four characters -- which
+  pestifer's own output PDBs do (example 7's output writes all 63 GlcNAc as `BGLC`). psfgen applies
+  an alias to every residue of that name, so rebuilding from example 31's output turned both of its
+  real glucoses into GlcNAc with invented acetyl atoms, and the build succeeded. A fixed alias cannot
+  be right: cutting to four characters is ambiguous for about 70 CHARMM residue names, and the stub
+  is usually a real residue (`BGLCNA`, `BGLCA` and `BGLCN` all become `BGLC`). The alias is gone.
+  A cut name is now restored at ingest from the residue's own heavy atoms, using a table generated
+  from the force field (`truncated_resnames.json`). Because segment PDBs keep four columns, a
+  restored long name travels as the PDB code aliased to it (`BGLCNA` as `NAG`). Rebuilt both ways:
+  example 31's glucoses stay `BGLC`, and example 7's 63 GlcNAc come back as `BGLCNA`, with every
+  heavy atom from the coordinates. A residue identified as a long name with no such code (177 rare
+  sugars) is left as is with a warning, where the alias turned all of them into GlcNAc silently.
+
 - fix: **a residue pestifer could not classify crashed the build with a bare `KeyError`.** 5a2k
   carries ethylene glycol (`EDO`), a crystallization additive; ingest died inside residue grouping
   with `KeyError: 'EDO'` and nothing to say why. The build now stops before that, names every

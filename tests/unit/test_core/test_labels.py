@@ -130,10 +130,10 @@ class TestResidueAliasesDoNotReclassifyCharmmResidues(unittest.TestCase):
     silently turns one molecule into another: "GLA AGAL" (alpha-galactose in the PDB) would have
     turned CHARMM's gamma-linolenic acid into a sugar.  Found 2026-09-14 before it shipped."""
 
-    # Deliberate, same-segtype or already-curated collisions, each with its reason.
+    # Deliberate, same-segtype or already-curated collisions, each with its reason.  (BGLC -> BGLCNA was
+    # here and was a bug -- it built real glucose as GlcNAc; molecule/resname_repair.py replaced it.)
     KNOWN = {
         'PO4': 'phosphate ion -> H2PO4; both ions',
-        'BGLC': 'CHARMM beta-glucose -> BGLCNA: restores a 6-char name truncated to 4 columns (see CLAUDE.md)',
         'GCU': 'also a CHARMM modified-RNA RESI; curated as glycan (glucuronic acid) before this test existed',
         'SIA': 'also a CHARMM modified-RNA RESI; curated as glycan (sialic acid) before this test existed',
     }

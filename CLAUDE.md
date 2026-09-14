@@ -499,6 +499,11 @@ shipped: `GLA` is alpha-galactose in the PDB and gamma-linolenic acid in CHARMM
 Check a new alias against `CHARMMFFContent(...).resi_to_topfile_map` before adding it.
 `tests/unit/test_core/test_labels.py::TestResidueAliasesDoNotReclassifyCharmmResidues` fails if an
 alias moves a derived CHARMM residue into a different segtype, and lists the four deliberate
-collisions it tolerates. One of them, `BGLC BGLCNA`, is a hazard. It restores a 6-character name
-truncated to 4 columns, and it also turns CHARMM beta-glucose into GlcNAc for any input that names
-it `BGLC`. It is kept because removing it needs the truncation case re-examined; it is not safe.
+collisions it tolerates.
+
+`BGLC BGLCNA` was one of them, and it was a bug: it existed because pestifer's own segment PDBs keep
+four columns of a residue name, so GlcNAc is written as `BGLC` -- and it turned every real
+beta-glucose named `BGLC` into GlcNAc. Removed 2026-09-14. Its replacement, `molecule/resname_repair.py`,
+decides by the residue's heavy atoms which CHARMM residue a four-character name was cut from, and
+gives a long result the PDB code aliased to it (`BGLCNA` -> `NAG`) so it survives the writer.
+**Do not re-add a name-based alias for a truncated stem**: the stub is ambiguous for ~70 residues.

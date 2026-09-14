@@ -21,6 +21,7 @@ from ..core.objmanager import ObjManager
 from ..objs.graft import GraftList
 from ..objs.link import LinkList
 from .residue_fusion import fuse_linked_ligands
+from .resname_repair import repair_truncated_resnames
 from ..core.errors import PestiferBuildError
 from ..core.labels import Labels
 from ..objs.mutation import Mutation, MutationList
@@ -273,6 +274,12 @@ class AsymmetricUnit:
         # residue it is bonded to -- a MYR bonded to a GLY's N is CHARMM's GLYM.  Done on ATOMS,
         # before grouping, so the existing grouping performs the merge.  Must precede
         # `apply_segtypes` too: the fused residue's segtype follows its combined name.
+        # A residue name cut to four columns (BGLCNA -> BGLC) is restored from the residue's atoms.
+        # Not on the PSF path: there the PSF carries the full names and must stay consistent.
+        if self.psfcontents is None:
+            n_repaired = repair_truncated_resnames(atoms)
+            if n_repaired:
+                logger.info(f'restored {n_repaired} truncated residue name(s) from their atoms')
         n_fused = fuse_linked_ligands(atoms, links)
         if n_fused:
             logger.info(f'fused {n_fused} deposited ligand(s) into the residue CHARMM defines '

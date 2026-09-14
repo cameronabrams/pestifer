@@ -171,6 +171,19 @@ def package_classification() -> dict:
     return mapping
 
 
+_TRUNCATED_RESNAMES_PATH = Path(__file__).resolve().parent.parent / 'resources' / 'labels' / 'truncated_resnames.json'
+
+
+def load_truncated_resname_table() -> dict:
+    """``stem -> {CHARMM residue: [heavy atom names]}`` for residue names cut to four characters."""
+    try:
+        with open(_TRUNCATED_RESNAMES_PATH) as f:
+            return json.load(f).get('stems', {})
+    except (OSError, ValueError) as e:
+        logger.warning(f'could not load {_TRUNCATED_RESNAMES_PATH}: {e}; truncated residue names will not be repaired')
+        return {}
+
+
 _atom_aliases = [
     "ILE CD1 CD",
     "MET SE SD",   # selenomethionine's selenium (SE) -> methionine sulfur (SD); pairs with the MSE->MET residue alias
@@ -236,7 +249,6 @@ _residue_aliases = [
     "H2PO H2PO4",
     "MAN AMAN",
     "BMA BMAN",
-    "BGLC BGLCNA",
     "NAG BGLCNA",
     "NDG AGLCNA",
     "FUC AFUC",
