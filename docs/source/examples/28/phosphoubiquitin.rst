@@ -1,7 +1,7 @@
 .. _example phosphoubiquitin:
 
-Example 28: Ubiquitin phosphorylated at Ser65 and Ser57
--------------------------------------------------------
+Ubiquitin phosphorylated at Ser65 and Ser57
+-------------------------------------------
 
 `PDB ID 1ubq <https://www.rcsb.org/structure/1UBQ>`_ is ordinary human ubiquitin.  Nothing in it is phosphorylated.  This example installs a post-translational modification that is *not* in the input: Ser65 is converted to phosphoserine by mutating it to ``SEP``, the CHARMM residue for phosphoserine.
 

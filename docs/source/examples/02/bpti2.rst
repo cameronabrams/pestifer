@@ -1,9 +1,9 @@
 .. _example bpti2:
 
-Example 2: BPTI Excluding the Phosphate Ion
--------------------------------------------
+BPTI Excluding the Phosphate Ion
+--------------------------------
 
-This is the same as Example 1, except we delete the phosphate ion.
+This is the same as :ref:`the baseline BPTI build <example bpti1>`, except we delete the phosphate ion.
 
 .. literalinclude:: ../../../../pestifer/resources/examples/02/inputs/bpti2.yaml
     :language: yaml
@@ -14,9 +14,9 @@ This is the same as Example 1, except we delete the phosphate ion.
     :width: 70%
     :align: center
 
-    The Example 2 build, in the same style and viewpoint as :ref:`Example 1 <example bpti1>`.
+    This build, in the same style and viewpoint as :ref:`the baseline BPTI build <example bpti1>`.
     The phosphate is gone, and the box carries 0.154 M NaCl -- 13 sodium and 19 chloride ions
-    among 4,385 waters -- where Example 1 had only the five chlorides needed to neutralize the
+    among 4,385 waters -- where the baseline build had only the five chlorides needed to neutralize the
     protein.  All three native disulfides are intact.
 
 

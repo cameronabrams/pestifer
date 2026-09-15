@@ -1,7 +1,7 @@
 .. _example ubiquitin-gfp-fusion:
 
-Example 27: Ubiquitin with a C-terminal GFP fusion
---------------------------------------------------
+Ubiquitin with a C-terminal GFP fusion
+--------------------------------------
 
 Fusion proteins -- one protein genetically appended to the terminus of another
 -- are a workhorse of molecular biology, and green fluorescent protein (GFP) is

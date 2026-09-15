@@ -4,6 +4,12 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- docs: **example pages no longer carry numbers.** The examples page groups them by capability, so
+  their ids ran out of order down the list (7, 8, 9 ... 15, 31) while implying a sequence that isn't
+  there. Page titles, the index and every cross-reference now name examples; commands use
+  shortnames (`pestifer build-example bpti1`). The numeric id still works on the command line and
+  still names the resource folder. New example stubs are titled the same way.
+
 ## [3.22.1] - 2026-09-14
 
 - fix: **a beta-glucose named `BGLC` was silently built as GlcNAc.** pestifer carried a psfgen

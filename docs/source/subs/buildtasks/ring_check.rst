@@ -96,7 +96,7 @@ If every available rotation for a pierced protein or glycan ring fails, the buil
 Example: sterol and glycan ring check in a viral membrane
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-This is taken from :ref:`example mper-tm viral bilayer` (Example 17), whose bilayer contains cholesterol (sterol rings) and whose embedded protein is glycosylated:
+This is taken from :ref:`example mper-tm viral bilayer`, whose bilayer contains cholesterol (sterol rings) and whose embedded protein is glycosylated:
 
 .. code-block:: yaml
 

@@ -1,7 +1,7 @@
 .. _example bpti1:
 
-Example 1: Bovine Pancreatic Trypsin Inhibitor (BPTI)
------------------------------------------------------
+Bovine Pancreatic Trypsin Inhibitor (BPTI)
+------------------------------------------
 
 The ``psfgen`` `user manual <https://www.ks.uiuc.edu/Research/vmd/plugins/psfgen/ug.pdf>`_ is a necessary resource for learning how to use ``psfgen`` to generate PDB and PSF input files for NAMD.  A simple example in that manual is a solvation of bovine pancreatic trypsin inhibitor (BPTI) starting from its PDB coordinates (`PDB ID 6pti <https://www.rcsb.org/structure/6PTI>`_).  ``pestifer`` can reproduce this solvation via the input YAML-format configuration shown below:
 
@@ -22,7 +22,7 @@ You can check the :ref:`config_ref` for a complete reference to Pestifer config 
     Water and the five neutralizing chlorides are fine glassy lines, so the cell reads as filled
     without hiding the solute.  This build keeps all three of BPTI's native disulfides -- their
     sulfurs are the yellow atoms -- and retains the dihydrogen phosphate from the 6PTI entry.
-    Examples 2 to 4 vary exactly those two things.
+    The other three BPTI examples vary exactly those two things.
 
 There are three ways to launch this build.  **They are alternatives — pick one, and
 run it in a clean directory.**  All three run the same configuration; they differ only
@@ -33,7 +33,7 @@ it first.
 
 .. code-block:: bash
 
-   $ pestifer build-example 1
+   $ pestifer build-example bpti1
 
 ``build-example`` copies the example's config file into the current directory as
 ``bpti1.yaml`` — exactly what you see above — and immediately builds it.  Nothing to
@@ -55,7 +55,7 @@ or edit it before committing to a run:
 
 .. code-block:: bash
 
-   $ pestifer fetch-example 1
+   $ pestifer fetch-example bpti1
    $ ls
    bpti1.yaml
    $ pestifer build bpti1

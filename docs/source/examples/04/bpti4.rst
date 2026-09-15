@@ -1,7 +1,7 @@
 .. _example bpti4:
 
-Example 4: BPTI with a Mutated-in Disulfide Bond
-------------------------------------------------
+BPTI with a Mutated-in Disulfide Bond
+-------------------------------------
 
 Using the ``mods`` subdirective, one can introduce new disulfides into an existing structure.  This example introduces a disulfide linking residues 11 and 34.
 
@@ -14,7 +14,7 @@ Using the ``mods`` subdirective, one can introduce new disulfides into an existi
     :width: 70%
     :align: center
 
-    The Example 4 build, in the same style and viewpoint as :ref:`Example 1 <example bpti1>`.
+    This build, in the same style and viewpoint as :ref:`the baseline BPTI build <example bpti1>`.
     Residues 11 and 34 have been mutated to cysteine and cross-linked, so this system carries
     eight cysteines and **four** S-S bonds against the native three.
 

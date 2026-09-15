@@ -1,7 +1,7 @@
 .. _example notch2-egf-o-glycans:
 
-Example 31: Human Notch-2 EGF11-13 with O-fucose and O-glucose
---------------------------------------------------------------
+Human Notch-2 EGF11-13 with O-fucose and O-glucose
+--------------------------------------------------
 
 `PDB ID 5mwb <https://www.rcsb.org/structure/5MWB>`_ is human Notch-2 EGF repeats 11-13, at 1.86 Å, with three **O-linked** glycans: sugars attached to the hydroxyl of a serine or threonine rather than to an asparagine.  O-fucosylation of Notch EGF repeats is what Fringe glycosyltransferases extend to tune Notch-ligand binding, and O-glucosylation is needed for Notch activity.
 

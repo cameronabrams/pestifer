@@ -1,7 +1,7 @@
 .. _example ferredoxin-fad:
 
-Example 22: Ferredoxin-NADP(H) Reductase from Rhodobacter capsulatus
---------------------------------------------------------------------
+Ferredoxin-NADP(H) Reductase from Rhodobacter capsulatus
+--------------------------------------------------------
 
 `PDB ID 2bgj <https://www.rcsb.org/structure/2bgj>`_ is the structure of ferredoxin-NADP(H) reductase from *Rhodobacter capsulatus*. This example demonstrates how to build a system with a flavin cofactor (FAD).  Because FAD is already handled by the CHARMM36 force field, this is actually pretty easy.  This structure also contains four distinct but identical proteins, so we delete all but one of them.
 

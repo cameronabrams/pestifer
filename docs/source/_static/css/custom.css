@@ -26,7 +26,7 @@
    led by a bold "Figure N." label.
 
    The label is a CSS counter rather than Sphinx's numfig because numfig
-   numbers continuously across the whole doc set -- example 13 would open
+   numbers continuously across the whole doc set -- the insulin hexamer page would open
    on a solitary "Fig. 21".  Readers arrive on these pages individually,
    so the count resets per page.  Nothing uses :numref: (which would need
    numfig back); if that changes, this trade has to be revisited.

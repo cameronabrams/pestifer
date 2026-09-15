@@ -1,7 +1,7 @@
 .. _example env ae2:
 
-Example 10: Cleaved, Asymmetric HIV-1 AE2 Env Ectodomain Trimer
----------------------------------------------------------------
+Cleaved, Asymmetric HIV-1 AE2 Env Ectodomain Trimer
+---------------------------------------------------
 
 `PDB ID 8fae <https://www.rcsb.org/structure/8fae>`_ is a structure of the cleaved, asymmetric HIV-1 AE2 Env ectodomain trimer.  Like :ref:`example env ad8`, this structure also contains bound instances of the entry inhibitor model BMS-806 (resname 83G).
 

@@ -1,7 +1,7 @@
 .. _example subtilisin-dmso:
 
-Example 23: Subtilisin Carlsberg in DMSO
-----------------------------------------
+Subtilisin Carlsberg in DMSO
+----------------------------
 
 `PDB ID 1scd <https://www.rcsb.org/structure/1scd>`_ is the structure of the serine protease subtilisin Carlsberg.  This example demonstrates building a protein in a **non-aqueous solvent** -- here dimethyl sulfoxide (DMSO), a classic medium for studying enzyme catalysis in organic solvents.
 

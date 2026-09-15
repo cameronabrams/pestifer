@@ -106,7 +106,8 @@ class TestExampleManager(unittest.TestCase):
         self.assertEqual(ex.db_id, '1acp')
         stub = open(os.path.join(self.manager.sphinx_example_manager.examples_folder_path,
                                  '03', 'exB.rst')).read()
-        self.assertIn('Example 3: analog cell phone', stub)
+        self.assertIn('\nanalog cell phone\n-----------------\n', stub)
+        self.assertNotIn('Example 3', stub)   # docs name examples; the id is only a CLI handle
         self.assertIn('1acp', stub)
 
     def test_explicit_title_and_db_id_still_win(self):

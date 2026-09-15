@@ -1,7 +1,7 @@
 .. _example env 4tvp:
 
-Example 8: Closed, PGT122/35O22-Liganded HIV-1 BG505 Env SOSIP.664 Trimer (ligands removed)
--------------------------------------------------------------------------------------------
+Closed, PGT122/35O22-Liganded HIV-1 BG505 Env SOSIP.664 Trimer (ligands removed)
+--------------------------------------------------------------------------------
 
 `PDB ID: 4tvp <https://www.rcsb.org/structure/4tvp>`_ is a structure of the HIV-1 Env ectodomain trimer in a closed conformation, with the PGT122 and 35O22 antibody Fabs bound.  This structure has fairly well-resolved glycans, likely because of the stabilization provided by the Fab ligands.  Here we prepare a system with just the ectodomain and glycans, omitting the ligands.
 

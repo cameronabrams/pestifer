@@ -155,7 +155,7 @@ Solvent chambers
 
 The grid packer places **lipids only**.  The extra-membrane water chambers on either side of the bilayer are filled afterward, by a VMD ``solvate``/``autoionize`` step that runs after the lipid ``psfgen``: it tiles a pre-equilibrated water box into exactly the lipid system's cell (no padding) and drops the water that clashes with the dense lipid slab, leaving water only in the chambers, at true liquid density.
 
-This replaced an earlier cubic water lattice, whose voids the barostat would close early in the relaxation -- distorting the bilayer while the water caught up to liquid density.  Starting near density equilibrium, post-embed equilibration converges markedly faster (example 16's post-embed stage went from roughly 3 hours to about 1 hour 49 minutes).
+This replaced an earlier cubic water lattice, whose voids the barostat would close early in the relaxation -- distorting the bilayer while the water caught up to liquid density.  Starting near density equilibrium, post-embed equilibration converges markedly faster (the :ref:`DMPC bilayer example <example mper-tm symmetric bilayer>`'s post-embed stage went from roughly 3 hours to about 1 hour 49 minutes).
 
 ``embed``
 +++++++++

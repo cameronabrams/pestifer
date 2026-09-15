@@ -3,18 +3,15 @@
 build-example
 -------------
 
-Name an example either by its id or by its shortname -- these are equivalent:
+Name an example by its shortname, the name of its page and its YAML file:
 
 .. code-block:: bash
 
-   $ pestifer build-example 4
    $ pestifer build-example bpti4
 
-The id is an *identifier*, not a position.  The examples are numbered by biological subject,
-while the paper describing pestifer groups them by capability, and no single numbering can make
-both orders sequential -- so ids are not contiguous within any thematic group, and the shortname
-is the handle that does not depend on either ordering.  ``pestifer show-resources examples``
-lists both.  A mistyped name is reported with the nearest matches rather than a traceback.
+Each example also has a numeric id, which ``pestifer show-resources examples`` lists and which
+the command accepts in place of the shortname.  The id is an *identifier*, not a position: it
+says nothing about where an example belongs, which is why these docs do not use it.  A mistyped name is reported with the nearest matches rather than a traceback.
 
 .. note::
 
@@ -63,10 +60,9 @@ You can use ``pestifer show-resources`` to list the examples:
 fetch-example
 -------------
 
-This subcommand is like ``build-example``, except it only copies the YAML input file needed to run the example to the CWD.  It can be edited, if desired, and then run using the ``build`` subcommand.  It accepts an id or a shortname on the same terms:
+This subcommand is like ``build-example``, except it only copies the YAML input file needed to run the example to the CWD.  It can be edited, if desired, and then run using the ``build`` subcommand.  It accepts a shortname (or an id) on the same terms:
 
 .. code-block:: bash
 
-   $ pestifer fetch-example 24
    $ pestifer fetch-example subtilisin-acetone
 

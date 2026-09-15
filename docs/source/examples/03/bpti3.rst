@@ -1,9 +1,9 @@
 .. _example bpti3:
 
-Example 3: BPTI with a Mutated-out Disulfide Bond
--------------------------------------------------
+BPTI with a Mutated-out Disulfide Bond
+--------------------------------------
 
-Building on Example 2, here we show how to introduce point mutations and how to undo disulfides.  Both of these actions are specified in the ``psfgen`` task under the ``mods`` subdirective:
+Building on :ref:`the phosphate-free build <example bpti2>`, here we show how to introduce point mutations and how to undo disulfides.  Both of these actions are specified in the ``psfgen`` task under the ``mods`` subdirective:
 
 .. literalinclude:: ../../../../pestifer/resources/examples/03/inputs/bpti3.yaml
     :language: yaml
@@ -14,7 +14,7 @@ Building on Example 2, here we show how to introduce point mutations and how to 
     :width: 70%
     :align: center
 
-    The Example 3 build, in the same style and viewpoint as :ref:`Example 1 <example bpti1>`.
+    This build, in the same style and viewpoint as :ref:`the baseline BPTI build <example bpti1>`.
     The mutations are in place and one of the three native disulfides has been reduced, so this
     system has **two** S-S bonds where the others have three; the freed cysteine sulfurs are the
     yellow atoms no longer paired.

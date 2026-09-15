@@ -1,7 +1,7 @@
 .. _example vansc-catalytic-domain:
 
-Example 30: VanSC histidine kinase catalytic domain, biological assembly 1
---------------------------------------------------------------------------
+VanSC histidine kinase catalytic domain, biological assembly 1
+--------------------------------------------------------------
 
 `PDB ID 8dx0 <https://www.rcsb.org/structure/8DX0>`_ is the catalytic (ATP-binding) domain of VanSC, a histidine kinase from a vancomycin-resistance two-component system, at 1.45 Å.  Its asymmetric unit holds **two** copies of the domain, chains A and B, and the authors define each as a separate monomeric biological unit: assembly 1 is chain A, assembly 2 is chain B.
 

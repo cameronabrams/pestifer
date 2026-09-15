@@ -1,7 +1,7 @@
 .. _example mper-tm symmetric bilayer:
 
-Example 16: HIV-1 Env MPER-TM Trimer in a DMPC Symmetric Bilayer
---------------------------------------------------------------------------
+HIV-1 Env MPER-TM Trimer in a DMPC Symmetric Bilayer
+----------------------------------------------------
 
 .. figure:: my_6e8w_pc.png
 

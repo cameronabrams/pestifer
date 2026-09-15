@@ -116,7 +116,7 @@ recoverable from them: ``A.B.MCDERMOTT`` cannot be turned back into ``McDermott,
 guessing sentence case from an ALL-CAPS title mangles things like ``HIV-1``.  An identifier
 cannot be subtly wrong in that way.
 
-Example: the SARS-CoV-2 BA.2 spike build (:ref:`Example 15 <example sars cov2 spike ba2>`), which
+Example: the SARS-CoV-2 BA.2 spike build (:ref:`example sars cov2 spike ba2`), which
 starts from one entry and grafts glycans from three others:
 
 .. code-block:: text
@@ -156,7 +156,7 @@ A worked example
 ----------------
 
 Every conditional path in one place, from the AlphaFold methylmalonyl-CoA mutase build
-(:ref:`Example 20 <example methylmalonyl-coa-mutase>`), which fetches a model rather than a PDB
+(:ref:`example methylmalonyl-coa-mutase`), which fetches a model rather than a PDB
 entry and protonates it with ``pdb2pqr``:
 
 .. code-block:: text

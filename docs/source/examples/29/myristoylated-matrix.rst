@@ -1,11 +1,11 @@
 .. _example myristoylated-matrix:
 
-Example 29: Myristoylated HIV-1 matrix protein
-----------------------------------------------
+Myristoylated HIV-1 matrix protein
+----------------------------------
 
 `PDB ID 1uph <https://www.rcsb.org/structure/1UPH>`_ is an NMR structure of the HIV-1 matrix protein (MA, the N-terminal domain of Gag) carrying the myristoyl group that is covalently attached to its N-terminal glycine.  Myristoylation is what targets Gag to the plasma membrane; in this structure the fatty acyl chain is tucked against the protein rather than extended.  This example builds that modification *from the deposit* -- nothing is mutated -- and keeps the conformation the structure gives it.
 
-Example 28 shows how to install a modification the input does not have.  This one is the other half: a modification the input already has, but written in a form CHARMM does not use.
+The :ref:`phosphoubiquitin example <example phosphoubiquitin>` shows how to install a modification the input does not have.  This one is the other half: a modification the input already has, but written in a form CHARMM does not use.
 
 **The deposit and CHARMM disagree about what a residue is.**  The PDB entry writes the myristate as a separate ligand, ``MYR A:1``, joined to Gly2 by a ``LINK`` record.  CHARMM defines N-myristoyl-glycine as a single residue, ``GLYM``, in ``toppar_all36_lipid_prot.str``.  pestifer reconciles the two when it reads the structure: a linked ``MYR`` is fused into its glycine as ``GLYM``, carrying the deposited heavy-atom coordinates and dropping the ligand's hydrogens for psfgen to rebuild.  The build log says so:
 

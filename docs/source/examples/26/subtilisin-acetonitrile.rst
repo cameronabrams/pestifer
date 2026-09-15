@@ -1,9 +1,9 @@
 .. _example subtilisin-acetonitrile:
 
-Example 26: Subtilisin Carlsberg in acetonitrile
-------------------------------------------------
+Subtilisin Carlsberg in acetonitrile
+------------------------------------
 
-`PDB ID 1scd <https://www.rcsb.org/structure/1scd>`_ is the structure of the serine protease subtilisin Carlsberg.  Like :ref:`Example 23 <example subtilisin-dmso>` (DMSO) and :ref:`Example 24 <example subtilisin-acetone>` (acetone), this example builds the enzyme in a **non-aqueous solvent** -- here acetonitrile, another classic medium for the study of enzyme catalysis in organic solvents.
+`PDB ID 1scd <https://www.rcsb.org/structure/1scd>`_ is the structure of the serine protease subtilisin Carlsberg.  Like the :ref:`DMSO <example subtilisin-dmso>` and :ref:`acetone <example subtilisin-acetone>` examples, this example builds the enzyme in a **non-aqueous solvent** -- here acetonitrile, another classic medium for the study of enzyme catalysis in organic solvents.
 
 As with acetone, pestifer ships no pre-equilibrated acetonitrile box, so the ``solvate`` task **builds one on demand**: because ``ACN`` is defined in the CGenFF force field, pestifer packs a periodic box, minimizes and NPT-equilibrates it, and **caches** the result under ``~/.pestifer/pdbrepository/<release>/solvent/ACN/`` for reuse.  The first build pays a one-time cost to generate the box; from then on it is as fast as a shipped solvent.
 

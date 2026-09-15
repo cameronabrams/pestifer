@@ -1,7 +1,7 @@
 .. _example env 4zmj:
 
-Example 7:  Closed, Unliganded HIV-1 BG505 Env SOSIP.664 Trimer
----------------------------------------------------------------
+Closed, Unliganded HIV-1 BG505 Env SOSIP.664 Trimer
+---------------------------------------------------
 
 `PDB ID 4zmj <https://www.rcsb.org/structure/4zmj>`_ is a structure of the HIV-1 Env BG505 SOSIP-664 ectodomain trimer in a closed conformation, without any ligands bound.  It is one of the earliest X-ray crystal structures solved for this protein in trimeric form.
 

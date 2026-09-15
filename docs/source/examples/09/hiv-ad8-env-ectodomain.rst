@@ -1,7 +1,7 @@
 .. _example env ad8:
 
-Example 9: Cleaved, Asymmetric HIV-1 AD8 Env Ectodomain Trimer
---------------------------------------------------------------
+Cleaved, Asymmetric HIV-1 AD8 Env Ectodomain Trimer
+---------------------------------------------------
 
 `PDB ID 8fad <https://www.rcsb.org/structure/8fad>`_ is a structure of the cleaved, asymmetric HIV-1 AD8 Env ectodomain trimer.
 

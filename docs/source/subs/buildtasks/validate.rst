@@ -55,7 +55,7 @@ reports ``FAIL ... count 1 (expected 0)`` on a build that excluded chain B exact
 Note that whether you get away with it depends on *which* letter you excluded, which is why this
 trap is easy to miss: the pool is consumed in order, so a late letter is rarely reused, while an
 early one is taken almost immediately.  Excluding chain ``P`` and then testing ``chain P`` (as
-:ref:`example 5 <example hivprotease>` does) is safe by accident, not by design.
+the :ref:`HIV protease example <example hivprotease>` does) is safe by accident, not by design.
 
 Write the test against something the build cannot rename -- the molecule itself:
 

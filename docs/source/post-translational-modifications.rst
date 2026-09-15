@@ -104,7 +104,7 @@ at *placeholder* bond lengths of exactly 1.0 Å:
 Put an ``md`` minimize immediately after the ``psfgen`` task, and put any ``validate`` test
 *after* the minimize.  ``validate`` can confirm the phosphorus exists; it cannot measure a bond
 length, so check the geometry of a new modification yourself before trusting it.
-:ref:`Example 28 <example phosphoubiquitin>` shows both phosphorylation routes and their numbers.
+:ref:`The phosphoubiquitin example <example phosphoubiquitin>` shows both phosphorylation routes and their numbers.
 
 **Check the charge state.**  A residue name carries one protonation state, and it may not be the
 one you want.  ``RESI SEP`` is the **monoanionic** phosphoserine, while the dianion dominates at
@@ -129,7 +129,7 @@ Phosphorylation
 They live in ``toppar_all36_prot_na_combined.str``, which is not among the topology files
 pestifer loads by default -- but it does not have to be listed.  The topology that defines a
 mutation target is pulled in automatically, so nothing beyond the line above is required.
-:ref:`Example 28 <example phosphoubiquitin>` is the worked case.
+:ref:`The phosphoubiquitin example <example phosphoubiquitin>` is the worked case.
 
 Phosphohistidine (``NEP``, ``HIP``) and aspartyl phosphate (``PHD``) are ordinary mutation
 targets too; they are defined in a stream that is loaded anyway.
@@ -179,7 +179,7 @@ residue.  pestifer fuses a linked ``MYR`` into its glycine (or lysine) on readin
 deposited coordinates, so the chain keeps the conformation the structure gives it.  A chain
 beginning with ``GLYM`` is written with ``first none`` automatically, because that residue
 acylates its own backbone nitrogen and must not receive ``NTER``.
-:ref:`Example 29 <example myristoylated-matrix>` builds exactly this, from 1UPH.
+:ref:`The myristoylated matrix example <example myristoylated-matrix>` builds exactly this, from 1UPH.
 
 The caveat is **placement, in a membrane build**.  pestifer has no machinery that puts a
 protein-attached acyl or prenyl tail *into the bilayer*; the chain is built relative to the
@@ -190,7 +190,8 @@ a system that will run and will be wrong.
 
 **Glycosylation is a different mechanism.**  Sugars are separate residues joined to the protein
 by a patch, not substituted for it; see :ref:`links <subs_buildtasks_psfgen_mods_links>` and
-:ref:`grafts <subs_buildtasks_psfgen_mods_grafts>`, and examples 7, 8, 10, 15 and 17.
+:ref:`grafts <subs_buildtasks_psfgen_mods_grafts>`, and the glycosylated examples: :ref:`example env 4zmj`, :ref:`example env 4tvp`,
+:ref:`example env ae2`, :ref:`example sars cov2 spike ba2` and :ref:`example mper-tm viral bilayer`.
 
 .. note::
 

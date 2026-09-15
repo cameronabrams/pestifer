@@ -1,7 +1,7 @@
 .. _example insulin receptor:
 
-Example 14:  Human Insulin Receptor Ectodomain IRαβ
----------------------------------------------------
+Human Insulin Receptor Ectodomain IRαβ
+--------------------------------------
 
 `PDB entry 4zxb <https://www.rcsb.org/structure/4ZXB>`_ is a 3.3-Å resolution structure of the human insulin receptor ectodomain (IRαβ) monomer (chain E) in complex two Fabs (chains A, B, C, and D).  The receptor is dimeric, and the asymmetric structure is a monomer, so Pestifer replicates the monomer to make a dimer model according to the BIOMT records in the PDB file.  The Fabs are excluded.  The structure has several missing loops, which Pestifer builds in.  The structure also has several glycans, which Pestifer retains.
 

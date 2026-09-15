@@ -1,7 +1,7 @@
 .. _example ecoli-polymerase:
 
-Example 18: E. coli Replicative DNA Polymerase Complex Bound to DNA
--------------------------------------------------------------------
+E. coli Replicative DNA Polymerase Complex Bound to DNA
+-------------------------------------------------------
 
 `PDB ID 5fkw <https://www.rcsb.org/structure/5fkw>`_ is a structure of E. coli polymerase bound to a 12-mer DNA duplex. This example demonstrates that pestifer can handle simple nucleic acids.  It also shows how Pestifer can build in missing nucleic acid residues; in this case, there are 3 unresolved nucleotides at the 5'-end of chain T.
 

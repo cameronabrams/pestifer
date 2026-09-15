@@ -45,7 +45,7 @@ Corrections to upstream files (``patches/``)
    (``ND1``) and ``ZNHE`` to its **epsilon-2 nitrogen** (``NE2``). The released file
    has the two bonds swapped (``ZNHD → NE2``, ``ZNHE → ND1``); pestifer's copy restores
    them so each patch links the zinc through the nitrogen it is named for. These
-   patches are used in the insulin-hexamer example build (Example 13), whose zinc ions
+   patches are used in the insulin-hexamer example build (:ref:`example insulin6`), whose zinc ions
    are coordinated by histidines.
 
 Added definitions (``custom/``)
@@ -72,7 +72,7 @@ alongside the stock toppar for whichever release is active.
 
 ``83G-cgenff.str``
    CGenFF/ParamChem parameters for ligand ``83G`` — the HIV-1 entry inhibitor
-   **BMS-378806**, present in the HIV-1 Env ectodomain examples (see Examples 9 and 10).
+   **BMS-378806**, present in the HIV-1 Env ectodomain examples (see :ref:`example env ad8` and :ref:`example env ae2`).
 
 ``LF0-cgenff.str``
    CGenFF/ParamChem parameters for ligand ``LF0`` — an **HIV-1 integrase inhibitor**

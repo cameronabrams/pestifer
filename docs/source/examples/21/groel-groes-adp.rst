@@ -1,7 +1,7 @@
 .. _example groel-groes-adp:
 
-Example 21: Asymmetric GroEL/GroES Chaperonin Complex
------------------------------------------------------
+Asymmetric GroEL/GroES Chaperonin Complex
+-----------------------------------------
 
 `PDB ID 1aon <https://www.rcsb.org/structure/1aon>`_ is the famous structure of the asymmetric GroEL/GroES chaperonin complex with ADP bound. This build represents Pestifer's ability to handle ligands like ADP.
 

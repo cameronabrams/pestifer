@@ -50,9 +50,9 @@ good config looks like for a given kind of system:
 .. code-block:: console
 
    $ pestifer show-resources examples    # the catalog: ID, PDB ID, name, title
-   $ pestifer fetch-example 7            # copy one here without building it
+   $ pestifer fetch-example bpti1         # copy one here without building it
 
-An agent adapting example 16 for a new membrane system will outperform the same agent composing
+An agent adapting the :ref:`DMPC bilayer example <example mper-tm symmetric bilayer>` for a new membrane system will outperform the same agent composing
 a membrane config from the reference documentation, because the example encodes decisions the
 reference describes only one directive at a time.  For a structure unlike anything in the
 catalog, :ref:`new-system --inspect <subs new-system>` writes a starting config annotated with

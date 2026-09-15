@@ -1,9 +1,9 @@
 .. _example subtilisin-acetone:
 
-Example 24: Subtilisin Carlsberg in acetone
--------------------------------------------
+Subtilisin Carlsberg in acetone
+-------------------------------
 
-`PDB ID 1scd <https://www.rcsb.org/structure/1scd>`_ is the structure of the serine protease subtilisin Carlsberg.  Like :ref:`Example 23 <example subtilisin-dmso>`, this example builds the enzyme in a **non-aqueous solvent** -- here acetone, another classic medium for the study of enzyme catalysis in organic solvents.  The point of this example is what happens when the requested solvent has **no pre-equilibrated box shipped with pestifer**.
+`PDB ID 1scd <https://www.rcsb.org/structure/1scd>`_ is the structure of the serine protease subtilisin Carlsberg.  Like the :ref:`DMSO example <example subtilisin-dmso>`, this one builds the enzyme in a **non-aqueous solvent** -- here acetone, another classic medium for the study of enzyme catalysis in organic solvents.  The point of this example is what happens when the requested solvent has **no pre-equilibrated box shipped with pestifer**.
 
 Pestifer ships boxes for a handful of common solvents (water, MEOH, ETOH, DMSO), but acetone is not among them.  Rather than erroring, the ``solvate`` task **builds the box on demand**: because ``ACO`` (acetone) is defined in the CGenFF force field, pestifer packs a periodic box of it, minimizes and NPT-equilibrates it, and **caches** the result under ``~/.pestifer/pdbrepository/<release>/solvent/ACO/`` so every subsequent build reuses it instantly.  The first build therefore pays a one-time cost (loudly logged) to generate the box; from then on it is as fast as a shipped solvent.  Set ``charmmff.generate_missing_coordinates: false`` to disable this and require an explicit box instead.
 
@@ -18,7 +18,7 @@ The rest of the build is identical to the DMSO example: the equilibrated acetone
 .. figure:: acetone-box.png
     :width: 60%
 
-    The acetone box pestifer built **on the fly** (216 molecules; edge ~30 Å, ρ 0.77 g/cc) and cached for reuse, then tiled to fill the cell.  Space-filling view: oxygen is red, carbon grey -- and, unlike DMSO (:ref:`Example 23 <example subtilisin-dmso>`), there is no sulfur.  Rendered with `mdview <https://github.com/cameronabrams/mdview>`_.
+    The acetone box pestifer built **on the fly** (216 molecules; edge ~30 Å, ρ 0.77 g/cc) and cached for reuse, then tiled to fill the cell.  Space-filling view: oxygen is red, carbon grey -- and, unlike :ref:`DMSO <example subtilisin-dmso>`, there is no sulfur.  Rendered with `mdview <https://github.com/cameronabrams/mdview>`_.
 
 .. figure:: solvated-a_x-b_y-c_z.png
 

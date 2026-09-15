@@ -8,7 +8,7 @@ The ``pressure-profile-ewald`` subcommand reconstructs a **complete** NAMD press
 Why two runs are needed
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-A run with ``pressureProfile on`` reports, in NAMD's own words, the "kinetic, bonded and nonbonded (but not reciprocal space) contributions".  The missing reciprocal term is not a small correction: on one replica of :ref:`example 16 <example mper-tm symmetric bilayer>` the real-space integral is :math:`-16.63` mN/m and the reciprocal part :math:`+26.50` mN/m, so including it *flips the sign* of the result.
+A run with ``pressureProfile on`` reports, in NAMD's own words, the "kinetic, bonded and nonbonded (but not reciprocal space) contributions".  The missing reciprocal term is not a small correction: on one replica of the :ref:`DMPC bilayer example <example mper-tm symmetric bilayer>` the real-space integral is :math:`-16.63` mN/m and the reciprocal part :math:`+26.50` mN/m, so including it *flips the sign* of the result.
 
 The obvious fix — switching on ``pressureProfileEwald`` as well — does not work, because NAMD makes the two mutually exclusive.  From ``SimParameters.C`` (3.0.3, line 6699):
 
@@ -20,9 +20,9 @@ The obvious fix — switching on ``pressureProfileEwald`` as well — does not w
 
 So a run with ``pressureProfileEwald on`` reports the reciprocal contribution **alone**.  There is no single-run setting that yields the whole profile; it must be assembled from two.
 
-Nor is it practical to compute the Ewald half during the production run.  NAMD registers ``ComputeEwald`` as an ordinary compute gated only on ``doFullElectrostatics``, never on ``pressureProfileFreq``, so it evaluates on every full-electrostatics step no matter how rarely profiles are sampled — measured at 14–28× the per-step cost, which would turn example 16's 128000-step sampling stage into 5–11 days per replica.
+Nor is it practical to compute the Ewald half during the production run.  NAMD registers ``ComputeEwald`` as an ordinary compute gated only on ``doFullElectrostatics``, never on ``pressureProfileFreq``, so it evaluates on every full-electrostatics step no matter how rarely profiles are sampled — measured at 14–28× the per-step cost, which would turn that example's 128000-step sampling stage into 5–11 days per replica.
 
-Replaying a trajectory evaluates once per **sampled frame** instead of once per step, so the cost falls by the sampling stride.  Example 16 samples every 100 steps, so the reconstruction costs about 1% of what computing it inline would have: hours rather than days.
+Replaying a trajectory evaluates once per **sampled frame** instead of once per step, so the cost falls by the sampling stride.  That example samples every 100 steps, so the reconstruction costs about 1% of what computing it inline would have: hours rather than days.
 
 Usage
 ~~~~~
