@@ -13,6 +13,11 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   O-glycans) get a solvated-system figure in the same style as the rest, rendered from the 3.22.1
   sweep builds, with each example's modification in orange. The render script is now in
   `scripts/render_solvated_figure.tcl`.
+- docs: the bundled Claude Code skill (`pestifer setup-claude`) is brought up to date: all 31
+  examples by shortname and grouped by kind, the full task list, `--seed`/`--ncpus`/`--gpu`,
+  build times from the 3.22.1 sweep, the two early-stop errors (unknown residue, missing parameters)
+  and what to do about each, `validate` selecting by molecule, `run-record.json` and
+  `report-methods`, and `cache`. Re-run `pestifer setup-claude --force` to pick it up.
 
 ## [3.22.1] - 2026-09-14
 
