@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.22.2] - 2026-09-15
+
 - docs: **example pages no longer carry numbers.** The examples page groups them by capability, so
   their ids ran out of order down the list (7, 8, 9 ... 15, 31) while implying a sequence that isn't
   there. Page titles, the index and every cross-reference now name examples; commands use
