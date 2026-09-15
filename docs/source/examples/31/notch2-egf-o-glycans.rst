@@ -11,7 +11,7 @@ Human Notch-2 EGF11-13 with O-fucose and O-glucose
     Ser500  --  beta-D-glucose                        (O-glucose)
     Ser462  --  beta-D-glucose  --  xylose (1->3)     (O-glucose, extended)
 
-Every other glycan example in this set (7-12, 14, 15, 25) is N-linked.  Nothing extra is needed in the config for the glycans: they are read from the deposit along with their ``LINK`` records.
+Every other glycan example in this set is N-linked (for instance the :ref:`BG505 SOSIP trimer <example env 4zmj>` and the :ref:`BA.2 spike <example sars cov2 spike ba2>`).  Nothing extra is needed in the config for the glycans: they are read from the deposit along with their ``LINK`` records.
 
 **Each link gets the patch for what its sugar is.**  CHARMM joins a sugar to serine with ``SGPA`` or ``SGPB`` and to threonine with ``TGPA`` or ``TGPB``, where A is an axial (alpha) link at the sugar's C1 and B an equatorial (beta) one.  The two differ in atoms and types -- threonine's CB is a CH, serine's a CH2 -- so the serine patch cannot be used on a threonine.  This build gets:
 
@@ -40,6 +40,16 @@ The validate task checks that three serine or threonine atoms are bonded to a su
     :language: yaml
 
 .. task-table:: ../../../../pestifer/resources/examples/31/inputs/notch2-egf-o-glycans.yaml
+
+
+.. figure:: 5mwb-solvated.png
+    :width: 70%
+    :align: center
+
+    Notch-2 EGF11-13 as built, in the :ref:`BPTI series <example bpti1>` style: 27,640 atoms in
+    8,617 waters, equilibrated box roughly 59 x 44 x 105 Å, viewed through its short side so the
+    three repeats lie across the frame.  The O-linked sugars are orange: the fucose on Thr470,
+    and the glucoses on Ser462 and Ser500, the first extended by a xylose.
 
 .. raw:: html
 

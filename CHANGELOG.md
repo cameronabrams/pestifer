@@ -9,6 +9,10 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   there. Page titles, the index and every cross-reference now name examples; commands use
   shortnames (`pestifer build-example bpti1`). The numeric id still works on the command line and
   still names the resource folder. New example stubs are titled the same way.
+- docs: the four newest example pages (phosphoubiquitin, myristoylated matrix, VanSC, Notch-2
+  O-glycans) get a solvated-system figure in the same style as the rest, rendered from the 3.22.1
+  sweep builds, with each example's modification in orange. The render script is now in
+  `scripts/render_solvated_figure.tcl`.
 
 ## [3.22.1] - 2026-09-14
 

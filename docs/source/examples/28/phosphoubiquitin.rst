@@ -69,6 +69,16 @@ few that needs the configuration above.
 
 .. task-table:: ../../../../pestifer/resources/examples/28/inputs/phosphoubiquitin.yaml
 
+
+.. figure:: 1ubq-pS57-pS65-solvated.png
+    :width: 70%
+    :align: center
+
+    Phosphoubiquitin as built, in the :ref:`BPTI series <example bpti1>` style: 13,493 atoms in
+    4,076 waters, equilibrated box roughly 48 x 51 x 54 Å.  The two phosphoserines are orange:
+    ``SEP`` 65, installed by mutation, and Ser57 carrying the ``SP2`` patch.  They differ by one
+    proton (monoanion and dianion), which a picture cannot show.
+
 .. raw:: html
 
     <div class="autogen-footer">

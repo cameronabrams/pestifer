@@ -50,6 +50,15 @@ The ``validate`` task checks the outcome rather than assuming it: exactly one ``
 
 .. task-table:: ../../../../pestifer/resources/examples/29/inputs/myristoylated-matrix.yaml
 
+
+.. figure:: 1uph-solvated.png
+    :width: 70%
+    :align: center
+
+    The myristoylated matrix protein as built, in the :ref:`BPTI series <example bpti1>` style:
+    38,681 atoms in 12,162 waters, equilibrated box roughly 79 x 68 x 71 Å.  The myristoyl chain
+    of ``GLYM`` 2 is orange, packed against the protein in the conformation the NMR model gives it.
+
 .. raw:: html
 
     <div class="autogen-footer">

@@ -35,6 +35,15 @@ Both columns are measured.  The same config with ``biological_assembly`` removed
 
 .. task-table:: ../../../../pestifer/resources/examples/30/inputs/vansc-catalytic-domain.yaml
 
+
+.. figure:: 8dx0-solvated.png
+    :width: 70%
+    :align: center
+
+    The single VanSC catalytic domain as built, in the :ref:`BPTI series <example bpti1>` style:
+    40,539 atoms in 12,692 waters, equilibrated box roughly 60 x 81 x 82 Å.  One protein copy and its
+    magnesium ion (hidden from this side); chain B and its two magnesiums are left out.
+
 .. raw:: html
 
     <div class="autogen-footer">
