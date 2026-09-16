@@ -217,6 +217,22 @@ class TestConfig(unittest.TestCase):
         self.assertEqual(sub.get_scripter('namd').namd_config['cpu-parallel-launcher'],
                          'mpirun')
 
+    def test_taskless_subconfig_inherits_the_ncpus_override(self):
+        # --ncpus is not a user key, so unlike --gpu and --seed it does not ride along in the
+        # copied user dict.  A subcontroller that recomputes it sees only the node it runs on:
+        # every NAMD run in a membrane build on a 4-node allocation went out with 48 ranks
+        # instead of 192, while the log reported 192.
+        parent = Config(userdict={}, quiet=True, RM=self.RM, ncpus_override=192).configure()
+        self.assertEqual(parent.ncpus, 192)
+        sub = parent.taskless_subconfig()
+        self.assertEqual(sub.ncpus, 192)
+        self.assertEqual(sub.get_scripter('namd').ncpus, 192)
+
+    def test_taskless_subconfig_without_override_still_detects(self):
+        # no override: the subconfig detects like the parent, and the two agree
+        parent = Config(userdict={}, quiet=True, RM=self.RM).configure()
+        self.assertEqual(parent.taskless_subconfig().ncpus, parent.ncpus)
+
     def test_config_user(self):
         tmpdir = '__test_config_user'
         if os.path.exists(tmpdir):

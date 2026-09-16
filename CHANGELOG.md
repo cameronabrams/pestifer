@@ -4,6 +4,14 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a subcontroller ignored `--ncpus`, so a multi-node allocation ran on one node.** The
+  relaxation MD inside `make_membrane_system` runs under a subcontroller, whose config is built by
+  `taskless_subconfig`. `--gpu` and `--seed` reach it through the copied user dict, but the PE count
+  is computed rather than stored there, so the subconfig recomputed it from the node it was on. On a
+  4-node, 192-core allocation a membrane build reported "will use 192 PEs" and then launched all 215
+  of its NAMD runs with 48 ranks, holding four nodes and using one, with nothing in pestifer's own
+  output to show it. Found by the sweep on 3.22.1; `srun` is unaffected (it takes no count).
+
 ## [3.22.2] - 2026-09-15
 
 - docs: **example pages no longer carry numbers.** The examples page groups them by capability, so

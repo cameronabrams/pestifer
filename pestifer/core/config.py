@@ -153,9 +153,17 @@ class Config(Yclept):
         in the same execution environment as the top-level run.  Only the task list is
         reset to empty; without this inheritance the subcontroller would fall back to
         schema defaults (e.g. ``cpu-parallel-launcher: auto``) and ignore user overrides.
+
+        ``--ncpus`` has to be passed explicitly.  ``--gpu`` and ``--seed`` reach a subconfig
+        through the user dict copied above, because :meth:`configure` writes them there, but
+        the PE count is not a user key -- it is computed in :meth:`_set_processor_info`.  A
+        subconfig built without it recomputed the count from the node it happened to be on,
+        so on a 4-node allocation a membrane build launched every one of its 215 NAMD runs
+        with one node's worth of ranks while reporting the full count (found 2026-09-16).
         """
         user_overrides = {k: copy.deepcopy(v) for k, v in self['user'].items() if k != 'tasks'}
-        subconfig = self.__class__(userdict=user_overrides, quiet=True, RM=self.RM).configure()
+        subconfig = self.__class__(userdict=user_overrides, quiet=True, RM=self.RM,
+                                   ncpus_override=self.ncpus_override).configure()
         subconfig['user']['tasks'] = TaskList([])
         return subconfig
 
