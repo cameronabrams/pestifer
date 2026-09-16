@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.22.3] - 2026-09-16
+
 - fix: **a subcontroller ignored `--ncpus`, so a multi-node allocation ran on one node.** The
   relaxation MD inside `make_membrane_system` runs under a subcontroller, whose config is built by
   `taskless_subconfig`. `--gpu` and `--seed` reach it through the copied user dict, but the PE count
