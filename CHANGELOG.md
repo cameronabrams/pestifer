@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.22.5] - 2026-09-17
+
 - fix: **`run-record.json` now includes the relaxation stages `make_membrane_system` runs
   internally.** The record listed only top-level tasks, and a membrane build runs its calibration
   patch, full-membrane and differential-stress MD under its own sub-pipeline. So a membrane build's
