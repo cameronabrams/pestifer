@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.22.4] - 2026-09-17
+
 - fix: **`pressure-profile-ewald` now flags a profile that disagrees with NAMD's own pressure by
   more than 100 bar.** Its self-check used to warn only when the reconstruction agreed worse than
   the real-space half alone. On a NAMD build that writes a wrong per-slab profile while getting
