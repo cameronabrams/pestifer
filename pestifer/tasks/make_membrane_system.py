@@ -69,6 +69,47 @@ def _cell_or_raise(xsc, what: str):
 
 
 
+_PROFILE_PRESSURE_GAP_LIMIT = 2000.0
+"""Largest believable gap, in bar, between a profile's slab-averaged trace/3 and NAMD's PRESSURE.
+The diagnostic's profile omits the PME reciprocal-space term, so a sound one misses PRESSURE by a
+few hundred bar (212 on the DMPC example).  A NAMD build that writes a wrong per-slab profile while
+getting PRESSURE right misses by thousands (~8,600 bar observed), and nothing else in its log shows
+it.  See the pressure-profile-ewald docs."""
+
+
+def _sampled_profile_frames(pp_df):
+    """The pressure-profile frames the diagnostic averages: dynamics only (the step-0 frame is
+    dropped), second half (equilibration discarded).  ``None`` if there are none."""
+    if pp_df is None or len(pp_df) == 0:
+        return None
+    frames = pp_df
+    if 'TS' in pp_df.columns:                       # drop the step-0 (pre-dynamics) frame
+        frames = pp_df[pp_df['TS'] > 0]
+    frames = frames.iloc[len(frames) // 2:]         # average the equilibrated second half
+    return frames if len(frames) > 0 else None
+
+
+def _profile_pressure_gap(pp_df, energy_df):
+    """Mean slab-averaged ``(Pxx+Pyy+Pzz)/3`` of the sampled profile frames minus the mean NAMD
+    ``PRESSURE`` at the same timesteps, in bar.  ``None`` when the two cannot be matched up."""
+    frames = _sampled_profile_frames(pp_df)
+    if frames is None or 'TS' not in frames.columns or energy_df is None \
+            or len(energy_df) == 0 or not {'TS', 'PRESSURE'} <= set(energy_df.columns):
+        return None
+    nslabs = sum(1 for col in frames.columns if str(col).startswith('z_'))
+    if nslabs == 0:
+        return None
+    # a minimize stage ahead of the sampling run can repeat early step numbers; keep the later row
+    energy = energy_df.drop_duplicates(subset='TS', keep='last')
+    matched = energy[energy['TS'].isin(frames['TS'])]
+    frames = frames[frames['TS'].isin(matched['TS'])]
+    if len(frames) == 0:
+        return None
+    trace = sum(frames[[f'{c}_{i}' for i in range(nslabs)]].to_numpy().mean(axis=1)
+                for c in 'xyz') / 3.0
+    return float(trace.mean() - matched['PRESSURE'].astype(float).mean())
+
+
 def _per_leaflet_tension(pp_df, c_z, midplane_slab=None):
     """Per-leaflet surface tension from a NAMD total pressure-profile trajectory.
 
@@ -89,13 +130,8 @@ def _per_leaflet_tension(pp_df, c_z, midplane_slab=None):
     nslabs = sum(1 for col in pp_df.columns if str(col).startswith('z_'))
     if nslabs == 0:
         return None
-    frames = pp_df
-    if 'TS' in pp_df.columns:                       # drop the step-0 (pre-dynamics) frame
-        frames = pp_df[pp_df['TS'] > 0]
-    if len(frames) == 0:
-        return None
-    frames = frames.iloc[len(frames) // 2:]         # average the equilibrated second half
-    if len(frames) == 0:
+    frames = _sampled_profile_frames(pp_df)
+    if frames is None:
         return None
     pxx = np.array([frames[f'x_{i}'].mean() for i in range(nslabs)])
     pyy = np.array([frames[f'y_{i}'].mean() for i in range(nslabs)])
@@ -651,13 +687,27 @@ class MakeMembraneSystemTask(BaseTask):
         # (which no longer condenses appreciably), so it runs as written -- no restart staging
         self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=pp_protocol)
         mdplot_task = self.subcontroller.tasks[-1]
-        pp_df = getattr(mdplot_task, 'dataframes', {}).get('pressureprofile')
+        dataframes = getattr(mdplot_task, 'dataframes', {})
+        pp_df = dataframes.get('pressureprofile')
         # final cell depth is a good approximation of dz*nslabs for the averaged tail
         c_z = membrane.box[2][2]
         res = _per_leaflet_tension(pp_df, c_z)
         if res is None:
             logger.warning('Differential-stress diagnostic: no usable pressure profile was '
                            'produced; cannot report per-leaflet tensions.')
+            return
+        gap = _profile_pressure_gap(pp_df, dataframes.get('energy'))
+        if gap is None:
+            logger.info('Differential-stress diagnostic: could not match profile frames to NAMD '
+                        'PRESSURE records, so the profile was not cross-checked.')
+        elif abs(gap) > _PROFILE_PRESSURE_GAP_LIMIT:
+            logger.warning(
+                f'Differential-stress diagnostic: the pressure profile\'s slab average differs '
+                f'from NAMD\'s own PRESSURE by {gap:+.0f} bar (a sound profile is within a few '
+                f'hundred; more than {_PROFILE_PRESSURE_GAP_LIMIT:.0f} is not believable).  The '
+                'NAMD binary likely writes wrong pressure profiles even though its energies and '
+                'PRESSURE are right.  No per-leaflet tensions or lipid-count advice are reported; '
+                're-run with a different NAMD build, such as the official UIUC release.')
             return
         membrane.dgamma = res['dgamma']
         logger.info(f'Differential stress (averaged over {res["nframes"]} frames, '

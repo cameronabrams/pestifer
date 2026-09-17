@@ -3,7 +3,7 @@
 ``diagnose_differential_stress``
 ================================
 
-After assembling a stress-free asymmetric membrane, run a short tensionless pressure-profile pass and report the residual per-leaflet surface tensions, their difference (the differential stress), and the leaflet-count adjustment that would null it. Diagnostic only; the membrane is not rebuilt. Requires a CPU (non-CUDA) NAMD build.
+After assembling a stress-free asymmetric membrane, run a short tensionless pressure-profile pass and report the residual per-leaflet surface tensions, their difference (the differential stress), and the leaflet-count adjustment that would null it. Diagnostic only; the membrane is not rebuilt. Requires a CPU (non-CUDA) NAMD build. The profile is first checked against NAMD's own PRESSURE; if its slab average is more than 2000 bar away, as happens with a NAMD build that writes wrong pressure profiles, nothing is reported from it.
 
 Single-valued attributes:
 

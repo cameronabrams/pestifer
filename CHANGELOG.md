@@ -10,6 +10,12 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   PRESSURE right, both halves are off by about 8,000 bar, the reconstruction is slightly less off,
   and the old check passed it silently. The docs page now describes how to check any run's profile
   against its PRESSURE column.
+- fix: **`make_membrane_system`'s differential-stress diagnostic now checks its pressure profile
+  against NAMD's own PRESSURE before advising anything.** It turned a profile straight into
+  per-leaflet tensions and a suggested lipid move, so a NAMD build that writes wrong profiles would
+  have produced confident, wrong advice. If the profile's slab average is more than 2,000 bar
+  from PRESSURE, it now warns and reports nothing. That profile omits the reciprocal-space term, so
+  sound runs sit 100-150 bar away. Three faulty builds' logs sit at -8,460.
 
 ## [3.22.3] - 2026-09-16
 

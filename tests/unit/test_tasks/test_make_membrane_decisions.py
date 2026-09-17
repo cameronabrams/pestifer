@@ -575,11 +575,14 @@ class TestDifferentialStressDiagnostic(unittest.TestCase):
     """Diagnostic only: the membrane is never rebuilt, so what matters is that the advice it
     prints is arithmetically right."""
 
-    def _run(self, pp_df, n_upper=100, n_lower=100, c_z=100.0, processor='cpu', **diag):
+    def _run(self, pp_df, n_upper=100, n_lower=100, c_z=100.0, processor='cpu', energy_df=None,
+             **diag):
         t = _task(provisions={'processor-type': processor})
         t.equilibrate_bilayer = mock.Mock()
         mdplot = mock.Mock()
         mdplot.dataframes = {'pressureprofile': pp_df} if pp_df is not None else {}
+        if energy_df is not None:
+            mdplot.dataframes['energy'] = energy_df
         t.subcontroller = mock.Mock(tasks=[mdplot])
         membrane = mock.Mock()
         membrane.box = [[0, 0, 0], [0, 0, 0], [0, 0, c_z]]
@@ -597,6 +600,36 @@ class TestDifferentialStressDiagnostic(unittest.TestCase):
         with self.assertLogs(LOGGER, level='WARNING') as cm:
             self._run(None)
         self.assertIn('no usable pressure profile', ''.join(cm.output))
+
+    @staticmethod
+    def _energy(pp_df, pressure):
+        """NAMD energy records at the profile's timesteps, reporting ``pressure``."""
+        return pd.DataFrame({'TS': pp_df['TS'], 'PRESSURE': [pressure] * len(pp_df)})
+
+    def test_a_profile_far_from_namd_pressure_gets_no_advice(self):
+        """The faulty-build shape: every slab near -8000 bar while PRESSURE reads 150.  Its Dgamma
+        is meaningless, so no lipid-count advice may be printed from it."""
+        pp = _profile(pxx=-8000.0, pyy=-8000.0, pzz=-7000.0)
+        with self.assertLogs(LOGGER, level='INFO') as cm:
+            _t, membrane = self._run(pp, energy_df=self._energy(pp, 150.0))
+        out = ''.join(cm.output)
+        self.assertIn('not believable', out)
+        self.assertNotIn('Dgamma', out)
+        self.assertNotIsInstance(membrane.dgamma, float)
+
+    def test_a_profile_near_namd_pressure_is_reported(self):
+        # trace/3 = -100 against PRESSURE 150: the few-hundred-bar gap of a real-space-only profile
+        pp = _profile(pxx=-150.0, pyy=-150.0, pzz=0.0)
+        with self.assertNoLogs(LOGGER, level='WARNING'):
+            _t, membrane = self._run(pp, energy_df=self._energy(pp, 150.0))
+        self.assertIsInstance(membrane.dgamma, float)
+
+    def test_a_profile_without_pressure_records_is_still_reported(self):
+        pp = _profile(pxx=-150.0, pyy=-150.0, pzz=0.0)
+        with self.assertLogs(LOGGER, level='INFO') as cm:
+            _t, membrane = self._run(pp)
+        self.assertIn('not cross-checked', ''.join(cm.output))
+        self.assertIsInstance(membrane.dgamma, float)
 
     def test_the_measured_difference_is_recorded_on_the_membrane(self):
         _t, membrane = self._run(_profile(nslabs=4, pzz=[0, 0, 20, 20]))
