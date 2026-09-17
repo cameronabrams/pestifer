@@ -84,16 +84,23 @@ def protocol_from_tasks(tasks):
 
     A task contributes an entry only if it recorded one (see ``BaseTask.record_outcome``), so a
     task that does no simulation simply does not appear under ``protocol``.
+
+    Stages a task ran through its own subcontroller (``make_membrane_system``'s patch and quilt
+    relaxations) follow that task's own entry, in the order they ran.  Each carries the parent's
+    ``index`` and names the parent in ``within``.
     """
     protocol = []
     for task in tasks or []:
+        index, name = getattr(task, 'index', None), getattr(task, 'taskname', None)
         outcome = getattr(task, 'outcome', None)
-        if not outcome:
-            continue
-        entry = {'index': getattr(task, 'index', None),
-                 'task': getattr(task, 'taskname', None)}
-        entry.update(outcome)
-        protocol.append(entry)
+        if outcome:
+            entry = {'index': index, 'task': name}
+            entry.update(outcome)
+            protocol.append(entry)
+        for sub in getattr(task, 'substage_outcomes', None) or []:
+            entry = {'index': index, 'within': name}
+            entry.update(sub)
+            protocol.append(entry)
     return protocol
 
 

@@ -968,6 +968,7 @@ class MakeMembraneSystemTask(BaseTask):
             task.override_taskname(task_name)
             # logger.debug(f'Subcontroller overrides task name {save_task_name} with {task.taskname}')
         subcontroller.do_tasks()
+        self.record_substage_outcomes(subcontroller.tasks)
         last_task = subcontroller.tasks[-1]
         bilayer_state: StateArtifacts = last_task.get_current_artifact('state')
         assert bilayer_state is not None

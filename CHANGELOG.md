@@ -4,6 +4,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **`run-record.json` now includes the relaxation stages `make_membrane_system` runs
+  internally.** The record listed only top-level tasks, and a membrane build runs its calibration
+  patch, full-membrane and differential-stress MD under its own sub-pipeline. So a membrane build's
+  record, and the Methods draft `report-methods` writes from it, left out most of its MD. That
+  included stages that stopped at their step ceiling without converging, which the draft exists to
+  flag. Each stage now appears right after its `make_membrane_system` entry, with that task's
+  `index` and `"within": "make_membrane_system"`. Found by the 3.22.1 sweep, whose ceiling count
+  missed two such stages in example 17. Records from earlier versions don't have these entries.
+
 ## [3.22.4] - 2026-09-17
 
 - fix: **`pressure-profile-ewald` now flags a profile that disagrees with NAMD's own pressure by

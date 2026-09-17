@@ -427,6 +427,19 @@ class TestMakeMembraneSystem(unittest.TestCase):
         self.assertEqual(validation_results.data['npass'], 2)
         self.assertEqual(validation_results.data['nfail'], 0)
 
+        # every relaxation stage ran through the subcontroller, and each must reach the run
+        # record: two calibration patches and the quilt, each running its protocol (a pierced-lipid
+        # guard may splice in an extra minimize ahead of the first dynamics stage)
+        from pestifer.core.run_record import protocol_from_tasks
+        protocol = [p for p in protocol_from_tasks(self.controller.tasks)
+                    if p.get('within') == 'make_membrane_system']
+        for bilayer in ('patchA', 'patchB', 'quilt'):
+            stages = [p for p in protocol if p['task'] == f'make_membrane_system-md-{bilayer}']
+            ensembles = [p['ensemble'] for p in stages]
+            self.assertEqual(ensembles[-2:], ['nvt', 'npt'], bilayer)
+            self.assertEqual(set(ensembles[:-2]), {'minimize'}, bilayer)
+            self.assertEqual(sum(p['steps'] for p in stages[-2:]), 2000, bilayer)
+
         self.assertIsInstance(result, dict)
         os.chdir('..')
         assert result[0]['result'] == 0

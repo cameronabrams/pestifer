@@ -42,6 +42,24 @@ class TestProtocol(unittest.TestCase):
     def test_no_tasks_is_not_an_error(self):
         self.assertEqual(RR.protocol_from_tasks(None), [])
 
+    def test_subcontroller_stages_follow_their_parent(self):
+        # make_membrane_system runs its relaxations through a subcontroller; those tasks are not in
+        # the top-level list, so they reach the record only through the parent
+        parent = _Task(3, 'make_membrane_system')
+        parent.substage_outcomes = [
+            {'task': 'make_membrane_system-md-patchA', 'ensemble': 'minimize', 'steps': 500},
+            {'task': 'make_membrane_system-membrane_equilibrate-quilt', 'adaptive': True,
+             'converged': False, 'steps': 800000, 'stopped_because': 'CEILING: ...'}]
+        tasks = [_Task(2, 'psfgen'), parent, _Task(4, 'md', {'ensemble': 'NPT', 'steps': 10})]
+        protocol = RR.protocol_from_tasks(tasks)
+        self.assertEqual([p['task'] for p in protocol],
+                         ['make_membrane_system-md-patchA',
+                          'make_membrane_system-membrane_equilibrate-quilt', 'md'])
+        self.assertEqual([p['index'] for p in protocol], [3, 3, 4])
+        self.assertEqual(protocol[1]['within'], 'make_membrane_system')
+        self.assertFalse(protocol[1]['converged'])
+        self.assertNotIn('within', protocol[2])
+
 
 class TestSystemFacts(unittest.TestCase):
 

@@ -217,6 +217,19 @@ run until their convergence criterion is met, so **their step counts are decided
 appear nowhere in your input file**.  Anything that describes a build — a Methods paragraph, a
 comparison across replicas, a summary table — needs what happened, not what was requested.
 
+``make_membrane_system`` runs its own relaxations — the calibration patches, the full membrane,
+the optional differential-stress pass — internally.  Each of those stages gets its own entry,
+listed right after the ``make_membrane_system`` task that ran it.  It carries that task's
+``index`` and names it in ``within``:
+
+.. code-block:: json
+
+   {"index": 3, "within": "make_membrane_system",
+    "task": "make_membrane_system-membrane_equilibrate-quilt", "steps": 800000,
+    "adaptive": true, "converged": false, "stopped_because": "CEILING: ..."}
+
+Records written by pestifer 3.22.4 and earlier omit these stages.
+
 :ref:`pestifer report-methods <subs_report_methods>` turns one or more of these records into a
 drafted Methods section and bibliography.  An aborted build writes no record.
 

@@ -28,6 +28,8 @@ from pestifer.tasks.make_membrane_system import (
     MakeMembraneSystemTask, _DEFAULT_AREA_MODULUS,
 )
 
+import pestifer.tasks.make_membrane_system as MMS
+
 LOGGER = 'pestifer.tasks.make_membrane_system'
 
 
@@ -758,3 +760,59 @@ class TestMembraneSpansProteinGuard(unittest.TestCase):
     def test_no_protein_footprint_means_no_embedding_to_check(self):
         t = self._task_with({}, protein_xy=None)
         t._verify_membrane_spans_protein()             # no raise, no warning needed
+
+
+class TestRelaxationStagesReachTheRunRecord(unittest.TestCase):
+    """A membrane build's relaxation MD runs through a subcontroller whose task list is replaced on
+    every ``equilibrate_bilayer`` call.  The stages' outcomes -- including an adaptive stage that
+    hit its ceiling -- must be kept on the parent task, or ``run-record.json`` and the Methods
+    draft built from it silently omit most of the build's MD."""
+
+    class _Stage:
+        def __init__(self, name):
+            self.taskname, self.outcome = name, {}
+
+        def override_taskname(self, name):
+            self.taskname = name
+
+        def get_current_artifact(self, key):
+            return mock.Mock()
+
+    def _run(self, t, bilayer_name, outcome):
+        sub = t.subcontroller
+
+        def reconfigure(tasklist):
+            sub.tasks = [self._Stage(next(iter(d))) for d in tasklist]
+
+        def run():
+            # what the stages report as they finish: only the relaxation stage ran anything
+            sub.tasks[2].outcome.update(outcome)
+
+        sub.reconfigure_tasks.side_effect = reconfigure
+        sub.do_tasks.side_effect = run
+        bilayer = mock.Mock(area=100.0, addl_streamfiles=[])
+        with mock.patch.object(MMS, '_cell_or_raise',
+                               return_value=([[10, 0, 0], [0, 10, 0], [0, 0, 10]], [0, 0, 0])):
+            t.equilibrate_bilayer(bilayer, bilayer_name,
+                                  [{'membrane_equilibrate': {'nsteps': 100}}])
+
+    def test_every_call_keeps_its_stages(self):
+        t = _task(provisions={'processor-type': 'cpu'}, substage_outcomes=[], basename='mms')
+        t.next_basename = mock.Mock()
+        t.get_current_artifact = lambda key: mock.Mock()
+        t._guard_pierced_lipids = lambda protocol: protocol
+        t.import_artifacts = mock.Mock()
+        t._relaxed_area_drift = mock.Mock(return_value=None)
+        t.subcontroller = mock.Mock(config={'user': {}})
+        self._run(t, 'patchA', {'adaptive': True, 'converged': True, 'steps': 4000})
+        self._run(t, 'quilt', {'adaptive': True, 'converged': False, 'steps': 800000,
+                               'stopped_because': 'CEILING'})
+        from pestifer.core.run_record import protocol_from_tasks
+        t.index = 7
+        protocol = protocol_from_tasks([t])
+        self.assertEqual([p['task'] for p in protocol],
+                         ['make_membrane_system-membrane_equilibrate-patchA',
+                          'make_membrane_system-membrane_equilibrate-quilt'])
+        self.assertEqual([p['converged'] for p in protocol], [True, False])
+        self.assertEqual({p['within'] for p in protocol}, {'make_membrane_system'})
+

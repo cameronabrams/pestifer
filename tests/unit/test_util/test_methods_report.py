@@ -63,6 +63,20 @@ class TestTruthfulness(unittest.TestCase):
         self.assertIn('stopped at its step ceiling', tex)
         self.assertIn('TODO', tex)
 
+    def test_a_membrane_builds_internal_relaxation_is_reported(self):
+        # make_membrane_system's stages run under a subcontroller and reach the record flattened
+        # after their parent; an unconverged one must be flagged like any top-level stage
+        protocol = [
+            {'index': 3, 'within': 'make_membrane_system',
+             'task': 'make_membrane_system-membrane_equilibrate-quilt', 'ensemble': 'npgt',
+             'steps': 800000, 'adaptive': True, 'converged': False,
+             'stopped_because': 'CEILING: reached max_steps'},
+            {'index': 9, 'task': 'md', 'ensemble': 'NPT', 'steps': 1000}]
+        tex = MR.render_tex([_record(protocol=protocol)])
+        self.assertIn('800,000 steps', tex)
+        self.assertIn('membrane\\_equilibrate-quilt', tex)
+        self.assertIn('stopped at its step ceiling', tex)
+
     def test_steps_come_from_the_run_not_the_config(self):
         tex = MR.render_tex([_record(protocol=_ADAPTIVE_CEILING)])
         self.assertIn('8,000 steps', tex)

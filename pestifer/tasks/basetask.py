@@ -132,6 +132,10 @@ class BaseTask(ABC):
         #: (``density_equilibrate``, ``membrane_equilibrate``) decides at run time how far to run
         #: and its config says nothing about what actually happened.
         self.outcome: dict = {}
+        #: Outcomes of the stages this task ran through its own subcontroller, in the order they
+        #: ran, each a dict with at least ``task``.  A subcontroller's tasks are not in the
+        #: top-level task list, so without this they would be missing from the run record.
+        self.substage_outcomes: list[dict] = []
         self.result: int = 0
         self.duration: float = 0.0
         self.extra_message: str = ''
@@ -438,6 +442,16 @@ class BaseTask(ABC):
         Values that are ``None`` are dropped, so a caller can pass optional facts unconditionally.
         """
         self.outcome.update({k: v for k, v in facts.items() if v is not None})
+
+    def record_substage_outcomes(self, tasks):
+        """Keep the outcomes of ``tasks`` -- stages this task just ran through its subcontroller --
+        for the run record.  Call it right after ``do_tasks``: a subcontroller's task list is
+        replaced each time it is reconfigured, so the stages are gone by the time the build ends.
+        """
+        for task in tasks or []:
+            outcome = getattr(task, 'outcome', None)
+            if outcome:
+                self.substage_outcomes.append({'task': task.taskname, **outcome})
 
     def next_basename(self, extra_label: str = ''):
         """
