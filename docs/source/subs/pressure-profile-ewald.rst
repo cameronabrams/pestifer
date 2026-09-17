@@ -53,7 +53,26 @@ Every run reports how well the reconstruction agrees with NAMD's *own* total pre
    INFO>     real space only :     212.73 bar
    INFO>     reconstructed   :       1.05 bar
 
-The real-space half alone is off by hundreds of bar; the reconstruction agrees to about one.  If the reconstructed number is ever the larger of the two, the command warns and the profile should not be trusted.
+The real-space half alone is off by hundreds of bar; the reconstruction agrees to about one.  The command warns, and the profile should not be trusted, in either of two cases:
+
+- the reconstructed number is the larger of the two, which means the halves were combined wrongly;
+- the reconstructed number exceeds 100 bar, which means the profiles themselves are wrong.
+
+The second test is needed because the first cannot see a NAMD binary that gets the per-slab profile wrong while getting everything else right.  Such builds exist, and the symptom is described below.  Both passes then carry nearly the same large error, so the reconstruction still agrees slightly *better* than the real-space half does.
+
+Checking a profile from any run
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The same test works on any NAMD run that wrote ``PRESSUREPROFILE`` records, whether or not this command produced it, and it is worth doing once for each NAMD binary you rely on for profiles.
+
+A NAMD build can compute energies, forces, ``PRESSURE`` and the barostat correctly while writing a wrong per-slab profile.  Such a build's trajectories are fine, and nothing in its log looks wrong.  So check the profile directly:
+
+1. Average :math:`(P_{xx} + P_{yy} + P_{zz})/3` over all slabs and all frames.
+2. Compare the result with the mean of the ``PRESSURE`` column over the same frames.
+
+For an ordinary ``pressureProfile on`` run, the two should agree to within a few hundred bar; the gap is the reciprocal-space term that profile leaves out.  For a reconstruction from this command, they should agree to about one bar.
+
+A gap of thousands of bar, the same on every frame, means the binary is at fault, not the system.  One such build gave a slab average near :math:`-8000` bar against a reported pressure of a few hundred.  Re-run the same frames with another build, such as the official UIUC release, and compare the two.
 
 Options
 ~~~~~~~

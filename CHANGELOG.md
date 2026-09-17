@@ -4,6 +4,13 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **`pressure-profile-ewald` now flags a profile that disagrees with NAMD's own pressure by
+  more than 100 bar.** Its self-check used to warn only when the reconstruction agreed worse than
+  the real-space half alone. On a NAMD build that writes a wrong per-slab profile while getting
+  PRESSURE right, both halves are off by about 8,000 bar, the reconstruction is slightly less off,
+  and the old check passed it silently. The docs page now describes how to check any run's profile
+  against its PRESSURE column.
+
 ## [3.22.3] - 2026-09-16
 
 - fix: **a subcontroller ignored `--ncpus`, so a multi-node allocation ran on one node.** The

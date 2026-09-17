@@ -295,6 +295,50 @@ class TestReplayResult:
         assert lines[0].startswith('z,real_xx')
 
 
+class TestProfileWarnings:
+    """The subcommand must flag a profile that disagrees with NAMD's PRESSURE in absolute terms.
+
+    The case that motivated it: a NAMD build whose per-slab profile is wrong while its energies and
+    PRESSURE are right.  Both passes then carry the same large error, the reconstruction still
+    agrees slightly *better* than the real-space half, and a relative test alone passes it.  These
+    numbers are that shape: slab trace/3 near -8000 bar against a reported pressure of 150.
+    """
+
+    def _run(self, tmp_path, monkeypatch, caplog, real, ewald, pressure):
+        import argparse
+        import logging
+        from pestifer.subcommands import pressure_profile_ewald as sub
+        r = _pass('real', real, 2.0, [pressure])
+        e = _pass('ewald', ewald, 2.0)
+        monkeypatch.setattr(sub, 'replay',
+                            lambda *a, **k: ReplayResult(real=r, ewald=e, total=combine(r, e)))
+        for name in ('prod.namd', 'prod.dcd'):
+            (tmp_path / name).write_text('')
+        args = argparse.Namespace(
+            namd_config=str(tmp_path / 'prod.namd'), dcd=str(tmp_path / 'prod.dcd'),
+            workdir=str(tmp_path), slabs=1, ewald_grid=[10, 10, 10], stride=1, temperature=300,
+            namd='namd3', np=1, prefix='t', title=None, figsize=[6, 2])
+        with caplog.at_level(logging.WARNING):
+            sub.PressureProfileEwaldSubcommand.func(args)
+        return [rec.getMessage() for rec in caplog.records if rec.levelno >= logging.WARNING]
+
+    def test_a_uniformly_wrong_profile_is_flagged(self, tmp_path, monkeypatch, caplog):
+        real = np.full((1, 1, 3), -8200.0)
+        ewald = np.full((1, 1, 3), 200.0)
+        check = validate_against_total_pressure(
+            ReplayResult(real=_pass('real', real, 2.0, [150.0]), ewald=_pass('ewald', ewald),
+                         total=real + ewald))
+        # the relative test alone passes this profile
+        assert check['reconstructed_deviation'] < check['real_only_deviation']
+        warnings = self._run(tmp_path, monkeypatch, caplog, real, ewald, 150.0)
+        assert any('different NAMD build' in w for w in warnings), warnings
+
+    def test_a_sound_profile_is_not_flagged(self, tmp_path, monkeypatch, caplog):
+        real = np.full((1, 1, 3), 100.0)
+        ewald = np.full((1, 1, 3), 50.5)
+        assert self._run(tmp_path, monkeypatch, caplog, real, ewald, 150.0) == []
+
+
 @pytest.mark.needs_tools
 class TestReplayEndToEnd:
     """Drive real NAMD over a real trajectory and check the reconstruction against NAMD itself.

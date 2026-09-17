@@ -28,7 +28,8 @@ import argparse as ap
 from dataclasses import dataclass
 
 from . import Subcommand
-from ..util.ppewald import replay, write_csv, plot, validate_against_total_pressure
+from ..util.ppewald import (replay, write_csv, plot, validate_against_total_pressure,
+                             profile_warnings)
 from ..util.provenance import stamp as provenance_stamp
 
 logger = logging.getLogger(__name__)
@@ -65,9 +66,8 @@ class PressureProfileEwaldSubcommand(Subcommand):
                         f'(mean |slab-average - PRESSURE|, over {result.nframes} frames):')
             logger.info(f'    real space only : {check["real_only_deviation"]:10.2f} bar')
             logger.info(f'    reconstructed   : {check["reconstructed_deviation"]:10.2f} bar')
-            if check['reconstructed_deviation'] > check['real_only_deviation']:
-                logger.warning('the reconstruction agrees WORSE than the real-space half alone; '
-                               'treat this profile as suspect')
+            for reason in profile_warnings(check):
+                logger.warning(reason)
 
         base = os.path.join(args.workdir, f'{args.prefix}-pressure-profile')
         csv_path, png_path = f'{base}.csv', f'{base}.png'

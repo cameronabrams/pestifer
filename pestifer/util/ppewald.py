@@ -347,6 +347,37 @@ def validate_against_total_pressure(result: ReplayResult) -> dict | None:
     }
 
 
+RECONSTRUCTION_TOLERANCE_BAR = 100.0
+"""Largest mean disagreement, in bar, between a reconstructed profile's slab average and NAMD's own
+``PRESSURE`` that is still believable.  A sound replay agrees to about 1 bar; the real-space half
+alone is typically off by a few hundred.  A NAMD binary that computes the per-slab profile wrongly
+while getting ``PRESSURE`` right is off by thousands, and a comparison of the two halves against
+each other cannot see that, because both are wrong by nearly the same amount."""
+
+
+def profile_warnings(check: dict) -> list[str]:
+    """Reasons to distrust a reconstruction, given :func:`validate_against_total_pressure`'s result.
+
+    Two independent tests.  Agreeing *worse* than the real-space half means the two passes were
+    combined wrongly.  Agreeing badly in absolute terms means the profiles themselves are wrong --
+    the relative test passes for a NAMD build whose profile is off by the same large amount in both
+    passes, so it cannot stand alone.
+    """
+    reasons = []
+    dev, real_dev = check['reconstructed_deviation'], check['real_only_deviation']
+    if dev > real_dev:
+        reasons.append('the reconstruction agrees WORSE than the real-space half alone; '
+                       'treat this profile as suspect')
+    if dev > RECONSTRUCTION_TOLERANCE_BAR:
+        reasons.append(
+            f'the reconstruction disagrees with NAMD\'s own PRESSURE by {dev:.0f} bar on average '
+            f'(a sound replay agrees to about 1 bar; more than {RECONSTRUCTION_TOLERANCE_BAR:.0f} '
+            'is not believable).  The per-slab profile this NAMD binary writes is likely wrong '
+            'even if its energies and PRESSURE are right; re-run with a different NAMD build, '
+            'such as the official UIUC release, before using this profile')
+    return reasons
+
+
 def run_namd(config_path: str, log_path: str, cwd: str, namd: str = 'namd3',
              nprocs: int = 1) -> None:
     """Run one replay pass, writing NAMD's output to ``log_path``.
