@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.22.6] - 2026-09-19
+
 - fix: **a failed chain map no longer discards a finished build.** `terminate` wrote the chain map
   first, unguarded, and it is the only step there that re-reads the whole system as a `Molecule`.
   A 1,579,027-atom build died there after 59 hours of MD and lost its basename-copied state, its
