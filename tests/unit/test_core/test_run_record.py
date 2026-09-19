@@ -61,6 +61,64 @@ class TestProtocol(unittest.TestCase):
         self.assertNotIn('within', protocol[2])
 
 
+class _Manifest:
+    def __init__(self, data):
+        self.data = data
+
+
+class TestResumedRunProvenance(unittest.TestCase):
+    """A restart's record described only the resumed task and stamped the resuming version: the
+    salsa build's record claimed 3.22.6 and one task, when 3.22.1 ran all 59 hours of its MD."""
+
+    def _manifest(self):
+        return _Manifest({
+            'pestifer_version': '3.22.1',
+            'resumed_by': ['3.22.6'],
+            'tasks': [
+                {'index': 3, 'taskname': 'make_membrane_system',
+                 'substages': [{'task': 'make_membrane_system-membrane_equilibrate-quilt',
+                                'adaptive': True, 'converged': False, 'steps': 800000}]},
+                {'index': 11, 'taskname': 'md', 'outcome': {'ensemble': 'npgt', 'steps': 128000}},
+                {'index': 12, 'taskname': 'mdplot'},      # ran nothing: no outcome to restore
+            ]})
+
+    def test_skipped_tasks_are_restored_from_the_manifest(self):
+        tasks = [_Task(13, 'terminate', {'packaged': True})]
+        protocol = RR.protocol_from_manifest(self._manifest(), 13) + RR.protocol_from_tasks(tasks)
+        self.assertEqual([p['task'] for p in protocol],
+                         ['make_membrane_system-membrane_equilibrate-quilt', 'md', 'terminate'])
+        self.assertTrue(protocol[0]['restored'])
+        self.assertEqual(protocol[0]['within'], 'make_membrane_system')
+        self.assertEqual(protocol[1]['steps'], 128000)
+        self.assertNotIn('restored', protocol[2])
+
+    def test_tasks_this_run_actually_ran_are_not_restored_too(self):
+        # index >= resume_from ran here; taking it from the manifest as well would double it
+        self.assertEqual(RR.protocol_from_manifest(self._manifest(), 11),
+                         [p for p in RR.protocol_from_manifest(self._manifest(), 13)
+                          if p['index'] < 11])
+
+    def test_a_run_from_scratch_restores_nothing(self):
+        self.assertEqual(RR.protocol_from_manifest(self._manifest(), 0), [])
+        self.assertEqual(RR.protocol_from_manifest(None, 13), [])
+
+    def test_the_record_credits_the_version_that_built_the_system(self):
+        record = RR.build_run_record(SimpleNamespace(userfile='x.yaml'),
+                                     [_Task(13, 'terminate', {'ensemble': 'minimize'})],
+                                     manifest=self._manifest(), resume_from=13)
+        self.assertEqual(record['pestifer_version'], '3.22.1')
+        self.assertEqual(record['resumed_by'], ['3.22.6'])
+        self.assertEqual(record['resumed_from_task'], 13)
+        self.assertEqual(len(record['protocol']), 3)
+
+    def test_a_run_from_scratch_stamps_the_running_version(self):
+        from pestifer.util.stringthings import __pestifer_version__
+        record = RR.build_run_record(SimpleNamespace(userfile='x.yaml'),
+                                     [_Task(1, 'md', {'steps': 10})])
+        self.assertEqual(record['pestifer_version'], __pestifer_version__)
+        self.assertNotIn('resumed_by', record)
+
+
 class TestSystemFacts(unittest.TestCase):
 
     def test_taken_from_the_task_that_captured_them(self):

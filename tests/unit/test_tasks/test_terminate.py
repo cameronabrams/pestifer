@@ -3,8 +3,9 @@ import shutil
 import tarfile
 import tempfile
 import unittest
+from unittest import mock
 
-from pestifer.core.artifacts import (CharmmffParFileArtifact, NAMDCoorFileArtifact,
+from pestifer.core.artifacts import (CharmmffParFileArtifact, FileArtifactList, NAMDCoorFileArtifact,
                                      NAMDVelFileArtifact, PDBFileArtifact, PSFFileArtifact,
                                      StateArtifacts)
 from pestifer.core.config import Config
@@ -88,6 +89,43 @@ class TestChainmapFailureIsNotFatal(unittest.TestCase):
         t.write_chainmaps = lambda: setattr(t, 'chainmap_written', True)
         self.assertEqual(t.do(), 0)
         self.assertTrue(t.chainmap_written)
+
+
+class TestResumedRunDoesNotSweep(unittest.TestCase):
+    """On a --restart the skipped tasks register nothing in this process's pipeline, so the sweep
+    saw 26 files of a 1.58M-atom build: it left ~172 GB loose (the 24 GB production trajectory
+    among it) and archived-and-removed the five restored state files instead."""
+
+    def _task(self, resumed_from):
+        t = TerminateTask.__new__(TerminateTask)
+        t.specs = {}
+        t.run_resumed_from = resumed_from
+
+        class _Pipeline:
+            def get_all_file_artifacts(self):
+                return FileArtifactList([])
+
+        t.pipeline = _Pipeline()
+        return t
+
+    def _cleanup(self, t):
+        """Run cleanup with the tarball write itself stubbed out; returns the calls it made."""
+        swept = []
+        with mock.patch.object(FileArtifactList, 'make_tarball',
+                               lambda self, name, **kw: swept.append((name, kw.get('remove')))):
+            self.assertEqual(t.cleanup(), 0)
+        return swept
+
+    def test_a_resumed_run_leaves_the_directory_alone(self):
+        t = self._task(13)
+        with self.assertLogs('pestifer.tasks.terminate', level='WARNING') as cm:
+            swept = self._cleanup(t)
+        self.assertEqual(swept, [])
+        self.assertIn('skipping the intermediate-file sweep', ''.join(cm.output))
+
+    def test_a_one_pass_run_still_sweeps(self):
+        # the sweep removes what it archives, which is right only when this process built it all
+        self.assertEqual(self._cleanup(self._task(0)), [('artifacts', True)])
 
 
 class TestSystemReport(unittest.TestCase):

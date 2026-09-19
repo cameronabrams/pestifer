@@ -230,6 +230,19 @@ listed right after the ``make_membrane_system`` task that ran it.  It carries th
 
 Records written by pestifer 3.22.4 and earlier omit these stages.
 
+A build finished with ``--restart`` or ``--from`` records the tasks it skipped too, reading them
+back from ``.pestifer-manifest.json``, which each task writes as it completes.  Those entries are
+marked ``"restored": true``.  ``pestifer_version`` names the version that **began** the build, not
+the one that resumed it -- a resumed run adds ``resumed_by`` and ``resumed_from_task`` instead, so
+a six-minute ``terminate`` re-run cannot take credit for the days of MD before it.  Manifests
+written by pestifer 3.22.6 and earlier record no per-task outcome, so resuming such a build names
+its earlier tasks in the protocol without their step counts.
+
+One thing a resumed run deliberately does *not* do is sweep the build directory: ``terminate``
+archives what the running process produced, and a resumed process produced only its own tail.
+Rather than archive an arbitrary subset -- and delete the restored state files with it -- it leaves
+every intermediate file in place and says so.
+
 :ref:`pestifer report-methods <subs_report_methods>` turns one or more of these records into a
 drafted Methods section and bibliography.  An aborted build writes no record.
 

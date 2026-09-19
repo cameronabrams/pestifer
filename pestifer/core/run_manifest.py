@@ -106,6 +106,13 @@ class RunManifest:
                 'state': _state_files(state),
                 'provides': provides,
             }
+            # What the task actually did, so a resumed run can put the tasks it skipped back into
+            # run-record.json.  A record assembled only from the tasks of the resuming process
+            # describes a six-minute terminate as though it were the whole build.
+            if getattr(task, 'outcome', None):
+                entry['outcome'] = dict(task.outcome)
+            if getattr(task, 'substage_outcomes', None):
+                entry['substages'] = [dict(s) for s in task.substage_outcomes]
             self.data['tasks'] = [e for e in self.data['tasks'] if e['index'] != task.index]
             self.data['tasks'].append(entry)
             self.data['tasks'].sort(key=lambda e: e['index'])
@@ -170,6 +177,24 @@ class RunManifest:
                     break
                 available |= prov
         return rp
+
+    def note_resume(self, version: str) -> None:
+        """Record that ``version`` resumed this build, without disturbing the version that began it.
+
+        ``pestifer_version`` names the pestifer that *built* the system -- for the salsa membrane
+        build, the one that ran 59 hours of MD, not the one that later re-ran ``terminate`` in six
+        minutes.  Overwriting it on resume is how a run record came to attribute a build to a
+        version that did almost none of it.
+        """
+        try:
+            resumers = [v for v in self.data.get('resumed_by', []) if v]
+            if version and version not in resumers:
+                resumers.append(version)
+            self.data['resumed_by'] = resumers
+            if not self.data.get('pestifer_version'):
+                self.data['pestifer_version'] = version
+        except Exception as exc:
+            logger.warning(f'run manifest: could not note the resuming version: {exc}')
 
     def state_entry(self, index: int) -> dict:
         """The recorded ``{slot: filename}`` STATE fileset for a completed task index, or ``{}``."""

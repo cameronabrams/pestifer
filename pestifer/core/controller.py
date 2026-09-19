@@ -62,6 +62,8 @@ class Controller:
         self.parent = None
         self.restart = False   # --restart: resume from the last cleanly-completed task
         self.fresh = False     # --fresh: ignore any existing manifest
+        self.manifest = None   # the run manifest, once do_tasks has initialized it
+        self.resume_from = 0   # task index this run resumed at (0 == ran from scratch)
         self.from_task = None  # --from: resume explicitly at this task (index or taskname)
         self.packet = None     # provisioning packet, kept for the resume state-restore
 
@@ -158,6 +160,11 @@ class Controller:
         task_report = {}
         task_durations = 0
         manifest, resume_from = self._init_run_manifest()   # (None, 0) for subcontrollers
+        # the run record and terminate's cleanup both need to know that tasks were skipped: neither
+        # this process's task list nor its pipeline holds anything about them
+        self.manifest, self.resume_from = manifest, resume_from
+        for task in self.tasks:
+            task.run_resumed_from = resume_from
         if resume_from > 0:
             self._restore_state_for_resume(manifest, resume_from)
             self._clean_resumed_task_outputs(resume_from)
@@ -228,8 +235,9 @@ class Controller:
                         resume_from = rp + 1
                         logger.info(f'--restart: tasks 00-{rp:02d} already complete; resuming at '
                                     f'task {resume_from:02d}')
-                manifest.data.update(pestifer_version=version, tasks_fingerprint=fingerprint,
-                                     complete=False)
+                # keep the version that BUILT the system; only note the one resuming it
+                manifest.note_resume(version)
+                manifest.data.update(tasks_fingerprint=fingerprint, complete=False)
                 return manifest, resume_from
             except Exception as exc:
                 logger.warning(f'--restart: could not read run manifest ({exc}); building from scratch')

@@ -136,6 +136,10 @@ class BaseTask(ABC):
         #: ran, each a dict with at least ``task``.  A subcontroller's tasks are not in the
         #: top-level task list, so without this they would be missing from the run record.
         self.substage_outcomes: list[dict] = []
+        #: Task index this run resumed at (0 when it ran from scratch).  Set by the controller
+        #: before any task executes; a task that sweeps or summarizes the run needs it, because
+        #: skipped tasks register nothing in this process's pipeline.
+        self.run_resumed_from: int = 0
         self.result: int = 0
         self.duration: float = 0.0
         self.extra_message: str = ''

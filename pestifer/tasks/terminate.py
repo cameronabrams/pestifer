@@ -316,6 +316,17 @@ class TerminateTask(MDTask):
         if not self.specs.get('cleanup', True):
             logger.debug('Cleanup disabled; skipping cleanup step.')
             return 0
+        if self.run_resumed_from:
+            # The sweep archives what THIS process registered, and a resumed run's skipped tasks
+            # register nothing -- so it would archive a handful of files, leave the build's real
+            # output (trajectories included) loose, and delete the restored state files the user is
+            # pointing at.  A resumed run therefore leaves the directory alone.
+            logger.warning(
+                f'--restart resumed at task {self.run_resumed_from:02d}, so this process knows only '
+                'the files it produced itself; skipping the intermediate-file sweep rather than '
+                'archiving an arbitrary subset and removing the restored state files. The build '
+                'directory keeps every intermediate file; archive it yourself if you want one.')
+            return 0
         archive_name = self._archive_name()
 
         all_file_artifacts: FileArtifactList = self.pipeline.get_all_file_artifacts()

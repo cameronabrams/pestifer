@@ -286,6 +286,7 @@ class RunSubcommand(Subcommand):
             # a record of an aborted run would describe a system that does not exist.
             write_run_record(build_run_record(
                 config, C.tasks,
+                manifest=getattr(C, 'manifest', None), resume_from=getattr(C, 'resume_from', 0),
                 environment=getattr(config, 'environment_report', None),
                 citations={'entries': [
                     {'subject': c.subject, 'text': c.text, 'doi': c.doi,

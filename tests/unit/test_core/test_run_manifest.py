@@ -82,6 +82,33 @@ class TestRunManifest(unittest.TestCase):
         self.assertNotIn('vel', md['state'])   # absent slots omitted
         self.assertEqual(md['provides'], ['MD_OUTPUT', 'STATE'])
 
+    def test_outcomes_are_recorded_for_a_later_resume(self):
+        """A resumed run has no outcome for the tasks it skipped; only the manifest can supply it."""
+        t = _fake_task(7, 'density_equilibrate', {})
+        t.outcome = {'adaptive': True, 'converged': False, 'steps': 800000}
+        t.substage_outcomes = [{'task': 'make_membrane_system-md-quilt', 'steps': 1000}]
+        m = RunManifest(self.path)
+        m.record(t, _fake_pipeline({'psf': 'a.psf'}))
+        e = RunManifest.load(self.path).data['tasks'][0]
+        self.assertEqual(e['outcome']['steps'], 800000)
+        self.assertFalse(e['outcome']['converged'])
+        self.assertEqual(e['substages'][0]['task'], 'make_membrane_system-md-quilt')
+
+    def test_a_task_that_ran_nothing_records_no_outcome(self):
+        m = RunManifest(self.path)
+        m.record(_fake_task(0, 'psfgen', {}), _fake_pipeline({'psf': 'a.psf'}))
+        self.assertNotIn('outcome', m.data['tasks'][0])
+
+    def test_resuming_does_not_overwrite_the_building_version(self):
+        """pestifer_version names what built the system.  A six-minute terminate re-run under a
+        newer pestifer must not claim a 59-hour membrane build."""
+        m = RunManifest(self.path, version='3.22.1')
+        m.note_resume('3.22.6')
+        m.note_resume('3.22.6')          # idempotent
+        m.note_resume('3.23.0')
+        self.assertEqual(m.data['pestifer_version'], '3.22.1')
+        self.assertEqual(m.data['resumed_by'], ['3.22.6', '3.23.0'])
+
     def test_record_replaces_same_index(self):
         m = RunManifest(self.path)
         m.record(_fake_task(0, 'md', {'nsteps': 100}), _fake_pipeline({'psf': 'a.psf'}))

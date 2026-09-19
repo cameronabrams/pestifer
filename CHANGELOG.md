@@ -4,6 +4,20 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a resumed build's `run-record.json` described only the resumed task, under the wrong
+  version.** The protocol was assembled from the tasks that ran in *this* process, and the version
+  stamp was the running one, so re-running `terminate` on a 1,579,027-atom build produced a record
+  claiming one task and pestifer 3.22.6 -- when 3.22.1 had done all 59 hours of its MD. Each task
+  now records its outcome in the run manifest as it completes; a resumed run reads the skipped
+  tasks back from there, marked `"restored": true`, and `pestifer_version` stays the version that
+  began the build, with `resumed_by` and `resumed_from_task` naming the rest. Manifests from 3.22.6
+  and earlier carry no outcomes, so resuming one of those names its earlier tasks without details.
+- fix: **a resumed build no longer sweeps the build directory.** `terminate`'s cleanup archives the
+  files this process registered, and a resumed process registers only its own; on the build above it
+  archived 26 files (119 MB), left ~172 GB loose including the production trajectory, and
+  archived-and-removed the five restored state files. A resumed run now leaves every intermediate
+  file in place and says so.
+
 ## [3.22.6] - 2026-09-19
 
 - fix: **a failed chain map no longer discards a finished build.** `terminate` wrote the chain map

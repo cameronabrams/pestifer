@@ -104,6 +104,38 @@ def protocol_from_tasks(tasks):
     return protocol
 
 
+def protocol_from_manifest(manifest, resume_from):
+    """What the tasks this run SKIPPED did, from the manifest they recorded it in.
+
+    A resumed run holds nothing about the tasks it skipped: they did not execute in this process,
+    so they have no outcome and registered nothing in its pipeline.  Assembling the protocol from
+    this process alone therefore describes a re-run of ``terminate`` as though it were the whole
+    build.  Entries are marked ``restored`` so a consumer can tell them from what ran here.
+
+    Manifests written before this was recorded carry no ``outcome``; those tasks are named in the
+    protocol with nothing else, which is honest about what can still be known.
+    """
+    protocol = []
+    if manifest is None or not resume_from:
+        return protocol
+    for e in sorted((manifest.data.get('tasks') or []), key=lambda e: e.get('index', 0)):
+        if e.get('index') is None or e['index'] >= resume_from:
+            continue
+        outcome = e.get('outcome') or {}
+        substages = e.get('substages') or []
+        if not outcome and not substages:
+            continue
+        if outcome:   # a task that simulated nothing contributes no entry of its own, as above
+            entry = {'index': e['index'], 'task': e.get('taskname'), 'restored': True}
+            entry.update(outcome)
+            protocol.append(entry)
+        for sub in substages:
+            sub_entry = {'index': e['index'], 'within': e.get('taskname'), 'restored': True}
+            sub_entry.update(sub)
+            protocol.append(sub_entry)
+    return protocol
+
+
 def system_facts_from_tasks(tasks):
     """The final system's facts, as captured by the task that had the state in hand.
 
@@ -117,7 +149,8 @@ def system_facts_from_tasks(tasks):
     return {}
 
 
-def build_run_record(config, tasks, *, environment=None, citations=None):
+def build_run_record(config, tasks, *, environment=None, citations=None,
+                     manifest=None, resume_from=0):
     """Assemble the full record as a plain, JSON-serializable dict.
 
     ``environment`` and ``citations`` are passed in rather than recomputed, so the record carries
@@ -126,6 +159,16 @@ def build_run_record(config, tasks, *, environment=None, citations=None):
     """
     from ..util.stringthings import __pestifer_version__
 
+    # A resumed run is not the build.  ``pestifer_version`` names the version that built the
+    # system -- the manifest's, written when the build began -- and ``resumed_by`` names the
+    # versions that finished it.  Stamping the resuming version here attributed 59 hours of MD to
+    # a six-minute terminate re-run.
+    built_by = __pestifer_version__
+    resumed_by = []
+    if manifest is not None and resume_from:
+        built_by = manifest.data.get('pestifer_version') or built_by
+        resumed_by = [v for v in (manifest.data.get('resumed_by') or []) if v]
+
     user = {}
     try:
         user = config['user']
@@ -133,9 +176,9 @@ def build_run_record(config, tasks, *, environment=None, citations=None):
         pass
     namd = (user.get('namd') or {}) if isinstance(user, dict) else {}
 
-    return {
+    record = {
         'run_record_version': RUN_RECORD_VERSION,
-        'pestifer_version': __pestifer_version__,
+        'pestifer_version': built_by,
         # A record is only written for a build that finished, so its existence already implies
         # success -- but absence is ambiguous (failed? crashed? still running?), and a sweep
         # asking "did all 81 replicas succeed?" should be able to answer from the file's content
@@ -149,8 +192,12 @@ def build_run_record(config, tasks, *, environment=None, citations=None):
         'environment': environment or {},
         'citations': citations or {},
         'system': system_facts_from_tasks(tasks),
-        'protocol': protocol_from_tasks(tasks),
+        'protocol': protocol_from_manifest(manifest, resume_from) + protocol_from_tasks(tasks),
     }
+    if resumed_by:
+        record['resumed_by'] = resumed_by
+        record['resumed_from_task'] = resume_from
+    return record
 
 
 def write_run_record(record, path=RUN_RECORD_NAME):
