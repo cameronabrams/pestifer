@@ -46,7 +46,18 @@ class TerminateTask(MDTask):
     def do(self) -> int:
         self.next_basename()
         if 'chainmapfile' in self.specs:
-            self.write_chainmaps()
+            # A chain map is a convenience, and it is the only thing in this task that re-reads the
+            # whole system as a Molecule -- so it is the one step here that can fail on a system
+            # pestifer has otherwise built successfully (a 1.58M-atom build lost its package, its
+            # parameters and its run record this way, after 59 hours of MD, because the PDB reader
+            # cannot read the '*****' overflow serials VMD writes past 1,048,575 atoms).  Nothing
+            # below depends on it, so it may not take the rest of the task down with it.
+            try:
+                self.write_chainmaps()
+            except Exception as e:
+                logger.warning(f'could not write the chain map ({type(e).__name__}: {e}); '
+                               'continuing -- the state files, parameters, package and run record '
+                               'are unaffected')
         self.result = self.test_standard()
         if self.specs.get('basename'):
             self.copy_state_to_basename()

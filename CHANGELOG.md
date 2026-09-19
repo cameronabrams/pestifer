@@ -4,6 +4,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a failed chain map no longer discards a finished build.** `terminate` wrote the chain map
+  first, unguarded, and it is the only step there that re-reads the whole system as a `Molecule`.
+  A 1,579,027-atom build died there after 59 hours of MD and lost its basename-copied state, its
+  minimal parameter file, its artifacts archive, its production package and `run-record.json` --
+  none of which depend on the chain map. The failure is now a warning. The underlying limit is
+  unchanged and lives in pidibble: VMD writes `*****` for atom serials past 1,048,575, and
+  `AtomSerialParser` tests for `*` only after its hex branch, which has always tripped by atom
+  100000. So re-reading any pestifer-written PDB of more than 1,048,575 atoms still fails.
+
 ## [3.22.5] - 2026-09-17
 
 - fix: **`run-record.json` now includes the relaxation stages `make_membrane_system` runs

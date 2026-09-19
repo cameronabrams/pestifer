@@ -53,6 +53,43 @@ class TestArchiveName(unittest.TestCase):
         self.assertEqual(self._task({'artifacts': None, 'basename': None})._archive_name(), 'artifacts')
 
 
+class TestChainmapFailureIsNotFatal(unittest.TestCase):
+    """A 1.58M-atom build lost its package, minimal parameters and run record when the chain map
+    could not be written -- the PDB reader cannot read the ``*****`` overflow serials VMD writes
+    past 1,048,575 atoms.  Everything in ``do`` after the chain map is independent of it."""
+
+    def _task(self):
+        t = TerminateTask.__new__(TerminateTask)
+        t.specs = {'chainmapfile': 'cm.yaml'}
+        t.next_basename = lambda: None
+        t.test_standard = lambda: 0
+        t.generate_minimal_params = lambda: None
+        t.print_system_report = lambda: None
+        t.capture_system_facts = lambda: setattr(t, 'facts_captured', True)
+        t.make_package = lambda: 0
+        t.cleanup = lambda: 0
+        return t
+
+    def test_a_failed_chainmap_does_not_abort_the_task(self):
+        t = self._task()
+
+        def boom():
+            raise ValueError("invalid literal for int() with base 16: '*****'")
+
+        t.write_chainmaps = boom
+        with self.assertLogs('pestifer.tasks.terminate', level='WARNING') as cm:
+            result = t.do()
+        self.assertEqual(result, 0)
+        self.assertTrue(t.facts_captured)          # packaging and the run record still happen
+        self.assertIn('*****', ''.join(cm.output))
+
+    def test_a_working_chainmap_is_still_written(self):
+        t = self._task()
+        t.write_chainmaps = lambda: setattr(t, 'chainmap_written', True)
+        self.assertEqual(t.do(), 0)
+        self.assertTrue(t.chainmap_written)
+
+
 class TestSystemReport(unittest.TestCase):
     def test_reports_total_charge(self):
         t = TerminateTask.__new__(TerminateTask)
