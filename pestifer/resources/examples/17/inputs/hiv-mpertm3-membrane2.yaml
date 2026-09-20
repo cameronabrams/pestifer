@@ -93,7 +93,12 @@ tasks:
                 temperature: 310
                 pressure: 1.0
                 area_plateau_tol: 0.005
-                max_steps: 800000
+                # 800000 was not enough for one replica of the 3.22.1 sweep: its plateau
+                # quarter-drift was -0.0072 against the 0.0050 tolerance at the ceiling -- still
+                # descending, not oscillating about a plateau, so the stage wanted more time
+                # rather than a looser gate (loosening it here would hand a mis-sized APL to the
+                # grid, which is the failure this whole calibration exists to prevent).
+                max_steps: 1200000
                 # the calibration patch has no protein and no preferred aspect; on the orthohexagonal
                 # (non-square) box, locking Lx:Ly makes the tensionless stage over-condense along the
                 # short axis instead of settling.  Let the flexible cell relax x and y independently.
@@ -114,7 +119,11 @@ tasks:
                 temperature: 310
             - membrane_equilibrate:
                 temperature: 310
-                max_steps: 800000
+                # the other 3.22.1 sweep ceiling hit, and the worse of the two: at 800000 the
+                # quilt's lateral area was still drifting -0.033 (tolerance 0.012) with the
+                # precision gate unmet, so this leaflet pair was nowhere near settled.  The
+                # density half had converged.  Raised furthest because the area had furthest to go.
+                max_steps: 1500000
       embed:
         xydist: 40
         zdist: 10

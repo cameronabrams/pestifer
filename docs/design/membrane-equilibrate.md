@@ -318,3 +318,24 @@ lipid floor is an open follow-up.
 - **APL:** report both raw area and APL.
 - **Area tolerances:** per-observable, defaulted to density's, then set from the measured area
   autocorrelation in M2 (open until measured).
+
+## Ceilings after the 3.22.1 sweep (2026-09-20)
+
+Both pre-embed stages of the asymmetric membrane example hit their 800000-step ceiling in that
+sweep, in one replica each, and the two failed differently:
+
+- **quilt** (ex17/rep-01): density converged (drift 9.65e-04) while the lateral area was still
+  drifting **-0.033** against a 0.012 tolerance, precision gate unmet. Not a near miss — that
+  leaflet pair had not settled.
+- **calibration patch A** (ex17/rep-02): local density and area gates both met; the *plateau*
+  quarter-drift was -0.0072 against its 0.0050 tolerance, i.e. still descending rather than
+  oscillating about a plateau.
+
+Both are the cost the design anticipated above: a calibration patch is area-fluctuation-limited and
+"may need more steps than the old fixed 40k NPgT to converge honestly". The example's ceilings are
+now 1500000 (quilt) and 1200000 (patch); the post-embed stage converged at 800000 and is unchanged.
+
+Do **not** meet these by loosening `area_plateau_tol`: the plateau gate is what `make_membrane_system`
+relies on to trust a calibrated APL, and its tolerance is the same 0.005 as the grid-sizing
+reliability check. A looser gate would hand a mis-sized APL to the grid, which is the failure the
+calibration exists to prevent.

@@ -1979,9 +1979,15 @@ attributes:
             type: int
             default: 5
           - name: max_steps
-            text: hard ceiling on total NPT steps; the task stops (with a warning) even if not converged
+            text: >-
+              hard ceiling on total NPT steps; the task stops (with a warning) even if not
+              converged. Raised from 100000 after the 3.22.1 example sweep, where 3 of 93 builds
+              stopped just short of converging at that ceiling while their sibling replicas
+              converged in 53000-97000 steps -- small boxes are fluctuation-limited and run
+              longest, so the margin above a typical run has to cover a slow replica. The ceiling
+              only binds on a run that has not converged; a converged one stops when it converges.
             type: int
-            default: 100000
+            default: 200000
           - name: min_steps
             text: never declare convergence before this many total steps
             type: int

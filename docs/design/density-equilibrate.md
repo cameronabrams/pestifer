@@ -62,6 +62,17 @@ organic-solvent boxes improved (acetonitrile 49,850 vs. old near-ceiling 94,540;
 64,470); only **acetone** remains a benign `max_steps` ceiling (precision met, residual drift 4e-4,
 density flat) — a per-solvent tolerance is the residual follow-up (roadmap).
 
+**Ceilings revisited after the 3.22.1 sweep (2026-09-20).** Across 93 builds, 4 `density_equilibrate`
+stages stopped at their ceiling. None was a criterion failure: three (ex03, ex04, ex31) sat at or
+below tolerance but had not yet accumulated `n_consecutive` passes when the 100000-step default ran
+out, while their sibling replicas converged in 53000-97000 steps; the fourth (acetone, ex24) had
+drift 0.0013 inside tolerance with only the precision gate unmet, at a ceiling its own sibling had
+approached (227000 of 250000). The margin over a typical run, not the criterion, was too thin, so
+the default is now 200000 and acetone's own ceiling 500000. A ceiling binds only on a run that has
+not converged, so the cost of the raise falls entirely on runs that would otherwise be reported as
+possibly unsettled. If a later sweep finds another, raise again rather than loosening a tolerance:
+the tolerances are what make the stopping point meaningful.
+
 ## Problem
 
 Every solvated build today ends with a hand-written ladder of NPT runs of increasing length, e.g.

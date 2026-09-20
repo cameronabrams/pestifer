@@ -4,6 +4,21 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **step ceilings raised where the 3.22.1 sweep hit them.** Six of that sweep's 111 adaptive
+  equilibration stages stopped at their ceiling without converging, and none was a criterion
+  failure -- each was short of budget, in one of three ways. `density_equilibrate`'s default
+  `max_steps` goes 100000 -> 200000: ex03, ex04 and ex31 each had a replica sitting at or below
+  tolerance without having accumulated the required consecutive passes, while sibling replicas
+  converged in 53000-97000 steps. Acetone (ex24) goes 250000 -> 500000: its drift was inside
+  tolerance with only the slow-decorrelation precision gate unmet, at a ceiling another replica had
+  come within 23000 steps of. The asymmetric membrane (ex17) raises its two pre-embed stages from
+  800000 to 1500000 (quilt, lateral area still drifting -0.033 against a 0.012 tolerance) and
+  1200000 (calibration patch, plateau quarter-drift -0.0072 against 0.0050); its post-embed stage
+  converged and is unchanged. A ceiling binds only on a run that has not converged, so the added
+  time falls only on runs that would otherwise be reported as possibly unsettled. The tolerances
+  are deliberately untouched: loosening one would buy convergence by lowering the bar, and for the
+  membrane patch the same 0.005 is what `make_membrane_system` trusts when it sizes the grid.
+
 ## [3.22.7] - 2026-09-20
 
 - fix: **a resumed build's `run-record.json` described only the resumed task, under the wrong
