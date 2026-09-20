@@ -21,10 +21,15 @@ Before pushing anything that could affect CI, run it the way CI will see it -- a
 with the tools hidden:
 
 ```bash
-git archive HEAD | tar -x -C /tmp/cisim && cd /tmp/cisim
+export CISIM=~/devtests/pestifer/cisim && rm -rf $CISIM && mkdir -p $CISIM
+git archive HEAD | tar -x -C $CISIM && cd $CISIM
 PATH="$(echo "$PATH" | tr : '\n' | grep -v /usr/local/bin | paste -sd:)" \
     uv run --extra test pytest tests/unit -q
 ```
+
+The export goes under `~/devtests/pestifer/` rather than `/tmp`: `/tmp` is shared with every other
+session's scratch, which makes anything there unsafe for anyone else to clean up, and a `/tmp` that
+fills has taken builds down with it.
 
 `uv run` is what makes this a clean *environment* and not just a clean source tree: run under a
 bare `python`, the export borrows the repo's own `.venv`, so any package hand-installed there over

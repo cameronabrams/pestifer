@@ -714,10 +714,19 @@ class MakeMembraneSystemTask(BaseTask):
                     f'{res["nslabs"]} slabs):')
         logger.info(f'  gamma_upper          = {res["upper"]:+.3f} mN/m')
         logger.info(f'  gamma_lower          = {res["lower"]:+.3f} mN/m')
+        # NOT "~0 for a tensionless run", which this line used to claim: the pass runs with
+        # pressureProfile alone, so the profile omits the PME reciprocal-space term, and that term
+        # is not small -- on a DMPC bilayer it is +26.50 mN/m against a real-space -16.63, enough
+        # to flip the sign of the total.  Only `pestifer pressure-profile-ewald` reconstructs a
+        # complete profile.  Dgamma is the difference of two leaflet sums, so the omission cancels
+        # there to the extent it is symmetric about the midplane -- which is why the diagnostic
+        # reports a difference rather than an absolute tension in the first place.
         logger.info(f'  gamma_total          = {res["total"]:+.3f} mN/m '
-                    f'(sanity: ~0 for a tensionless run)')
+                    f'(real-space only; the PME reciprocal term is absent from this profile, so '
+                    f'this is not expected to vanish even at zero applied tension)')
         logger.info(f'  Dgamma (upper-lower) = {res["dgamma"]:+.3f} mN/m '
-                    f'(target ~0 for a stress-free membrane)')
+                    f'(target ~0 for a stress-free membrane; the absent reciprocal term cancels '
+                    f'here only insofar as it is symmetric about the midplane)')
         # gamma_leaflet ~ K_A*(A/A0 - 1); moving dm lipids from upper to lower changes
         # Dgamma by K_A*dm*(1/n_upper + 1/n_lower), so dm = -Dgamma / [K_A*(...)]
         denom = K_A * (1.0 / n_upper + 1.0 / n_lower)

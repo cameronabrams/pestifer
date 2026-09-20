@@ -626,6 +626,18 @@ class TestDifferentialStressDiagnostic(unittest.TestCase):
             _t, membrane = self._run(pp, energy_df=self._energy(pp, 150.0))
         self.assertIsInstance(membrane.dgamma, float)
 
+    def test_the_total_is_not_advertised_as_a_zero_check(self):
+        """The pass runs pressureProfile alone, so its profile omits the PME reciprocal term -- on
+        a DMPC bilayer +26.50 mN/m against a real-space -16.63.  Calling the total a "~0 sanity
+        check" invited reading a correct run as broken."""
+        pp = _profile(pxx=-150.0, pyy=-150.0, pzz=0.0)
+        with self.assertLogs(LOGGER, level='INFO') as cm:
+            self._run(pp, energy_df=self._energy(pp, 150.0))
+        out = ''.join(cm.output)
+        self.assertIn('gamma_total', out)
+        self.assertNotIn('~0 for a tensionless run', out)
+        self.assertIn('real-space only', out)
+
     def test_a_profile_without_pressure_records_is_still_reported(self):
         pp = _profile(pxx=-150.0, pyy=-150.0, pzz=0.0)
         with self.assertLogs(LOGGER, level='INFO') as cm:

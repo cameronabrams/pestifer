@@ -4,6 +4,18 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **the differential-stress diagnostic no longer calls its total a "~0 sanity check".** That
+  pass runs `pressureProfile` alone, so its profile omits the PME reciprocal-space term -- on a DMPC
+  bilayer +26.50 mN/m against a real-space -16.63, enough to flip the sign. A correct run therefore
+  reports a `gamma_total` well away from zero, and the old label invited reading that as a broken
+  build. The line now says what the number is; `Dgamma`, the figure the advice is based on, notes
+  that the omission cancels only insofar as it is symmetric about the midplane.
+- chore: the `pidibble` floor moves to `>=1.12.0`. 1.11.0 declares no `mmcif` extra, so a resolver
+  that picked it warned and silently left out the mmCIF reader that `molecule.py` and `fetch` need.
+- chore: the test suite keeps its temporary files under one per-run root and removes it at the end.
+  Three dozen `mkdtemp` calls were leaving `/tmp/tmpXXXXXXXX` directories behind -- 677 of them had
+  accumulated -- indistinguishable from a live session's scratch and so never safe to clean in bulk.
+
 - fix: **step ceilings raised where the 3.22.1 sweep hit them.** Six of that sweep's 111 adaptive
   equilibration stages stopped at their ceiling without converging, and none was a criterion
   failure -- each was short of budget, in one of three ways. `density_equilibrate`'s default

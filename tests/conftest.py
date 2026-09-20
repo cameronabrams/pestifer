@@ -73,6 +73,34 @@ def isolate_labels():
             setattr(L.Labels, name, value)
 
 
+@pytest.fixture(scope='session', autouse=True)
+def scoped_temp_root(tmp_path_factory):
+    """Give the whole run one temp root, and remove it when the run ends.
+
+    Tests call ``tempfile.mkdtemp()`` in three dozen places and mostly do not clean up, so a suite
+    run left a scatter of ``/tmp/tmpXXXXXXXX`` directories behind -- indistinguishable, from the
+    outside, from a live session's scratch, and therefore never safe to delete in bulk.  Rather
+    than fix each call site (and rely on the next one remembering), point ``tempfile`` at a root of
+    our own for the duration: every ``mkdtemp``/``NamedTemporaryFile`` lands under it, and it goes
+    away at the end.  ``TMPDIR`` is set alongside so the external tools tests launch (VMD, NAMD)
+    write there too.
+    """
+    import tempfile
+    root = tmp_path_factory.mktemp('pestifer-run')
+    saved_tempdir, saved_env = tempfile.tempdir, os.environ.get('TMPDIR')
+    tempfile.tempdir = str(root)
+    os.environ['TMPDIR'] = str(root)
+    try:
+        yield root
+    finally:
+        tempfile.tempdir = saved_tempdir
+        if saved_env is None:
+            os.environ.pop('TMPDIR', None)
+        else:
+            os.environ['TMPDIR'] = saved_env
+        shutil.rmtree(root, ignore_errors=True)
+
+
 @pytest.fixture(autouse=True)
 def change_test_dir(request, monkeypatch):
     """Causes each test to run in the directory in which the module is found **or** a subdirectory with the same base name as the module
