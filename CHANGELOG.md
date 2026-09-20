@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.22.7] - 2026-09-20
+
 - fix: **a resumed build's `run-record.json` described only the resumed task, under the wrong
   version.** The protocol was assembled from the tasks that ran in *this* process, and the version
   stamp was the running one, so re-running `terminate` on a 1,579,027-atom build produced a record
