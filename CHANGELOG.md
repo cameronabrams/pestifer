@@ -10,8 +10,13 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   reports a `gamma_total` well away from zero, and the old label invited reading that as a broken
   build. The line now says what the number is; `Dgamma`, the figure the advice is based on, notes
   that the omission cancels only insofar as it is symmetric about the midplane.
-- chore: the `pidibble` floor moves to `>=1.12.0`. 1.11.0 declares no `mmcif` extra, so a resolver
-  that picked it warned and silently left out the mmCIF reader that `molecule.py` and `fetch` need.
+- chore: the `pidibble` floor moves to `>=1.12.1`. 1.12.0 is the first release to declare the
+  `mmcif` extra (1.11.0 warned and silently left out the mmCIF reader `molecule.py` and `fetch`
+  need); 1.12.1 reads the `*****` overflow serials VMD writes past 1,048,575 atoms, which used to
+  raise on re-read and cost a 1,579,027-atom build its packaging. It does not make such a file
+  round-trip: five columns cannot hold those serials, so they are written as the marker and read
+  back as 0. A PDB past the ceiling now re-reads, with every atom beyond it at serial 0 -- which is
+  why the guard added in 3.22.6 still matters.
 - chore: the test suite keeps its temporary files under one per-run root and removes it at the end.
   Three dozen `mkdtemp` calls were leaving `/tmp/tmpXXXXXXXX` directories behind -- 677 of them had
   accumulated -- indistinguishable from a live session's scratch and so never safe to clean in bulk.
