@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.22.8] - 2026-09-20
+
 - fix: **a vacuum stage's core clamp is now visible and optional.** A stage with no periodic cell
   is run on one node's cores rather than the whole allocation, which is right -- these stages are
   small and short, and more ranks cost more in communication than they gain -- but it was announced
