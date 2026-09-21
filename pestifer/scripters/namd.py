@@ -372,7 +372,18 @@ class NAMDScripter(TcLScripter):
         # parameter files from the shared filesystem visible to every node.
         self._single_node_launch = True
         if self.namd_type == 'cpu' or kwargs.get('cpu_override', False):
-            if self.slurmvars:
+            # A 1-PE run needs no launcher, and must not get a multi-node one.  The conformer and
+            # solvent-box builds pestifer spawns for an uncached PDB-repository entry are
+            # single-molecule vacuum runs marked 'single-core', but the launcher was still chosen
+            # from the SLURM environment: inside a batch job that resolved to srun, which ignores
+            # the PE count entirely and direct-launches one rank per allocated task.  On a cluster
+            # whose MPI lacks SLURM PMI support that aborts in MPI_Init, so no build needing an
+            # uncached entry could start from a batch job at all (reported 2026-09-21, pestifer
+            # 3.22.3, Picotte).  Launch it the way a login node would.
+            if self.slurmvars and kwargs.get('single_cpu_only', False):
+                logger.info('single-molecule run: launching NAMD directly on 1 PE rather than '
+                            'through the SLURM launcher, which a one-rank job does not need')
+            if self.slurmvars and not kwargs.get('single_cpu_only', False):
                 launcher = self.namd_config.get('cpu-parallel-launcher', 'auto')
                 if launcher == 'auto':
                     # A single-node multicore launch cannot span nodes, so use srun (an MPI

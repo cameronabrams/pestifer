@@ -124,6 +124,51 @@ class TestEnsureSolventBoxCacheHit(unittest.TestCase):
         self.assertEqual(got, coll)
 
 
+class TestWaitingForAnotherBuilder(unittest.TestCase):
+    """What a second process does when it waited on the lock.
+
+    Reported 2026-09-21 as a race: two jobs 23 s apart, the second logged "another process is
+    building PSM__Lo; waiting for it" and then built it anyway.  That is the correct behaviour --
+    the first builder had died (of the launcher bug in the same report) and published nothing --
+    but the log did not say so, and a waiter that then builds reads as a lost race.
+    """
+
+    def setUp(self):
+        self._tmp = TemporaryDirectory()
+        self._patch = mock.patch.object(autocache, 'PDBCACHE_ROOT', Path(self._tmp.name))
+        self._patch.start()
+
+    def tearDown(self):
+        self._patch.stop()
+        self._tmp.cleanup()
+
+    def test_a_waiter_that_finds_an_entry_uses_it(self):
+        coll = autocache.cache_release_root('feb26') / 'lipid'
+        (coll / 'PSM__Lo').mkdir(parents=True)
+        (coll / 'PSM__Lo' / 'info.yaml').write_text(yaml.dump({'kind': 'molecule'}))
+        with mock.patch('pestifer.charmmff.make_pdb_collection.do_resi') as m:
+            autocache.ensure_lipid_conformer('PSM', _fake_cc(), phase='Lo')
+            m.assert_not_called()
+
+    def test_a_waiter_that_finds_nothing_says_the_other_build_failed(self):
+        # simulate having waited: the lock reports contention, and the entry never appeared
+        from contextlib import contextmanager
+
+        @contextmanager
+        def _waited(collection_dir, resname):
+            collection_dir.mkdir(parents=True, exist_ok=True)
+            yield True
+
+        with mock.patch.object(autocache, '_entry_lock', _waited), \
+             mock.patch.object(autocache, '_fresh_charmmff', side_effect=RuntimeError('stop here')), \
+             self.assertLogs('pestifer.charmmff.autocache', level='WARNING') as cm:
+            with self.assertRaises(RuntimeError):
+                autocache.ensure_lipid_conformer('PSM', _fake_cc(), phase='Lo')
+        out = ''.join(cm.output)
+        self.assertIn('left no entry, so it failed', out)
+        self.assertIn('PSM__Lo', out)
+
+
 class TestSolvateGenerateOnMissPolicy(unittest.TestCase):
     """SolvateTask._generate_solvent_box: toggle + not-in-force-field guards (no build)."""
 

@@ -179,6 +179,50 @@ class TestVacuumRunPECount(unittest.TestCase):
         self.assertEqual(c.command, 'mpirun -np 192 namd3 job.namd')
 
 
+class TestSingleCoreRunIgnoresTheSlurmLauncher(unittest.TestCase):
+    """A 1-PE run must not be handed a multi-node launcher.
+
+    Reported 2026-09-21 against 3.22.3 on Picotte: a build wanting an uncached Lo conformer set
+    spawns a single-molecule conformer build, whose NAMD stages are already marked 'single-core' --
+    but inside a batch job the launcher still resolved to srun, which ignores the PE count and
+    direct-launches one rank per allocated task.  With an Open MPI built without SLURM PMI support
+    that aborts in MPI_Init, so no build needing an uncached entry could start from a batch job.
+    The same build works from a login node, where no SLURM environment exists; this makes the batch
+    case take that same path.
+    """
+
+    def _scripter(self, **kw):
+        return TestNAMDLaunchCommand._make_scripter(
+            TestNAMDLaunchCommand(), slurmvars={'SLURM_NNODES': '2',
+                                                'SLURM_NTASKS_PER_NODE': '48'}, **kw)
+
+    def test_single_core_under_slurm_launches_locally(self):
+        p = self._scripter(launcher='auto')      # auto -> srun on 2 nodes: the reported case
+        with self.assertLogs('pestifer.scripters.namd', level='INFO') as cm:
+            c = p._build_launch_command(single_cpu_only=True)
+        self.assertEqual(c.command, 'charmrun +p 1 namd3 job.namd')
+        self.assertIn('does not need', ''.join(cm.output))
+
+    def test_single_core_ignores_an_explicit_launcher_too(self):
+        # the config's launcher is for the build's real MD; a one-rank vacuum run needs none of it
+        for launcher in ('srun', 'mpirun', 'charmrun'):
+            with self.subTest(launcher=launcher):
+                p = self._scripter(launcher=launcher)
+                c = p._build_launch_command(single_cpu_only=True)
+                self.assertEqual(c.command, 'charmrun +p 1 namd3 job.namd')
+
+    def test_a_single_core_run_stages_params_node_locally(self):
+        # one rank on one node, so $TMPDIR staging is valid
+        p = self._scripter(launcher='auto')
+        p._build_launch_command(single_cpu_only=True)
+        self.assertTrue(p._single_node_launch)
+
+    def test_a_multi_pe_run_still_uses_the_launcher(self):
+        p = self._scripter(launcher='auto')
+        c = p._build_launch_command()
+        self.assertEqual(c.command, 'srun namd3 job.namd')
+
+
 class TestConsolidateParams(unittest.TestCase):
     """``consolidate_params`` reduces the parameter set to one minimal .prm and points the
     script's single ``parameters`` line at it.

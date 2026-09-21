@@ -4,6 +4,21 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a build needing an uncached conformer set could not start inside a SLURM job.** A leaflet
+  phase with no cached ensemble (`lower_leaflet_phase: Lo`) makes pestifer build one, as a
+  single-molecule vacuum run already marked `single-core`. The PE count was honored but the
+  *launcher* was still chosen from the SLURM environment, resolving to `srun`, which ignores the PE
+  count and direct-launches one rank per allocated task; on a cluster whose Open MPI lacks SLURM PMI
+  support that aborts in `MPI_Init`. A one-rank run now launches the way a login node launches it,
+  whatever the configured launcher. Reported 2026-09-21 against 3.22.3 on Picotte, where it blocked
+  three submissions and left a login-node workaround as the only route.
+- feat: **`pestifer cache prebuild --resname PSM --phase Lo`** generates one lipid conformer set
+  into the cache ahead of the build that would need it, with the sampler that build would use. The
+  workaround for the above was to pre-populate the cache by running elsewhere, which worked but was
+  undocumented and depended on knowing the cache layout.
+- fix: a second process that waited on the conformer-cache lock and then found no entry now says
+  the build it waited for failed, instead of appearing to ignore the lock it had just honored.
+
 ## [3.22.8] - 2026-09-20
 
 - fix: **a vacuum stage's core clamp is now visible and optional.** A stage with no periodic cell

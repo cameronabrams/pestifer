@@ -76,16 +76,23 @@ def _entry_lock(collection_dir: Path, resname: str):
 
     The lock is released automatically if the holding process dies (its fd closes), so there is
     no stale-lock hazard.  On contention the wait is announced, then blocks until acquired.
+
+    ``waited`` is yielded so the caller can say what it found once it got in: a waiter that then
+    builds anyway looks like a lost race, and reads as one in a log (reported 2026-09-21).  It is
+    not -- the caller re-checks for the entry under the lock and only builds when the process it
+    waited for left none, which means that build failed.
     """
     collection_dir.mkdir(parents=True, exist_ok=True)
     lock_path = collection_dir / f'.{resname}.lock'
+    waited = False
     with open(lock_path, 'w') as lockf:
         try:
             fcntl.flock(lockf, fcntl.LOCK_EX | fcntl.LOCK_NB)
         except BlockingIOError:
+            waited = True
             logger.info(f'another process is building {resname}; waiting for it')
             fcntl.flock(lockf, fcntl.LOCK_EX)
-        yield
+        yield waited
 
 
 def _fresh_charmmff(release_str: str):
@@ -147,10 +154,13 @@ def ensure_solvent_box(resname: str, CC, *, nmol: int = 216, density: float = 1.
         logger.debug(f'auto-cache hit: {resname} solvent box at {collection_dir / resname}')
         return collection_dir
 
-    with _entry_lock(collection_dir, resname):
+    with _entry_lock(collection_dir, resname) as waited:
         if _has_entry(collection_dir, resname):
             logger.info(f'{resname} solvent box was built by another process; using it')
             return collection_dir
+        if waited:
+            logger.warning(f'the process building {resname} left no entry, so it failed; '
+                           f'building it here instead')
         _announce_build(resname, 'solvent box (pack + minimize + NPT equilibration)', collection_dir)
 
         RM, build_CC = _fresh_charmmff(getattr(CC, 'release_str', ''))
@@ -261,10 +271,13 @@ def ensure_lipid_conformer(resname: str, CC, *, phase: str = None, nsamples: int
         logger.debug(f'auto-cache hit: {entry} conformer at {collection_dir / entry}')
         return collection_dir
 
-    with _entry_lock(collection_dir, entry):
+    with _entry_lock(collection_dir, entry) as waited:
         if _has_entry(collection_dir, entry):
             logger.info(f'{entry} conformer was built by another process; using it')
             return collection_dir
+        if waited:
+            logger.warning(f'the process building {entry} left no entry, so it failed; '
+                           f'building it here instead')
         _announce_build(entry, f'single-molecule conformer set ({sampler} sampler)', collection_dir)
 
         RM, build_CC = _fresh_charmmff(getattr(CC, 'release_str', ''))

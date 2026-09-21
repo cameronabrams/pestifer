@@ -37,3 +37,34 @@ Force-rebuild every cache from the current resource files, for each installed CH
 .. code-block:: console
 
     $ pestifer cache rebuild
+
+prebuild
+========
+
+Generate one lipid conformer set into the cache **before** a build asks for it.
+
+A build that needs a ``(lipid, phase)`` pair with no entry generates that entry itself and caches it under ``~/.pestifer/pdbrepository/<release>/lipid/``, so this is never required.  It is worth doing when generating inside a job is awkward: the generation is a single-molecule vacuum run, so on a cluster it spends allocation time on work that a login node can do, and it happens while the rest of the build waits.
+
+.. code-block:: console
+
+    $ pestifer cache prebuild --resname PSM --phase Lo
+    INFO> prebuilding conformer set PSM__Lo (mc sampler)
+    ...
+    /home/you/.pestifer/pdbrepository/feb26/lipid/PSM__Lo
+
+``--phase`` is ``Ld`` (the fluid ensemble, cached under the bare ``<RESI>`` name) or ``Lo`` (the ordered one, cached as ``<RESI>__Lo``); ``--charmmff-release`` selects the release to build against, defaulting to the newest installed, which is what a build uses.
+
+The sampler is not a choice here.  It is the one a build would pick for that phase, so the cached entry is the entry the build would have made -- a set generated another way would be a cache hit that silently changes what gets packed.
+
+Run it once per lipid and phase your compositions name.  A leaflet like
+
+.. code-block:: yaml
+
+    composition:
+      lower_leaflet_phase: Lo
+      lower_leaflet:
+        - {name: PSM, frac: 0.36}
+        - {name: POPC, frac: 0.17}
+        - {name: CHL1, frac: 0.47}
+
+resolves to the three entries ``PSM__Lo``, ``POPC__Lo`` and ``CHL1__Lo``.
