@@ -4,6 +4,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **a vacuum stage's core clamp is now visible and optional.** A stage with no periodic cell
+  is run on one node's cores rather than the whole allocation, which is right -- these stages are
+  small and short, and more ranks cost more in communication than they gain -- but it was announced
+  only at debug level. On a 4-node allocation, 2 of one membrane build's 215 NAMD launches ran at 48
+  of 192 PEs, and explaining that took an audit of the entire log. The clamp now logs at INFO
+  naming both counts, and `namd: vacuum-runs-single-node: false` turns it off for anyone whose
+  non-periodic stages are worth the whole allocation. The message is emitted only where the clamp
+  can actually bite: `srun` takes its rank count from the SLURM allocation and never sees the PE
+  count at all, so a vacuum stage launched that way was never clamped in the first place.
+
 - fix: **the differential-stress diagnostic no longer calls its total a "~0 sanity check".** That
   pass runs `pressureProfile` alone, so its profile omits the PME reciprocal-space term -- on a DMPC
   bilayer +26.50 mN/m against a real-space -16.63, enough to flip the sign. A correct run therefore

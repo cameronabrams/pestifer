@@ -298,6 +298,17 @@ attributes:
         type: str
         choices: [auto, numactl, srun, mpirun, charmrun]
         default: auto
+      - name: vacuum-runs-single-node
+        text: >-
+          Whether a stage whose system has no periodic cell -- a vacuum minimization, say -- is
+          clamped to the cores of one node instead of the whole allocation. True (the default) is
+          right for the systems pestifer runs this way: they are small and short, and spreading one
+          across nodes costs more in communication than it gains in cores. The cost is that on a
+          multi-node allocation such a stage leaves the other nodes idle while it runs, so set this
+          false if your non-periodic stages are large enough to be worth the whole allocation. The
+          clamp is reported in the log whenever it changes the PE count.
+        type: bool
+        default: true
       - name: srun-mpi-type
         text: >-
           PMI plugin passed to srun as '--mpi=<type>' (e.g. pmi2 or pmix) when

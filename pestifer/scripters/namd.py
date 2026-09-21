@@ -335,10 +335,26 @@ class NAMDScripter(TcLScripter):
             The command object that will be run to launch NAMD.
         """
         assert hasattr(self, 'scriptname'), f'No scriptname set.'
+        clamped_from = None
         if kwargs.get('single_cpu_only', False):
             use_cpu_count = 1
         elif kwargs.get('local_execution_only', False):
-            use_cpu_count = min(self.local_ncpus, self.ncpus)
+            # A non-periodic stage (a vacuum minimization) is small and short, so a multi-node
+            # launch costs more in communication than it gains in cores -- but on a multi-node
+            # allocation the clamp leaves the other nodes idle, and it silently contradicts an
+            # explicit --ncpus.  Keep the clamp, say so, and let a config turn it off: 2 of the
+            # 215 launches of one membrane build ran at 48 of 192 PEs, and the only trace was a
+            # debug line, which cost an audit of the whole log to explain.
+            if self.namd_config.get('vacuum-runs-single-node', True):
+                use_cpu_count = min(self.local_ncpus, self.ncpus)
+                # reported below, once the launcher is known: srun takes its rank count from the
+                # allocation and ignores this number entirely, so announcing a clamp there would
+                # describe something that did not happen
+                clamped_from = self.ncpus if use_cpu_count < self.ncpus else None
+            else:
+                use_cpu_count = self.ncpus
+                logger.debug('non-periodic system, but vacuum-runs-single-node is false: using '
+                             f'all {use_cpu_count} PEs')
         else:
             use_cpu_count = self.ncpus
         if kwargs.get('single_gpu_only', False):
@@ -348,6 +364,9 @@ class NAMDScripter(TcLScripter):
             use_gpu_count = self.ngpus
             use_gpu_devices = self.gpu_devices
         logger.debug(f'NAMD using {use_cpu_count} PE(s)')
+        # Set by the launcher branches below: srun spawns one rank per allocated SLURM task and
+        # never sees use_cpu_count, so it cannot be clamped.
+        honors_pe_count = True
         # Whether NAMD will run entirely on a single node. Node-local parameter staging
         # ($TMPDIR scratch) is only valid in that case; a multi-node launch must read the
         # parameter files from the shared filesystem visible to every node.
@@ -372,6 +391,7 @@ class NAMDScripter(TcLScripter):
                     mpi_flag = f'--mpi={mpi_type} ' if mpi_type else ''
                     c = Command(f'srun {mpi_flag}{self.namd} {self.scriptname}')
                     self._single_node_launch = False
+                    honors_pe_count = False
                 elif launcher == 'mpirun':
                     # MPI build launched by the MPI runtime's own process manager (e.g. Intel
                     # MPI Hydra), which reads the SLURM allocation to place ranks across nodes.
@@ -399,6 +419,10 @@ class NAMDScripter(TcLScripter):
             else:
                 pmepes_flag = ''
             c = Command(f'{self.namdgpu} +p{use_cpu_count} {pmepes_flag}+setcpuaffinity +devices {use_gpu_devices} {self.scriptname}')
+        if clamped_from and honors_pe_count:
+            logger.info(f'non-periodic system: single-node launch on {use_cpu_count} of '
+                        f'{clamped_from} PEs (set namd: vacuum-runs-single-node: false to use the '
+                        f'whole allocation)')
         return c
 
     def runscript(self, **kwargs):

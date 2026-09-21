@@ -26,7 +26,7 @@ class TestNAMDLaunchCommand(unittest.TestCase):
     """
 
     def _make_scripter(self, *, slurmvars, launcher='auto', ncpus=192,
-                       namd_type='cpu'):
+                       namd_type='cpu', namd_config=None):
         p = NAMDScripter.__new__(NAMDScripter)
         p.scriptname = 'job.namd'
         p.namd = 'namd3'
@@ -39,6 +39,7 @@ class TestNAMDLaunchCommand(unittest.TestCase):
         p.gpu_devices = ''
         p.slurmvars = slurmvars
         p.namd_config = {'cpu-parallel-launcher': launcher}
+        p.namd_config.update(namd_config or {})
         return p
 
     def test_no_slurm_uses_charmrun(self):
@@ -119,6 +120,63 @@ class TestNAMDLaunchCommand(unittest.TestCase):
         c = p._build_launch_command()
         self.assertEqual(c.command, 'srun namd3 job.namd')
         self.assertFalse(p._single_node_launch)
+
+
+class TestVacuumRunPECount(unittest.TestCase):
+    """A stage with no periodic cell is clamped to one node's cores, and must say so.
+
+    Keeping the clamp is right -- these stages are small and short, and more ranks would cost more
+    in communication than they gain -- but on a 4-node allocation it leaves three nodes idle and
+    contradicts an explicit --ncpus.  One membrane build ran 2 of its 215 launches at 48 of 192
+    PEs with only a debug line to show for it, and explaining that took an audit of the whole log.
+    """
+
+    def _scripter(self, launcher='mpirun', **kw):
+        # mpirun, not srun: srun takes its rank count from the SLURM allocation and never sees
+        # the PE count, so the clamp cannot reach it (see test_srun_is_not_clamped_at_all)
+        return TestNAMDLaunchCommand._make_scripter(
+            TestNAMDLaunchCommand(), slurmvars={'SLURM_NNODES': '4',
+                                                'SLURM_NTASKS_PER_NODE': '48'},
+            launcher=launcher, **kw)
+
+    def test_the_clamp_is_reported_when_it_bites(self):
+        p = self._scripter()
+        with self.assertLogs('pestifer.scripters.namd', level='INFO') as cm:
+            p._build_launch_command(local_execution_only=True)
+        out = ''.join(cm.output)
+        self.assertIn('48 of 192 PEs', out)
+        self.assertIn('vacuum-runs-single-node', out)
+
+    def test_the_clamp_bites_on_a_launcher_that_takes_a_pe_count(self):
+        p = self._scripter()
+        self.assertEqual(p._build_launch_command(local_execution_only=True).command,
+                         'mpirun -np 48 namd3 job.namd')
+
+    def test_the_clamp_can_be_turned_off(self):
+        p = self._scripter(namd_config={'vacuum-runs-single-node': False})
+        with self.assertNoLogs('pestifer.scripters.namd', level='INFO'):
+            c = p._build_launch_command(local_execution_only=True)
+        self.assertEqual(c.command, 'mpirun -np 192 namd3 job.namd')
+
+    def test_srun_is_not_clamped_at_all(self):
+        """srun spawns one rank per allocated task, so the PE count never reaches it -- claiming
+        a clamp there would report something that did not happen."""
+        p = self._scripter(launcher='srun')
+        with self.assertNoLogs('pestifer.scripters.namd', level='INFO'):
+            c = p._build_launch_command(local_execution_only=True)
+        self.assertEqual(c.command, 'srun namd3 job.namd')
+
+    def test_a_single_node_allocation_is_silent(self):
+        # nothing is being clamped away there, so there is nothing to explain
+        p = self._scripter(ncpus=48)
+        with self.assertNoLogs('pestifer.scripters.namd', level='INFO'):
+            p._build_launch_command(local_execution_only=True)
+
+    def test_a_periodic_stage_uses_the_whole_allocation(self):
+        p = self._scripter()
+        with self.assertNoLogs('pestifer.scripters.namd', level='INFO'):
+            c = p._build_launch_command()
+        self.assertEqual(c.command, 'mpirun -np 192 namd3 job.namd')
 
 
 class TestConsolidateParams(unittest.TestCase):
