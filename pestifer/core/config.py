@@ -437,14 +437,23 @@ class Config(Yclept):
         if verify_access:
             self._verify_catdcd_version()
 
-        namd3_path = self.shell_commands['namd3']
+        # Decide CPU vs GPU from the CONFIGURED names, not from what they resolved to.  The test
+        # for "the user named no separate GPU binary" is `paths.namd3gpu == paths.namd3`, and both
+        # default to 'namd3'; comparing a resolved or inherited absolute namd3 against the default
+        # made them differ, so `auto` found a "GPU binary" on PATH and emitted +devices to a CPU
+        # build.  The integration gate caught that before it shipped.
+        namd3_path = self['user']['paths']['namd3']
         namd3gpu_path = self['user']['paths']['namd3gpu']
         processor_type = self['user']['namd'].get('processor-type', 'auto')
         if processor_type not in ('auto', 'cpu', 'gpu'):
             logger.warning(f'namd.processor-type {processor_type!r} not recognized; using \'auto\'.')
             processor_type = 'auto'
-        self.namd_type, self.shell_commands['namd3gpu'] = \
+        self.namd_type, chosen_gpu_cmd = \
             self._resolve_namd_type(processor_type, namd3_path, namd3gpu_path)
+        # ...but launch what we resolved: when the choice is namd3 itself, that is the resolved or
+        # inherited path, not the bare name the decision was made on.
+        self.shell_commands['namd3gpu'] = (self.shell_commands['namd3']
+                                           if chosen_gpu_cmd == namd3_path else chosen_gpu_cmd)
         if self.namd_type == 'gpu' and verify_access:
             namd3gpu_resolved = shutil.which(self.shell_commands['namd3gpu'])
             if namd3gpu_resolved:

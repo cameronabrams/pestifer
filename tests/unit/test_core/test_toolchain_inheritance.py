@@ -61,8 +61,8 @@ class TestToolchainInheritance(unittest.TestCase):
     def tearDown(self):
         Config._resolved_toolchain = self._saved
 
-    def _resolve(self, paths, verify_access=True):
-        c = _Cfg(dict(paths))
+    def _resolve(self, paths, verify_access=True, processor_type='cpu'):
+        c = _Cfg(dict(paths), namd={'processor-type': processor_type})
         with mock.patch('shutil.which', _which), \
              mock.patch.object(os, 'access', return_value=True):
             c._set_shell_commands(verify_access=verify_access)
@@ -90,6 +90,32 @@ class TestToolchainInheritance(unittest.TestCase):
         c = self._resolve(DEFAULT_PATHS)
         self.assertEqual(c.shell_commands['namd3'], '/opt/bin/namd3')
         self.assertEqual(c.shell_commands['charmrun'], '/opt/bin/charmrun')
+
+    def test_an_inherited_namd3_does_not_turn_on_gpu_mode(self):
+        """The regression the integration gate caught before 3.23.0 shipped.
+
+        `auto` decides there is a separate GPU binary when `paths.namd3gpu != paths.namd3`, and
+        both default to 'namd3'.  Comparing a RESOLVED namd3 against that default made them
+        differ, so a CPU box resolved to GPU mode and NAMD was launched with +devices, which it
+        rejects outright ("Unknown command-line option +devices").
+        """
+        self._resolve({**DEFAULT_PATHS, 'namd3': '/ifs/group/namd3'}, processor_type='auto')
+        nested = self._resolve(DEFAULT_PATHS, verify_access=False, processor_type='auto')
+        self.assertEqual(nested.namd_type, 'cpu')
+        self.assertEqual(nested.shell_commands['namd3gpu'], nested.shell_commands['namd3'])
+
+    def test_a_plain_config_on_defaults_is_still_cpu(self):
+        c = self._resolve(DEFAULT_PATHS, processor_type='auto')
+        self.assertEqual(c.namd_type, 'cpu')
+
+    def test_a_real_separate_gpu_binary_is_still_honoured(self):
+        WHICH['namd3gpu'] = '/opt/bin/namd3gpu'
+        try:
+            c = self._resolve({**DEFAULT_PATHS, 'namd3gpu': 'namd3gpu'}, processor_type='auto')
+            self.assertEqual(c.namd_type, 'gpu')
+            self.assertEqual(c.shell_commands['namd3gpu'], '/opt/bin/namd3gpu')
+        finally:
+            WHICH.pop('namd3gpu', None)
 
     def test_a_post_processing_config_does_not_publish_a_toolchain(self):
         # verify_access=False is a standalone subcommand, not a build; it must not overwrite what a
