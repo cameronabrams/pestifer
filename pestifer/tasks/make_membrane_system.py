@@ -931,6 +931,17 @@ class MakeMembraneSystemTask(BaseTask):
             if key is None:
                 continue
             specs = stage[key]
+            # A relaxation-protocol stage is written against the protocol's own `md` schema, which
+            # has no `minimize` key and documents `nsteps` as the minimization step count.  The
+            # stage is then run by a real `md` task, whose schema has both and defaults `minimize`
+            # to 1000 -- so `{ensemble: minimize, nsteps: 20000}` silently ran 1000 steps, and the
+            # step count could not be set at all from a protocol.  A 536k-atom quilt got the same
+            # 1000 steps as a 49k-atom patch and came out un-minimized enough to fail RATTLE on the
+            # NVT after it (reported 2026-09-22).  Translate here, where the stage is still the
+            # user's own dict and an absent `minimize` still means absent.
+            if key == 'md' and str(specs.get('ensemble', '')).casefold() == 'minimize' \
+                    and 'minimize' not in specs and specs.get('nsteps'):
+                specs['minimize'] = specs.pop('nsteps')
             specs['addl_paramfiles'] = bilayer.addl_streamfiles
             other = specs.setdefault('other_parameters', {})
             if is_gpu and other.get('pressureProfile'):

@@ -91,6 +91,10 @@ class Config(Yclept):
         how independent replicas of one system are generated: same config, different seed.
     """
 
+    #: Commands the last real build in this process resolved, for a nested build to adopt when its
+    #: own ``paths`` are still at their defaults.  See :meth:`_set_shell_commands`.
+    _resolved_toolchain: dict = {}
+
     def __init__(self, userfile='', userdict={}, quiet=False, RM: ResourceManager = None, basefile: str = '', ncpus_override: int = 0,
                  processor_type_override: str = '', seed_override: int = None):
         self.userfile = userfile
@@ -259,6 +263,44 @@ class Config(Yclept):
             candidates.append(os.cpu_count() or 1)
         return min(candidates)
 
+    def _allocation_ncpus(self, nnodes: int) -> int:
+        """Cores across the WHOLE SLURM allocation, not just this node.
+
+        ``_usable_ncpus`` is deliberately per-node: it feeds NAMD's ``+p`` for a single-node
+        multicore launch.  The auto-detected PE count is a different quantity -- how many ranks a
+        multi-node launcher should start -- and taking the per-node number for it silently ran a
+        4-node job on one node's worth of cores.  That is what happened between 3.22.2 and 3.22.9:
+        an 8-node allocation that reported 384 PEs under 3.21.0 reported 48, and a 25-hour
+        equilibration ran on 48 of 192 cores (reported 2026-09-22).
+
+        ``SLURM_JOB_CPUS_PER_NODE`` is the scheduler's own per-node breakdown of the allocation
+        (``48(x4)``, or ``72,48(x2)`` for a heterogeneous one), so it is read first and summed;
+        failing that, this node's count times the node count.
+        """
+        raw = self.slurmvars.get('SLURM_JOB_CPUS_PER_NODE', '')
+        total = 0
+        for group in raw.split(','):
+            group = group.strip()
+            if not group:
+                continue
+            count, _, mult = group.partition('(x')
+            try:
+                n = int(count)
+                reps = int(mult.rstrip(')')) if mult else 1
+            except ValueError:
+                logger.debug(f'SLURM_JOB_CPUS_PER_NODE={raw!r} is not parseable; ignoring')
+                total = 0
+                break
+            total += n * reps
+        if total > 0:
+            return total
+        per_node = self.slurmvars.get('SLURM_CPUS_ON_NODE')
+        try:
+            per_node = int(per_node)
+        except (TypeError, ValueError):
+            per_node = self.local_ncpus
+        return max(1, per_node) * max(1, nnodes)
+
     def _set_processor_info(self):
         """ 
         Determine the number of CPUs and GPUs available for this process.
@@ -283,8 +325,12 @@ class Config(Yclept):
         in_slurm = bool(self.slurmvars) and 'SLURM_JOB_ID' in self.slurmvars
         if in_slurm:
             nnodes = int(self.slurmvars.get('SLURM_NNODES', 1))
-            ncpus = self.local_ncpus
-            retstr += f'SLURM: {nnodes} node{"s" if nnodes > 1 else ""}; {ncpus} cpus'
+            ncpus = self._allocation_ncpus(nnodes)
+            retstr += f'SLURM: {nnodes} node{"s" if nnodes > 1 else ""}; {self.local_ncpus} cpus'
+            if nnodes > 1:
+                # name both numbers: the per-node one alone read as the whole allocation, and
+                # nothing downstream said otherwise
+                retstr += f'/node, {ncpus} total'
             if 'SLURM_JOB_GPUS' in self.slurmvars:
                 self.gpu_devices = self.slurmvars['SLURM_JOB_GPUS']
                 self.ngpus = len([g for g in self.gpu_devices.split(',') if g])
@@ -327,6 +373,15 @@ class Config(Yclept):
         command is missing when used (see e.g. ``DesolvateTask``).
         """
         required_commands = ['charmrun', 'namd3', 'vmd', 'catdcd']
+        # A build that generates a missing PDB-repository entry runs a whole nested pipeline in
+        # this same process, and that pipeline builds its Config from defaults -- so it resolved
+        # `namd3` and `charmrun` off PATH while the parent used the absolute paths the user
+        # configured.  On a node whose PATH led somewhere else that ran a DIFFERENT NAMD: a
+        # multicore-CUDA build served a CPU-only job and died with "no CUDA-capable device is
+        # detected" (reported 2026-09-22).  A command still at its schema default (the bare name)
+        # therefore adopts what this process already resolved; a command the user named explicitly
+        # is never overridden.
+        inherited = Config._resolved_toolchain
         # Resolved and made available, but never required: a command only some subcommand needs.
         # Requiring `obabel` would break every build for the majority who never run
         # `make-ligand-mol2`, and that subcommand already fails loudly and by name when it is
@@ -342,6 +397,9 @@ class Config(Yclept):
 
         for rq in required_commands:
             self.shell_commands[rq] = self['user']['paths'][rq]
+            if self.shell_commands[rq] == rq and inherited.get(rq):
+                logger.debug(f'{rq}: inheriting {inherited[rq]} from this process\'s build')
+                self.shell_commands[rq] = inherited[rq]
             rq_resolved = shutil.which(self.shell_commands[rq])
             if not rq_resolved and rq in command_alternates:
                 rqalt = command_alternates[rq]
@@ -393,6 +451,27 @@ class Config(Yclept):
                 assert os.access(namd3gpu_resolved, os.X_OK), f'You do not have permission to execute {namd3gpu_resolved}'
         self._report_gpu_mode()
         self.namd_deprecates = self['user']['namd']['deprecated3']
+
+        # Launch by the path that was resolved, not by the name.  The startup banner already
+        # prints the absolute path it found, which reads as a guarantee about what will run -- and
+        # it was not one: a launcher that re-resolves a bare name on a compute node (mpirun does)
+        # can find a different binary earlier on that node's PATH.  A multicore-CUDA NAMD pinned in
+        # a user's ~/.bashrc ran a CPU-only job that way and died with "no CUDA-capable device is
+        # detected" (reported 2026-09-22).  Done after the namd3/namd3gpu comparison above, which
+        # compares the names as configured.
+        # Only the commands a *remote* launcher re-resolves: NAMD and charmrun are started on a
+        # compute node by mpirun/srun/charmrun, which look the name up in that node's PATH.  vmd,
+        # catdcd and obabel run here, in this process's own environment, and stay as configured --
+        # `paths.obabel` naming a bare command is a documented contract.
+        for name in ('namd3', 'namd3gpu', 'charmrun'):
+            cmd = self.shell_commands.get(name)
+            resolved = shutil.which(cmd) if cmd else None
+            if resolved and resolved != cmd:
+                logger.debug(f'{name}: will launch as {resolved}')
+                self.shell_commands[name] = resolved
+        if verify_access:
+            # this is a real build's toolchain; a nested build in the same process adopts it
+            Config._resolved_toolchain = dict(self.shell_commands)
 
     def _verify_catdcd_version(self):
         """Refuse a ``catdcd`` older than :data:`MIN_CATDCD_VERSION`.

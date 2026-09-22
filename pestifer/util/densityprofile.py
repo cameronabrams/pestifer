@@ -46,8 +46,33 @@ _SPECIES_STYLE = {
     'water':   dict(color='#1f77b4', lw=1.8),
     'lipid':   dict(color='#d62728', lw=1.8),
     'protein': dict(color='#2ca02c', lw=1.8),
+    'glycan':  dict(color='#9467bd', lw=1.6),
     'ion':     dict(color='#7f7f7f', lw=1.4),
 }
+
+#: The canonical species, in plotting order.
+SPECIES = ('water', 'lipid', 'protein', 'glycan', 'ion')
+
+
+def _glycan_resnames():
+    """Residue names pestifer classifies as glycan, from its own force-field tables.
+
+    Loaded lazily and cached: this module is importable without the rest of pestifer, and a
+    caller that passes its own ``glycan`` set never pays for the lookup.
+    """
+    global _GLYCAN_RESNAMES
+    if _GLYCAN_RESNAMES is None:
+        try:
+            from ..core.labels import Labels
+            _GLYCAN_RESNAMES = frozenset(
+                r for r, seg in Labels.segtype_of_resname.items() if seg == 'glycan')
+        except Exception as exc:       # pragma: no cover - a broken install, not a code path
+            logger.debug(f'could not load glycan resnames ({exc}); glycans will read as lipid')
+            _GLYCAN_RESNAMES = frozenset()
+    return _GLYCAN_RESNAMES
+
+
+_GLYCAN_RESNAMES = None
 
 
 def _parse_psf(path):
@@ -114,8 +139,16 @@ def _parse_xsc_cell(path):
 
 
 def classify_species(resnames, water=WATER_RESNAMES, ions=ION_RESNAMES,
-                     protein=PROTEIN_RESNAMES):
-    """Map an array of residue names to ``water``/``ion``/``protein``/``lipid``."""
+                     protein=PROTEIN_RESNAMES, glycan=None):
+    """Map an array of residue names to ``water``/``ion``/``protein``/``glycan``/``lipid``.
+
+    Everything unrecognized still falls to ``lipid``, which is right for a membrane build's own
+    species but was wrong for glycans: every sugar residue of a glycosylated protein counted as a
+    lipid, so an Env trimer's glycans inflated the post-embed lipid count (+450 on one system) and
+    the lipid density curve, and fed a biased APL to the convergence gate (reported 2026-09-22).
+    The glycan set comes from pestifer's own force-field tables unless one is passed.
+    """
+    glycans = _glycan_resnames() if glycan is None else glycan
     cls = np.empty(len(resnames), dtype=object)
     for i, r in enumerate(resnames):
         if r in water:
@@ -124,6 +157,8 @@ def classify_species(resnames, water=WATER_RESNAMES, ions=ION_RESNAMES,
             cls[i] = 'ion'
         elif r in protein:
             cls[i] = 'protein'
+        elif r in glycans:
+            cls[i] = 'glycan'
         else:
             cls[i] = 'lipid'
     return cls
@@ -143,7 +178,7 @@ class DensityProfile:
         """Return ``(z_centers, profiles)`` with the midplane at ``z=0``.
 
         ``profiles`` is an ordered dict ``label -> rho(z)`` in g/cm^3.  The
-        canonical species present (water, lipid, protein, ion) are always
+        canonical species present (water, lipid, protein, glycan, ion) are always
         included; when ``lipid_components`` is True the individual lipid
         residue names are added after the total lipid curve.
         """
@@ -166,7 +201,7 @@ class DensityProfile:
             return hist / slab_vol * AMU_PER_A3_TO_G_PER_CC
 
         profiles = {}
-        for species in ('water', 'lipid', 'protein', 'ion'):
+        for species in SPECIES:
             mask = self.cls == species
             if mask.any():
                 profiles[species] = density(mask)

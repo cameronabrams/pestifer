@@ -521,6 +521,27 @@ class TestMembraneLeafletGeometry(unittest.TestCase):
         self.assertAlmostEqual(g.apl_lower(A), (600.0 - 25.0) / 3, places=4)
         self.assertLess(g.apl_mean(A), A / 3)   # naive per-leaflet would be 200
 
+    def test_glycans_are_not_counted_as_lipids(self):
+        """Every unrecognized residue used to fall to 'lipid', so a glycosylated protein's sugars
+        counted as lipids: the post-embed lipid count rose by +450 on one Env system, and the same
+        inflated count divides the box area into the APL the convergence gate tests."""
+        atoms = self._synthetic()
+        # a glycan branch sitting in the upper leaflet slab, as an N-glycan on a TM protein does
+        # 4-character names only: this helper writes fixed-column PDB, where a 6-character CHARMM
+        # carbohydrate name (BGLCNA) would shift the coordinate columns -- the same overflow that
+        # corrupts a real wide PDB.  A real run reads coordinates from a binary .coor and names
+        # from the PSF, neither of which is column-limited.
+        for r, resname in enumerate(['AMAN', 'BMAN', 'AFUC', 'BGAL'], start=1):
+            atoms.append(('GLY1', str(r), resname, 'C1', 12.0, 20.0, 20.0, 8.0))
+        with tempfile.TemporaryDirectory() as d:
+            psf, pdb = os.path.join(d, 's.psf'), os.path.join(d, 's.pdb')
+            _write_psf_pdb(psf, pdb, atoms)
+            g = membrane_leaflet_geometry(psf, pdb)
+        self.assertEqual((g.n_lower, g.n_upper), (3, 3), 'glycans counted as lipids')
+        self.assertEqual(g.n_lipids_total, 6)
+        # and they do not join the protein hull either: the upper footprint is the 10x10 square
+        self.assertAlmostEqual(g.a_prot_upper, 100.0, places=4)
+
     def test_degenerate_footprint_is_zero(self):
         # drop the lower protein square -> fewer than 3 atoms in that leaflet -> 0 footprint
         atoms = [a for a in self._synthetic() if not (a[0] == 'PROT' and a[1] == '2')]

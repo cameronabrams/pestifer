@@ -774,6 +774,54 @@ class TestMembraneSpansProteinGuard(unittest.TestCase):
         t._verify_membrane_spans_protein()             # no raise, no warning needed
 
 
+class TestProtocolMinimizeStepCount(unittest.TestCase):
+    """`nsteps` on a protocol `minimize` stage must actually set the minimization length.
+
+    The protocol schema has no `minimize` key and says `nsteps` means "minimization steps if
+    ensemble is minimize"; the md task that runs the stage has both, and defaults `minimize` to
+    1000.  So the count could not be set from a protocol at all: a 536k-atom quilt got the same
+    1000 steps as a 49k-atom calibration patch and failed RATTLE on the NVT after it.
+    """
+
+    def _expanded(self, protocol):
+        t = _task(provisions={'processor-type': 'cpu'}, substage_outcomes=[], basename='mms')
+        t.next_basename = mock.Mock()
+        t.get_current_artifact = lambda key: mock.Mock()
+        t._guard_pierced_lipids = lambda p: p
+        t.import_artifacts = mock.Mock()
+        t._relaxed_area_drift = mock.Mock(return_value=None)
+        sent = {}
+        sub = mock.Mock(config={'user': {}})
+
+        def reconfigure(tasklist):
+            sent['tasklist'] = tasklist
+            sub.tasks = [mock.Mock(taskname=next(iter(d)), outcome={}) for d in tasklist]
+            for task in sub.tasks:
+                task.get_current_artifact = lambda key: mock.Mock()
+
+        sub.reconfigure_tasks.side_effect = reconfigure
+        sub.do_tasks.side_effect = lambda: None
+        t.subcontroller = sub
+        with mock.patch.object(MMS, '_cell_or_raise',
+                               return_value=([[10, 0, 0], [0, 10, 0], [0, 0, 10]], [0, 0, 0])):
+            t.equilibrate_bilayer(mock.Mock(area=100.0, addl_streamfiles=[]), 'quilt', protocol)
+        return [d['md'] for d in sent['tasklist'] if 'md' in d]
+
+    def test_nsteps_sets_the_minimization_length(self):
+        stages = self._expanded([{'md': {'ensemble': 'minimize', 'nsteps': 20000}}])
+        self.assertEqual(stages[0].get('minimize'), 20000)
+        self.assertNotIn('nsteps', stages[0], 'nsteps would be run as MD steps as well')
+
+    def test_an_explicit_minimize_is_left_alone(self):
+        stages = self._expanded([{'md': {'ensemble': 'minimize', 'minimize': 7, 'nsteps': 20000}}])
+        self.assertEqual(stages[0].get('minimize'), 7)
+
+    def test_a_dynamics_stage_keeps_its_nsteps(self):
+        stages = self._expanded([{'md': {'ensemble': 'NVT', 'nsteps': 1000}}])
+        self.assertEqual(stages[0].get('nsteps'), 1000)
+        self.assertNotIn('minimize', stages[0])
+
+
 class TestRelaxationStagesReachTheRunRecord(unittest.TestCase):
     """A membrane build's relaxation MD runs through a subcontroller whose task list is replaced on
     every ``equilibrate_bilayer`` call.  The stages' outcomes -- including an adaptive stage that

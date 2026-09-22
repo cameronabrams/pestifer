@@ -4,6 +4,30 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **SLURM auto-detection read one node's cores, not the allocation's** (regression since
+  3.22.2). A 4-node job auto-detected 48 PEs instead of 192 and ran a 25-hour equilibration on one
+  node; the banner said "48 cpus" and nothing said otherwise. The PE count now comes from
+  `SLURM_JOB_CPUS_PER_NODE` (summed across the allocation, heterogeneous ones included), falling
+  back to nodes x this node's count, and a multi-node banner prints both numbers. `--ncpus` was and
+  remains a working override; the per-node count still feeds NAMD's `+p`.
+- fix: **pestifer launches the NAMD it resolved, not the name it was given.** The startup banner
+  printed an absolute path while the launch used the bare name, which `mpirun` re-resolves on the
+  compute node -- so a multicore-CUDA build earlier on that node's PATH ran a CPU-only job and died
+  with "no CUDA-capable device is detected". Commands now launch by their resolved path, and a
+  nested build (the pipeline that generates a missing PDB-repository entry) inherits the toolchain
+  this process already resolved instead of re-resolving bare names off PATH.
+- fix: **`nsteps` now sets the minimization length in a relaxation protocol.** The protocol `md`
+  schema has no `minimize` key and documents `nsteps` as covering it; the stage is run by an `md`
+  task whose own schema defaults `minimize` to 1000, so the count could not be set from a protocol
+  at all -- a 536k-atom quilt got the same 1000 steps as a 49k-atom patch and came out of it
+  un-minimized enough to fail RATTLE on the NVT after it.
+- fix: **glycans are no longer counted as lipids.** `classify_species` fell everything unrecognized
+  through to `lipid`, so a glycosylated protein's sugars counted as lipids: an Env trimer's
+  post-embed lipid count rose by +450 over what was gridded, and that inflated count divides the box
+  area into the APL the membrane convergence gate tests. Glycans are now their own species, named
+  from pestifer's own force-field tables, and appear as their own curve in a density profile rather
+  than inside the lipid one.
+
 - fix: **example 17's two pre-embed membrane budgets go to 2,500,000 steps each.** The 3.22.8 sweep
   cut ceiling hits from 6 to 1, and inverted the reasoning behind the 3.22.8 numbers: the quilt,
   read as furthest from settling, converged in all three replicas -- but its slowest took 1,455,700

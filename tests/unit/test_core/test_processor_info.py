@@ -86,6 +86,56 @@ class TestSlurmGpuCount(unittest.TestCase):
     def test_one_gpu_is_counted_as_one(self):
         self.assertEqual(self._run_under_slurm('0'), (1, '0'))
 
+    def _banner(self, env, affinity=48, cpu_count=48):
+        c = Config.__new__(Config)
+        c.data = {'user': {'namd': {'ncpus': 0}}}
+        c.ncpus_override = 0
+        with mock.patch.dict(os.environ, env, clear=True):
+            with mock.patch.object(os, 'sched_getaffinity', return_value=set(range(affinity))), \
+                 mock.patch.object(os, 'cpu_count', return_value=cpu_count):
+                retstr = c._set_processor_info()
+        return c, retstr
+
+    def test_a_multi_node_allocation_counts_every_node(self):
+        """The regression this exists for: from 3.22.2 the auto-detected count was one node's
+        worth, so a 4-node job ran a 25-hour equilibration on 48 of 192 cores with the banner
+        reporting "48 cpus" and nothing saying otherwise."""
+        c, retstr = self._banner({'SLURM_JOB_ID': '1', 'SLURM_NNODES': '4',
+                                  'SLURM_CPUS_ON_NODE': '48',
+                                  'SLURM_JOB_CPUS_PER_NODE': '48(x4)'})
+        self.assertEqual(c.ncpus, 192, f'got {retstr!r}')
+        self.assertEqual(c.local_ncpus, 48, 'the per-node count still feeds +p')
+        self.assertIn('192 total', retstr)
+
+    def test_a_heterogeneous_allocation_sums_its_groups(self):
+        c, _ = self._banner({'SLURM_JOB_ID': '1', 'SLURM_NNODES': '3',
+                             'SLURM_JOB_CPUS_PER_NODE': '72,48(x2)'})
+        self.assertEqual(c.ncpus, 168)
+
+    def test_cpus_per_task_does_not_shrink_the_allocation(self):
+        """--cpus-per-task=1 made the banner read "1 cpus"; the allocation is still 2x48."""
+        c, retstr = self._banner({'SLURM_JOB_ID': '1', 'SLURM_NNODES': '2',
+                                  'SLURM_CPUS_PER_TASK': '1', 'SLURM_CPUS_ON_NODE': '48',
+                                  'SLURM_JOB_CPUS_PER_NODE': '48(x2)'})
+        self.assertEqual(c.ncpus, 96, f'got {retstr!r}')
+
+    def test_an_unparseable_breakdown_falls_back_to_nodes_times_node_count(self):
+        c, _ = self._banner({'SLURM_JOB_ID': '1', 'SLURM_NNODES': '2',
+                             'SLURM_CPUS_ON_NODE': '48',
+                             'SLURM_JOB_CPUS_PER_NODE': 'garbage'})
+        self.assertEqual(c.ncpus, 96)
+
+    def test_an_explicit_ncpus_still_wins(self):
+        c = Config.__new__(Config)
+        c.data = {'user': {'namd': {'ncpus': 0}}}
+        c.ncpus_override = 480
+        env = {'SLURM_JOB_ID': '1', 'SLURM_NNODES': '10', 'SLURM_JOB_CPUS_PER_NODE': '48(x10)'}
+        with mock.patch.dict(os.environ, env, clear=True):
+            with mock.patch.object(os, 'sched_getaffinity', return_value=set(range(48))):
+                retstr = c._set_processor_info()
+        self.assertEqual(c.ncpus, 480)
+        self.assertIn('override', retstr)
+
     def test_cpus_come_from_the_allocation_not_the_node(self):
         c = Config.__new__(Config)
         c.data = {'user': {'namd': {'ncpus': 0}}}
