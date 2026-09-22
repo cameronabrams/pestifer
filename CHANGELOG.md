@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.22.9] - 2026-09-21
+
 - fix: **a build needing an uncached conformer set could not start inside a SLURM job.** A leaflet
   phase with no cached ensemble (`lower_leaflet_phase: Lo`) makes pestifer build one, as a
   single-molecule vacuum run already marked `single-core`. The PE count was honored but the
