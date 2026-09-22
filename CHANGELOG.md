@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.23.0] - 2026-09-22
+
 - fix: **SLURM auto-detection read one node's cores, not the allocation's** (regression since
   3.22.2). A 4-node job auto-detected 48 PEs instead of 192 and ran a 25-hour equilibration on one
   node; the banner said "48 cpus" and nothing said otherwise. The PE count now comes from
