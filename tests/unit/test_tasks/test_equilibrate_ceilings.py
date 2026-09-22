@@ -20,6 +20,11 @@ EXAMPLES = os.path.join(os.path.dirname(pestifer.__file__), 'resources', 'exampl
 #: Longest converging density_equilibrate run in the 3.22.1 sweep, in steps (ex24/rep-03, acetone).
 SLOWEST_OBSERVED_CONVERGENCE = 227000
 
+#: Longest converging pre-embed membrane_equilibrate stage, in steps: ex17/rep-01's quilt in the
+#: 3.22.8 sweep, which finished at 1,455,700 of the 1,500,000 it had been given -- 3% headroom.
+#: Its sibling replicas took 704,400 and 600,080, so the budget has to cover the outlier.
+SLOWEST_OBSERVED_MEMBRANE_CONVERGENCE = 1455700
+
 
 def _find(node, name, type_='dict'):
     """The first schema node with this ``name`` (and ``type``), depth first."""
@@ -83,9 +88,20 @@ class TestExampleCeilings(unittest.TestCase):
         self.assertEqual(len(ceilings), 1)
         self.assertGreater(ceilings[0], 2 * SLOWEST_OBSERVED_CONVERGENCE)
 
-    def test_the_asymmetric_membrane_pre_embed_stages_clear_800000(self):
-        # both pre-embed stages (calibration patch, quilt) hit 800000 unconverged in the sweep;
-        # the post-embed stage converged there and is left alone
+    def test_the_asymmetric_membrane_pre_embed_stages_clear_the_slowest_replica(self):
+        """Both pre-embed stages must have room for ex17's slow replica, not its median one.
+
+        3.22.1: both hit 800000.  3.22.8 raised them to 1,200,000 (patch) and 1,500,000 (quilt) and
+        the prediction inverted -- the quilt, thought furthest from settling, converged at
+        1,455,700, while the patch, thought nearly fixed, hit its new ceiling.  Across replicas that
+        patch spans 236,870 / 372,360 / >1,200,000, so a budget sized on the median is a budget that
+        fails one build in three.
+        """
         cfg = self._example('17', 'hiv-mpertm3-membrane2.yaml')
-        ceilings = self._ceilings(cfg, 'membrane_equilibrate')
-        self.assertEqual(sum(1 for c in ceilings if c > 800000), 2, ceilings)
+        ceilings = sorted(self._ceilings(cfg, 'membrane_equilibrate'))
+        pre_embed = ceilings[-2:]        # the two pre-embed stages; the post-embed one converges low
+        for c in pre_embed:
+            self.assertGreater(c, 1.5 * SLOWEST_OBSERVED_MEMBRANE_CONVERGENCE, ceilings)
+        self.assertEqual(pre_embed[0], pre_embed[1],
+                         'the patch and quilt budgets are matched so neither is the one that runs '
+                         f'out first: {ceilings}')

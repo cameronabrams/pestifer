@@ -339,3 +339,27 @@ Do **not** meet these by loosening `area_plateau_tol`: the plateau gate is what 
 relies on to trust a calibrated APL, and its tolerance is the same 0.005 as the grid-sizing
 reliability check. A looser gate would hand a mis-sized APL to the grid, which is the failure the
 calibration exists to prevent.
+
+### What the 3.22.8 sweep then measured (2026-09-21)
+
+The raised budgets took the sweep from 6 ceiling hits to 1, and **inverted the reasoning above**.
+The quilt — "not a near miss ... nowhere near settled" — converged in every replica. The
+calibration patch — "still descending", read as nearly fixed — is the one that still hits.
+
+| stage | rep-01 | rep-02 | rep-03 |
+| :--- | ---: | ---: | ---: |
+| patchA | CEILING @ 1,200,000 | 372,360 | 236,870 |
+| patchB | 1,357,350 | 598,710 | 468,220 |
+| quilt | 1,455,700 | 704,400 | 600,080 |
+
+Two things to take from it, neither of which was visible at 800,000:
+
+- **The spread between replicas is the finding, not the mean.** patchA spans more than 5x. A budget
+  sized on the median fails one build in three, so these stages are budgeted for the slow replica.
+  rep-01's quilt converged with 3% headroom, which is luck, not room; both pre-embed ceilings are
+  now 2,500,000, roughly twice what that replica's slowest converging stage needed.
+- **A converged stage got much faster**, independent of the budget: rep-02's patchA now finishes in
+  372,360 steps, under half the 800,000 ceiling it used to hit. The NAMD build changed between the
+  two sweeps (icc 3.0.2 -> gcc 3.0.3, the icc build having been removed from the cluster), so speed
+  and convergence both moved for reasons outside pestifer. Do not read a step count across the two
+  sweeps as a pestifer effect.

@@ -93,12 +93,16 @@ tasks:
                 temperature: 310
                 pressure: 1.0
                 area_plateau_tol: 0.005
-                # 800000 was not enough for one replica of the 3.22.1 sweep: its plateau
-                # quarter-drift was -0.0072 against the 0.0050 tolerance at the ceiling -- still
-                # descending, not oscillating about a plateau, so the stage wanted more time
-                # rather than a looser gate (loosening it here would hand a mis-sized APL to the
-                # grid, which is the failure this whole calibration exists to prevent).
-                max_steps: 1200000
+                # This patch is the slowest-converging stage in the example and the one with the
+                # widest spread between replicas: the 3.22.8 sweep took 236,870 / 372,360 steps in
+                # two replicas and hit the 1,200,000 ceiling in the third (plateau quarter-drift
+                # -0.0057 against the 0.0050 tolerance -- still descending).  A calibration patch
+                # is area-fluctuation-limited, so a slow replica is the case to budget for, not the
+                # median one.  Sized at roughly twice what the slowest stage of that replica needed
+                # (its quilt converged at 1,455,700).  Do not meet this by loosening
+                # area_plateau_tol: the grid is sized from the APL this stage certifies, and 0.005
+                # is the same number make_membrane_system's own reliability check uses.
+                max_steps: 2500000
                 # the calibration patch has no protein and no preferred aspect; on the orthohexagonal
                 # (non-square) box, locking Lx:Ly makes the tensionless stage over-condense along the
                 # short axis instead of settling.  Let the flexible cell relax x and y independently.
@@ -119,11 +123,12 @@ tasks:
                 temperature: 310
             - membrane_equilibrate:
                 temperature: 310
-                # the other 3.22.1 sweep ceiling hit, and the worse of the two: at 800000 the
-                # quilt's lateral area was still drifting -0.033 (tolerance 0.012) with the
-                # precision gate unmet, so this leaflet pair was nowhere near settled.  The
-                # density half had converged.  Raised furthest because the area had furthest to go.
-                max_steps: 1500000
+                # At 800000 (3.22.1) this stage was still drifting -0.033 in area against a 0.012
+                # tolerance and looked the furthest from settling.  It converged in every replica of
+                # the 3.22.8 sweep -- but the slowest took 1,455,700 of the 1,500,000 it had been
+                # given, 3% headroom, which is luck rather than budget.  Matched to the patch above
+                # so neither is the one that runs out.
+                max_steps: 2500000
       embed:
         xydist: 40
         zdist: 10

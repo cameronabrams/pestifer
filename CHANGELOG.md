@@ -4,6 +4,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **example 17's two pre-embed membrane budgets go to 2,500,000 steps each.** The 3.22.8 sweep
+  cut ceiling hits from 6 to 1, and inverted the reasoning behind the 3.22.8 numbers: the quilt,
+  read as furthest from settling, converged in all three replicas -- but its slowest took 1,455,700
+  of the 1,500,000 it had, 3% headroom -- while the calibration patch, read as nearly fixed, is the
+  one that still hits at 1,200,000 (plateau quarter-drift -0.0057 against 0.0050). That patch spans
+  236,870 / 372,360 / >1,200,000 steps across replicas, so it is now budgeted for the slow replica
+  rather than the median one, and the two stages are matched so neither runs out first. Tolerances
+  untouched, as before.
+
 ## [3.22.9] - 2026-09-21
 
 - fix: **a build needing an uncached conformer set could not start inside a SLURM job.** A leaflet
