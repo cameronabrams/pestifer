@@ -12,6 +12,12 @@ This example is the same as :ref:`example mper-tm symmetric bilayer`, but uses a
 
 Because the leaflets differ in composition, the grid packer takes the asymmetric path: it first relaxes two symmetric *calibration* patches -- one per leaflet composition -- to measure each leaflet's preferred area per lipid, then grids the full membrane (sized to the protein footprint) at stress-free per-leaflet counts.
 
+**That approach has a name, and it is not new.**  Matching each leaflet to the equilibrium area of a *symmetric* bilayer of the same composition is the **SA** ("match surface areas") protocol -- one of the four in `Chaisson et al.'s <https://doi.org/10.3390/membranes13070629>`_ taxonomy (EqN, SA, 0-DS, EmBioAsym), in use since 2007 and the approach `Park, Im, and Pastor <https://doi.org/10.1016/j.bpj.2021.10.009>`_ recommend for generating initial conditions.  SA admits two realizations: stitch together leaflets lifted from the two equilibrated symmetric bilayers, or use their measured areas per lipid to compute leaflet counts and build the asymmetric bilayer from scratch.  **Pestifer does the latter.**  The calibration patches contribute their areas and nothing else -- no coordinates cross over -- which is the realization both sources prefer, because the product is then not locked to the size of the calibration cell.  That is exactly what lets the membrane here be sized to the protein's footprint while the patches stay at 100 lipids per leaflet.
+
+**Why the calibration is simulated at all.**  Areas per lipid are *not* additive in lipid mixtures, so a leaflet's preferred area cannot be computed from its composition and a table of single-lipid values.  `MemGen <https://doi.org/10.1093/bioinformatics/btv292>`_ gives that non-additivity as its reason for not building asymmetric bilayers at all (p. 2898), referring the user instead to equilibrating two symmetric systems by hand.  Pestifer's two calibration runs are what buy the measurement: each leaflet's actual mixture is simulated and its own equilibrium area read off.  That is the cost this page is mostly about, and it is the reason an asymmetric build takes a detour a symmetric one does not.
+
+**What SA does not promise.**  It sets the leaflet counts so that each leaflet sits at *its own symmetric* preferred area, which is zero differential stress only to first order: packing densities need not carry over from symmetric to asymmetric bilayers, and that is the premise the 0-DS protocol exists to avoid relying on.  Pestifer therefore treats the result as a claim to be checked -- ``diagnose_differential_stress`` measures the residual stress of the assembled membrane from its pressure profile and reports it, deliberately without rebuilding.  A build that wants a tensionless guarantee rather than a first-order construction should read that diagnostic, not the construction.
+
 Three features of that path are what make a dense, asymmetric raft build tractable.
 
 **The lattice is orthohexagonal.**  Every lipid gets six equidistant neighbors, which spreads a cholesterol-rich leaflet uniformly enough to grid near 50 :math:`Å^2` per lipid.  A square lattice puts close contacts along its diagonals at that density, which VMD mis-bonds and psfgen then "repairs" by guessing atoms onto the origin.
@@ -89,6 +95,18 @@ The ``density-profile`` subcommand produces a species-resolved mass-density prof
 .. figure:: 17-density-profile.png
 
            Per-species mass density vs distance from the bilayer midplane, with the lipid total broken out into individual components.  Generated with ``pestifer density-profile --lipid-components``.
+
+References
+++++++++++
+
+The method this example implements, and the sources for the paragraphs above:
+
+* `Building Asymmetric Lipid Bilayers for Molecular Dynamics Simulations: What Methods Exist and How to Choose One?  Chaisson, E.H., Heberle, F.A., Doktorova, M. (2023) Membranes 13(7): 629 <https://doi.org/10.3390/membranes13070629>`_ -- the review that names and compares the four protocols; section 3.2 is SA and its two realizations.
+* `Developing initial conditions for simulations of asymmetric membranes: a practical recommendation.  Park, S., Im, W., Pastor, R.W. (2021) Biophys. J. 120(22): 5041-5059 <https://doi.org/10.1016/j.bpj.2021.10.009>`_ -- recommends SA (p. 5056), and states the two realizations at p. 5047.
+* `Membrane potential and electrostatics of phospholipid bilayers with asymmetric transmembrane distribution of anionic lipids.  Gurtovenko, A.A., Vattulainen, I. (2008) J. Phys. Chem. B 112(15): 4629-4634 <https://doi.org/10.1021/jp8001993>`_ -- an early application of the approach.
+* `Behavior of Bilayer Leaflets in Asymmetric Model Membranes: Atomistic Simulation Studies.  Tian, J., Nickels, J., Katsaras, J., Cheng, X. (2016) J. Phys. Chem. B 120(33): 8438-8448 <https://doi.org/10.1021/acs.jpcb.6b02148>`_ -- builds asymmetric bilayers this way and tests the result by varying one leaflet's lipid count.
+* `Accurate in silico modeling of asymmetric bilayers based on biophysical principles.  Doktorova, M., Weinstein, H. (2018) Biophys. J. 115(9): 1638-1643 <https://doi.org/10.1016/j.bpj.2018.09.008>`_ -- the 0-DS protocol, which targets zero differential stress directly.
+* `MemGen: a general web server for the setup of lipid membrane simulation systems.  Knight, C.J., Hub, J.S. (2015) Bioinformatics 31(17): 2897-2899 <https://doi.org/10.1093/bioinformatics/btv292>`_ -- declines to automate asymmetric bilayers, and says why (p. 2898).
 
 .. raw:: html
 
