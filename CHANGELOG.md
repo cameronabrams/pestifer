@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.23.1] - 2026-09-23
+
 - fix: **node-local parameter staging served one build's parameter file to another.** The scratch
   directory is keyed by pid, which every nested PDB-repository build in a process shares, and a
   nested build restarts task numbering -- so each writes `00-01-000_md-minimize_minimal.prm`.
