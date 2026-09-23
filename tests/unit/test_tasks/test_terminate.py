@@ -208,3 +208,121 @@ class TestPackagedConfigIsSelfContained(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+#: A dihedral quartet the shipped feb26 default set defines TWICE, with different force constants:
+#: `par_all36_cgenff.prm` gives Kchi=1.25 and `toppar_all36_carb_imlab.str` appends 3.1 (derived by
+#: analogy, under a `!DNAP` label).  `merge` is last-wins, so whichever file is read last decides.
+CONFLICTED = 'NG2O1  CG2R61 CG2R61 NG2S3'
+
+_PRM = """* synthetic parameter file standing in for par_all36_cgenff.prm
+*
+
+ATOMS
+MASS  -1  NG2O1   14.00700
+MASS  -1  CG2R61  12.01100
+MASS  -1  NG2S3   14.00700
+
+DIHEDRALS
+{quartet}     1.2500   2   180.00 ! the .prm value
+
+NONBONDED
+NG2O1    0.0  -0.2000  1.8500
+CG2R61   0.0  -0.0700  1.9924
+NG2S3    0.0  -0.2000  1.8500
+
+END
+""".format(quartet=CONFLICTED)
+
+_STR = """* synthetic stream file standing in for toppar_all36_carb_imlab.str
+*
+
+read param card flex append
+* appended parameters
+*
+
+DIHEDRALS
+{quartet}     3.1000   2   180.00 ! the .str value, appended later
+
+END
+""".format(quartet=CONFLICTED)
+
+
+class TestPackagedParametersMatchWhatWasSimulated(unittest.TestCase):
+    """The consolidated ``.prm`` must resolve a duplicated term the way the NAMD run resolved it.
+
+    ``NAMDScripter`` loads ``standard['prm'] + standard['str']``; with last-wins merging the
+    stream's value is the one the system was simulated with.  ``TerminateTask`` used to merge its
+    registered artifacts first and append the standard set afterwards, so on a build with no MD
+    step -- where the standard files were never staged as artifacts -- every ``.prm`` landed after
+    the streams and the packaged file disagreed with the simulation.
+
+    No example in the suite reaches that path (configs with a ``terminate`` and no MD task: 0),
+    which is why this survived; hence a synthetic one here.
+    """
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.prm = os.path.join(self.d, 'standard.prm')
+        self.strf = os.path.join(self.d, 'appended.str')
+        with open(self.prm, 'w') as fh:
+            fh.write(_PRM)
+        with open(self.strf, 'w') as fh:
+            fh.write(_STR)
+        self.cwd = os.getcwd()
+        os.chdir(self.d)
+
+    def tearDown(self):
+        os.chdir(self.cwd)
+        shutil.rmtree(self.d, ignore_errors=True)
+
+    def _run_md_less_terminate(self):
+        """A build that ran no MD: the stream is a registered artifact, the .prm is not."""
+        task = mock.Mock(spec=TerminateTask)
+        task.basename = 'pkg'
+        task.build_stamp.return_value = 'test'
+        state = mock.Mock()
+        state.psf.name = PSF
+        state.psf.exists.return_value = True
+
+        def _artifact(which):
+            if which == 'state':
+                return state
+            if which == 'charmmff_streamfiles':
+                return [_FA(self.strf)]
+            return None        # no parfile artifacts: nothing staged them
+
+        task.get_current_artifact.side_effect = _artifact
+        scripter = mock.Mock()
+        scripter.fetch_standard_charmm_parameters.return_value = [self.prm]
+        task.get_scripter.return_value = scripter
+
+        # The consolidated file keeps only records whose atom types are in the PSF, so the PSF has
+        # to contain the quartet or the comparison has nothing to compare.
+        psf = mock.Mock()
+        psf.atoms = [mock.Mock(atomtype=t) for t in CONFLICTED.split()]
+        with mock.patch('pestifer.tasks.terminate.PSFContents', return_value=psf):
+            out = TerminateTask.generate_minimal_params(task)
+        self.assertIsNotNone(out, 'POSITIVE CONTROL: nothing was written, so nothing was checked')
+        return open(out).read()
+
+    def _kchi(self, text):
+        for line in text.splitlines():
+            f = line.split('!')[0].split()
+            if len(f) >= 5 and f[:4] == CONFLICTED.split():
+                return float(f[4])
+        return None
+
+    def test_the_stream_value_survives_as_it_does_in_a_namd_run(self):
+        kchi = self._kchi(self._run_md_less_terminate())
+        self.assertIsNotNone(kchi, 'POSITIVE CONTROL: the quartet is absent, so order proves nothing')
+        self.assertEqual(kchi, 3.1,
+                         'the packaged file must carry the value a NAMD run would use (streams '
+                         'merged last), not the .prm value the old artifact-first order gave')
+
+    def test_the_two_synthetic_files_really_do_disagree(self):
+        """Guards the fixture: if both files carried the same constant, the test above could not
+        fail no matter which order won."""
+        self.assertEqual(self._kchi(_PRM), 1.25)
+        self.assertEqual(self._kchi(_STR), 3.1)
+        self.assertNotEqual(self._kchi(_PRM), self._kchi(_STR))

@@ -24,6 +24,54 @@ from ..util.util import cell_from_xsc
 
 logger = logging.getLogger(__name__)
 
+
+def canonical_param_order(standard_files, artifact_files):
+    """Order parameter files for merging the way a NAMD run orders them.
+
+    ``CharmmParamFile.merge`` is last-wins, matching CHARMM's ``READ PARAM APPEND``: a term
+    defined in two loaded files resolves to whichever was read last.  Merge order is therefore
+    part of the force field, not a detail -- and this task and ``NAMDScripter`` must agree on it,
+    or the parameter file shipped in the package is not the one the system was simulated with.
+
+    ``NAMDScripter.newscript`` loads ``standard['prm'] + standard['str']``, then ``custom``, then
+    any additional files -- which is what ``fetch_standard_charmm_parameters`` returns, in that
+    order.  This task used to merge its *registered artifacts* first and append the standard set
+    afterwards, so whenever the standard files had not already been staged -- a build with no MD
+    step, the case documented in ``generate_minimal_params`` -- every ``.prm`` landed after the
+    streams and precedence inverted.
+
+    Measured against the shipped feb26 default set, that inverts four records.  Three are
+    cosmetic (identical constants, differing only in stored field order).  The fourth is not::
+
+        NG2O1-CG2R61-CG2R61-NG2S3, n=2
+          streams last (a NAMD run):  Kchi=3.1   toppar_all36_carb_imlab.str
+          .prm last (the old order):  Kchi=1.25  par_all36_cgenff.prm
+
+    2.48x on the same quartet at the same multiplicity.  It needs a nitro and a primary amine on
+    one aromatic ring, so it reaches CGenFF ligands only -- but the file naming the wrong constant
+    is the one a user runs from the tarball.
+
+    Parameters
+    ----------
+    standard_files : list of str
+        The standard (and custom) set, in ``fetch_standard_charmm_parameters`` order.
+    artifact_files : list of str
+        Files registered by this build -- ligand parameters generated along the way, and any
+        stream registered as an artifact.  These go last, as the most specific, which is also
+        where ``newscript`` puts its ``addl_paramfiles``.
+
+    Returns
+    -------
+    list of str
+        The merge order, de-duplicated, first occurrence winning its position.
+    """
+    ordered = []
+    for group in (standard_files, artifact_files):
+        for f in group:
+            if f not in ordered:
+                ordered.append(f)
+    return ordered
+
 class TerminateTask(MDTask):
     """
     TerminateTask class for terminating a pestifer build.
@@ -247,11 +295,11 @@ class TerminateTask(MDTask):
         charmmff_parfiles: CharmmffParFileArtifacts = self.get_current_artifact('charmmff_parfiles')
         charmmff_streamfiles: CharmmffStreamFileArtifacts = self.get_current_artifact('charmmff_streamfiles')
 
-        param_files = []
+        artifact_files = []
         if charmmff_parfiles:
-            param_files.extend(fa.name for fa in charmmff_parfiles if os.path.exists(fa.name))
+            artifact_files.extend(fa.name for fa in charmmff_parfiles if os.path.exists(fa.name))
         if charmmff_streamfiles:
-            param_files.extend(fa.name for fa in charmmff_streamfiles if os.path.exists(fa.name))
+            artifact_files.extend(fa.name for fa in charmmff_streamfiles if os.path.exists(fa.name))
 
         # The standard CHARMM parameter (.prm) files are staged by NAMD/MD tasks; a build
         # that runs no MD step (e.g. continuation -> psfgen -> terminate) never fetches them,
@@ -260,13 +308,15 @@ class TerminateTask(MDTask):
         # which makes NAMD fail with "DIDN'T FIND vdW PARAMETER FOR ATOM TYPE ...".  Always
         # stage and include the standard parameter set so the consolidated file carries the
         # vdW and bonded parameters for the standard atom types.
+        standard_files = []
         try:
             namd_scripter = self.get_scripter('namd')
-            for p in namd_scripter.fetch_standard_charmm_parameters():
-                if p not in param_files and os.path.exists(p):
-                    param_files.append(p)
+            standard_files = [p for p in namd_scripter.fetch_standard_charmm_parameters()
+                              if os.path.exists(p)]
         except Exception as exc:
             logger.warning(f'generate_minimal_params: could not stage standard parameters: {exc}')
+
+        param_files = canonical_param_order(standard_files, artifact_files)
 
         if not param_files:
             logger.debug('generate_minimal_params: no parameter files available, skipping')
