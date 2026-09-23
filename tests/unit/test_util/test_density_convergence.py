@@ -484,6 +484,56 @@ if __name__ == '__main__':
     unittest.main()
 
 
+class TestTruncatedInputsAreNamed(unittest.TestCase):
+    """A half-transferred file must say so, by name.
+
+    A 2.86M-atom PSF that arrived partially synced raised `IndexError: list index out of range`
+    from inside the parser, which reads as a pestifer bug rather than as a short file
+    (2026-09-22).  The same shape of thing happens to a .coor.
+    """
+
+    def test_a_truncated_psf_says_where_it_stops(self):
+        from pestifer.util.density_convergence import _parse_psf_atoms
+        with tempfile.TemporaryDirectory() as d:
+            psf = os.path.join(d, 'short.psf')
+            with open(psf, 'w') as f:
+                f.write('PSF EXT\n\n   1000 !NATOM\n')
+                f.write('       1 A        1        ALA      N        NH3      -0.30  14.007  0\n')
+                f.write('       2 A        1   ')          # cut mid-line, as a transfer would
+            with self.assertRaises(ValueError) as e:
+                _parse_psf_atoms(psf)
+        msg = str(e.exception)
+        self.assertIn('atom 2 of 1000', msg)
+        self.assertIn('truncated', msg)
+        self.assertIn('short.psf', msg)
+
+    def test_a_truncated_coor_reports_how_much_arrived(self):
+        from pestifer.util.density_convergence import _read_coor_xyz
+        import struct
+        with tempfile.TemporaryDirectory() as d:
+            coor = os.path.join(d, 'short.coor')
+            with open(coor, 'wb') as f:
+                f.write(struct.pack('<i', 1000))
+                f.write(b'\0' * (24 * 400))               # 40% of the coordinates
+            with self.assertRaises(ValueError) as e:
+                _read_coor_xyz(coor, 1000)
+        msg = str(e.exception)
+        self.assertIn('truncated', msg)
+        self.assertIn('40.0%', msg)
+
+    def test_a_complete_coor_still_reads(self):
+        from pestifer.util.density_convergence import _read_coor_xyz
+        import struct
+        with tempfile.TemporaryDirectory() as d:
+            coor = os.path.join(d, 'ok.coor')
+            with open(coor, 'wb') as f:
+                f.write(struct.pack('<i', 2))
+                f.write(struct.pack('<6d', 1.0, 2.0, 3.0, 4.0, 5.0, 6.0))
+            xyz = _read_coor_xyz(coor, 2)
+        self.assertEqual(xyz.shape, (2, 3))
+        self.assertAlmostEqual(xyz[1][2], 6.0)
+
+
 class TestMembraneLeafletGeometry(unittest.TestCase):
     """Per-leaflet lipid counts + protein-corrected APL from an embedded membrane frame."""
 

@@ -164,9 +164,20 @@ def _parse_psf_atoms(psf_path):
     resid = np.empty(natom, dtype=object)
     resn = np.empty(natom, dtype=object)
     mass = np.empty(natom, dtype=float)
-    for k, line in enumerate(lines[i + 1:i + 1 + natom]):
+    block = lines[i + 1:i + 1 + natom]
+    for k, line in enumerate(block):
         p = line.split()
+        if len(p) < 8:
+            # A PSF cut short mid-transfer used to surface as `IndexError: list index out of
+            # range`, which reads as a parser bug rather than as a short file.  Say which file,
+            # and where it stops (found 2026-09-22 on a partially synced 2.86M-atom PSF).
+            raise ValueError(
+                f'{psf_path}: the !NATOM block ends at atom {k + 1} of {natom} -- the file is '
+                f'truncated or is not a PSF (line reads {line.strip()!r})')
         seg[k], resid[k], resn[k], mass[k] = p[1], p[2], p[3], float(p[7])
+    if len(block) < natom:
+        raise ValueError(f'{psf_path}: declares {natom} atoms but holds only {len(block)}; '
+                         f'the file is truncated')
     return seg, resid, resn, mass
 
 
@@ -190,8 +201,13 @@ def _read_coor_xyz(path, natom):
         raw = f.read()
     for endian in ('<', '>'):
         n = struct.unpack(endian + 'i', raw[:4])[0]
-        if n == natom and len(raw) >= 4 + n * 24:
-            return np.frombuffer(raw[4:4 + n * 24], dtype=endian + 'f8').reshape(n, 3).copy()
+        if n == natom:
+            need = 4 + n * 24
+            if len(raw) >= need:
+                return np.frombuffer(raw[4:need], dtype=endian + 'f8').reshape(n, 3).copy()
+            # right atom count, too few bytes: a truncated file, not a mismatched one
+            raise ValueError(f'{path}: declares {n} atoms, which needs {need} bytes, but the file '
+                             f'holds {len(raw)} ({100 * len(raw) / need:.1f}%); it is truncated')
     raise ValueError(f'{path}: NAMD binary atom count does not match PSF ({natom})')
 
 
