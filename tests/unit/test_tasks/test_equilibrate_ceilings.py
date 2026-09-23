@@ -25,6 +25,12 @@ SLOWEST_OBSERVED_CONVERGENCE = 227000
 #: Its sibling replicas took 704,400 and 600,080, so the budget has to cover the outlier.
 SLOWEST_OBSERVED_MEMBRANE_CONVERGENCE = 1455700
 
+#: ex17 has THREE pre-embed stages from TWO budgets: the `patch` protocol is applied to both
+#: calibration patches (patchA and patchB), and the `quilt` protocol once.  patchB is not spare
+#: capacity -- rep-01's converged at 1,357,350, also past the 1,200,000 ceiling patchA died on --
+#: so raising the `patch` budget has to cover two stages that both run long, not one.
+SLOWEST_OBSERVED_PATCHB_CONVERGENCE = 1357350
+
 
 def _find(node, name, type_='dict'):
     """The first schema node with this ``name`` (and ``type``), depth first."""
@@ -68,17 +74,33 @@ class TestExampleCeilings(unittest.TestCase):
         path = os.path.join(EXAMPLES, number, 'inputs', name)
         return yaml.safe_load(open(path))
 
-    def _ceilings(self, node, taskname, found=None):
+    def _ceilings(self, node, taskname, found=None, path=''):
+        """Every ``max_steps`` under ``taskname``, each with the config path it sits at.
+
+        The path is what separates a pre-embed budget from a post-embed one; selecting them by
+        sorted value happened to work only while the pre-embed numbers were the larger pair, and
+        would have silently picked the wrong stages the moment that stopped being true.
+        """
         found = [] if found is None else found
         if isinstance(node, dict):
             for k, v in node.items():
+                here = f'{path}/{k}'
                 if k == taskname and isinstance(v, dict) and 'max_steps' in v:
-                    found.append(v['max_steps'])
-                self._ceilings(v, taskname, found)
+                    found.append((here, v['max_steps']))
+                self._ceilings(v, taskname, found, here)
         elif isinstance(node, list):
-            for v in node:
-                self._ceilings(v, taskname, found)
+            for i, v in enumerate(node):
+                self._ceilings(v, taskname, found, f'{path}[{i}]')
         return found
+
+    @staticmethod
+    def _pre_embed(ceilings):
+        """The budgets that govern bilayer construction, before the protein is embedded.
+
+        They live under ``make_membrane_system/bilayer/relaxation_protocols``; the post-embed
+        stages are top-level tasks.
+        """
+        return [(p, v) for p, v in ceilings if 'relaxation_protocols' in p]
 
     def test_acetone_clears_its_slowest_converging_replica(self):
         # acetone decorrelates slowly, so its precision gate needs sampling, not just steps: one
@@ -86,22 +108,44 @@ class TestExampleCeilings(unittest.TestCase):
         cfg = self._example('24', 'subtilisin-acetone.yaml')
         ceilings = self._ceilings(cfg, 'density_equilibrate')
         self.assertEqual(len(ceilings), 1)
-        self.assertGreater(ceilings[0], 2 * SLOWEST_OBSERVED_CONVERGENCE)
+        self.assertGreater(ceilings[0][1], 2 * SLOWEST_OBSERVED_CONVERGENCE)
 
     def test_the_asymmetric_membrane_pre_embed_stages_clear_the_slowest_replica(self):
-        """Both pre-embed stages must have room for ex17's slow replica, not its median one.
+        """Both pre-embed budgets must have room for ex17's slow replica, not its median one.
 
         3.22.1: both hit 800000.  3.22.8 raised them to 1,200,000 (patch) and 1,500,000 (quilt) and
         the prediction inverted -- the quilt, thought furthest from settling, converged at
         1,455,700, while the patch, thought nearly fixed, hit its new ceiling.  Across replicas that
         patch spans 236,870 / 372,360 / >1,200,000, so a budget sized on the median is a budget that
         fails one build in three.
+
+        The `patch` budget governs TWO stages, not one: patchA and patchB both run the `patch`
+        protocol, and rep-01's patchB converged at 1,357,350 -- itself past the ceiling patchA died
+        on.  Whether 2,500,000 actually clears patchA is unproven: the raise was sized off the
+        quilt, and patchA's area drift at termination was -0.0425 against a 0.0050 gate, an order
+        of magnitude out.  A probe at 3.23.1 was submitted 2026-09-23 to settle it.
         """
         cfg = self._example('17', 'hiv-mpertm3-membrane2.yaml')
-        ceilings = sorted(self._ceilings(cfg, 'membrane_equilibrate'))
-        pre_embed = ceilings[-2:]        # the two pre-embed stages; the post-embed one converges low
-        for c in pre_embed:
-            self.assertGreater(c, 1.5 * SLOWEST_OBSERVED_MEMBRANE_CONVERGENCE, ceilings)
-        self.assertEqual(pre_embed[0], pre_embed[1],
+        ceilings = self._ceilings(cfg, 'membrane_equilibrate')
+        pre_embed = self._pre_embed(ceilings)
+        self.assertEqual(len(pre_embed), 2,
+                         f'expected the patch and quilt budgets, got {pre_embed}')
+        for path, c in pre_embed:
+            self.assertGreater(c, 1.5 * SLOWEST_OBSERVED_MEMBRANE_CONVERGENCE, path)
+            self.assertGreater(c, 1.5 * SLOWEST_OBSERVED_PATCHB_CONVERGENCE, path)
+        self.assertEqual(pre_embed[0][1], pre_embed[1][1],
                          'the patch and quilt budgets are matched so neither is the one that runs '
-                         f'out first: {ceilings}')
+                         f'out first: {pre_embed}')
+
+    def test_the_pre_embed_budgets_are_not_merely_the_largest_two(self):
+        """The selection above must key on where a budget sits, not on how big it is.
+
+        Guards the test itself: if `_pre_embed` fell back to sorting by value, a post-embed budget
+        raised above the pre-embed ones would be silently tested in their place.
+        """
+        cfg = self._example('17', 'hiv-mpertm3-membrane2.yaml')
+        ceilings = self._ceilings(cfg, 'membrane_equilibrate')
+        self.assertGreater(len(ceilings), 2, 'ex17 should also have post-embed stages')
+        inflated = [(p, 10 ** 9 if 'relaxation_protocols' not in p else v) for p, v in ceilings]
+        self.assertEqual([v for _, v in self._pre_embed(inflated)],
+                         [v for _, v in self._pre_embed(ceilings)])
