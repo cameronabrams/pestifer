@@ -4,6 +4,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- The glycan classification fix in 3.23.0 also fixes the reported per-leaflet protein footprint,
+  confirmed against the user's own 2,858,512-atom system. The leaflet z-extent is a percentile of
+  the *lipid* atoms' z, so counting an ectodomain's glycans as lipid stretched that extent from 58 A
+  to 191 A: the "leaflet slab" then swallowed the whole extramembrane protein and its convex hull
+  read 20,200 A^2, a fifth of the box, instead of 506. Both reported `membrane_equilibrate`
+  observations -- lipid counts rising after embedding and an implausible footprint -- were this one
+  cause, and both are fixed. The system's reported APL changes from 41.7 to 52.1 A^2 as a result, so
+  membrane numbers from before 3.23.0 on a glycosylated system should be recomputed. A regression
+  test now pins the slab against a glycan tower above the bilayer.
+
 ## [3.23.0] - 2026-09-22
 
 - fix: **SLURM auto-detection read one node's cores, not the allocation's** (regression since

@@ -592,6 +592,30 @@ class TestMembraneLeafletGeometry(unittest.TestCase):
         # and they do not join the protein hull either: the upper footprint is the 10x10 square
         self.assertAlmostEqual(g.a_prot_upper, 100.0, places=4)
 
+    def test_glycans_do_not_stretch_the_leaflet_slab(self):
+        """The second half of the same bug, and the worse half.
+
+        The leaflet's z-extent is a percentile of the *lipid* atoms' z.  With glycans counted as
+        lipid, a glycosylated ectodomain's sugars -- which sit far above the bilayer -- stretched
+        that extent, so the "leaflet slab" swallowed the whole extramembrane protein and the
+        convex hull of it became a fifth of the box.  Measured on the reported 2.86M-atom system:
+        the slab ran 11 to 191 A instead of 11 to 58, and the upper footprint read 20,200 A^2
+        instead of 506.
+        """
+        atoms = self._synthetic()
+        # a glycan tower reaching far above the upper leaflet, as an N-glycan on an ectodomain does
+        for r, zz in enumerate([40.0, 60.0, 80.0, 100.0], start=1):
+            atoms.append(('GLY1', str(r), 'AMAN', 'C1', 12.0, 20.0, 20.0, zz))
+        # protein atoms up there too -- the ectodomain the slab must not reach
+        for i, (x, y) in enumerate([(100, 100), (200, 100), (200, 200), (100, 200)]):
+            atoms.append(('PROT', '3', 'ALA', 'CA', 12.0, float(x), float(y), 90.0))
+        with tempfile.TemporaryDirectory() as d:
+            psf, pdb = os.path.join(d, 's.psf'), os.path.join(d, 's.pdb')
+            _write_psf_pdb(psf, pdb, atoms)
+            g = membrane_leaflet_geometry(psf, pdb)
+        # the upper footprint is still the 10x10 TM square, not the 100x100 ectodomain hull
+        self.assertAlmostEqual(g.a_prot_upper, 100.0, places=4)
+
     def test_degenerate_footprint_is_zero(self):
         # drop the lower protein square -> fewer than 3 atoms in that leaflet -> 0 footprint
         atoms = [a for a in self._synthetic() if not (a[0] == 'PROT' and a[1] == '2')]
