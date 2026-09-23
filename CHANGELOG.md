@@ -4,6 +4,19 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **node-local parameter staging served one build's parameter file to another.** The scratch
+  directory is keyed by pid, which every nested PDB-repository build in a process shares, and a
+  nested build restarts task numbering -- so each writes `00-01-000_md-minimize_minimal.prm`.
+  Staging by basename and *skipping the copy when that name already existed* meant the second
+  conformer build of a job read the first one's parameters. That is the reported blocker: building
+  an `Lo` ensemble for PSM then POPC in one job, the POPC run read sphingomyelin's file and died on
+  `DIDN'T FIND vdW PARAMETER FOR ATOM TYPE OSL` -- the ester oxygen an amide-linked lipid's file has
+  no reason to contain. Pestifer's own completeness check was right: the file it wrote for POPC was
+  complete, and NAMD never read it. Staged files are now keyed by their source directory and copied
+  every time. Diagnosed from the reporter's logs, where NAMD's own term counts were PSM's exactly
+  against POPC-init.psf; it needs a cluster ($TMPDIR set) and two conformer builds in one job, which
+  is why it never reproduced locally.
+
 - The glycan classification fix in 3.23.0 also fixes the reported per-leaflet protein footprint,
   confirmed against the user's own 2,858,512-atom system. The leaflet z-extent is a percentile of
   the *lipid* atoms' z, so counting an ectodomain's glycans as lipid stretched that extent from 58 A

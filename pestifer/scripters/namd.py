@@ -1,5 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 
+import hashlib
 import logging
 import os
 import shutil
@@ -307,9 +308,19 @@ class NAMDScripter(TcLScripter):
         replacements = {}
         for p in self.parameters:
             src = os.path.abspath(p)
-            dst = os.path.join(scratch, p)
-            if not os.path.exists(dst):
-                shutil.copy2(src, dst)
+            # Stage under the SOURCE directory's fingerprint, and copy every time.  The scratch
+            # directory is keyed by pid, which every nested build in this process shares, and a
+            # nested build restarts task numbering -- so each one writes
+            # `00-01-000_md-minimize_minimal.prm`.  Staging by basename alone, and skipping the
+            # copy when that name already existed, meant the SECOND conformer build in a job read
+            # the FIRST one's parameters: a POPC build ran on sphingomyelin's file and died on the
+            # ester oxygen OSL, which that file has no reason to contain (diagnosed from the
+            # reporter's logs 2026-09-22 -- NAMD's own BONDS/ANGLES/DIHEDRAL/IMPROPER/VDW counts
+            # were PSM's exactly, against POPC-init.psf).
+            keyed = os.path.join(scratch, hashlib.sha1(os.path.dirname(src).encode()).hexdigest()[:8])
+            os.makedirs(keyed, exist_ok=True)
+            dst = os.path.join(keyed, os.path.basename(p))
+            shutil.copy2(src, dst)
             replacements[p] = dst
         # Rewrite 'parameters <basename>' lines in the already-written script file
         with open(self.scriptname, 'r') as fh:

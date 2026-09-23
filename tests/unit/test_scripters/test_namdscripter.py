@@ -1,6 +1,7 @@
 import os
 import tempfile
 import unittest
+from unittest import mock
 from unittest.mock import patch
 
 from pestifer.charmmff.charmmffprm import CharmmParamFile
@@ -221,6 +222,81 @@ class TestSingleCoreRunIgnoresTheSlurmLauncher(unittest.TestCase):
         p = self._scripter(launcher='auto')
         c = p._build_launch_command()
         self.assertEqual(c.command, 'srun namd3 job.namd')
+
+
+class TestLocalScratchStaging(unittest.TestCase):
+    """Node-local parameter staging must not serve one build's file to another.
+
+    The scratch directory is keyed by pid, so every nested PDB-repository build in a process
+    shares it, and each of those restarts task numbering -- so they all write
+    `00-01-000_md-minimize_minimal.prm`.  Staging by basename and skipping an existing file meant
+    the second conformer build of a job read the first one's parameters: a POPC build ran on
+    sphingomyelin's file and died on OSL, the ester oxygen that file has no reason to contain
+    (reported 2026-09-22; NAMD's own term counts in that log were PSM's exactly, against
+    POPC-init.psf).
+    """
+
+    def _scripter(self, params, scriptname):
+        p = NAMDScripter.__new__(NAMDScripter)
+        p.parameters = params
+        p.scriptname = scriptname
+        return p
+
+    def _stage(self, tmp, build_dir, content):
+        """One conformer build: write its minimal prm, stage it, return what the script points at."""
+        os.makedirs(build_dir, exist_ok=True)
+        name = '00-01-000_md-minimize_minimal.prm'
+        with open(os.path.join(build_dir, name), 'w') as f:
+            f.write(content)
+        script = os.path.join(build_dir, 'run.namd')
+        with open(script, 'w') as f:
+            f.write(f'structure x.psf\nparameters {name}\n')
+        cwd = os.getcwd()
+        os.chdir(build_dir)
+        try:
+            with mock.patch.dict(os.environ, {'TMPDIR': tmp}):
+                self._scripter([name], 'run.namd')._stage_params_to_local_scratch()
+        finally:
+            os.chdir(cwd)
+        line = [l for l in open(script) if l.startswith('parameters ')][0]
+        staged = line.split(None, 1)[1].strip()
+        return staged, open(staged).read()
+
+    def test_two_builds_with_the_same_filename_get_their_own_file(self):
+        with tempfile.TemporaryDirectory() as d:
+            tmp = os.path.join(d, 'scratch')
+            os.makedirs(tmp)
+            psm_path, psm = self._stage(tmp, os.path.join(d, 'PSM.work'), 'PSM PARAMS\n')
+            popc_path, popc = self._stage(tmp, os.path.join(d, 'POPC.work'), 'POPC PARAMS\n')
+            self.assertEqual(psm, 'PSM PARAMS\n')
+            self.assertEqual(popc, 'POPC PARAMS\n', 'the second build read the first build\'s file')
+            self.assertNotEqual(psm_path, popc_path)
+
+    def test_a_changed_file_is_restaged(self):
+        """Same build directory, new contents: the stale copy must not win."""
+        with tempfile.TemporaryDirectory() as d:
+            tmp = os.path.join(d, 'scratch')
+            os.makedirs(tmp)
+            work = os.path.join(d, 'one.work')
+            self._stage(tmp, work, 'FIRST\n')
+            _path, second = self._stage(tmp, work, 'SECOND\n')
+            self.assertEqual(second, 'SECOND\n')
+
+    def test_no_tmpdir_leaves_the_script_alone(self):
+        with tempfile.TemporaryDirectory() as d:
+            work = os.path.join(d, 'w')
+            os.makedirs(work)
+            script = os.path.join(work, 'run.namd')
+            with open(script, 'w') as f:
+                f.write('parameters p.prm\n')
+            cwd = os.getcwd()
+            os.chdir(work)
+            try:
+                with mock.patch.dict(os.environ, {'TMPDIR': ''}):
+                    self._scripter(['p.prm'], 'run.namd')._stage_params_to_local_scratch()
+            finally:
+                os.chdir(cwd)
+            self.assertEqual(open(script).read(), 'parameters p.prm\n')
 
 
 class TestConsolidateParams(unittest.TestCase):
