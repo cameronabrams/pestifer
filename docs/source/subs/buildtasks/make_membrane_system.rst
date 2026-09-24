@@ -261,6 +261,33 @@ For a **symmetric** bilayer, pestifer builds the full-size membrane directly: it
 
 For an **asymmetric** bilayer (different leaflet compositions), pestifer first relaxes two symmetric *calibration* patches -- one per leaflet composition -- with the ``patch`` protocol, to measure each leaflet's preferred area per lipid (APL).  It then grids the full membrane (sized to the protein footprint when embedding) at per-leaflet counts in the stress-free ratio :math:`n_\text{upper}/n_\text{lower} = \text{APL}_\text{lower}/\text{APL}_\text{upper}`, so the two leaflets carry equal area at zero differential stress *by construction* -- no leaflet extraction or excess-lipid deletion is required.  The full membrane is then relaxed with the ``quilt`` protocol before embedding.
 
+.. note::
+
+   **This asymmetric protocol has a name: it is SA, built the de novo way.**  Sizing each leaflet
+   to the equilibrium area of a *symmetric* bilayer of the same composition is the **SA** ("match
+   surface areas") protocol, one of the four surveyed by `Chaisson, Heberle, and Doktorova
+   <https://doi.org/10.3390/membranes13070629>`_ (EqN, SA, 0-DS, EmBioAsym), in use since 2007 and
+   the approach `Park, Im, and Pastor <https://doi.org/10.1016/j.bpj.2021.10.009>`_ recommend for
+   generating initial conditions.
+
+   SA can be realized two ways: **stitch** leaflets lifted out of the two equilibrated symmetric
+   bilayers, or use their measured APLs to compute leaflet counts and build the asymmetric bilayer
+   **from scratch**.  Pestifer does the latter -- the calibration patches contribute their measured
+   areas and nothing else; none of their coordinates reach the product.  Both sources prefer that
+   realization over stitching, because the product is then not locked to the size of the
+   calibration cell: here the membrane is sized to the protein's footprint while the patches stay
+   at ``patch_nlipids`` (100 per leaflet by default).
+
+   Two things this does *not* claim.  SA sets each leaflet to its own *symmetric* preferred area,
+   which is zero differential stress only to first order -- packing densities need not carry over
+   from symmetric to asymmetric bilayers, which is the premise the 0-DS protocol avoids relying on.
+   Use :ref:`diagnose_differential_stress <config_ref tasks make_membrane_system diagnose_differential_stress>`
+   to measure the residual stress of the assembled membrane rather than assuming it is zero.  And
+   SA itself is long-standing prior art, not a pestifer invention; what pestifer contributes is
+   running the whole protocol -- both calibrations, the convergence gating, and the sizing -- as one
+   automated task.  :ref:`Example mper-tm viral bilayer <example mper-tm viral bilayer>` works a
+   full asymmetric build and carries the complete reference list.
+
 In either case, the gridded lipids are built into a PSF and the water chambers are then filled by the ``solvate`` step described above, so the membrane enters its relaxation protocol already at liquid density.
 
 When the calibration relaxation is gated by a ``membrane_equilibrate`` stage that reports convergence, pestifer **trusts** the APL it measured and grids from it directly.  Because an overestimated APL would condense the quilt tighter than the protein it has to accommodate, the build also remembers the protein's bare xy footprint and verifies at embedding time that the equilibrated (condensed) box still spans it, rather than discovering the mismatch as a failed embed.
