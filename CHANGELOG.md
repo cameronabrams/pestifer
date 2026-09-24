@@ -4,6 +4,49 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- fix: **the packaged parameter file was merged in a different order from the run that produced
+  it.** `CharmmParamFile.merge` is last-wins, matching CHARMM's `READ PARAM APPEND`, so a term
+  defined in two loaded files resolves to whichever was read last -- which makes merge order part
+  of the force field. `NAMDScripter` loads `standard['prm'] + standard['str']`, but
+  `TerminateTask.generate_minimal_params` merged its *registered artifacts* first and appended the
+  standard set afterwards. Whenever the standard files had not already been staged -- a build with
+  no MD step, `continuation -> psfgen -> terminate` -- every `.prm` landed after the streams and
+  precedence inverted. Against the shipped feb26 default set that changes four records: three are
+  cosmetic (identical constants, atom types stored in the other order), and one is not --
+  `NG2O1-CG2R61-CG2R61-NG2S3` at n=2 is `Kchi=3.1` from `toppar_all36_carb_imlab.str` in a NAMD
+  run and `Kchi=1.25` from `par_all36_cgenff.prm` in the packaged file, a factor of 2.48 on the
+  same quartet. Reaching it needs a nitro and a primary amine on one aromatic ring, so CGenFF
+  ligands only -- but the file naming the wrong constant is the one a user runs from the tarball.
+  This only makes the package agree with the simulation; which constant is *physically* right is a
+  separate question and is untouched. No example in the suite exercises the MD-less path, which is
+  why it survived, so the regression test is synthetic and sits at the call site.
+
+- docs: the asymmetric-bilayer protocol is **named**. Sizing each leaflet to the equilibrium area
+  of a symmetric bilayer of the same composition is the **SA** ("match surface areas") method, and
+  pestifer builds it the *de novo* way -- the calibration patches contribute their measured areas
+  and nothing else, and none of their coordinates reach the product. Both Chaisson et al. (2023)
+  and Park, Im & Pastor (2021) prefer that realization over stitching leaflets together, because
+  the product is not locked to the calibration cell's size. The task page and example 17 now say
+  so, with six citations; example 17 carries the full reference list. Also stated: SA gives zero
+  differential stress only to first order, so `diagnose_differential_stress` measures the residual
+  rather than the build asserting it; and SA is prior art from 2007, so what pestifer contributes
+  is automating the whole protocol, not the protocol.
+
+- tests: ex17's step-ceiling rationale records that its slow convergence mode is **rare, not
+  gone**. A 3-replica probe at 3.23.1 converged patchA at 196,870 / 252,360 / 236,870 -- far under
+  the 2,500,000 budget -- but never entered the slow mode that produced the 3.22.8 ceiling, so
+  "2,500,000 clears it" is consistent with the data and not established by it. The same probe
+  showed the build is **not reproducible from its seed**: same seed, same NAMD, same config, and
+  rep-01 went from a ceiling at 1,200,000 to convergence at 196,870. Multicore NAMD is not bitwise
+  reproducible and the adaptive NPgT chunk length is rounded to 10 steps; usually the rounding
+  absorbs the noise, but rep-01 crossed a boundary at chunk 2 within the first 500 steps and never
+  rejoined. The ceilings are unchanged and now carry an explicit note not to trim them on the
+  strength of a fast sweep.
+
+- tests: the ex17 pre-embed budgets are selected by where they sit in the config rather than by
+  which two are largest, so raising a post-embed budget can no longer silently redirect the test
+  at the wrong stages.
+
 ## [3.23.1] - 2026-09-23
 
 - fix: **node-local parameter staging served one build's parameter file to another.** The scratch
