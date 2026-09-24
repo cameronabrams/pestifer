@@ -210,6 +210,44 @@ under scratch (`scaling.py`, `severity.py`, `gen*.py`).
    straight into the fold. Short surface loops (e.g. the BPTI 24–28 benchmark) escape
    only by luck; note that benchmark checked bond+RMSD but **never clashes**.
 
+### Corroboration from the field's own benchmark (added 2026-09-24)
+
+Two of the assumptions above were checked against outside literature, because they had been
+reasoned to rather than sourced. Both survive, one of them more strongly than expected.
+
+**CCD is not obsolete, so "CCD before KIC" is not technical debt.** Above, and in the P1→P3
+staging, CCD is framed as the step before an analytic KIC upgrade. A 2024 benchmark of **13**
+loop-modeling programs on large-scale datasets ("Comprehensive assessment of protein loop
+modeling programs on large-scale datasets", *Brief. Bioinform.* 25(1):bbad486,
+doi 10.1093/bib/bbad486, open access) includes CCD among the current methods assessed —
+alongside KIC, NGK, MODELLER, DISGRO, GalaxyFill, FREAD, AlphaFold2 and RoseTTAFold — and does
+not describe it as superseded anywhere. Its headline conclusions are that FREAD is generally
+best, NGK best for 4–8 residue loops, and AF2/RoseTTAFold best for long loops. So the KIC
+upgrade dropped in the scope correction was dropped as *unnecessary*, not deferred as overdue,
+and nobody should "modernize" this closer on the assumption that CCD is old news.
+
+**Point 3's complaint about benchmarks generalizes to the field's own.** The note above that the
+BPTI benchmark "checked bond+RMSD but **never** clashes" is not peculiar to that benchmark. Term
+counts across the whole 2024 review: *threading* 0, *interpenetrat* 0, *topolog* 0, *knot* 0,
+*"steric clash"* 0, *seed* 0, *annealing* 1. A comprehensive assessment of 13 programs measures
+**RMSD accuracy and efficiency**, and does not treat topological validity or selection strategy
+as dimensions worth assessing.
+
+Read this carefully, in both directions. It does **not** establish that pestifer's threading
+check is novel — no search here could establish that, and an absence of found prior art is not
+evidence of absence. What it does establish is the answer to "is this standard?": **it is not a
+dimension the field's benchmark measures at all.** The programs in that review and this closer
+are optimizing different objectives. Theirs is recovering a native conformation; ours is
+emitting a structure that is *valid to hand to MD* — which, per point 3, is a property RMSD
+cannot see, since a threaded loop can score well on RMSD and still be unusable.
+
+That difference in objective is the honest framing for any comparison, and is a stronger
+statement than a novelty claim would have been: it says what pestifer optimizes and why, without
+asserting anything about what anyone else does.
+
+Still unsettled: whether closing several seeds and keeping the least-clashing is the method as
+published by Canutescu & Dunbrack (doi 10.1110/ps.0242703, queued) or an addition here.
+
 4. **Closure and sterics are coupled — no sequential heuristic works** (validated across
    four prototypes):
 
