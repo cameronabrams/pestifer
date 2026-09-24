@@ -15,7 +15,34 @@ geometry. The task layer is responsible for mapping a protein loop's backbone at
 these arrays.
 
 Reference: A. A. Canutescu & R. L. Dunbrack Jr., "Cyclic coordinate descent: A robotics
-algorithm for protein loop closure", Protein Science 12:963-972 (2003).
+algorithm for protein loop closure", Protein Science 12:963-972 (2003),
+doi 10.1110/ps.0242703.
+
+What here is theirs and what is ours, checked against the paper (2026-09-24) so nobody has
+to guess which parts are "standard CCD":
+
+- **The closure itself is theirs**, unchanged in spirit: distribute the end-gap across the
+  loop's own backbone dihedrals, one bond at a time, sweeping until the gap closes.
+- **Closing many seeds is theirs, but they do not select among them.** At journal p. 969 they
+  close one 12-residue loop 500 times from the same conformation, and 500 more from different
+  starting conformations, to see how the resulting RMS values distribute. That is analysis of
+  the closure's behaviour, not a way to pick a winner.
+- **Choosing the fewest-clash candidate is ours.** The paper is explicit that it does not do
+  this -- journal p. 971: "The procedure as described here does not have any steric bump checks
+  or internal energy evaluations of any kind, other than the Ramachandran probabilities."  So
+  :func:`loop_clash_report` and the selection built on it are an addition, not an
+  implementation detail of CCD.
+- **Stochastic acceptance layered over CCD is theirs.** At p. 965 they propose "using CCD as a
+  proposal step in a Monte Carlo simulation", accepting moves by a Metropolis-style rule (p.
+  967).  :func:`refine_declash_ccd` is that same construction with a different objective: they
+  accept on Ramachandran probability, we accept on a steric clash score.  The **geometric
+  temperature schedule** we anneal over it has no source either way -- treat it as tuning, not
+  as method.
+
+Also worth keeping, journal p. 971: CCD "is not a loop modeling method on its own but, rather,
+is to be used with any method that generates unclosed trial conformations."  That is exactly
+how it is used here -- the Ramachandran-basin seeding is the generator, this module is the
+closer -- so the pairing is the intended usage pattern rather than an improvisation.
 """
 import numpy as np
 

@@ -245,8 +245,24 @@ That difference in objective is the honest framing for any comparison, and is a 
 statement than a novelty claim would have been: it says what pestifer optimizes and why, without
 asserting anything about what anyone else does.
 
-Still unsettled: whether closing several seeds and keeping the least-clashing is the method as
-published by Canutescu & Dunbrack (doi 10.1110/ps.0242703, queued) or an addition here.
+**Settled 2026-09-24, from the paper itself** (Canutescu & Dunbrack, doi 10.1110/ps.0242703, now
+in the library and read). The split is cleaner than expected, and it is recorded in full in
+`pestifer/psfutil/loop_ccd.py`'s module docstring:
+
+- Closing **many seeds is published** -- p. 969 closes one 12-residue loop 500 times to study how
+  the RMS values distribute -- but as *analysis of the closure's behaviour*, never as a way to
+  pick a winner.
+- **Selecting the fewest-clash candidate is ours**, and the paper says so in as many words at
+  p. 971: "The procedure as described here does not have any steric bump checks or internal
+  energy evaluations of any kind, other than the Ramachandran probabilities."
+- **Stochastic acceptance over CCD is published** -- p. 965 proposes "using CCD as a proposal
+  step in a Monte Carlo simulation" with Metropolis-style acceptance (p. 967). Ours is the same
+  construction with a different objective: they accept on Ramachandran probability, we accept on
+  a clash score. The geometric **temperature schedule** has no source either way; it is tuning.
+
+And for scope, p. 971: CCD "is not a loop modeling method on its own but, rather, is to be used
+with any method that generates unclosed trial conformations." The Ramachandran-basin generator
+plus this closer is therefore the intended usage pattern, not an improvisation.
 
 4. **Closure and sterics are coupled — no sequential heuristic works** (validated across
    four prototypes):
