@@ -31,6 +31,27 @@ SLOWEST_OBSERVED_MEMBRANE_CONVERGENCE = 1455700
 #: so raising the `patch` budget has to cover two stages that both run long, not one.
 SLOWEST_OBSERVED_PATCHB_CONVERGENCE = 1357350
 
+#: DO NOT LOWER THESE CEILINGS ON THE STRENGTH OF A FAST SWEEP.  A probe of ex17 at 3.23.1
+#: (2026-09-24, 3 replicas) converged patchA at 196,870 / 252,360 / 236,870 and patchB at
+#: 348,220 / 342,350 / 393,220 -- five to seven times below the numbers above.  That is not
+#: evidence the budgets are oversized.  It is evidence the SLOW MODE IS RARE, which is the
+#: same thing these ceilings exist for.
+#:
+#: The slow mode is not a property of a seed.  Same seed (27021972), same NAMD build, same
+#: config: 3.22.8's rep-01 hit the 1,200,000 ceiling and the probe's rep-01 converged at
+#: 196,870, a 6x difference.  Multicore NAMD is not bitwise reproducible, and the adaptive
+#: NPgT chunk length is rounded to 10 steps -- usually the rounding absorbs the FP noise
+#: (rep-03 reproduced 500/330/490/730 exactly and converged to the same step both times), but
+#: rep-01 crossed a boundary at chunk 2 (320 vs 330), inside the first 500 steps, and never
+#: rejoined.  So a replica is a draw from a distribution, not a re-run.
+#:
+#: Tally so far: the tail appeared in 1 of 6 observed ex17 patchA runs.  n=3 cannot resolve a
+#: 1-in-6 event either way, so "2,500,000 clears the slow mode" is CONSISTENT WITH the data and
+#: NOT ESTABLISHED BY IT.  Settling it needs many more replicas or a way to induce the slow mode
+#: directly.  Until then the budget is sized for the tail that was observed, not the median that
+#: keeps being re-observed.
+SLOW_MODE_OBSERVED_IN_N_OF_M = (1, 6)
+
 
 def _find(node, name, type_='dict'):
     """The first schema node with this ``name`` (and ``type``), depth first."""
@@ -121,9 +142,11 @@ class TestExampleCeilings(unittest.TestCase):
 
         The `patch` budget governs TWO stages, not one: patchA and patchB both run the `patch`
         protocol, and rep-01's patchB converged at 1,357,350 -- itself past the ceiling patchA died
-        on.  Whether 2,500,000 actually clears patchA is unproven: the raise was sized off the
-        quilt, and patchA's area drift at termination was -0.0425 against a 0.0050 gate, an order
-        of magnitude out.  A probe at 3.23.1 was submitted 2026-09-23 to settle it.
+        on.
+
+        The 3.23.1 probe (2026-09-24) did not settle whether 2,500,000 clears the slow mode: all
+        three replicas converged fast and none entered it.  See SLOW_MODE_OBSERVED_IN_N_OF_M -- the
+        budget stays sized for the tail, and a fast sweep is not a reason to trim it.
         """
         cfg = self._example('17', 'hiv-mpertm3-membrane2.yaml')
         ceilings = self._ceilings(cfg, 'membrane_equilibrate')
