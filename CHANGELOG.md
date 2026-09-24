@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.23.2] - 2026-09-24
+
 - fix: **the packaged parameter file was merged in a different order from the run that produced
   it.** `CharmmParamFile.merge` is last-wins, matching CHARMM's `READ PARAM APPEND`, so a term
   defined in two loaded files resolves to whichever was read last -- which makes merge order part
