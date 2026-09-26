@@ -245,6 +245,34 @@ That difference in objective is the honest framing for any comparison, and is a 
 statement than a novelty claim would have been: it says what pestifer optimizes and why, without
 asserting anything about what anyone else does.
 
+**The published "KIC beats CCD" number does not compare the algorithms** (added 2026-09-26, from
+`Mandell2009Sub`, Nat. Methods 6:551-552, doi 10.1038/nmeth0809-551). The famous figure — KIC
+"improved reconstruction accuracy to 0.6 A from 2.6 A" (p. 551) — is measured against "the standard
+loop building method in Rosetta, which combines insertion of torsion segments from homologous
+proteins AND a numerical closure technique[6]", and **reference 6 is Canutescu & Dunbrack 2003**.
+So the comparison is fragment-insertion+CCD *as a protocol* against Ramachandran-sampled KIC inside
+a two-stage Monte Carlo protocol. Closure quality is bundled with sampling source, resolution
+staging and scoring, and cannot be read out of it. Anyone citing that number as "KIC is the better
+closer" is citing a protocol result as an algorithm result — **including an earlier draft of this
+project's own reasoning**.
+
+What the paper does establish, and it is worth having: KIC is **analytical** — it "analytically
+determines all mechanically accessible conformations for 6 torsions... using polynomial
+resultants" — against CCD's iterative descent. And KIC is a **move, not a protocol**: "our loop
+reconstruction protocol iterates KIC calculations as Monte Carlo moves", generating 1,000 models
+and keeping the best by Rosetta's all-atom score. That is the same shape as this closer: a closure
+primitive wrapped in stochastic search plus a selection rule.
+
+Two of the four open questions therefore move (2026-09-26):
+
+- **Generating N candidates is ordinary.** The 2024 benchmark ran "the other methods with 10
+  conformations" (article p. 9), CCD included. Our `ensemble: 10` is unremarkable, and should not
+  be described as a distinguishing choice. **Selecting by fewest clashes remains the unsourced
+  part** — Mandell selects by all-atom score, Canutescu & Dunbrack select not at all.
+- **Stochastic refinement layered over a closer is standard**, now on two sources: Canutescu &
+  Dunbrack propose CCD as an MC proposal step (p. 965) and Mandell iterates KIC as MC moves. The
+  geometric **temperature schedule** remains unsourced either way and stays labelled tuning.
+
 **Settled 2026-09-24, from the paper itself** (Canutescu & Dunbrack, doi 10.1110/ps.0242703, now
 in the library and read). The split is cleaner than expected, and it is recorded in full in
 `pestifer/psfutil/loop_ccd.py`'s module docstring:

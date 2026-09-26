@@ -23,7 +23,10 @@ to guess which parts are "standard CCD":
 
 - **The closure itself is theirs**, unchanged in spirit: distribute the end-gap across the
   loop's own backbone dihedrals, one bond at a time, sweeping until the gap closes.
-- **Closing many seeds is theirs, but they do not select among them.** At journal p. 969 they
+- **Closing many seeds is ordinary, and not a distinguishing choice.**  A 2024 benchmark of 13
+  loop-modeling programs ran "the other methods with 10 conformations", CCD included, so the
+  ``ensemble: 10`` default here is the common practice rather than an elaboration.
+- **They generate many closures, but do not select among them.** At journal p. 969 they
   close one 12-residue loop 500 times from the same conformation, and 500 more from different
   starting conformations, to see how the resulting RMS values distribute. That is analysis of
   the closure's behaviour, not a way to pick a winner.
