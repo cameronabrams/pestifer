@@ -29,9 +29,14 @@ def canonical_param_order(standard_files, artifact_files):
     """Order parameter files for merging the way a NAMD run orders them.
 
     ``CharmmParamFile.merge`` is last-wins, matching CHARMM's ``READ PARAM APPEND``: a term
-    defined in two loaded files resolves to whichever was read last.  Merge order is therefore
-    part of the force field, not a detail -- and this task and ``NAMDScripter`` must agree on it,
-    or the parameter file shipped in the package is not the one the system was simulated with.
+    defined in two loaded files resolves to whichever was read last.  That is upstream's own
+    statement of the rule, not an inference -- ``toppar/toppar_all.history``, entry ``2026_1_24``:
+
+        "In all cases the final version of a parameter is the one used for the calculations."
+
+    Merge order is therefore part of the force field, not a detail -- and this task and
+    ``NAMDScripter`` must agree on it, or the parameter file shipped in the package is not the
+    one the system was simulated with.
 
     ``NAMDScripter.newscript`` loads ``standard['prm'] + standard['str']``, then ``custom``, then
     any additional files -- which is what ``fetch_standard_charmm_parameters`` returns, in that

@@ -1,0 +1,40 @@
+* Pestifer-supplied CHARMM parameters: resolutions where the release conflicts with itself
+*
+* The shipped CHARMM release defines a small number of terms MORE THAN ONCE, in different
+* files, with different values. CHARMM resolves this by load order -- "In all cases the
+* final version of a parameter is the one used for the calculations" (toppar_all.history,
+* entry 2026_1_24) -- so which value a build gets depends on which file was read last
+* rather than on any judgment about which value is right.
+*
+* This file records the cases where that judgment HAS been made, and asserts the chosen
+* value explicitly. It is loaded last (schema: charmmff.custom.prm), so an entry here wins
+* regardless of the order the conflicting sources happened to be read in. Choosing here
+* rather than by reordering the release's own files keeps the decision visible, auditable,
+* and confined to the one term it is about.
+*
+* IMPORTANT: this file is for terms the release defines TWICE. It is not a place to
+* override a parameter pestifer merely disagrees with, and it is not a fill for missing
+* parameters -- degenerate-torsion fills live in toppar_pestifer_dihedral_fills.prm, and a
+* genuinely absent parameter must remain an error. Every entry names both conflicting
+* sources, both values, and why one was chosen.
+*
+* Provenance: pestifer (Cameron F. Abrams). Not part of any upstream CHARMM release.
+*
+
+DIHEDRALS
+! atom-i  atom-j  atom-k  atom-l    Kchi   n   delta
+!
+! NG2O1-CG2R61-CG2R61-NG2S3 (nitro and primary amine para/meta on one aromatic ring).
+! Defined twice in the release, a factor of 2.48 apart:
+!   par_all36_cgenff.prm         1.2500  2  180.00  ! aa, 23007G
+!   toppar_all36_carb_imlab.str  3.1000  2  180.00  ! "from, NG2S3 CG2R61 CG2R61 NG2S3"
+! The imlab value is derived BY ANALOGY from the DIAMINE quartet (two amines) and was
+! appended under a "!DNAP" label for one ligand in a glycan-patch stream; CHARMM's append
+! has no scoping, so it silently applied to every molecule in the system. The CGenFF value
+! is a fitted CGenFF parameter. Provenance also favors it: par_all36_cgenff.prm was revised
+! 2026_1_24 with "the bonded parameters aligned" and released as v5.0 on 2026_2_14, while
+! toppar_all36_carb_imlab.str is absent from the 2026 change log entirely and its last
+! recorded change is 2021_11_1. Chosen by Cameron F. Abrams, 2026-09-28.
+NG2O1  CG2R61 CG2R61 NG2S3     1.2500   2   180.00 ! CGenFF v5.0 value, chosen over imlab's analogy value
+
+END

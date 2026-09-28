@@ -68,9 +68,11 @@ class TestCharmmffContent(unittest.TestCase):
         basenames.extend([k for k in self.C.filenamemap['par'].keys()])
         # feb26 ships both CGenFF v5 and v4.6 topology/parameter files; pestifer loads only v5
         # (v4.6 is a strict subset), so the two v4.6 files are excluded from the loaded set.
-        # The count includes pestifer's custom/ additions (moreions.str, the degenerate-torsion
-        # fills par, etc.).
-        self.assertEqual(len(basenames), 57)
+        # The count includes pestifer's custom/ additions: moreions.str, the degenerate-torsion
+        # fills par, and the conflict-resolutions par (added 2026-09-28, which took this 57->58).
+        # This number moves whenever a custom file is added or the release changes, which is the
+        # point -- it is a tripwire on the loaded set, not a fact about the force field.
+        self.assertEqual(len(basenames), 58)
         self.assertEqual(len(set(basenames)), len(basenames))  # check for duplicates
         self.assertTrue(len(self.C.streams) > 0)
         self.assertEqual(self.C.streams.sort(), ['prot', 'carb', 'na', 'lipid'].sort())

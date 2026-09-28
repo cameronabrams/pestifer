@@ -100,6 +100,7 @@ attributes:
             text: Custom charmmff parameter files (.prm extension)
             default:
               - toppar_pestifer_dihedral_fills.prm
+              - toppar_pestifer_conflict_resolutions.prm
       - name: user_custom
         type: dict
         text: User-defined custom charmmff files
