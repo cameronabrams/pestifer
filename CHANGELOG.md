@@ -4,6 +4,35 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- **The shipped CHARMM release defines one dihedral twice, and pestifer now chooses which value
+  wins.** `NG2O1-CG2R61-CG2R61-NG2S3` at n=2 is `Kchi=1.25` in `par_all36_cgenff.prm` and
+  `Kchi=3.1` in `toppar_all36_carb_imlab.str` -- a factor of 2.48 on the same quartet. CHARMM
+  resolves a duplicated term by load order ("In all cases the final version of a parameter is the
+  one used for the calculations", `toppar_all.history` entry `2026_1_24`), so which value a build
+  received was decided by which file happened to be read last: pestifer loads `.prm` then `.str`,
+  so **every build before this release used imlab's 3.1**. It now uses CGenFF's 1.25.
+
+  The imlab value is derived by analogy from the *diamine* quartet and was appended under a
+  `!DNAP` label for a single ligand in a glycan-patch stream; CHARMM's append has no scoping, so
+  it applied to every molecule in the system. CGenFF's is a fitted parameter, and the provenance
+  agrees: `par_all36_cgenff.prm` was revised `2026_1_24` with "the bonded parameters aligned" and
+  released as v5.0 on `2026_2_14`, while `toppar_all36_carb_imlab.str` is absent from the 2026
+  change log entirely and its last recorded change is `2021_11_1`.
+
+  **Who this affects:** the quartet requires a nitro and a primary amine on one aromatic ring, so
+  it reaches CGenFF ligands only. No bundled example contains the motif. If you have built such a
+  ligand with pestifer 3.23.2 or earlier, that torsion carried 3.1 and now carries 1.25; energies
+  and trajectories for those systems are not comparable across this release.
+
+  The choice is recorded in a new `toppar_pestifer_conflict_resolutions.prm`, loaded last via
+  `charmmff.custom.prm`, rather than by reordering the release's own files -- reordering would
+  silently flip every other duplicated term too, and would leave the decision living in a sort
+  order instead of in writing. Each entry there must name both conflicting sources, both values,
+  and the reason one was chosen.
+
+- `TerminateTask.canonical_param_order` now cites upstream's own statement of the merge rule
+  rather than inferring it.
+
 ## [3.23.2] - 2026-09-24
 
 - fix: **the packaged parameter file was merged in a different order from the run that produced
