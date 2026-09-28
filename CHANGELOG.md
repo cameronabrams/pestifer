@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.24.0] - 2026-09-28
+
 - **The shipped CHARMM release defines one dihedral twice, and pestifer now chooses which value
   wins.** `NG2O1-CG2R61-CG2R61-NG2S3` at n=2 is `Kchi=1.25` in `par_all36_cgenff.prm` and
   `Kchi=3.1` in `toppar_all36_carb_imlab.str` -- a factor of 2.48 on the same quartet. CHARMM
