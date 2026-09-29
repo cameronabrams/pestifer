@@ -38,18 +38,21 @@ Examples
    examples/18/ecoli-polymerase
    examples/25/hiv-env-cd4-17b-liganded
    examples/27/ubiquitin-gfp-fusion
+   examples/32/bpti-no-md
 
 Fun with BPTI
 -------------
 
-Four builds from one source structure (`PDB 6pti <https://www.rcsb.org/structure/6PTI>`_,
-bovine pancreatic trypsin inhibitor), each adding one more modification to a standard
-fetch-psfgen-solvate-equilibrate workflow.  Start here.
+Five builds from one source structure (`PDB 6pti <https://www.rcsb.org/structure/6PTI>`_,
+bovine pancreatic trypsin inhibitor).  The first four each add one more modification to a
+standard fetch-psfgen-solvate-equilibrate workflow; the fifth removes the MD entirely.
+Start here.
 
 - :doc:`examples/01/bpti1` — baseline solvated build; the simplest complete pestifer workflow
 - :doc:`examples/02/bpti2` — heteroatom exclusion (phosphate ion); salty solvent; retaining crystal waters; ``validate`` task with custom parameters
 - :doc:`examples/03/bpti3` — point mutations (two shortcode formats) and disulfide bond deletion
 - :doc:`examples/04/bpti4` — introducing a new disulfide bond via mutations
+- :doc:`examples/32/bpti-no-md` — build and package with **no** MD task at all; a fast example kept for its task *shape*, which exercises a ``terminate`` branch the others never reach
 
 Cofactors, metals and protonation
 ---------------------------------

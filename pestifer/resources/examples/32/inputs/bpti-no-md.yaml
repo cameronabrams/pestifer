@@ -1,0 +1,48 @@
+# Author: Cameron F. Abrams, <cfa22@drexel.edu>
+#
+# pestifer input script
+#
+# Build and package a system WITHOUT running an MD step.
+#
+# This example exists for its SHAPE rather than its science: it is the only bundled config whose
+# task list reaches `terminate` with no `md`, `density_equilibrate` or `membrane_equilibrate`
+# before it.  That path is reachable by any user (a structure that needs no relaxation, or a
+# packaging-only run), and it takes different code inside `terminate`: the standard CHARMM
+# parameter files are staged by MD tasks, so with none of them the consolidated `*_minimal.prm`
+# is assembled down a branch nothing else here exercises.  A real defect lived on that branch
+# undetected (v3.24.0, the packaged parameter file was merged in a different order from the run
+# that produced it) because no example had this shape.
+#
+# It is also deliberately small and fast -- about 3 seconds -- so carrying it in the example sweep
+# costs effectively nothing.
+#
+# Two switches are exercised here that no other example turns on:
+#   - psfgen.source.reserialize: renumber atom serials from 1 in the written PDB
+#   - terminate.cleanup: keep the intermediate files instead of sweeping them
+#
+title: BPTI built and packaged without an MD step
+tasks:
+  - fetch:
+      sourceID: 6pti
+  - psfgen:
+      source:
+        reserialize: true
+  - validate:
+      tests:
+        - residue_test:
+            name: CYS residues present
+            selection: resname CYS
+            measure: residue_count
+            value: 6
+        - residue_test:
+            name: crystal waters retained
+            selection: water
+            measure: residue_count
+            value: 73
+  - terminate:
+      basename: my_6pti_nomd
+      cleanup: false
+      package:
+        basename: prod_6pti_nomd
+        namd:
+          ensemble: minimize
