@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.24.1] - 2026-09-29
+
 - **fix: a `bilayer: prebuilt:` build crashed on the first line that used it.**
   `AttributeError: 'dict' object has no attribute 'xsc'` in `make_membrane_system.provision`.
   The prebuilt psf/pdb/xsc paths were collected into a dict, passed to `register()`, and then the
