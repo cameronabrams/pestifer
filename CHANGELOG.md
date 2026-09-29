@@ -4,6 +4,29 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- **fix: a `bilayer: prebuilt:` build crashed on the first line that used it.**
+  `AttributeError: 'dict' object has no attribute 'xsc'` in `make_membrane_system.provision`.
+  The prebuilt psf/pdb/xsc paths were collected into a dict, passed to `register()`, and then the
+  *dict* was dereferenced -- `register()` returns the artifact it creates, and that return value
+  was being discarded. This affected **every** config that set `prebuilt`, so it broke the feature
+  for its first user. Reported 2026-09-29 from Picotte against a restart config that supplies its
+  own already-equilibrated bilayer.
+
+  It survived because nothing exercised the branch: `prebuilt` is in the schema and in
+  `provision`, but no bundled example sets it, and the existing test drove `using_prebuilt_bilayer`
+  as a routing flag on a mocked task that never reached `provision`. The new tests call `provision`
+  directly and reproduce the reported error against the old code.
+
+- **A `relaxation_protocols` block given alongside `prebuilt` is now announced as ignored.** Both
+  protocols are read inside the construction path that `prebuilt` replaces, so neither ever ran.
+  Skipping them is intended -- the bilayer is supplied because it is already equilibrated -- but it
+  was silent, and on a restart workflow the difference is whether the membrane received further
+  NPgT time. Pestifer now warns and names the protocols it is ignoring, only when one was actually
+  requested.
+
+- `bilayer.prebuilt`'s documentation now states what it does: all three files are required, the XSC
+  supplies the cell, the bilayer is used exactly as given, and relaxation does not run.
+
 ## [3.24.0] - 2026-09-28
 
 - **The shipped CHARMM release defines one dihedral twice, and pestifer now chooses which value
