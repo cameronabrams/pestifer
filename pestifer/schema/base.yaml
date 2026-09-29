@@ -1263,7 +1263,14 @@ attributes:
             type: dict
             attributes:
               - name: prebuilt
-                text: PSF and PDB file of a previously built system membrane system
+                text: >-
+                  PSF, PDB and XSC of an already-built, already-equilibrated bilayer to embed
+                  into, instead of having pestifer construct one. The usual reason is a restart:
+                  reuse the membrane a previous run settled. The bilayer is taken exactly as
+                  supplied -- NEITHER relaxation protocol runs, since both belong to the
+                  construction path this replaces -- so equilibrate it before supplying it. A
+                  `relaxation_protocols` block given alongside `prebuilt` is ignored, and pestifer
+                  warns that it was. All three files are required; the XSC supplies the cell.
                 type: dict
                 attributes:
                   - name: psf

@@ -208,14 +208,34 @@ class MakeMembraneSystemTask(BaseTask):
             logger.debug('Using prebuilt bilayer')
             self.using_prebuilt_bilayer = True
             self.quilt: Bilayer = Bilayer()
-            quilt_state = dict(pdb=self.bilayer_specs['prebuilt']['pdb'], psf=self.bilayer_specs['prebuilt']['psf'], xsc=self.bilayer_specs['prebuilt']['xsc'])
-            self.register(quilt_state, key='quilt_state', artifact_type=StateArtifacts)
+            # `register` RETURNS the artifact it made; the dict passed in is only the request.
+            # Dereferencing the dict instead -- `quilt_state.xsc.path` on a dict -- is an
+            # AttributeError on the first prebuilt build anyone runs (reported 2026-09-29 from
+            # Picotte, against a restart config that supplies its own equilibrated bilayer).
+            quilt_state: StateArtifacts = self.register(
+                dict(pdb=self.bilayer_specs['prebuilt']['pdb'],
+                     psf=self.bilayer_specs['prebuilt']['psf'],
+                     xsc=self.bilayer_specs['prebuilt']['xsc']),
+                key='quilt_state', artifact_type=StateArtifacts)
             self.quilt.box, self.quilt.origin = _cell_or_raise(
                 quilt_state.xsc.path, 'prebuilt bilayer')
             self.quilt.area = self.quilt.box[0][0] * self.quilt.box[1][1]
             additional_topologies = get_toppar_from_psf(quilt_state.psf.name)
             # these will be registered as artifacts when psfgen executes
             self.quilt.addl_streamfiles = additional_topologies
+            # A prebuilt bilayer is taken as given -- it is supplied precisely because it has
+            # already been equilibrated -- so neither relaxation protocol runs: both are read
+            # inside build_patch/_grid_membrane, which this branch skips.  That is intended, but
+            # it was silent, and a config carrying a `quilt:` protocol reasonably looks like it
+            # will be used (reported 2026-09-29, alongside the AttributeError above).
+            ignored = [n for n in ('patch', 'quilt')
+                       if self.bilayer_specs.get('relaxation_protocols', {}).get(n)]
+            if ignored:
+                logger.warning(
+                    f'bilayer.prebuilt is set, so the bilayer is used as supplied and '
+                    f'bilayer.relaxation_protocols.{{{",".join(ignored)}}} will NOT run. '
+                    f'Relax the bilayer before supplying it, or drop `prebuilt` to have pestifer '
+                    f'build and relax one.')
         else:
             self.initialize()
 
