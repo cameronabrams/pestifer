@@ -576,6 +576,55 @@ class CHARMMFFContent(CacheableObject):
             return self.resi_to_topfile_map[resname] if resname in self.resi_to_topfile_map else None
         return first_try
 
+    def stage_streamfiles_locally(self, basenames, context: str = 'this build'):
+        """Copy each named stream file into the CWD and return only the ones that resolved.
+
+        A PSF written outside pestifer records its topology sources in ``REMARKS topology``
+        lines, and those can name a file pestifer does not ship.  The recurring case is VMD's
+        NAMD-specific ``toppar_water_ions_namd.str``; pestifer ships ``toppar_water_ions.str``,
+        which is its equivalent.  :meth:`copy_charmmfile_local` only *warns* on a miss and writes
+        nothing, so passing an unresolvable name onward puts a ``topology <missing>`` line in the
+        psfgen script, and psfgen then dies with::
+
+            ERROR: Unable to open topology file toppar_water_ions_namd.str
+            MOLECULE DESTROYED BY FATAL ERROR!  Use resetpsf to start over.
+
+        Dropping the name is safe wherever the structure itself comes from the PSF rather than
+        from the template -- a ``readpsf``, a continuation, or a prebuilt bilayer.  It would not
+        be safe where the template is what *builds* the residues, so this is deliberately a
+        helper the caller opts into rather than something :meth:`copy_charmmfile_local` does.
+
+        This exists as one function because it was three: ``continuation`` and ``merge`` each
+        grew their own copy, and ``make_membrane_system``'s prebuilt branch -- added later --
+        did not, which is the bug reported 2026-09-30 from an Env membrane restart.  A single
+        idea implemented at three call sites is how the fourth one gets it wrong.
+
+        Parameters
+        ----------
+        basenames : iterable of str
+            Stream-file basenames read from a PSF's topology remarks.
+        context : str
+            What to name in the warning, so the message says which task dropped the file.
+
+        Returns
+        -------
+        tuple[list[str], list[str]]
+            ``(available, dropped)``, each preserving the input order.
+        """
+        available, dropped = [], []
+        for basename in basenames:
+            self.copy_charmmfile_local(basename)
+            if os.path.exists(basename):
+                available.append(basename)
+            else:
+                dropped.append(basename)
+                logger.warning(
+                    f'{context}: topology stream file {basename!r} recorded in a PSF is not '
+                    f'available in pestifer\'s force field and was not found locally; dropping '
+                    f'it so it cannot abort a downstream psfgen run. If this system genuinely '
+                    f'needs it, place the file in the run directory.')
+        return available, dropped
+
     def copy_charmmfile_local(self, basename: str) -> str:
         """
         Copy a NAMD-friendly version of a CHARMMFF file to the local directory.

@@ -220,7 +220,15 @@ class MakeMembraneSystemTask(BaseTask):
             self.quilt.box, self.quilt.origin = _cell_or_raise(
                 quilt_state.xsc.path, 'prebuilt bilayer')
             self.quilt.area = self.quilt.box[0][0] * self.quilt.box[1][1]
-            additional_topologies = get_toppar_from_psf(quilt_state.psf.name)
+            # Keep only the stream files that actually resolve.  A PSF built outside pestifer
+            # can name one pestifer does not ship -- VMD's `toppar_water_ions_namd.str` is the
+            # recurring case -- and passing it on puts a `topology <missing>` line in the embed
+            # psfgen script, which dies with "Unable to open topology file" (reported
+            # 2026-09-30 from an Env membrane restart).  `continuation` and `merge` already did
+            # this; this branch did not.
+            additional_topologies, _dropped = self.charmmff_content.stage_streamfiles_locally(
+                get_toppar_from_psf(quilt_state.psf.name),
+                context='make_membrane_system (prebuilt bilayer)')
             # these will be registered as artifacts when psfgen executes
             self.quilt.addl_streamfiles = additional_topologies
             # A prebuilt bilayer is taken as given -- it is supplied precisely because it has

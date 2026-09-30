@@ -140,19 +140,10 @@ class MergeTask(PsfgenTask):
         # passing the name on anyway would emit a 'topology <missing>' line that aborts
         # psfgen with "Unable to open topology file".  The merge uses readpsf, so the full
         # structure comes from the input PSFs and a missing template is safe to skip.
-        available_streamfiles: list[str] = []
-        dropped_streamfiles: list[str] = []
-        for sf in all_streamfiles:
-            CC.copy_charmmfile_local(sf)
-            if os.path.exists(sf):
-                available_streamfiles.append(sf)
-            else:
-                dropped_streamfiles.append(sf)
-                logger.warning(
-                    f'merge: topology stream file {sf!r} recorded in an input PSF is not '
-                    f'available in pestifer\'s force field and was not found locally; '
-                    f'skipping it (the merged structure is read from the input PSFs).')
-        all_streamfiles = available_streamfiles
+        # The merge uses readpsf, so the full structure comes from the input PSFs and a
+        # missing template is safe to skip.
+        all_streamfiles, dropped_streamfiles = CC.stage_streamfiles_locally(
+            all_streamfiles, context='merge')
 
         # Build a single VMD/psfgen script that (a) renames segments where
         # needed, then (b) merges all systems via readpsf.

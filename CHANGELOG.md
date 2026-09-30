@@ -4,6 +4,36 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- **fix: a prebuilt bilayer's own topology remarks could abort the embed psfgen.** A PSF written
+  outside pestifer records its topology sources in `REMARKS topology` lines, and those can name a
+  file pestifer does not ship -- VMD's NAMD-specific `toppar_water_ions_namd.str` being the
+  recurring case (pestifer ships `toppar_water_ions.str`, its equivalent). The prebuilt branch
+  passed every recorded name straight through, so the embed psfgen got a `topology <missing>` line
+  and died:
+
+      WARNING> copy_charmmfile_local: toppar_water_ions_namd.str not found in charmmff
+      ERROR: Unable to open topology file toppar_water_ions_namd.str
+      MOLECULE DESTROYED BY FATAL ERROR!  Use resetpsf to start over.
+
+  Unresolvable stream files are now dropped with a warning naming the file and the task. Reported
+  2026-09-30 from an HIV-1 Env membrane restart on Picotte, against 3.24.1.
+
+  **If you hit this on 3.24.1 or earlier**, the workaround was to copy VMD's
+  `toppar_water_ions_namd.str` into the run directory; that is no longer needed, and a system built
+  with the workaround is unaffected by this change (the file resolves, so it is kept).
+
+- **The same filter now exists once instead of three times.** `continuation` and `merge` each
+  already dropped unresolvable stream files -- both of their comments named
+  `toppar_water_ions_namd.str` specifically -- and the prebuilt branch, added later, did not. All
+  three now share `CHARMMFFContent.stage_streamfiles_locally`. This is the third defect in this
+  repository traceable to one idea implemented at several call sites and corrected at only some of
+  them, so the duplication was removed rather than extended.
+
+  Dropping a template is safe only where the structure itself comes from the PSF -- a `readpsf`, a
+  continuation, a prebuilt bilayer. It would not be safe where the template is what builds the
+  residues, which is why this is a helper callers opt into rather than something
+  `copy_charmmfile_local` does on its own.
+
 ## [3.24.1] - 2026-09-29
 
 - **fix: a `bilayer: prebuilt:` build crashed on the first line that used it.**

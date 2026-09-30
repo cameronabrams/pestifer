@@ -92,17 +92,8 @@ class ContinuationTask(PsfgenTask):
         # nothing in that case, so registering it anyway would later emit a
         # 'topology <missing>' line that aborts psfgen.  Keep only the ones that resolve.
         CC = self.resource_manager.charmmff_content
-        available_streamfiles = []
-        for streamfile in streamfiles:
-            CC.copy_charmmfile_local(streamfile)
-            if os.path.exists(streamfile):
-                available_streamfiles.append(streamfile)
-            else:
-                logger.warning(
-                    f'continuation: topology stream file {streamfile!r} recorded in '
-                    f'{psf} is not available in pestifer\'s force field and was not found '
-                    f'locally; dropping it so it cannot abort a downstream psfgen run. If '
-                    f'this PSF genuinely needs it, place the file in the run directory.')
+        available_streamfiles, _dropped = CC.stage_streamfiles_locally(
+            streamfiles, context=f'continuation ({psf})')
 
         self.register([CharmmffStreamFileArtifact(x) for x in available_streamfiles], key='charmmff_streamfiles', artifact_type=CharmmffStreamFileArtifacts)
 

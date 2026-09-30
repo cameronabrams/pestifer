@@ -42,6 +42,14 @@ def _task(prebuilt):
     t.specs = {'bilayer': {'prebuilt': prebuilt}}
     t.provisions = {}
     t.resource_manager = mock.Mock()
+    # `provision` now filters the PSF's topology remarks through
+    # CHARMMFFContent.stage_streamfiles_locally, which returns (available, dropped).  A bare Mock
+    # returns a Mock, which cannot be unpacked -- so the stub has to honor that contract.
+    # It must be set on resource_manager, NOT on the task: provision's own first lines do
+    # `self.charmmff_content = self.resource_manager.charmmff_content`, so anything set directly
+    # on the task is overwritten before the prebuilt branch runs.
+    t.resource_manager.charmmff_content.stage_streamfiles_locally.side_effect = (
+        lambda names, context='': (list(names), []))
     rec = _Recorder()
     t.register = lambda data, key, artifact_type=None, **kw: rec.register(data, key, t, artifact_type, **kw)
     t._recorder = rec
@@ -93,6 +101,36 @@ class TestPrebuiltBilayerProvision(unittest.TestCase):
     def test_topologies_are_read_from_the_registered_psf(self):
         t, _ = self._provision()
         self.assertEqual(t.quilt.addl_streamfiles, ['toppar_all36_lipid_cholesterol.str'])
+
+    def test_unresolvable_stream_files_are_dropped_before_psfgen_sees_them(self):
+        """Reported 2026-09-30: a PSF built outside pestifer records VMD's NAMD-specific
+        `toppar_water_ions_namd.str`, which pestifer does not ship (it ships the equivalent
+        `toppar_water_ions.str`).  Passing the name on put a `topology <missing>` line in the
+        embed psfgen script, and psfgen died with "Unable to open topology file".
+
+        `continuation` and `merge` already filtered these out; this branch did not.  All three
+        now share CHARMMFFContent.stage_streamfiles_locally, so the filter cannot be present in
+        two call sites and absent from a third again.
+        """
+        t = _task(PREBUILT)
+        t.resource_manager.charmmff_content.stage_streamfiles_locally.side_effect = (
+            lambda names, context='': ([n for n in names if 'namd' not in n],
+                                       [n for n in names if 'namd' in n]))
+        with mock.patch('pestifer.tasks.make_membrane_system.BaseTask.provision'), \
+             mock.patch('pestifer.tasks.make_membrane_system._cell_or_raise',
+                        return_value=(BOX, ORIGIN)), \
+             mock.patch('pestifer.tasks.make_membrane_system.get_toppar_from_psf',
+                        return_value=['toppar_water_ions_namd.str',
+                                      'toppar_all36_lipid_cholesterol.str']):
+            MakeMembraneSystemTask.provision(t, {})
+        self.assertEqual(t.quilt.addl_streamfiles, ['toppar_all36_lipid_cholesterol.str'])
+
+    def test_the_psf_remarks_are_passed_through_the_filter_at_all(self):
+        """Guards the wiring, not the filter: if `provision` went back to using
+        `get_toppar_from_psf` directly, the test above would still pass whenever the fixture
+        happened to contain nothing unresolvable."""
+        t, _ = self._provision()
+        t.resource_manager.charmmff_content.stage_streamfiles_locally.assert_called_once()
 
     def test_the_state_is_registered_under_quilt_state(self):
         """Downstream reads it back by that key (`get_current_artifact('quilt_state')`), so the
