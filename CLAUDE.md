@@ -336,6 +336,42 @@ straight from `cell_from_xsc`. It reads the last xsc of a solvent-box NPT equili
 pestifer itself just ran, so a missing cell there means the pipeline is already broken and there is
 no user input that reaches it. Left alone rather than papered over.
 
+## Three bugs from one idea living at several call sites — stop copying, start extracting
+
+Recorded 2026-09-30, after the third one. The pattern is not "someone forgot"; it is that a
+correct fix, applied at the sites known at the time, leaves a *shape* that the next call site
+reproduces wrongly:
+
+| the idea | sites | how it failed |
+| :--- | :--- | :--- |
+| guard on the parsed cell, not the xsc path | 3 | fixed at `make_membrane_system`, missed `RingChecker.check` one layer down (2026-08-27/28) |
+| upper-case both sides of an atom-type comparison | 8 | `_bond_key`/`_angle_key` fixed, `_dihedral_key`/`_improper_key`/`_nbfix_key` left, `psf_param_check.py` untouched for a month |
+| drop a stream file the release does not ship | 3 | `continuation` and `merge` each had it — **their comments even named the same file** — and `make_membrane_system`'s prebuilt branch, added later, did not (v3.24.2) |
+
+The third is the instructive one, because the duplication was *self-documenting* and still did not
+propagate: two call sites carried a comment naming `toppar_water_ions_namd.str` explicitly, and the
+third was written without either. Reading the other sites is not what makes a new call site
+correct; there is no step at which the author of a new branch is made to read them.
+
+**So the fix for the third instance was not a third copy.** `CHARMMFFContent.stage_streamfiles_locally`
+now holds that filter and all three call sites call it. Prefer this whenever you find yourself
+about to write the second copy of a behavior — and when you find the second copy already there,
+treat it as a defect report about the third site you have not looked at yet.
+
+Two caveats learned while doing it:
+
+- **Extracting widens the blast radius.** Pointing `continuation` and `merge` at a shared helper
+  touched two *working* paths to fix a third. That is usually right here, but it is a real cost
+  and belongs in the commit message, not hidden in a diff.
+- **The helper must be opt-in where the judgment differs.** Dropping a topology template is safe
+  where the structure comes from the PSF (`readpsf`, continuation, a prebuilt bilayer) and unsafe
+  where the template is what builds the residues. So this is a method callers choose, never
+  something `copy_charmmfile_local` does on its own — and its docstring says which is which,
+  because the next caller has to make that call.
+
+Sweep with `grep -rn stage_streamfiles_locally` and `grep -rn get_toppar_from_psf`; a new consumer
+of a PSF's topology remarks that does neither is the fourth instance.
+
 ## CHARMM atom types are case-insensitive, and the shipped release relies on it
 
 Found 2026-09-10 chasing "phosphotyrosine has no CHARMM parameters", which was wrong. A single
