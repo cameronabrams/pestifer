@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.24.2] - 2026-09-30
+
 - **fix: a prebuilt bilayer's own topology remarks could abort the embed psfgen.** A PSF written
   outside pestifer records its topology sources in `REMARKS topology` lines, and those can name a
   file pestifer does not ship -- VMD's NAMD-specific `toppar_water_ions_namd.str` being the
