@@ -25,6 +25,11 @@ dependencies = [
   "matplotlib",
   "networkx",
   "numpy>=1.24",
+  "packaging",          # PEP 440 version comparison; imported directly by
+                        # util/cacheable_object.py and util/update_check.py, both on the
+                        # CLI startup path.  It arrived transitively via matplotlib for a
+                        # year; a startup-path import is too load-bearing to leave resting
+                        # on someone else's dependency graph.
   "pandas",
   "pdb2pqr>=3.6",       # pKa/protonation; its stale `docutils<0.18` pin is never
                         # used and is overridden in [tool.uv] below

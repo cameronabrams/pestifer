@@ -9,6 +9,7 @@ import shutil
 import sys
 
 from ..util.stringthings import banner, __pestifer_version__
+from ..util.update_check import emit_update_notice
 from ..subcommands import _subcommands
 from ..core.errors import PestiferError
 
@@ -119,6 +120,11 @@ def cli():
         action='version',
         version=f'%(prog)s {__pestifer_version__}'
     )
+    parser.add_argument(
+        '--update-check',
+        default=True,
+        action=ap.BooleanOptionalAction,
+        help='check PyPI for a newer pestifer (interactive use only; at most once a day)')
     subparsers = parser.add_subparsers(
         title="Available commands (use \"pestifer <command> --help\" for help with any command)",
         dest="command",
@@ -148,6 +154,11 @@ def cli():
     # first.  stderr stays line-buffered when redirected, so writing there keeps the banner at
     # the top where it belongs.
     banner(lambda line: print(line, file=console.stream, flush=True), args)
+    # After the banner and before the command: the one place every invocation passes through.
+    # It writes only to a terminal, so this adds nothing -- no output and no network call -- to
+    # a redirected build.  `check-update` sets the suppression so it does not answer twice.
+    emit_update_notice(console.stream,
+                       enabled=args.update_check and not getattr(args, 'suppress_update_notice', False))
     try:
         result = args.func(args)
     except PestiferError as e:

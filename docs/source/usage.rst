@@ -111,6 +111,7 @@ These act on pestifer itself rather than on any system of yours.
    subs/wheretcl
    subs/setup-vmd
    subs/setup-claude
+   subs/check-update
    subs/modify-package
 
 ``modify-package`` is a maintainer tool and is registered only when pestifer is run from a source

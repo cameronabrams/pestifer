@@ -4,6 +4,29 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- **feat: pestifer tells you when it is out of date.** A `check-update` subcommand asks PyPI
+  whether a newer pestifer has been released, and pestifer makes the same check on its own before
+  running whatever you asked for. The automatic check is deliberately narrow, because nothing
+  about a build may depend on it:
+
+  - it runs **only when attached to a terminal**, so a redirected run (`pestifer build x.yaml >
+    run.log 2>&1` -- a cluster job, a batch sweep) makes no network request and prints nothing,
+    and build logs stay identical between runs;
+  - it asks PyPI **at most once a day**, caching the answer in `~/.pestifer/update-check.json`,
+    and caches a *failed* check the same way, so a machine with no route out pays one two-second
+    timeout a day rather than one per invocation;
+  - it stays quiet in a **source checkout**, which is routinely ahead of the latest release;
+  - every failure is silent, including a bug in the check itself.
+
+  Turn it off with `pestifer check-update --disable` (persistent),
+  `PESTIFER_NO_UPDATE_CHECK=1`, or `--no-update-check` for one invocation. Nothing about you or
+  your system is sent; the check reads one version string from `pypi.org`.
+
+- `packaging` is now a declared dependency. It was already imported directly by
+  `util/cacheable_object.py` and arrived transitively via matplotlib; the update check puts it on
+  the CLI startup path, which is too load-bearing to leave resting on another package's
+  dependency graph.
+
 ## [3.24.2] - 2026-09-30
 
 - **fix: a prebuilt bilayer's own topology remarks could abort the embed psfgen.** A PSF written

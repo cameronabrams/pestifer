@@ -25,8 +25,8 @@ import importlib.metadata
 import tomllib
 
 
-def _resolve_version() -> str:
-    """Return pestifer's version, preferring a source tree over install metadata.
+def _resolve_version_and_origin() -> tuple[str, bool]:
+    """Return ``(version, came_from_source_tree)``, preferring a source tree over install metadata.
 
     ``importlib.metadata`` reports the version recorded when the distribution was
     installed.  For an editable install that value is frozen at install time, so every
@@ -46,13 +46,24 @@ def _resolve_version() -> str:
         with open(pyproject, 'rb') as f:
             project = tomllib.load(f).get('project', {})
         if project.get('name') == 'pestifer' and project.get('version'):
-            return str(project['version'])
+            return str(project['version']), True
     except (OSError, tomllib.TOMLDecodeError, AttributeError):
         pass
-    return installed
+    return installed, False
 
 
-__pestifer_version__ = _resolve_version()
+def _resolve_version() -> str:
+    """pestifer's version string.  See :func:`_resolve_version_and_origin`."""
+    return _resolve_version_and_origin()[0]
+
+
+__pestifer_version__, __pestifer_version_from_source__ = _resolve_version_and_origin()
+"""Whether :data:`__pestifer_version__` came from a working tree's ``pyproject.toml``.
+
+A source checkout is routinely *ahead* of the latest release -- between a bump and the tag it
+always is -- so "newer than PyPI" is the normal state there and not news.  The update check
+(:mod:`pestifer.util.update_check`) reads this to stay quiet in a working tree.
+"""
 
 _banner_message="""
     Pestifer v. {pestifer_version}

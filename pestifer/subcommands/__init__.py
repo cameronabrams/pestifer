@@ -22,6 +22,7 @@ from .density_profile import DensityProfileSubcommand
 from .pressure_profile_ewald import PressureProfileEwaldSubcommand
 from .setup_vmd import SetupVMDSubcommand
 from .setup_claude import SetupClaudeSubcommand
+from .check_update import CheckUpdateSubcommand
 
 GROUPS: tuple[str, ...] = (
     'Build a system',
@@ -75,6 +76,7 @@ _subcommands: list[Subcommand] = [
     WhereTCLSubcommand(),
     SetupVMDSubcommand(),
     SetupClaudeSubcommand(),
+    CheckUpdateSubcommand(),
     ]
 
 if is_source_package_with_git:
