@@ -81,8 +81,17 @@ It is not: the response headers say `x-cache: HIT`, `age: 46`. You are re-readin
 of one error. Ask for a key that has never been requested and the size and hash differ every
 time (389, 390, 369, 390 bytes; four distinct hashes), because the body embeds a fresh
 `RequestId`. **"The hash came out the same twice" is a statement about Fastly, not about the
-file.** It also explains why two people measuring this an hour apart disagree about whether the
-value is stable -- we did, and both of us were right.
+file.**
+
+Spacing the repeats out does not rescue it, and the numbers are unkind. Polled every 20 s, one
+key held `x-cache: HIT` with identical bytes through `age=100` and came back `MISS` with a
+*completely different* hash at 120 s. So the window is about two minutes -- which straddles
+exactly the interval a person re-checks something at -- and **no header tells you**: these 404s
+carry no `cache-control`, no `expires`, no `surrogate-control`, and the first `HIT` arrives with
+`age: 0`. There is nothing in the response to calibrate a re-check against. That is why two of us
+measuring the same URL disagreed about whether the wrong value was stable: a burst of requests
+sits inside one window, two runs minutes apart straddle the boundary, and both readings are
+honest.
 
 `e3b0c442...` is the lucky case: it is at least recognizable. Do not learn the constant, do not
 learn the host, and do not trust repeatability as a proxy for correctness.
