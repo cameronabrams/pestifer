@@ -809,4 +809,20 @@ real bug.
       `check-spec` is what actually ran, since a floor already satisfied by the installed version is
       precisely how a dependency test ends up testing PyPI instead (see CLAUDE.md, row 1).
       Report: `~/.local/state/fleet/drops/ycleptic-check-spec-shape-blindness-20261001.md`.
+      **DONE 2026-10-01** (`75bec92b`), with one deviation worth keeping: the local assertion was
+      not simply deleted, because nothing in pestifer *ran* check-spec — it was a line in
+      `contributing.rst` asking contributors to remember a command. The manual step became
+      `test_validate.py::TestCheckSpecCatchesAMisplacedAttribute` first.
+- [ ] **Raise the ycleptic floor again when the top-level element check ships (optional, small).**
+      2.4.3's structure check is applied to *nested* `attributes:` lists but not to the one at the
+      root: `check_base_spec` iterates `base['attributes']` under `if isinstance(node, dict)` with
+      no `else`, so a bare scalar at the root is silently ignored — the same defect class 2.4.3
+      closed, one level up. Found here 2026-10-01 while testing the negative control that
+      ycleptic's own docs recommend, which did not fire for exactly this reason. Fixed in
+      cameronabrams/ycleptic#8 (`fix/speccheck-top-level-elements`), unreleased as of 2026-10-01.
+      Verified against that branch: pestifer's real `base.yaml` still exits 0, so **no gate moves
+      and this is not urgent** — bump only to close the narrow hole that a malformed root element
+      in our own schema would currently slip through. pestifer's own control re-introduces a
+      *nested* swallow and fires on 2.4.3 and on #8 alike, so it needs no change either way.
+      Report: `~/.local/state/fleet/drops/ycleptic-ce30989-control-does-not-fire-20261001.md`.
 - [ ] _(add items here)_
