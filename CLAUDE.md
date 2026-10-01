@@ -66,15 +66,26 @@ opposite ones:
 
 | what you fetch | result |
 | :--- | :--- |
-| a **package** path -- `files.pythonhosted.org/packages/...`, `pypi.org/packages/...`, `pypi.io/packages/...` | `404`, **0 bytes**, so the pipe yields `e3b0c44298fc...7852b855`, the SHA256 of the empty string |
+| `/packages/source/<l>/<name>/<file>` -- the redirecting form a conda recipe uses; same on `files.pythonhosted.org`, `pypi.org` and `pypi.io` | `404`, **0 bytes**, so the pipe yields `e3b0c44298fc...7852b855`, the SHA256 of the empty string |
+| `/packages/<hex>/<hex>/<hex>/<file>` -- the canonical direct URL the JSON API hands you | `404` with a ~370-390 byte S3 `NoSuchKey` XML body that **echoes your key and carries a per-request `RequestId` and `HostId`** -- so the hash is different on every uncached request |
 | a **website** path -- `pypi.org/<anything-missing>` | `404` with a ~4.8 KB HTML page, hashing to something with no tell at all |
 | a **project page** from a script -- `pypi.org/project/<name>/` | **HTTP 200**, ~3 KB, a "Client Challenge" bot interstitial -- *byte-identical for a real project and a nonexistent one* |
 
-So the host is not the variable; the path shape is, and the third row is the one that matters.
-A scripted fetch of a project page returns 200 with a plausible body whether or not the thing
-exists, so **`curl -f` exits 0, a status check passes, and a size check passes** -- and the hash
-is stable across repeats, which is exactly what a correct one looks like. `e3b0c442...` is the
-*lucky* case: it is at least recognizable. Do not learn the constant, and do not learn the host.
+So the host is not the variable; the path shape is. The last row is the one that matters most:
+a scripted fetch of a project page returns 200 with a plausible body whether or not the thing
+exists, so **`curl -f` exits 0, a status check passes, and a size check passes**.
+
+And row 2 kills the one reassurance left. Repeat the same failing fetch and you get a *byte-
+identical* wrong hash -- six for six here -- which reads as a stable, reproducible measurement.
+It is not: the response headers say `x-cache: HIT`, `age: 46`. You are re-reading the CDN's copy
+of one error. Ask for a key that has never been requested and the size and hash differ every
+time (389, 390, 369, 390 bytes; four distinct hashes), because the body embeds a fresh
+`RequestId`. **"The hash came out the same twice" is a statement about Fastly, not about the
+file.** It also explains why two people measuring this an hour apart disagree about whether the
+value is stable -- we did, and both of us were right.
+
+`e3b0c442...` is the lucky case: it is at least recognizable. Do not learn the constant, do not
+learn the host, and do not trust repeatability as a proxy for correctness.
 
 Gate on the content being the thing you asked for. For an archive, require the bytes to *be* an
 archive (`file`, or `tar tzf`) before hashing; for an API, require the parsed field you came for.
