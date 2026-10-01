@@ -53,8 +53,13 @@ def _custom_prm_defaults():
 
     custom = find(schema, 'custom')
     assert custom is not None, 'POSITIVE CONTROL: no `custom` node in the schema'
+    # No shape assertion here on purpose.  A malformed `custom` -- an attribute swallowed into a
+    # neighbour's `default:` by an indentation slip, which is how this very file's entry once
+    # vanished -- is caught at the schema level by
+    # test_validate.py::TestCheckSpecCatchesAMisplacedAttribute, which runs ycleptic's own
+    # structure check and names the mechanism.  A second, weaker copy of that idea here would be
+    # the third-call-site pattern in CLAUDE.md, and it would go stale first.
     for a in custom['attributes']:
-        assert isinstance(a, dict), f'schema malformed near custom: {a!r}'
         if a['name'] == 'prm':
             return a.get('default') or []
     raise AssertionError('POSITIVE CONTROL: `custom` has no `prm` attribute')

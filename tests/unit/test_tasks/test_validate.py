@@ -101,8 +101,9 @@ class TestSchemaEnforcesTheSameSpecsAsTheCode(unittest.TestCase):
     ``validate`` was declared ``type: list`` while its payload is a mapping.  ycleptic's list
     walker ignores a list-typed element that is not a scalar or dict, so the whole ``validate``
     subtree was skipped: every ``choices:`` under it was inert, and a bad ``measure:`` reached
-    the task untouched.  ``yclept check-spec`` passes either way -- it checks that keys and type
-    names are recognized, not that a declared type is the right one -- so only a walk catches it.
+    the task untouched.  ``yclept check-spec`` passes either way -- even as of 2.4.3, whose new
+    structure check catches a *misplaced* attribute but not a *mistyped* one -- so only a walk
+    catches this.  :class:`TestCheckSpecCatchesAMisplacedAttribute` below covers the other half.
     """
 
     @staticmethod
@@ -159,3 +160,79 @@ class TestSchemaEnforcesTheSameSpecsAsTheCode(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestCheckSpecCatchesAMisplacedAttribute(unittest.TestCase):
+    """``yclept check-spec`` must run on the real schema, and must be able to fail.
+
+    ``check-spec`` used to validate *vocabulary* only -- that keys and type names are recognized
+    -- and passed, exit 0, on a ``base.yaml`` in which an attribute indented one level too deep
+    had been swallowed into its neighbour's ``default:`` list.  The attribute then declares
+    nothing: that is how ``charmmff.custom.prm`` silently ceased to exist here on 2026-09-30,
+    taking the conflict-resolution parameter file out of every build with it.  ycleptic 2.4.3
+    added the structure check (cameronabrams/ycleptic#7), which is why ``pyproject.toml`` floors
+    there.
+
+    Two tests, and the second is the one that earns its place.  Asserting only that the real
+    schema is clean would pass against *any* ycleptic, including one with no structure check at
+    all -- a floor is satisfied the moment the installed version is new enough, so the version
+    number cannot tell you the code is there.  Re-introducing the slip and requiring a complaint
+    is what pins that the installed ``check-spec`` actually performs this check.
+
+    Running it here also makes it a gate.  It had been a manual step in
+    ``docs/source/contributing.rst`` -- something a contributor was asked to remember -- which is
+    not a guard.
+    """
+
+    @staticmethod
+    def _base():
+        import yaml
+        from importlib.resources import files as pkg_files
+        return yaml.safe_load(open(str(pkg_files('pestifer.schema').joinpath('base.yaml'))))
+
+    def test_the_shipped_schema_is_clean(self):
+        from ycleptic.speccheck import check_base_spec
+        problems = check_base_spec(self._base())
+        self.assertEqual(problems, [], 'pestifer/schema/base.yaml declares something ycleptic '
+                                       'ignores:\n  ' + '\n  '.join(problems))
+
+    def test_the_check_can_fail(self):
+        """NEGATIVE CONTROL: swallow an attribute the way a real indentation slip does."""
+        from ycleptic.speccheck import check_base_spec
+        import copy
+
+        base = self._base()
+
+        def find(node, name):
+            if isinstance(node, dict):
+                if node.get('name') == name:
+                    return node
+                for v in node.values():
+                    hit = find(v, name)
+                    if hit:
+                        return hit
+            elif isinstance(node, list):
+                for v in node:
+                    hit = find(v, name)
+                    if hit:
+                        return hit
+            return None
+
+        custom = find(base, 'custom')
+        self.assertIsNotNone(custom, 'POSITIVE CONTROL: no `custom` node to misplace')
+        attrs = custom['attributes']
+        prm = next(a for a in attrs if a['name'] == 'prm')
+        donor = next(a for a in attrs if a['name'] == 'str')
+        # exactly what four spaces too much indentation produces: the attribute leaves the
+        # `attributes:` list and lands among its neighbour's default values
+        attrs.remove(prm)
+        donor = copy.deepcopy(donor)
+        donor['default'] = list(donor.get('default') or []) + [prm]
+        attrs[attrs.index(next(a for a in attrs if a['name'] == 'str'))] = donor
+
+        problems = check_base_spec(base)
+        self.assertTrue(problems, 'the installed ycleptic did not catch a swallowed attribute; '
+                                  'check-spec has no structure check, so the >=2.4.3 floor is '
+                                  'not doing what pyproject.toml says it does')
+        self.assertTrue(any('prm' in p for p in problems),
+                        f'complained, but not about the misplaced attribute: {problems}')

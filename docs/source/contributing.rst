@@ -182,5 +182,14 @@ Two things to know when editing the schema:
 
 * every new key in ``pestifer/schema/base.yaml`` needs a ``text:`` entry, or the generated
   configuration reference fails to build;
-* run ``yclept check-spec pestifer/schema/base.yaml`` afterwards — ycleptic silently ignores some
-  malformed declarations rather than complaining.
+* ``yclept check-spec pestifer/schema/base.yaml`` is worth running as you edit, for a fast answer
+  — ycleptic silently ignores some malformed declarations rather than complaining, so a schema
+  that parses is not a schema that works. You no longer have to remember it, though: the unit
+  suite runs the same check on the shipped schema
+  (``test_validate.py::TestCheckSpecCatchesAMisplacedAttribute``), with a negative control that
+  fails if the installed ycleptic is too old to perform it. That test is why ``pyproject.toml``
+  floors ycleptic at 2.4.3, which is the release that added the structure check.
+
+  Note what it still does **not** catch: a wrong-but-valid ``type:``, which disables a whole
+  subtree silently. Declare a mapping payload ``type: dict`` and prove a bad value in it is
+  rejected — see ``TestSchemaEnforcesTheSameSpecsAsTheCode`` in the same file.
