@@ -28,6 +28,14 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   your system is sent; the check reads one version string from `pypi.org`, and it writes only to
   stderr, so a pipeline parsing pestifer's stdout is unaffected.
 
+- **The schema is now gated on ycleptic's structure check** (`ycleptic>=2.4.4`, up from 2.3.0).
+  `yclept check-spec` used to validate vocabulary only, and passed on a `base.yaml` where an
+  attribute indented one level too deep had been swallowed into its neighbour's `default:` list
+  -- which silently deleted `charmmff.custom.prm`, taking a conflict-resolution parameter file out
+  of every build. Reported from this repo; fixed in ycleptic 2.4.3 (nested lists) and 2.4.4 (the
+  root list). Running the check was a manual step in `contributing.rst`; it is now a test, with a
+  negative control for each half that fails below the floor it justifies.
+
 - `packaging` is now a declared dependency. It was already imported directly by
   `util/cacheable_object.py` and arrived transitively via matplotlib; the update check puts it on
   the CLI startup path, which is too load-bearing to leave resting on another package's

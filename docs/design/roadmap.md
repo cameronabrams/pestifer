@@ -813,7 +813,10 @@ real bug.
       not simply deleted, because nothing in pestifer *ran* check-spec — it was a line in
       `contributing.rst` asking contributors to remember a command. The manual step became
       `test_validate.py::TestCheckSpecCatchesAMisplacedAttribute` first.
-- [ ] **Raise the ycleptic floor again when the top-level element check ships (optional, small).**
+- [x] **Raise the ycleptic floor again when the top-level element check ships (optional, small).**
+      **DONE 2026-10-01**: ycleptic 2.4.4 released; floor raised and a second negative control
+      added for the root list, proven to fail on 2.4.3 and pass on 2.4.4. Each control now fails
+      below the floor it justifies.  Original note follows.
       2.4.3's structure check is applied to *nested* `attributes:` lists but not to the one at the
       root: `check_base_spec` iterates `base['attributes']` under `if isinstance(node, dict)` with
       no `else`, so a bare scalar at the root is silently ignored — the same defect class 2.4.3

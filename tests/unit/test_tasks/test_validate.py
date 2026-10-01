@@ -182,6 +182,14 @@ class TestCheckSpecCatchesAMisplacedAttribute(unittest.TestCase):
     Running it here also makes it a gate.  It had been a manual step in
     ``docs/source/contributing.rst`` -- something a contributor was asked to remember -- which is
     not a guard.
+
+    There are two controls because the check landed in two places.  2.4.3 element-checked only
+    *nested* ``attributes:`` lists; the one at the root was iterated under an ``isinstance(node,
+    dict)`` with no ``else``, so a bare scalar there was skipped in silence -- the same defect one
+    level up, found 2026-10-01 while testing the control ycleptic's own documentation recommended,
+    which did not fire for exactly that reason.  2.4.4 closed it
+    (cameronabrams/ycleptic#8), and ``pyproject.toml`` floors there.  Each control fails below the
+    floor it justifies, which is the only thing that keeps either floor from being a comment.
     """
 
     @staticmethod
@@ -236,3 +244,22 @@ class TestCheckSpecCatchesAMisplacedAttribute(unittest.TestCase):
                                   'not doing what pyproject.toml says it does')
         self.assertTrue(any('prm' in p for p in problems),
                         f'complained, but not about the misplaced attribute: {problems}')
+
+    def test_the_check_reaches_the_root_list_too(self):
+        """NEGATIVE CONTROL for the 2.4.4 half: junk directly in the root ``attributes:`` list.
+
+        Passes on 2.4.4, fails on 2.4.3 -- where the root list was iterated under an
+        ``isinstance(node, dict)`` with no ``else``, so this element was skipped without a word.
+        That is what makes the ``>=2.4.4`` floor mean something; the nested control above cannot
+        see this, since it fires on 2.4.3 too.
+        """
+        from ycleptic.speccheck import check_base_spec
+
+        base = self._base()
+        base['attributes'].append('not-an-attribute')
+        problems = check_base_spec(base)
+        self.assertTrue(problems, 'the installed ycleptic does not element-check the ROOT '
+                                  'attributes list, so the >=2.4.4 floor is not doing what '
+                                  'pyproject.toml says it does')
+        self.assertTrue(any('top level' in p for p in problems),
+                        f'complained, but not about the root list: {problems}')

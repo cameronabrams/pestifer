@@ -42,12 +42,15 @@ dependencies = [
   "pyyaml>=6",
   "scipy",
   "unidiff",
-  "ycleptic>=2.4.3",   # 2.4.3 gives `yclept check-spec` a STRUCTURE check, not just a
+  "ycleptic>=2.4.4",   # 2.4.3 gives `yclept check-spec` a STRUCTURE check, not just a
                        # vocabulary one: it now catches an attribute swallowed into a
                        # neighbour's `default:` by an indentation slip, which silently
                        # deletes that attribute. tests/unit/test_tasks/test_validate.py
                        # exercises it, with a negative control, so the floor is enforced
-                       # by behavior rather than by this line alone.
+                       # by behavior rather than by this line alone.  2.4.4 extends that check
+                       # to the ROOT `attributes:` list, which 2.4.3 skipped -- so a bare scalar
+                       # at the top of base.yaml was silently ignored, the same defect one level
+                       # up.  Both levels now have a control that fails below this floor.
 ]
 
 [project.optional-dependencies]

@@ -188,7 +188,8 @@ Two things to know when editing the schema:
   suite runs the same check on the shipped schema
   (``test_validate.py::TestCheckSpecCatchesAMisplacedAttribute``), with a negative control that
   fails if the installed ycleptic is too old to perform it. That test is why ``pyproject.toml``
-  floors ycleptic at 2.4.3, which is the release that added the structure check.
+  floors ycleptic at 2.4.4: 2.4.3 added the structure check for nested ``attributes:`` lists and
+  2.4.4 extended it to the one at the root, and there is a separate control for each half.
 
   Note what it still does **not** catch: a wrong-but-valid ``type:``, which disables a whole
   subtree silently. Declare a mapping payload ``type: dict`` and prove a bad value in it is
