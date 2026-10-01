@@ -59,18 +59,30 @@ most of them self-inflicted (two more added since):
 | `sha256sum` on the artifacts a release should have written, diffed against a reference | nothing. The files did not exist, so `sha256sum` wrote its complaint to *stderr* and nothing to stdout -- the comparison was `"" = ""`, and it printed MATCH for three missing files in a row. (2026-10-01) |
 
 **A hash is not evidence that anything was hashed.** The last row has a sibling worth knowing
-before you meet it, hit the same day in ycleptic: `curl -sL <url> | sha256sum` through a **404**
-hashes the error body. On `files.pythonhosted.org` that body is *zero bytes*, so you get
-`e3b0c44298fc...7852b855` -- the SHA256 of the empty string -- which looks like a hash and agrees
-with nothing, so it reads as "upstream's hash is wrong" rather than "I downloaded nothing". `-f`
-does not save you; it suppresses the body you already were not getting. And the empty hash is the
-*recognizable* case: `pypi.org` serves a 4842-byte HTML page on a 404, which hashes to something
-with no tell at all. Measured both, 2026-10-01.
+before you meet it, hit the same day in ycleptic: `curl -sL <url> | sha256sum` through a failed
+fetch hashes whatever came back instead. Measured 2026-10-01, and the measurement is the point
+-- the first two accounts of this, mine and ycleptic's, each named a *host* and they named
+opposite ones:
 
-Gate on the bytes, never on the hash: require a 200 and a plausible size (`curl -w
-'%{http_code} %{size_download}'`), or hash a file on disk and check it exists first. The same rule
-covers the table row above -- `sha256sum` reports a missing file on stderr and exits 1, so a
-pipeline that reads only stdout sees success-shaped emptiness.
+| what you fetch | result |
+| :--- | :--- |
+| a **package** path -- `files.pythonhosted.org/packages/...`, `pypi.org/packages/...`, `pypi.io/packages/...` | `404`, **0 bytes**, so the pipe yields `e3b0c44298fc...7852b855`, the SHA256 of the empty string |
+| a **website** path -- `pypi.org/<anything-missing>` | `404` with a ~4.8 KB HTML page, hashing to something with no tell at all |
+| a **project page** from a script -- `pypi.org/project/<name>/` | **HTTP 200**, ~3 KB, a "Client Challenge" bot interstitial -- *byte-identical for a real project and a nonexistent one* |
+
+So the host is not the variable; the path shape is, and the third row is the one that matters.
+A scripted fetch of a project page returns 200 with a plausible body whether or not the thing
+exists, so **`curl -f` exits 0, a status check passes, and a size check passes** -- and the hash
+is stable across repeats, which is exactly what a correct one looks like. `e3b0c442...` is the
+*lucky* case: it is at least recognizable. Do not learn the constant, and do not learn the host.
+
+Gate on the content being the thing you asked for. For an archive, require the bytes to *be* an
+archive (`file`, or `tar tzf`) before hashing; for an API, require the parsed field you came for.
+`pestifer/util/update_check.py` does the latter -- it reads `info.version` out of parsed JSON, so
+a challenge page served as 200 raises on `.json()` and is treated as "no answer" rather than as an
+answer. Status and size are a cheap first filter, not the check. The same rule covers the table
+row above: `sha256sum` reports a missing file on stderr and exits 1, so a pipeline reading only
+stdout sees success-shaped emptiness.
 
 Two habits catch all of them.
 
