@@ -9,18 +9,24 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   running whatever you asked for. The automatic check is deliberately narrow, because nothing
   about a build may depend on it:
 
-  - it runs **only when attached to a terminal**, so a redirected run (`pestifer build x.yaml >
-    run.log 2>&1` -- a cluster job, a batch sweep) makes no network request and prints nothing,
-    and build logs stay identical between runs;
   - it asks PyPI **at most once a day**, caching the answer in `~/.pestifer/update-check.json`,
     and caches a *failed* check the same way, so a machine with no route out pays one two-second
     timeout a day rather than one per invocation;
   - it stays quiet in a **source checkout**, which is routinely ahead of the latest release;
   - every failure is silent, including a bug in the check itself.
 
+  The notice is written to stderr beside the banner, so it reaches a **redirected** run too --
+  a SLURM job, a batch sweep, `pestifer build x.yaml > run.log 2>&1`. That is where a stale
+  install otherwise goes unnoticed indefinitely, since nobody is watching a terminal. The cost is
+  that a build log can differ between runs by this one line; within a single sweep the builds
+  still agree with each other (the first fetches, the rest read the same cached answer), but two
+  sweeps run on different days can differ. **Where log comparability is the point, turn the check
+  off rather than reasoning about it:** `export PESTIFER_NO_UPDATE_CHECK=1` in the job script.
+
   Turn it off with `pestifer check-update --disable` (persistent),
   `PESTIFER_NO_UPDATE_CHECK=1`, or `--no-update-check` for one invocation. Nothing about you or
-  your system is sent; the check reads one version string from `pypi.org`.
+  your system is sent; the check reads one version string from `pypi.org`, and it writes only to
+  stderr, so a pipeline parsing pestifer's stdout is unaffected.
 
 - `packaging` is now a declared dependency. It was already imported directly by
   `util/cacheable_object.py` and arrived transitively via matplotlib; the update check puts it on

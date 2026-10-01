@@ -155,8 +155,10 @@ def cli():
     # the top where it belongs.
     banner(lambda line: print(line, file=console.stream, flush=True), args)
     # After the banner and before the command: the one place every invocation passes through.
-    # It writes only to a terminal, so this adds nothing -- no output and no network call -- to
-    # a redirected build.  `check-update` sets the suppression so it does not answer twice.
+    # Like the banner, it goes to stderr, so a redirected build gets it too -- that is the case
+    # a stale pestifer otherwise goes unnoticed in.  `PESTIFER_NO_UPDATE_CHECK=1` is the switch
+    # for a job script that needs its logs comparable between runs.  `check-update` sets the
+    # suppression below so it does not answer the same question twice.
     emit_update_notice(console.stream,
                        enabled=args.update_check and not getattr(args, 'suppress_update_notice', False))
     try:

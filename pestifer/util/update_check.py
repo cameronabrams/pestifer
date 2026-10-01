@@ -1,25 +1,39 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
 """
-Tells an interactive user when the pestifer they are running is older than the latest release.
+Tells a user when the pestifer they are running is older than the latest release.
 
-The whole point of this module is that it is *optional*: a build must behave identically whether
-the check succeeds, fails, or never runs.  Three rules follow from that, and each is load-bearing.
+The notice goes to stderr beside the banner, which means it reaches a redirected run --
+``pestifer build x.yaml > run.log 2>&1``, a SLURM job, ``| tee`` -- as well as a terminal.  That
+is deliberate and it is the case that matters: the people most likely to be running a stale
+pestifer are the ones running long builds in batch, who never see a terminal.  An earlier version
+of this module checked ``isatty`` and stayed silent in exactly that case, which got the priority
+backwards.
 
-**It only runs on a terminal.**  :func:`emit_update_notice` returns immediately unless the stream
-it would write to is a tty.  A redirected run -- ``pestifer build x.yaml > run.log 2>&1``, which
-is how the example sweep and most cluster jobs invoke it -- therefore makes no network call at
-all and writes no notice.  That keeps build logs byte-identical across runs, which matters here:
-the sweep compares logs between builds, and a line that appears only when the network happens to
-be up is a diff that means nothing.
+The cost is that a build log can now differ between runs: whether the notice appears depends on
+what PyPI said, which is outside the build.  The cache bounds how far that spreads -- within one
+sweep every build after the first reads the same cached answer, so they agree with each other --
+but two sweeps run on different days, or with the network up and down, can still differ by this
+line.  **Where log comparability is the point, turn the check off rather than reasoning about
+it**: ``PESTIFER_NO_UPDATE_CHECK=1`` in the job script, or ``--no-update-check``.
+
+A build must otherwise behave identically whether the check succeeds, fails, or never runs.
+Three rules carry that, and each is load-bearing.
 
 **A failed check is cached like a successful one.**  The interval stamp is written whether or not
 the fetch worked, so a machine with no route out pays one timeout a day rather than one per
 invocation.  Without that, an unreachable PyPI would be the *expensive* case rather than the
-cheap one -- precisely backwards.
+cheap one -- precisely backwards, and on a cluster node with no egress that is the normal case.
 
 **A source tree never nags.**  :data:`~pestifer.util.stringthings.__pestifer_version_from_source__`
 is true when the running version came from a working tree's ``pyproject.toml``, where being ahead
 of the latest release is normal.
+
+**Nothing here may raise.**  :func:`emit_update_notice` swallows every exception, including ones
+:func:`check_for_update` deliberately lets through.  A bug in the update check must not be able
+to fail a build that would otherwise have run.
+
+The notice is written to stderr and never to stdout, so a pipeline parsing pestifer's stdout is
+unaffected by any of this.
 
 Opt out with ``--no-update-check``, ``PESTIFER_NO_UPDATE_CHECK=1``, or by setting ``"enabled":
 false`` in the cache file (which is what ``pestifer check-update --disable`` writes, and the only
@@ -198,11 +212,13 @@ def emit_update_notice(stream, enabled: bool = True, **kwargs) -> bool:
     :func:`check_for_update` would let through.  A bug in the update check must not be able to
     fail a build.
 
-    Returns ``False`` without checking anything -- without so much as a DNS lookup -- when
-    ``stream`` is not a terminal.  See the module docstring for why that is a feature.
+    It does *not* care whether ``stream`` is a terminal.  A redirected build -- a SLURM job, a
+    sweep, ``> run.log 2>&1`` -- gets the notice too, because that is where a stale pestifer
+    actually goes unnoticed.  See the module docstring for what that costs and how to turn it
+    off where it is not wanted.
     """
     try:
-        if not enabled or not callable(getattr(stream, 'isatty', None)) or not stream.isatty():
+        if not enabled:
             return False
         notice = check_for_update(**kwargs).notice
         if notice is None:

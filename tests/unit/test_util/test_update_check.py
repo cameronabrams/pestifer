@@ -25,7 +25,11 @@ from pestifer.util.update_check import (CHECK_INTERVAL_SECONDS, ENV_OPT_OUT, _is
 
 
 class _Tty(io.StringIO):
-    """A stream that claims to be a terminal, which is what gates the whole check."""
+    """A stream that claims to be a terminal.
+
+    The notice no longer depends on this -- a redirected run gets it too -- but keeping both
+    kinds of stream in the tests is what pins that equivalence rather than assuming it.
+    """
 
     def isatty(self):
         return True
@@ -191,19 +195,39 @@ class TestEmitUpdateNotice(UpdateCheckTestCase):
         self.assertTrue(self._emit(stream))
         self.assertIn('A newer pestifer is available: 3.25.0', stream.getvalue())
 
-    def test_a_redirected_stream_gets_nothing_and_fetches_nothing(self):
-        """A redirected build must stay byte-identical, and must not touch the network.
+    def test_a_redirected_stream_gets_the_notice_too(self):
+        """The case the notice exists for.
 
-        `pestifer build x.yaml > run.log 2>&1` is how the sweep and every cluster job run.  A
-        notice that appeared there only when the network happened to be up would make two runs
-        of the same example produce different logs.
+        `pestifer build x.yaml > run.log 2>&1` is how a SLURM job, a sweep, and anyone walking
+        away from a long build invoke pestifer -- so it is exactly where a stale install goes
+        unnoticed.  An earlier version gated on `isatty` and stayed silent here; this test is
+        what stops that coming back.
         """
         stream = io.StringIO()  # a plain StringIO.isatty() is False
-        calls = []
-        self.assertFalse(self._emit(stream, fetcher=lambda: calls.append(1) or '3.25.0'))
-        self.assertEqual(stream.getvalue(), '')
-        self.assertEqual(calls, [])
-        self.assertFalse(self.cache.exists(), 'a non-tty run must not even write the cache')
+        self.assertTrue(self._emit(stream))
+        self.assertIn('A newer pestifer is available: 3.25.0', stream.getvalue())
+
+    def test_a_terminal_and_a_redirect_get_the_same_text(self):
+        tty, redirected = _Tty(), io.StringIO()
+        self._emit(tty, now=1000.0)
+        self._emit(redirected, now=1000.0)
+        self.assertEqual(tty.getvalue(), redirected.getvalue())
+
+    def test_every_build_in_one_sweep_agrees(self):
+        """What survives of log determinism, and the reason it is worth stating.
+
+        The notice is not deterministic across days -- it depends on what PyPI says.  It *is*
+        deterministic within a cache window: the first invocation fetches, every later one reads
+        the same cached answer, so a sweep's builds agree with each other even though the fetcher
+        would now give a different reply.  A diff between two builds of one sweep therefore still
+        means something.
+        """
+        first = io.StringIO()
+        self._emit(first, now=1000.0)
+        for offset in (1, 600, CHECK_INTERVAL_SECONDS - 1):
+            later = io.StringIO()
+            self._emit(later, now=1000.0 + offset, fetcher=lambda: '9.9.9')
+            self.assertEqual(later.getvalue(), first.getvalue())
 
     def test_disabled_emits_nothing(self):
         stream = _Tty()
@@ -234,7 +258,8 @@ class TestEmitUpdateNotice(UpdateCheckTestCase):
             self.assertFalse(emit_update_notice(stream))
         self.assertEqual(stream.getvalue(), '')
 
-    def test_a_stream_with_no_isatty_is_tolerated(self):
+    def test_a_stream_that_cannot_be_written_to_is_tolerated(self):
+        """A caller's stream is not this module's to validate; it just must not take the build down."""
         class Bare:
             pass
 
