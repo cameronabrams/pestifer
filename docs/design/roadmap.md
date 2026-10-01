@@ -794,4 +794,19 @@ real bug.
       hard-won constraint recorded in its header: the Tcl must reach VMD on **stdin**, never `-e`, or
       representations are never built and every render silently produces an image containing nothing
       but the corner axes.
+- [ ] **Drop the base.yaml dict-assertion test once ycleptic's `check-spec` ships a shape check.**
+      `tests/unit/test_tasks/test_validate.py`'s schema walk, and the ad-hoc assertion that every
+      `attributes:` entry is a dict, exist because `yclept check-spec` validated *vocabulary* and not
+      *structure*: it passed, exit 0, on a `base.yaml` where an attribute indented four spaces too
+      deep had been swallowed into its neighbour's `default:` list, so `charmmff.custom.prm` silently
+      ceased to exist and `charmmff.custom.str` gained a dict where a filename belongs.
+      ycleptic-repo fixed it in `cameronabrams/ycleptic#7` (branch `fix/speccheck-structure`), which
+      detects a `default:` containing something shaped like an attribute spec. Verified here
+      2026-10-01 against that branch in an isolated venv, gating on file content rather than the
+      version string: pestifer's real `base.yaml` exits 0 (no false positive) and the slipped repro
+      exits 1, naming the cause. **When it releases**, raise the `ycleptic>=` floor in
+      `pyproject.toml` and delete the local workaround — but only after confirming the new
+      `check-spec` is what actually ran, since a floor already satisfied by the installed version is
+      precisely how a dependency test ends up testing PyPI instead (see CLAUDE.md, row 1).
+      Report: `~/.local/state/fleet/drops/ycleptic-check-spec-shape-blindness-20261001.md`.
 - [ ] _(add items here)_
