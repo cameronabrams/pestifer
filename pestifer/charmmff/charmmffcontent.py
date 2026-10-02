@@ -261,7 +261,9 @@ class CHARMMFFContent(CacheableObject):
     @countTime
     def __init__(self, *args, **kwargs):
         user_custom_directories = kwargs.pop('user_custom_directories', [])
-        user_pdbrepository_paths = kwargs.pop('user_pdbrepository_paths', [])
+        user_pdbcollections = kwargs.pop('user_pdbcollections', None)
+        if user_pdbcollections is None:
+            user_pdbcollections = kwargs.pop('user_pdbrepository_paths', [])
         user_custom_segtypes = kwargs.pop('user_custom_segtypes', {})
         generate_missing_coordinates = kwargs.pop('generate_missing_coordinates', True)
         release_str = kwargs.pop('release_str', '')
@@ -269,7 +271,7 @@ class CHARMMFFContent(CacheableObject):
             kwargs['resource_label'] = Path(args[0]).name
         super().__init__(*args, **kwargs)
         self.deprovision()
-        self.user_pdbrepository_paths = user_pdbrepository_paths
+        self.user_pdbcollections = user_pdbcollections
         self.generate_missing_coordinates = generate_missing_coordinates
         """Whether missing PDB-repository coordinates may be generated on the fly and cached
         under ``~/.pestifer/`` (opt out with ``charmmff.generate_missing_coordinates: false``)."""
@@ -486,7 +488,7 @@ class CHARMMFFContent(CacheableObject):
 
     def provision_pdbrepository(self, force_rebuild: bool = False, resnames: list[str] = []):
         self.pdbrepository = PDBRepository(os.path.join(self.charmmff_path, 'pdbrepository'), resnames=resnames, force_rebuild=force_rebuild)
-        for path in getattr(self, 'user_pdbrepository_paths', []):
+        for path in getattr(self, 'user_pdbcollections', []) or []:
             logger.info(f'Adding user PDB collection {path} to PDB repository')
             self.pdbrepository.add_resource(path)
         # auto-register any previously generated on-demand-cache collections for this release,

@@ -195,7 +195,7 @@ attributes:
             each of which contains PDB files for that RESI.
           example:
             charmmff:
-              pdbcollections:
+              user_pdbcollections:
                 - /path/to/my/custom/lipid/collection/
                 - /path/to/my/custom/ligand/collection/
         default: []

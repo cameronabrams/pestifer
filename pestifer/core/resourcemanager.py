@@ -115,7 +115,16 @@ class ResourceManager:
                 charmmff_path,
                 user_custom_directories=user_custom_directories,
                 user_custom_segtypes=user_custom.get('segtypes', {}),
-                user_pdbrepository_paths=self._charmmff_config.get('pdbrepository', []),
+                # The schema key is `user_pdbcollections` (schema/base.yaml).  This read was
+                # `pdbrepository`, which the schema does not declare at all, so the documented
+                # feature did nothing: a user setting `user_pdbcollections` was never read, and
+                # the only key that worked could not survive validation.  The schema's own
+                # example named a third spelling, `pdbcollections`.  Found 2026-10-02 looking
+                # for a way to test a regenerated conformer collection without installing it.
+                # The legacy spelling is still honoured so a hand-built config dict keeps
+                # working, but it is not the documented interface.
+                user_pdbcollections=self._charmmff_config.get('user_pdbcollections')
+                                    or self._charmmff_config.get('pdbrepository', []),
                 generate_missing_coordinates=self._charmmff_config.get('generate_missing_coordinates', True),
                 release_str=self._charmmff_config.get('release', ''),
             )
