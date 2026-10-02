@@ -1026,4 +1026,38 @@ real bug.
       generated this run arguably should beat a stale user path), and it is Cameron's call which
       way it should go. Whatever is decided, the two docstrings and the code must be made to agree
       — right now no reading of them is correct.
+- [ ] **patchA's residual thinness is NOT curl — it tracks sterol fraction, through the
+      composition-weighted head plane.** Measured 2026-10-02 after the axial fix closed patchB
+      (deficit 13.04 -> 2.11 A) while leaving patchA at 6.95 A.
+
+      Curl is refuted, not assumed. patchA's chains sit at **88.9% / 88.5% of the all-trans
+      ideal** z-rise, and its Lo ensembles reach their order target (PSM__Lo 0.297, POPC__Lo
+      0.315, against a documented Lo band of 0.3-0.4). The conformers are extended and ordered.
+
+      What pulls the plane down is the averaging. Placement sets
+      `raw_off = composition-weighted mean over ALL species of (anchor_z - mean tail-tip z)` and
+      pins every species' anchor to one plane. A sterol's anchor is its 3-OH, and it is far
+      shorter than any phospholipid:
+
+          PSM__Lo  19.35      POPC__Lo 22.93      CHL1__Lo 15.53      (A)
+
+      patchA is 47% CHL1, so the sterol drags `raw_off` from 20.50 (phospholipids only) to 18.16
+      -- predicting P-P 38.32 against 42.99, and reproducing the measured build of 39.53.
+
+      Consistent across the three systems, ordered by sterol fraction:
+
+          ex16    0% sterol   predicted 39.09, sweep measured build 39.91, relaxes DOWN (too THICK)
+          patchB 43% sterol   1.06 A/leaflet short after the axial fix
+          patchA 47% sterol   3.48 A/leaflet short
+
+      **This is the cholesterol correlation pestifer-sweep originally reported**, which I retired
+      as a confound when the FOLD turned out to be headgroup-driven. Both were right, for two
+      different mechanisms: PE/PS folding drove patchB's catastrophic case, sterol fraction drives
+      the fold-free residue and ex16's correctness.
+
+      **Caveat before anyone acts.** The equilibrated reference already contains cholesterol's real
+      effect on thickness, so "the build is thin" is measured against that. Whether co-planar
+      anchoring of a sterol 3-OH with a phosphate is actually WRONG needs the equilibrated
+      structures: in a real bilayer the 3-OH sits ~3-6 A below the phosphate plane. pestifer-sweep
+      holds those trajectories; I do not. Ask before changing placement semantics.
 - [ ] _(add items here)_
