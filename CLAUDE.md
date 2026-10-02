@@ -104,6 +104,37 @@ answer. Status and size are a cheap first filter, not the check. The same rule c
 row above: `sha256sum` reports a missing file on stderr and exits 1, so a pipeline reading only
 stdout sees success-shaped emptiness.
 
+**And the inverse, which cost more than any of them: a check that FIRED is not evidence anyone
+read it.** Every row above is a check that silently did not run. 2026-10-02 produced the mirror
+image. `make_membrane_system._warn_phase_composition_mismatch` warns when a leaflet's declared
+phase is at odds with its sterol content; on ex17's lower leaflet (43% CHL1, declared `Ld`) it
+says *"expect the leaflet to order (drift toward Lo) during equilibration; consider phase: Lo"*.
+
+That is exactly the slow mode that went on to consume a multi-week investigation -- P-P thickness
+climbing 33.9 -> 42.3 A and still rising, `corr(S, P-P) = +0.955`, a premature certification, and
+a published APL that is an artifact. The warning is in **every** ex17 build log held, across at
+least two release cycles (3.22.1 and 3.22.8 replicates, every gate-off and validation run), and
+correctly silent for ex16, which is pure DMPC and whose gate works.
+
+It was overridden by a comment sitting beside the setting: *"the cis double bond can't be ordered
+by the trans bias (its Lo ensemble == its fluid Ld one), so declare it Ld: same result."* That
+premise is false -- SOPE/SOPS are stearoyl and POPE palmitoyl, so sn-1 is fully saturated and only
+sn-2 carries the kink -- and measurably so: building the same patch both ways gives 28.083 A (Ld)
+against 29.008 A (Lo), identical across seeds. The ensembles differ. Nobody re-derived the
+comment, and the tool's own correct answer sat in the logs for two releases.
+
+Two things follow:
+
+- **Before concluding the tool was silent about something, grep the build logs for it.** The
+  diagnostic may already be there, right, and specific.
+- **A diagnostic that only reaches a log is one `tail` away from invisible.** Put it where the
+  symptom will be read. The gap is still open here: the phase/composition mismatch is raised in
+  `make_membrane_system`, while the symptom shows up chunks later in `membrane_equilibrate`'s
+  `-membrane.dat`, which carries no trace of it.
+
+A comment that justifies overriding a warning is a claim, and claims in comments rot exactly like
+claims in docstrings -- with nothing to fail when they stop being true.
+
 Two habits catch all of them.
 
 **Gate on positive evidence of the specific claim, never on the absence of a contrary one.** "No
