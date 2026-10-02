@@ -32,6 +32,16 @@ logger = logging.getLogger(__name__)
 # is what lets a 4-chain cardiolipin be confined at ~120 rather than crushed into a 2-chain cylinder.
 _PER_CHAIN_APL = 30.0
 
+# Strength of the penalty holding acyl tails below the head reference plane, per Angstrom-atom of
+# excursion above it.  Without it the confinement cylinder leaves the membrane normal open and the
+# trans-ordering field cannot object -- its per-C-H term goes as cos^2(theta), so a chain folded
+# 180 degrees scores exactly as well as an extended one, and 90% of drawn PE/PS conformers folded.
+# A penalty rather than a hard ceiling: a wall partitions the space and traps a conformer that
+# starts folded (measured 2026-10-02 -- SOPE went 8/10 folded to 10/10 under a hard ceiling, and
+# DMPC, which never folds, lost 2 A of extension to the blocked pivots).  0.0 restores the old
+# unconstrained sampler exactly.
+_AXIAL_BIAS = 1.0
+
 # Target chain order parameter (the -mean 1/2(3cos^2 theta - 1) over tail C-H vs the membrane normal
 # computed by athermal_mc.ensemble_chain_order) for each bilayer phase.  Ld = None: the pure athermal
 # MC (trans bias 0) already IS the fluid ensemble -- its order is the disordered floor, so there is
@@ -209,6 +219,7 @@ def _sample_and_write_mc_conformers(resid: str, psf_file: str, pdb_file: str,
 
     def order_of(bias):
         samples = run_mc(mol, nsamples=nsamples, n_equil=n_equil, n_decorr=n_decorr,
+                         axial_bias=_AXIAL_BIAS,
                          max_angle=max_angle, seed=seed, torsion_bias=bias)
         order = ensemble_chain_order(samples, None, masses, bonds)
         probed[bias] = (samples, order)

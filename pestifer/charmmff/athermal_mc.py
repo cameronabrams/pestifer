@@ -98,6 +98,21 @@ class MoleculeMC:
     axis_dir: np.ndarray = None
     cylinder_radius: float = float('inf')
     confined: np.ndarray = None
+    axial_limit: float = float('inf')
+    """Ceiling on the confined atoms' coordinate ALONG ``axis_dir``, measured from ``axis_point``.
+
+    The cylinder caps the in-plane footprint and is infinite along the axis, so nothing stops an
+    acyl chain folding 180 degrees back past the headgroup and out of the bilayer.  Worse, the
+    trans-ordering field cannot object: its per-C-H term is ``1/2(3cos^2(theta) - 1)``, which
+    depends on ``cos^2`` and is therefore invariant under ``theta -> 180 - theta``, so an inverted
+    chain scores EXACTLY as well as an extended one.  Folding was a free way to satisfy the bias,
+    and 90% of drawn PE/PS conformers took it (measured 2026-10-02; POPE 10/10, with one tail tip
+    9 A ABOVE its own phosphate).
+
+    This closes the open direction: confined atoms may not rise above ``axial_limit``, which
+    :func:`build_lipid_mc` sets at the head reference atoms (the ester oxygens for a glycerolipid
+    -- where the chains attach).  ``inf`` restores the old unbounded behaviour.
+    """
 
     def __post_init__(self):
         self.coords = np.ascontiguousarray(self.coords, dtype=float)
@@ -200,7 +215,7 @@ def _has_overlap(coords: np.ndarray, radii: np.ndarray, moving: np.ndarray,
 
 def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: int = 200,
            max_angle: float = np.pi, seed: int = None,
-           torsion_bias: float = 0.0) -> list[np.ndarray]:
+           torsion_bias: float = 0.0, axial_bias: float = 0.0) -> list[np.ndarray]:
     """Run dihedral-pivot MC and return ``nsamples`` decorrelated conformers.
 
     Starting from ``mol.coords``, propose pivots on random rotatable bonds by random angles in
@@ -255,6 +270,20 @@ def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: i
         cur_conf_max = radial_distances(coords[confined_idx], mol.axis_point,
                                         mol.axis_dir).max()
 
+    # The axial constraint is a PENALTY, not a wall.  A hard ceiling was tried first and measured
+    # worse (2026-10-02): it partitions configuration space, so a conformer whose start already
+    # violates can never reach the unfolded basin -- the path out runs up and over the limit.  SOPE
+    # went 8/10 folded to 10/10 under a hard wall, and DMPC, which never folds at all, lost 2.06 A
+    # of extension because blocked pivots degrade sampling even where the constraint is irrelevant.
+    # A penalty gives a gradient out of the folded basin instead of a fence around it.
+    def _axial_excess(x):
+        a = np.dot(x[confined_idx] - mol.axis_point, mol.axis_dir) - mol.axial_limit
+        return float(np.clip(a, 0.0, None).sum())
+
+    cap = (np.isfinite(mol.axial_limit) and len(confined_idx) > 0 and axial_bias > 0.0)
+    if cap:
+        cur_excess = _axial_excess(coords)
+
     total_proposals = n_equil + nsamples * n_decorr
     for step in range(1, total_proposals + 1):
         bond = mol.rotatable[rng.integers(nbonds)]
@@ -266,6 +295,11 @@ def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: i
                                               mol.axis_dir).max()
             # accept iff inside the wall, or not worse than the current (still-shrinking) worst
             if trial_conf_max > mol.cylinder_radius and trial_conf_max > cur_conf_max + 1e-9:
+                continue
+        if cap:
+            trial_excess = _axial_excess(trial)
+            dU = trial_excess - cur_excess
+            if dU > 0.0 and rng.random() >= np.exp(-axial_bias * dU):
                 continue
         if _has_overlap(trial, mol.radii, bond.moving, mol.exclusions):
             continue
@@ -280,6 +314,8 @@ def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: i
         coords = trial
         if confine:
             cur_conf_max = trial_conf_max
+        if cap:
+            cur_excess = trial_excess
         n_accept += 1
         if step > n_equil and (step - n_equil) % n_decorr == 0:
             samples.append(coords.copy())
@@ -401,11 +437,24 @@ def build_lipid_mc(coords, elements, masses, bonds, head_indices, tail_indices,
     bundle = list(tail_atoms) if tail_atoms else list(range(n))
     axis_point = coords[bundle].mean(axis=0)
 
+    # Axial ceiling: the tails may not rise above the head reference atoms.  `head_indices` for a
+    # glycerolipid are the headgroup nitrogen AND the two ester oxygens, so the LOWEST of them is
+    # the glycerol/ester plane -- exactly where the chains attach and the natural top of the
+    # hydrophobic region.  Taking the minimum rather than the mean keeps the constraint honest for
+    # a headgroup that leans: the chains are held under their own attachment point, not under an
+    # average that a tilted choline could raise.  Without this the cylinder leaves +axis open and
+    # the ordering field cannot object (see MoleculeMC.axial_limit).
+    axial_limit = float('inf')
+    if head_indices is not None and len(list(head_indices)) > 0:
+        hi = list(head_indices)
+        axial_limit = float(np.dot(coords[hi] - axis_point, axis_dir).min())
+
     radii = np.asarray(rmin_half, dtype=float) * radius_scale
     return MoleculeMC(coords=coords, radii=radii, rotatable=rotatable,
                       exclusions=build_exclusions(full, order=exclusion_order),
                       axis_point=axis_point, axis_dir=axis_dir,
-                      cylinder_radius=cylinder_radius, confined=confined)
+                      cylinder_radius=cylinder_radius, confined=confined,
+                      axial_limit=axial_limit)
 
 
 def cylinder_radius_for_apl(apl: float, inflation: float = 1.0) -> float:
