@@ -1055,7 +1055,28 @@ real bug.
       different mechanisms: PE/PS folding drove patchB's catastrophic case, sterol fraction drives
       the fold-free residue and ex16's correctness.
 
-      **Caveat before anyone acts.** The equilibrated reference already contains cholesterol's real
+      **CONFIRMED 2026-10-02.** pestifer-sweep measured the equilibrated structures with pestifer's
+      own readers; I measured the raw grid. The full trajectory of the sterol anchor:
+
+          raw grid (pestifer builds)        +0.00 A   exactly, in all four leaflets
+          first MD frame (post min + NVT)   -1.3 to -1.6
+          equilibrated                      -4.4 to -5.1   (both patches, both leaflets)
+
+      The build places a sterol 3-OH *identically* level with the phosphates -- not approximately,
+      but to the digit, because every species' anchor is pinned to one `head_plane_z`. Equilibration
+      then moves it ~5 A toward the midplane. Symmetric across leaflets, which is what a placement
+      rule looks like rather than a composition accident. **So co-planar sterol anchoring is a real
+      placement defect**, and the composition-weighted `raw_off` is how it reaches thickness.
+
+      **It is about two-thirds of what is left, not all of it.** Removing sterols from the `raw_off`
+      average is worth 2.34 A per leaflet = 4.68 A on P-P, against patchA's 6.95 A post-axial-fix
+      residue. Roughly 2.3 A remains unexplained and should not be assumed to follow. Worth saying
+      before this gets called closed (pestifer-sweep's point, and it is right).
+
+      Measurement: `~/.local/state/fleet/drops/sterol-anchor-measurement-20261002.md`; raw-grid
+      probe `~/devtests/pestifer/patch-endtoend/sterol_grid.py`.
+
+      **Superseded caveat.** The equilibrated reference already contains cholesterol's real
       effect on thickness, so "the build is thin" is measured against that. Whether co-planar
       anchoring of a sterol 3-OH with a phosphate is actually WRONG needs the equilibrated
       structures: in a real bilayer the 3-OH sits ~3-6 A below the phosphate plane. pestifer-sweep
