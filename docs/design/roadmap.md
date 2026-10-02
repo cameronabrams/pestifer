@@ -1009,4 +1009,21 @@ real bug.
       under the new one, so decorrelation is not delivering ten distinct conformers. Ensemble
       diversity is the whole reason the grid packer draws per-lipid rather than stamping one
       shape, so this is worth its own look. Noted while checking it was not a regression.
+- [ ] **The on-demand autocache silently outranks an explicit `user_pdbcollections` override.**
+      Found 2026-10-02 measuring the regenerated collection end-to-end.
+      `PDBRepository.checkout` walks `self.registration_order[::-1]` — **reversed** — and
+      provisioning registers base, then the user override, then the autocache dirs. So the
+      autocache wins over a collection the user explicitly asked for. Both docstrings say the
+      opposite: `pdbrepository.py:265` ("user-declared collections are searched first ... the base
+      collection is searched last") and `:641` ("in the order they were registered").
+
+      It is the silent-wrong-answer shape again: a user overriding a lipid that happens to be
+      cached gets the cached one, and the build looks correct. It cost a measurement here —
+      patchA read identically in both arms because its three Lo entries were cached, while
+      patchB's were not and the override worked.
+
+      **Not fixed:** reversing the precedence is a behavioural contract (an on-demand entry
+      generated this run arguably should beat a stale user path), and it is Cameron's call which
+      way it should go. Whatever is decided, the two docstrings and the code must be made to agree
+      — right now no reading of them is correct.
 - [ ] _(add items here)_
