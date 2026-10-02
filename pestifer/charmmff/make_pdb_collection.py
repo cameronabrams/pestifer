@@ -639,7 +639,11 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
                               'torsion_bias': float(torsion_bias), 'chain_order': chain_order,
                               'mc_n_equil': int(mc_n_equil), 'mc_n_decorr': int(mc_n_decorr),
                               'mc_seed': int(mc_seed), 'mc_max_angle': float(mc_max_angle),
-                              'mc_radius_scale': float(mc_radius_scale)}
+                              'mc_radius_scale': float(mc_radius_scale),
+                              # Recorded so a collection can say which sampler made it: 0.0 is
+                              # the pre-2026-10-02 sampler, whose cylinder left the membrane
+                              # normal open and whose conformers fold (90% of PE/PS did).
+                              'axial_bias': float(_AXIAL_BIAS)}
     elif sampler == 'single':
         info['generation'] = {'sampler': 'single'}
     else:
