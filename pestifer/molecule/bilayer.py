@@ -683,6 +683,14 @@ class Bilayer:
 
         # lipids: per-leaflet 2D lattice, oriented, tails toward the midplane
         lipid_xyz = []   # placed lipid atom coords, indexed below for solvent clash removal
+        # Placed head-group (phosphate) z per leaflet.  The bilayer's physical thickness is set
+        # HERE, at placement, and nowhere else: every lipid's anchor is pinned to `head_plane_z`,
+        # so P-P thickness is `2*half_mid_zgap + raw_off(upper) + raw_off(lower)`.  The leaflet
+        # z-reservation in spec_out (`ll_actthickness`) does NOT enter it -- it only sets
+        # `midplane_z`, which cancels in the difference, plus a first-cut box z that the chamber
+        # re-abutment below overwrites.  Recorded so the builder can report the thickness it is
+        # about to build instead of leaving it to be discovered 2.5M steps into equilibration.
+        anchor_z = {True: [], False: []}      # keyed by `upper`
         placed_tree = None   # cKDTree over already-placed lipid atoms (refreshed per lipid)
         n_respun = n_uncleared = 0
         worst_gap = np.inf   # closest inter-lipid approach we were forced to accept
@@ -740,6 +748,7 @@ class Bilayer:
                     jit = jitter
                     best_c = best_lines = None
                     best_gap = -1.0
+                    best_anchor_i = None
                     coords, lines, head_i, tail_is = conformers[ci]
                     # head-group marker to pin on the common band (see head_plane_z above and
                     # _lipid_anchor_index): phosphate -> sterol/ceramide head hydroxyl -> head ref -> tail
@@ -758,6 +767,7 @@ class Bilayer:
                         gap = np.inf if placed_tree is None else placed_tree.query(cand)[0].min()
                         if gap > best_gap:
                             best_c, best_lines, best_gap = cand, lines, gap
+                            best_anchor_i = anchor_i
                         if gap >= fusion:
                             break
                         n_respun += 1
@@ -768,6 +778,8 @@ class Bilayer:
                             ci = int(rng.integers(len(conformers)))
                     emit(best_c, best_lines)
                     lipid_xyz.append(best_c)
+                    if best_anchor_i is not None:
+                        anchor_z[upper].append(float(best_c[best_anchor_i, 2]))
                     placed_tree = cKDTree(np.vstack(lipid_xyz))
                     if best_gap < fusion:
                         n_uncleared += 1
@@ -794,6 +806,22 @@ class Bilayer:
         # the outermost placed lipid atom -- keeping each chamber's (water-count-fixed) thickness -- and
         # shrink the box z to match, centering the now non-zero-based cell on its actual content (the
         # xsc origin is the cell centre, so no coordinate shift is needed).
+        # The thickness this build just laid down, measured from the placed head groups rather
+        # than predicted.  Reported here because nothing else reports it: a patch built 8 A thin
+        # (ex17 patchB: 33.9 A, relaxing to 42.3 and still rising) was previously invisible until
+        # it showed up as slow area convergence 2.5M steps into equilibration.
+        self.built_pp_thickness = None
+        if anchor_z[True] and anchor_z[False]:
+            zu, zl = float(np.mean(anchor_z[True])), float(np.mean(anchor_z[False]))
+            self.built_pp_thickness = zu - zl
+            logger.info(f'bilayer: built head-group (P-P) thickness {self.built_pp_thickness:.2f} A '
+                        f'from {len(anchor_z[False])}/{len(anchor_z[True])} anchored lipids '
+                        f'(lower/upper); set by conformer extent + 2*half_mid_zgap at placement, '
+                        f'NOT by SAPL -- there is no thickness input')
+        else:
+            logger.info('bilayer: head-group (P-P) thickness not measurable from this patch '
+                        '(no anchored lipid in one or both leaflets)')
+
         if lipid_xyz:
             all_lip_z = np.vstack(lipid_xyz)[:, 2]
             lip_hi, lip_lo = float(all_lip_z.max()), float(all_lip_z.min())

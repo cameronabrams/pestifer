@@ -472,6 +472,67 @@ class TestBilayer(unittest.TestCase):
         self.RM.charmmff_content.clean_local_charmmff_files()
         os.chdir('..')
 
+    def test_built_thickness_is_set_at_placement_not_by_the_leaflet_reservation(self):
+        """Where a bilayer's thickness actually comes from -- and where it does NOT.
+
+        pestifer-sweep reported (2026-10-02) that bilayers build 4-8 A too thin and located it at
+        `spec_out`'s `ll_actthickness = cos(rotation_pm) * maxthickness`.  That line is a *box
+        reservation*, not the thickness: every lipid's head group is pinned to `head_plane_z =
+        midplane_z +- (half_mid_zgap + raw_off)`, so
+
+            P-P thickness = 2*half_mid_zgap + raw_off(upper) + raw_off(lower)
+
+        and `midplane_z` -- the only thing the reservation feeds -- cancels in the difference.  The
+        chambers are re-abutted to the placed heads afterwards, so the reservation's remaining
+        effect is a first-cut box z that gets overwritten.
+
+        Changing `rotation_pm` therefore moves the box and leaves the bilayer identical.  The
+        `half_mid_zgap` leg is the POSITIVE CONTROL: without it, this test would pass just as well
+        if `built_pp_thickness` were always None or a constant, which is the failure mode of every
+        "X does not change Y" test.
+        """
+        self.charmmff_content.deprovision()
+        d = '__test_bilayer_thickness_locus'
+        if os.path.exists(d):
+            shutil.rmtree(d)
+        os.mkdir(d)
+        os.chdir(d)
+
+        def build(rotation_pm, half_mid_zgap=1.0):
+            cdict = specstrings_builddict(lipid_specstring='POPC//POPC',
+                                          lipid_ratio_specstring='1.0//1.0',
+                                          lipid_conformers_specstring='0:0')
+            b = Bilayer(composition_dict=cdict, leaflet_nlipids=dict(upper=32, lower=32),
+                        charmmffcontent=self.charmmff_content)
+            b.spec_out(SAPL=60.0, half_mid_zgap=half_mid_zgap, rotation_pm=rotation_pm)
+            b.write_grid_pdb(f'p{rotation_pm}_{half_mid_zgap}.pdb', half_mid_zgap=half_mid_zgap,
+                             seed=7, clash_cutoff=1.2)
+            return b
+
+        lo, hi = build(10.0), build(40.0)
+
+        # POSITIVE CONTROL: the measurement is real and in a physical range for a POPC bilayer
+        self.assertIsNotNone(lo.built_pp_thickness)
+        self.assertGreater(lo.built_pp_thickness, 20.0)
+        self.assertLess(lo.built_pp_thickness, 60.0)
+
+        # the reservation moved (cos(40) vs cos(10) is a ~23% change in reserved leaflet z) ...
+        self.assertNotAlmostEqual(lo.UL['z-hi'] - lo.UL['z-lo'],
+                                  hi.UL['z-hi'] - hi.UL['z-lo'], places=1,
+                                  msg='POSITIVE CONTROL: rotation_pm did not change the reservation')
+        # ... and the bilayer did not
+        self.assertAlmostEqual(lo.built_pp_thickness, hi.built_pp_thickness, places=6,
+                               msg='the leaflet reservation leaked into the built thickness')
+
+        # POSITIVE CONTROL for the other half: a knob that genuinely does move it, by 2x
+        wider = build(10.0, half_mid_zgap=4.0)
+        self.assertAlmostEqual(wider.built_pp_thickness - lo.built_pp_thickness,
+                               2 * (4.0 - 1.0), places=6,
+                               msg='half_mid_zgap must shift P-P by exactly twice the change')
+
+        self.RM.charmmff_content.clean_local_charmmff_files()
+        os.chdir('..')
+
     def test_bilayer_write_grid_pdb_samples_conformers(self):
         """Lever 1: with no pinned conformer the packer draws per-lipid across the whole
         conformer ensemble instead of stamping one frozen shape onto every lipid (the
