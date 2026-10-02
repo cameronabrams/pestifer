@@ -533,6 +533,65 @@ class TestBilayer(unittest.TestCase):
         self.RM.charmmff_content.clean_local_charmmff_files()
         os.chdir('..')
 
+    def test_a_sterol_is_not_placed_coplanar_with_the_phosphates(self):
+        """Head planes are per SPECIES, not one plane for the whole leaflet.
+
+        Placement used to pin every species' head marker to a single ``head_plane_z``, computed
+        from a composition-weighted mean offset.  A cholesterol 3-OH therefore landed exactly level
+        with the phosphates: measured 0.00 A in the raw grid, in all four leaflets of both ex17
+        patches, against -4.4 to -5.1 A once equilibrated (pestifer-sweep, 2026-10-02).  The one
+        mean also dragged the plane itself down, because a sterol's anchor-to-tail distance is far
+        shorter than a phospholipid's -- 4.68 A of P-P on a 47% CHL1 leaflet.
+
+        The existing thickness test uses a pure POPC bilayer, where per-species and
+        composition-weighted are the same number, so it could not see any of this.  A MIXED leaflet
+        is the case that distinguishes them.
+        """
+        self.charmmff_content.deprovision()
+        d = '__test_bilayer_sterol_plane'
+        if os.path.exists(d):
+            shutil.rmtree(d)
+        os.mkdir(d)
+        os.chdir(d)
+        cdict = specstrings_builddict(lipid_specstring='POPC:CHL1//POPC:CHL1',
+                                      lipid_ratio_specstring='0.5:0.5//0.5:0.5',
+                                      lipid_conformers_specstring='0:0')
+        b = Bilayer(composition_dict=cdict, leaflet_nlipids=dict(upper=32, lower=32),
+                    charmmffcontent=self.charmmff_content)
+        b.spec_out(SAPL=55.0)
+        out = b.write_grid_pdb('mixed.pdb', seed=5, clash_cutoff=1.2)
+
+        mid = b.midplane_z
+        upper_P, upper_O3 = [], []
+        with open(out) as fh:
+            for ln in fh:
+                if not ln.startswith(('ATOM', 'HETATM')):
+                    continue
+                z = float(ln[46:54])
+                if z <= mid:
+                    continue
+                name, resn = ln[12:16].strip(), ln[17:21].strip()
+                if name == 'P':
+                    upper_P.append(z)
+                elif resn.startswith('CHL') and name == 'O3':
+                    upper_O3.append(z)
+
+        self.assertTrue(upper_P, 'POSITIVE CONTROL: no phosphorus found in the upper leaflet')
+        self.assertTrue(upper_O3, 'POSITIVE CONTROL: no sterol hydroxyl found in the upper leaflet')
+        offset = sum(upper_O3) / len(upper_O3) - sum(upper_P) / len(upper_P)
+        self.assertLess(offset, -1.0,
+                        f'sterol 3-OH sits {offset:+.2f} A from the phosphate plane; it was pinned '
+                        f'co-planar (0.00) before head planes became per-species')
+
+        # P-P must be measured on PHOSPHATES.  While every anchor shared one plane, a mean over
+        # anchors was the same thing; now it mixes phosphates with sterol hydroxyls several A deeper.
+        pp = (sum(upper_P) / len(upper_P) - mid) * 2.0
+        self.assertAlmostEqual(b.built_pp_thickness, pp, delta=1.0,
+                               msg='built_pp_thickness is not the phosphate-to-phosphate distance')
+
+        self.RM.charmmff_content.clean_local_charmmff_files()
+        os.chdir('..')
+
     def test_bilayer_write_grid_pdb_samples_conformers(self):
         """Lever 1: with no pinned conformer the packer draws per-lipid across the whole
         conformer ensemble instead of stamping one frozen shape onto every lipid (the

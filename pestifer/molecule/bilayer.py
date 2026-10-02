@@ -139,6 +139,22 @@ class BilayerSpecString:
                 for i in range(len(self.right)):
                     self.right[i][attr_name] = Lright[0]
 
+def _phosphorus_indices(lines):
+    """Indices of phosphorus atoms among ``lines`` (PDB ATOM records).
+
+    By ELEMENT, not by name: a glycerophospholipid names its phosphorus ``P``, but a cardiolipin
+    names its two ``P1``/``P3``, and a name-only test silently misses them (it did, in an audit
+    script, 2026-10-02).  The element column is used when present and the name is the fallback.
+    """
+    out = []
+    for i, ln in enumerate(lines):
+        el = ln[76:78].strip().upper()
+        nm = ln[12:16].strip().upper()
+        if el == 'P' or (not el and nm[:1] == 'P' and (len(nm) == 1 or nm[1].isdigit())):
+            out.append(i)
+    return out
+
+
 def _lipid_anchor_index(coords, lines, head_i):
     """Index of the atom that marks a lipid's head-group interface, for z-anchoring during grid
     placement.  Preference: the phosphate ``P`` (phospho-lipids + sphingomyelins) -> the polar head
@@ -691,6 +707,11 @@ class Bilayer:
         # re-abutment below overwrites.  Recorded so the builder can report the thickness it is
         # about to build instead of leaving it to be discovered 2.5M steps into equilibration.
         anchor_z = {True: [], False: []}      # keyed by `upper`
+        # Phosphorus z, recorded separately from the anchor.  These were the same thing while every
+        # species' anchor shared one plane; once head planes became per-species they are not, and a
+        # mean over anchors mixes phosphates with sterol hydroxyls sitting several A deeper.  P-P
+        # thickness is between PHOSPHATES, so it has to be measured on them.
+        phos_z = {True: [], False: []}
         placed_tree = None   # cKDTree over already-placed lipid atoms (refreshed per lipid)
         n_respun = n_uncleared = 0
         worst_gap = np.inf   # closest inter-lipid approach we were forced to accept
@@ -712,23 +733,40 @@ class Bilayer:
             dx, dy = self._hex['dx'], self._hex['dy']
             ncells = self._hex['ncells']
             target_z = self.midplane_z + (half_mid_zgap if upper else -half_mid_zgap)
-            # Anchor every lipid's head marker (phosphate / sterol-OH) to ONE plane so a mixed leaflet's
-            # head groups tile into a clean band -- but position that plane so the TAILS land at the
-            # midplane, not at the outer slab boundary.  Anchoring at the boundary put the phosphate
-            # where the choline (molecule top) belongs, lifting every lipid by the head-cap-to-phosphate
-            # distance and leaving the tails short of the midplane -- a large inter-leaflet void the
-            # barostat then had to condense out slowly.  So place the band at target_z + the mean height
-            # the anchor atom sits above the tail bundle across this leaflet's conformers: the anchors
-            # stay co-planar while the tails average out at the midplane.  Tail-anchoring alone (each
-            # tail pinned, head floating up by the molecule's length) is what scattered the heads.
+            # Place each lipid so its OWN tails reach the midplane: its head marker (phosphate /
+            # sterol-OH) goes at target_z plus the mean height that marker sits above the tail
+            # bundle *for that species*.  Anchoring at the slab boundary instead put the phosphate
+            # where the choline belongs, lifting every lipid by the head-cap-to-phosphate distance
+            # and leaving the tails short of the midplane -- a large inter-leaflet void the barostat
+            # then had to condense out slowly.  Tail-anchoring alone (each tail pinned, head
+            # floating up by the molecule's length) is what scattered the heads.
+            #
+            # The offset is PER SPECIES.  It used to be one composition-weighted mean over the whole
+            # leaflet, which pinned every species' anchor to a single plane -- so a sterol 3-OH was
+            # placed exactly level with the phosphates.  Measured 2026-10-02: 0.00 A in the raw grid,
+            # in all four leaflets of both ex17 patches, against -4.4 to -5.1 A once equilibrated.
+            # A cholesterol hydroxyl belongs near the glycerol/carbonyl region, several A below the
+            # phosphate plane, and the leaflet then condensed ~5 A to get there.
+            #
+            # The one mean also dragged the plane itself down, because a sterol's anchor-to-tail
+            # distance is far shorter than a phospholipid's (CHL1 15.53 A against PSM 19.35 and POPC
+            # 22.93).  At 47% CHL1 that cost patchA 2.34 A per leaflet, 4.68 A of P-P.  Per species,
+            # phosphates sit at the phospholipid offset and sterols sink to their own -- which is
+            # both the thickness fix and the right geometry, from one change.
+            #
+            # Heads stay banded WITHIN a species, which is what the co-planar rule was protecting;
+            # it is only the band-sharing ACROSS chemically different species that was wrong.
             def _mean_anchor_offset(confs):
                 vs = [c[_lipid_anchor_index(c, ln, hi), 2] - c[list(ti), 2].mean()
                       for c, ln, hi, ti in confs
                       if _lipid_anchor_index(c, ln, hi) is not None and ti is not None]
                 return float(np.mean(vs)) if vs else 0.0
             sp_off = {nm2: _mean_anchor_offset(confs) for nm2, confs in cache.items()}
-            raw_off = float(np.mean([sp_off[nm] for nm in bag])) if bag else 0.0
-            head_plane_z = target_z + (raw_off if upper else -raw_off)
+            if bag:
+                _by_sp = {nm2: target_z + (o if upper else -o) for nm2, o in sp_off.items()}
+                logger.debug(f'{"upper" if upper else "lower"} leaflet head planes (per species): '
+                             + ', '.join(f'{k} {v:.2f} (offset {sp_off[k]:.2f})'
+                                         for k, v in sorted(_by_sp.items())))
             k = 0
             for row in range(ny):
                 x0 = 0.5 * (row % 2)          # half-pitch offset on odd rows -> hexagonal packing
@@ -753,6 +791,9 @@ class Bilayer:
                     # head-group marker to pin on the common band (see head_plane_z above and
                     # _lipid_anchor_index): phosphate -> sterol/ceramide head hydroxyl -> head ref -> tail
                     anchor_i = _lipid_anchor_index(coords, lines, head_i)
+                    # this species' own head plane (see the per-species note above)
+                    off = sp_off.get(nm, 0.0)
+                    head_plane_z = target_z + (off if upper else -off)
                     oriented = coords * np.array([1.0, -1.0, -1.0]) if not upper else coords
                     for attempt in range(respin_tries):
                         cand = zspin(oriented)
@@ -780,6 +821,8 @@ class Bilayer:
                     lipid_xyz.append(best_c)
                     if best_anchor_i is not None:
                         anchor_z[upper].append(float(best_c[best_anchor_i, 2]))
+                    for _pi in _phosphorus_indices(best_lines):
+                        phos_z[upper].append(float(best_c[_pi, 2]))
                     placed_tree = cKDTree(np.vstack(lipid_xyz))
                     if best_gap < fusion:
                         n_uncleared += 1
@@ -811,16 +854,22 @@ class Bilayer:
         # (ex17 patchB: 33.9 A, relaxing to 42.3 and still rising) was previously invisible until
         # it showed up as slow area convergence 2.5M steps into equilibration.
         self.built_pp_thickness = None
-        if anchor_z[True] and anchor_z[False]:
-            zu, zl = float(np.mean(anchor_z[True])), float(np.mean(anchor_z[False]))
+        if phos_z[True] and phos_z[False]:
+            zu, zl = float(np.mean(phos_z[True])), float(np.mean(phos_z[False]))
             self.built_pp_thickness = zu - zl
-            logger.info(f'bilayer: built head-group (P-P) thickness {self.built_pp_thickness:.2f} A '
-                        f'from {len(anchor_z[False])}/{len(anchor_z[True])} anchored lipids '
+            logger.info(f'bilayer: built phosphate-to-phosphate thickness {self.built_pp_thickness:.2f} A '
+                        f'from {len(phos_z[False])}/{len(phos_z[True])} phosphorus atoms '
                         f'(lower/upper); set by conformer extent + 2*half_mid_zgap at placement, '
                         f'NOT by SAPL -- there is no thickness input')
+            if anchor_z[True] and anchor_z[False]:
+                a = float(np.mean(anchor_z[True])) - float(np.mean(anchor_z[False]))
+                if abs(a - self.built_pp_thickness) > 0.05:
+                    logger.info(f'bilayer: mean anchor separation is {a:.2f} A, {a - self.built_pp_thickness:+.2f} '
+                                f'from P-P -- expected in a mixed leaflet, where sterol hydroxyls sit '
+                                f'below the phosphate plane')
         else:
-            logger.info('bilayer: head-group (P-P) thickness not measurable from this patch '
-                        '(no anchored lipid in one or both leaflets)')
+            logger.info('bilayer: phosphate-to-phosphate thickness not measurable from this patch '
+                        '(no phosphorus in one or both leaflets)')
 
         if lipid_xyz:
             all_lip_z = np.vstack(lipid_xyz)[:, 2]
