@@ -931,6 +931,20 @@ real bug.
       extended-rod conformers that gave 87.86.)" The z-extent collapse was read as melting; it is
       at least partly folding.
 
+      **Refined 2026-10-02, second pass.** It is not sterol and not chain length. Fold rate:
+      DMPC/DPPC/DSPC/POPC/PSM all 0/10; POPE 10/10, SOPE 8/10, SOPS 8/10. **POPC vs POPE is a
+      controlled comparison** — identical chains, identical head/tail annotation, identical
+      cylinder (`auto_cylinder_apl` sizes from chain count alone) — and one folds while the other
+      does not. PE and PS fold; PC and SM do not. Why the headgroup matters is NOT established.
+
+      Two layers permit it, and both must be fixed: the cylinder is infinite along z so nothing
+      FORBIDS the fold, and the ordering objective `s = ½(3cos²θ − 1)` depends on cos²θ, so it is
+      invariant under θ→180−θ and nothing PENALISES it — a folded chain scores exactly as well as
+      an extended one. That predicts the observed Lo/Ld asymmetry (pushing the order target harder
+      gives more folding, more reproducibly: Ld 26/30 sd 0.76, Lo 30/30 sd 0.39). It also closes a
+      loop: `chain_order_parameter` is only valid for a head-up conformer, and the head-up
+      canonicalization keys on the same tail-tip mean that a hairpin destroys.
+
       Fixes in order of confidence: (1) reject sampler moves putting a tail heavy atom above the
       head reference — the actual defect; (2) make `_mean_anchor_offset` robust to one folded chain
       (defence in depth, but alone it hides the sampler behind a better number); (3) reject folded
