@@ -945,6 +945,19 @@ real bug.
       loop: `chain_order_parameter` is only valid for a head-up conformer, and the head-up
       canonicalization keys on the same tail-tip mean that a hairpin destroys.
 
+      **Third pass: the fold is about HALF the deficit, not all of it.** Raw grids at ex17's
+      SAPL 50 against gate-off equilibria: patchA (PSM/POPC/CHL1, no folders, Lo) 39.87 vs 46.48 =
+      **+6.61**; patchA as Ld 36.48 = +10.00; patchB (PE/PS folders, Ld) 28.08 vs 41.12 = **+13.04**.
+      So the headgroup/fold story explains the severity ORDERING, but a fold-free composition is
+      still built 6.6 A thin. There is a second, fold-independent deficit — conformers are too
+      curled even when no chain inverts, which is the "melted tails" z-extent collapse the
+      `test_bilayer_spec_out` comment records. **Fixing the fold alone would take patchB from
+      ~13 A to ~6.6 A short, not to correct.** Both need addressing.
+
+      Corollary worth keeping: declaring Lo buys +3.39 A on patchA (non-folders) against +0.92 A
+      on patchB (folders). The trans bias works as designed when chains cannot satisfy it by
+      inverting — which is the cos²θ degeneracy showing up as a dose-response.
+
       Fixes in order of confidence: (1) reject sampler moves putting a tail heavy atom above the
       head reference — the actual defect; (2) make `_mean_anchor_offset` robust to one folded chain
       (defence in depth, but alone it hides the sampler behind a better number); (3) reject folded
