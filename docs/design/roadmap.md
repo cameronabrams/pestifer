@@ -979,4 +979,34 @@ real bug.
       (defence in depth, but alone it hides the sampler behind a better number); (3) reject folded
       conformers at load with a loud warning. **Unchecked:** ex16 is pure DMPC and its gate works;
       its conformers have not been examined and should be before generalizing.
+- [ ] **Five lipids still build folded, because their IC-built STARTING structure is folded.**
+      Found 2026-10-02 running down the residue after the axial penalty (`2e40b013`). Collection
+      and evidence: `~/devtests/pestifer/conformers-regen/` (README has the full table).
+
+      After regeneration the fold rate is 471/2440 (19.3%, 53 entries) -> 35/2440 (1.4%, 5
+      entries). The five are `OSM`, `23SM__Lo`, `ASM__Lo`, `LSM__Lo`, `PMCL1`.
+
+      They are **not a sampler failure**. Each starts with a chain 13-20 A above its own
+      headgroup, built that way from internal coordinates, and the MC inherits it. `DMPC` is the
+      control that settles it: it also starts folded, but only by 7 A, and the penalty pulls it
+      fully out (-6.98 -> +18.43). Depth of the initial fold decides the outcome, and the penalty
+      is visibly working on four of the five (23SM__Lo -20.19 -> -9.40) without finishing.
+
+      **Raising `_AXIAL_BIAS` is the wrong lever and makes it worse**: 1.0 leaves 3 of 5 at 10/10
+      with 2 partial; 5.0 and 20.0 put ALL five at 10/10 with worse margins. A large penalty is a
+      wall, and a wall freezes a conformer in the basin it started in — the same mechanism that
+      made the hard ceiling worse than useless on SOPE. So the fix belongs in the starting
+      structure (unfold a chain built above the head plane, or try `--take-ic-from` /
+      `--refic-idx`), not in the bias.
+
+      Also corrected here: an earlier count of 16 affected entries, nine of them cardiolipins, was
+      an **artifact of the audit script**, which looked for an atom named exactly `P` while
+      cardiolipins name theirs `P1`/`P3`. Eight of nine cardiolipins are fine; only `PMCL1` really
+      folds. Shipped code was never affected — `membrane_pp_thickness` selects phosphorus by
+      element mass and excludes multi-phosphorus lipids explicitly.
+- [ ] **Conformer duplication in the MC sampler (pre-existing, not from the axial work).** POPE
+      yields 4 distinct `head-tail-length` values out of 10 under the old sampler and 5 of 10
+      under the new one, so decorrelation is not delivering ten distinct conformers. Ensemble
+      diversity is the whole reason the grid packer draws per-lipid rather than stamping one
+      shape, so this is worth its own look. Noted while checking it was not a regression.
 - [ ] _(add items here)_
