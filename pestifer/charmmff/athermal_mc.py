@@ -98,7 +98,7 @@ class MoleculeMC:
     axis_dir: np.ndarray = None
     cylinder_radius: float = float('inf')
     confined: np.ndarray = None
-    axial_limit: float = float('inf')
+    axial_limit: float | np.ndarray = float('inf')
     """Ceiling on the confined atoms' coordinate ALONG ``axis_dir``, measured from ``axis_point``.
 
     The cylinder caps the in-plane footprint and is infinite along the axis, so nothing stops an
@@ -109,9 +109,14 @@ class MoleculeMC:
     and 90% of drawn PE/PS conformers took it (measured 2026-10-02; POPE 10/10, with one tail tip
     9 A ABOVE its own phosphate).
 
-    This closes the open direction: confined atoms may not rise above ``axial_limit``, which
-    :func:`build_lipid_mc` sets at the head reference atoms (the ester oxygens for a glycerolipid
-    -- where the chains attach).  ``inf`` restores the old unbounded behaviour.
+    This closes the open direction: a confined atom may not rise above ``axial_limit``.  It is
+    PER ATOM -- an ``(N,)`` array -- because one scalar cannot describe a lipid whose chains attach
+    at different heights.  A cardiolipin's four ester oxygens span ~10 A, so the minimum over them
+    is a plane the high chains cannot reach by any torsion: PMCL1 started with 991 A-atoms of
+    excess and greedy descent could only reach 737, because most of the molecule was above the
+    limit by construction.  Each atom is instead bounded by the head reference atom it hangs from,
+    found through the bond graph -- "a tail may not rise above its own attachment point".  A scalar
+    is still accepted and broadcasts; ``inf`` restores the old unbounded behaviour.
     """
 
     def __post_init__(self):
@@ -213,6 +218,68 @@ def _has_overlap(coords: np.ndarray, radii: np.ndarray, moving: np.ndarray,
     return False
 
 
+def relieve_axial_excess(mol: MoleculeMC, coords: np.ndarray, n_angles: int = 24,
+                         max_passes: int = 40) -> np.ndarray:
+    """Rotate acyl tails back under ``mol.axial_limit`` before sampling starts.
+
+    Five shipped lipids (OSM, 23SM__Lo, ASM__Lo, LSM__Lo, PMCL1) are built from internal
+    coordinates with a chain ALREADY 13-20 A above their own headgroup, and the MC cannot get them
+    out: unfolding needs a concerted swing that costs axial excess on the way, and the penalty that
+    keeps good conformers good is exactly what forbids that detour.  Measured 2026-10-02 -- raising
+    ``axial_bias`` from 1.0 to 5.0 to 20.0 made folding MORE common, not less, because a strong
+    penalty is a wall and a wall freezes a conformer in the basin it started in.  DMPC is the
+    control: it also starts folded, by only 7 A, and the penalty alone pulls it out.
+
+    So the escape is done deterministically and ONCE, before any sampling.  Greedy steepest
+    descent over the torsion space: try ``n_angles`` rotations of every rotatable bond, keep the
+    single move that most reduces the total excess above the limit without creating an overlap,
+    repeat until nothing helps.  This is a search for a better starting point, not a sampling move,
+    so it does not bias the ensemble -- the MC still explores from wherever it lands, under the
+    penalty, exactly as before.
+
+    Returns the relieved coordinates (a copy); a no-op when there is no limit or no excess.
+    """
+    confined_idx = np.nonzero(mol.confined)[0]
+    if len(confined_idx) == 0 or not mol.rotatable:
+        return coords
+    lim = (mol.axial_limit[confined_idx] if isinstance(mol.axial_limit, np.ndarray)
+           else mol.axial_limit)
+    if not np.any(np.isfinite(lim)):
+        return coords
+
+    def excess(x):
+        a = np.dot(x[confined_idx] - mol.axis_point, mol.axis_dir) - lim
+        return float(np.clip(a, 0.0, None).sum())
+
+    coords = coords.copy()
+    cur = excess(coords)
+    start = cur
+    angles = np.linspace(-np.pi, np.pi, n_angles, endpoint=False)
+    for _ in range(max_passes):
+        best = (cur, None, None)
+        for bond in mol.rotatable:
+            for th in angles:
+                if th == 0.0:
+                    continue
+                trial = _apply_pivot(coords, bond, float(th))
+                e = excess(trial)
+                if e < best[0] - 1e-9 and not _has_overlap(trial, mol.radii, bond.moving,
+                                                           mol.exclusions):
+                    best = (e, bond, float(th))
+        if best[1] is None:
+            break
+        coords = _apply_pivot(coords, best[1], best[2])
+        cur = best[0]
+        if cur <= 0.0:
+            break
+    if start > 0.0:
+        logger.info(f'MC: axial relief {start:.1f} -> {cur:.1f} (A-atoms above the head plane) '
+                    f'over {len(mol.rotatable)} rotatable bonds'
+                    + ('' if cur <= 0.0 else '  -- RESIDUAL: a tail cannot reach the limit by '
+                       'torsion alone'))
+    return coords
+
+
 def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: int = 200,
            max_angle: float = np.pi, seed: int = None,
            torsion_bias: float = 0.0, axial_bias: float = 0.0) -> list[np.ndarray]:
@@ -254,6 +321,11 @@ def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: i
 
     rng = np.random.default_rng(seed)
     coords = mol.coords.copy()
+    if axial_bias > 0.0:
+        # Deterministic escape from a folded START, which the penalty itself cannot provide
+        # (see relieve_axial_excess).  Done before equilibration so the walk begins somewhere
+        # legal rather than spending its whole budget pinned against the limit.
+        coords = relieve_axial_excess(mol, coords)
     nbonds = len(mol.rotatable)
     samples: list[np.ndarray] = []
     n_accept = n_attempt = 0
@@ -276,11 +348,14 @@ def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: i
     # went 8/10 folded to 10/10 under a hard wall, and DMPC, which never folds at all, lost 2.06 A
     # of extension because blocked pivots degrade sampling even where the constraint is irrelevant.
     # A penalty gives a gradient out of the folded basin instead of a fence around it.
+    _lim = (mol.axial_limit[confined_idx] if isinstance(mol.axial_limit, np.ndarray)
+            else mol.axial_limit)
+
     def _axial_excess(x):
-        a = np.dot(x[confined_idx] - mol.axis_point, mol.axis_dir) - mol.axial_limit
+        a = np.dot(x[confined_idx] - mol.axis_point, mol.axis_dir) - _lim
         return float(np.clip(a, 0.0, None).sum())
 
-    cap = (np.isfinite(mol.axial_limit) and len(confined_idx) > 0 and axial_bias > 0.0)
+    cap = (np.any(np.isfinite(_lim)) and len(confined_idx) > 0 and axial_bias > 0.0)
     if cap:
         cur_excess = _axial_excess(coords)
 

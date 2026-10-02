@@ -417,12 +417,13 @@ class TestBilayer(unittest.TestCase):
         # box z reserves each leaflet's true coordinate z-extent (choline + caps), not just the
         # head-to-tail-tip length -- so lipids don't overflow into and thin the water chambers.
         # Watermark on the shipped conformer collection: 87.86 with the old extended-rod set,
-        # 78.14 with the athermal-MC set whose melted tails give a smaller z-extent, and 75.69
-        # since 2026-10-02.  That last drop is counter-intuitive and worth stating: the axial
-        # penalty makes lipids SHORTER in z, because a hairpin -- one chain folded back up out
-        # of the membrane -- spans more z than a correctly oriented molecule.  Less fold, less
-        # reserved slab.
-        assert test_bilayer.patch_ur_corner[2]==pytest.approx(75.69, rel=1e-2)
+        # 78.14 with the athermal-MC set whose melted tails give a smaller z-extent, then 75.69
+        # and now 77.02 across two passes on 2026-10-02.  The direction is worth stating because it
+        # is counter-intuitive: removing folds makes lipids SHORTER in z, since a hairpin -- one
+        # chain folded back up out of the membrane -- spans more z than a correctly oriented
+        # molecule.  The partial recovery to 77.02 is the unfolding pre-pass straightening chains
+        # that the penalty alone had left curled against the limit.
+        assert test_bilayer.patch_ur_corner[2]==pytest.approx(77.02, rel=1e-2)
         self.RM.charmmff_content.clean_local_charmmff_files()
 
         os.chdir('..')

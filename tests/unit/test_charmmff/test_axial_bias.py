@@ -103,7 +103,14 @@ class TestBuildLipidMCDerivesTheLimit(unittest.TestCase):
     def test_the_limit_comes_from_the_lowest_head_reference_atom(self):
         """For a glycerolipid `heads` is [N, O22, O32] -- the headgroup nitrogen and the two ester
         oxygens.  The minimum is the ester plane, where the chains actually attach; a mean could be
-        lifted by a leaning choline."""
+        lifted by a leaning choline.
+
+        A per-atom limit (each atom bounded by its graph-nearest head) was tried 2026-10-02 to
+        reach PMCL1, whose cardiolipin arms attach at very different heights.  It did not fix
+        PMCL1 and it REGRESSED DSPE__Lo from 0/10 folded at +20.39 A to 10/10 at -0.56, because
+        bounding a tail atom by a high head reference is looser than the ester plane.  One scalar,
+        from the lowest head reference, plus the deterministic pre-pass, fixes five of the six.
+        """
         from pestifer.charmmff.athermal_mc import build_lipid_mc
         coords = np.array([[0.0, 0.0, 12.0],    # head N (high)
                            [0.0, 0.0, 4.0],     # ester O (the real ceiling)
@@ -119,6 +126,34 @@ class TestBuildLipidMCDerivesTheLimit(unittest.TestCase):
         self.assertAlmostEqual(mol.axial_limit, float(axial.min()), places=9)
         self.assertLess(mol.axial_limit, float(axial.max()),
                         'POSITIVE CONTROL: the two head atoms must differ, or this proves nothing')
+
+
+class TestUnfoldingPrePass(unittest.TestCase):
+    """A folded START cannot be escaped by the penalty, so it is relieved deterministically first.
+
+    Five shipped lipids are built from internal coordinates with a chain already 13-20 A above
+    their own headgroup.  Unfolding needs a concerted swing that costs axial excess on the way,
+    and the penalty that keeps good conformers good is exactly what forbids that detour -- raising
+    `axial_bias` from 1.0 to 5.0 to 20.0 made folding MORE common, not less.
+    """
+
+    def test_a_folded_start_is_relieved_before_sampling(self):
+        from pestifer.charmmff.athermal_mc import relieve_axial_excess
+        coords, radii, bond, confined = _two_bead_chain(z_top=6.0)
+        mol = MoleculeMC(coords=coords, radii=radii, rotatable=[bond],
+                         axis_point=np.zeros(3), axis_dir=np.array([0.0, 0.0, 1.0]),
+                         cylinder_radius=float('inf'), confined=confined,
+                         axial_limit=0.0)
+        out = relieve_axial_excess(mol, coords)
+        self.assertLess(out[3, 2], coords[3, 2], 'the pre-pass did not lower the folded atom')
+
+    def test_it_is_a_no_op_without_a_limit(self):
+        from pestifer.charmmff.athermal_mc import relieve_axial_excess
+        coords, radii, bond, confined = _two_bead_chain(z_top=6.0)
+        mol = MoleculeMC(coords=coords, radii=radii, rotatable=[bond],
+                         axis_point=np.zeros(3), axis_dir=np.array([0.0, 0.0, 1.0]),
+                         cylinder_radius=float('inf'), confined=confined)
+        np.testing.assert_allclose(relieve_axial_excess(mol, coords), coords)
 
 
 if __name__ == '__main__':
