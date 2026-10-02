@@ -1081,4 +1081,26 @@ real bug.
       anchoring of a sterol 3-OH with a phosphate is actually WRONG needs the equilibrated
       structures: in a real bilayer the 3-OH sits ~3-6 A below the phosphate plane. pestifer-sweep
       holds those trajectories; I do not. Ask before changing placement semantics.
+- [ ] **Install the regenerated lipid.tgz** (`~/devtests/pestifer/conformers-regen/lipid-axialbias-20261002.tgz`,
+      266 entries) over `pestifer/resources/charmmff/feb26/pdbrepository/lipid.tgz`, and clear the
+      stale `~/.pestifer/pdbrepository/feb26/lipid` autocache (58 old-sampler entries, which
+      currently OUTRANK an explicit override — see the precedence item). Cameron asked for this
+      2026-10-02; not done yet because it changes every membrane build and invalidates comparison
+      against prior sweeps.
+
+      **Corrected comparison, after Cameron asked which patch is which phase.** patchA is the
+      UPPER composition at phase **Lo** (PSM/POPC/47% CHL1); patchB is the LOWER composition at
+      phase **Ld** (POPE/SOPS/SOPE/43% CHL1). Two of my reported deficits compared against the
+      wrong reference:
+
+      - patchA was built at **SAPL 50** (ex17's value) but scored against the **SAPL 44**
+        equilibrium, 46.48. Like-for-like is `patchA Lo @ SAPL 50 = 45.80 ± 0.17`, so the deficit
+        is **2.29 A, not 2.97**.
+      - patchB's 41.12 is explicitly a **LOWER BOUND** on a run that never converged and was still
+        rising. So the build at 41.44 is NOT "0.32 A thick, essentially exact" as I reported — it
+        is at or just above a bound, and the true equilibrium may be higher. **The patchB deficit
+        is unknown, not resolved.**
+
+      Both caveats weaken claims I made in favour of my own fixes, and neither changes the
+      direction: patchB moved 28.08 -> 41.44 and patchA 39.87 -> 43.51.
 - [ ] _(add items here)_
