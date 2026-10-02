@@ -899,4 +899,41 @@ real bug.
       Open: (a) correct ex17's comment (false as written) — touches an example file the running
       sweep hashes, so not done unilaterally; (b) whether to flip the setting at all; (c) the real
       lever, conformer extension in the MC sampler. Probe kept at `~/devtests/pestifer/ld-vs-lo/`.
+- [ ] **ROOT CAUSE: the MC conformer sampler confines footprint but not direction — 90% of drawn
+      phospholipid conformers have a tail pointing out of the membrane.** Found 2026-10-02 chasing
+      Defect 2. **Not fixed — changing the sampler changes every cached conformer and every
+      membrane build, so it is Cameron's call.** Evidence:
+      `~/.local/state/fleet/drops/pestifer-conformer-fold-20261002.md`, probes in
+      `~/devtests/pestifer/ld-vs-lo/`.
+
+      `athermal_mc.build_lipid_mc` confines tails to a **cylinder** about the membrane normal,
+      which caps the in-plane footprint near the target APL. A cylinder is infinite along z, and
+      nothing constrains a chain to the tail side of the headgroup, so a 180-degree fold back up
+      is radially compliant, sterically allowed (self-avoidance only), and accepted. The sampler
+      therefore hits its APL target honestly — which is why the conformer work was judged a
+      success — while producing lipids with one tail in the water.
+
+          phase Ld   POPE 10/10 folded   SOPS 8/10   SOPE 8/10
+          phase Lo   POPE 10/10          SOPS 10/10  SOPE 10/10
+
+      One POPE conformer, phosphate at z=8.08: sn-2 oleoyl runs C22:5.0 -> C218:17.1, exiting into
+      the water 9 A above the phosphate, while sn-1 palmitoyl runs to -7.3 correctly.
+
+      This is the thickness defect. Placement takes `raw_off = mean(anchor_z - mean(tail-tip z))`,
+      which one folded tip collapses — POPE reads 3.30 A against 14.54 A measured to its deepest
+      tip — and P-P follows directly, hence patchB's grid at 28.08 A against 42.3+ equilibrated.
+      It also explains why declaring Lo bought only +0.92 A: the trans bias genuinely works (POPE's
+      deepest tip goes 14.54 -> 21.65) but the other chain folds up more consistently, so the gain
+      never reaches `raw_off`. The ordered ensemble is MORE folded than the fluid one.
+
+      Note the regression was recorded as physics: `test_bilayer_spec_out`'s comment reads "(78.14
+      with the athermal-MC conformer set, whose melted tails give a smaller z-extent than the old
+      extended-rod conformers that gave 87.86.)" The z-extent collapse was read as melting; it is
+      at least partly folding.
+
+      Fixes in order of confidence: (1) reject sampler moves putting a tail heavy atom above the
+      head reference — the actual defect; (2) make `_mean_anchor_offset` robust to one folded chain
+      (defence in depth, but alone it hides the sampler behind a better number); (3) reject folded
+      conformers at load with a loud warning. **Unchecked:** ex16 is pure DMPC and its gate works;
+      its conformers have not been examined and should be before generalizing.
 - [ ] _(add items here)_
