@@ -958,6 +958,22 @@ real bug.
       on patchB (folders). The trans bias works as designed when chains cannot satisfy it by
       inverting — which is the cos²θ degeneracy showing up as a dose-response.
 
+      **SEQUENCING — do not ship the P-P gate before the sampler fix.** Every membrane build
+      currently starts 6.6-13 A thin, so a thickness gate would correctly refuse to certify almost
+      all of them and convert every membrane build into a ceiling-length run (patchA took ~2.5M
+      steps to climb 39.87 -> 46.48). ex16 is the converse existence proof: it builds near
+      equilibrium, settles inside 180k steps, and **the EXISTING gate already gets the right answer
+      there** — gated 59.37 ± 0.27 against gate-off 59.14.
+
+      So the conformer fix may demote the gate change from "the fix" to "a safety net". That bears
+      directly on the 2026-10-01 decision to forfeit 3.22.8 provenance in order to get a gate
+      change: if the sampler fix lands first, the existing gate may be adequate for builds that
+      start where they belong, and the forfeit may not have bought what it was spent on. Worth
+      re-deciding before any provenance is actually given up.
+
+      This is "never ship a seed fix alone", inverted: do not ship the detector without fixing the
+      cause. (pestifer-sweep, `criterion/PP-REFERENCE.md` final section.)
+
       Fixes in order of confidence: (1) reject sampler moves putting a tail heavy atom above the
       head reference — the actual defect; (2) make `_mean_anchor_offset` robust to one folded chain
       (defence in depth, but alone it hides the sampler behind a better number); (3) reject folded
