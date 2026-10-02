@@ -37,6 +37,7 @@ from ..util.density_convergence import (
     DensityConvergenceMonitor,
     JointConvergence,
     membrane_leaflet_geometry,
+    membrane_pp_thickness,
     total_atoms,
     total_mass_amu,
     volume_to_density,
@@ -124,6 +125,24 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         self._min_steps = min_steps
         self._area_min = max(min_steps, int(specs.get('area_min_steps') or 0) or min_steps)
         self._mon_a = DensityConvergenceMonitor(self._params_for('area', self._area_min))
+        # P-P thickness: MEASURED and reported, deliberately NOT gated (2026-10-02).
+        #
+        # The gate watches density and area only, and area is the wrong observable to certify a
+        # bilayer on by itself: on release it OVERSHOOTS (ex17 patchB 50.00 -> 54.53 -> 47.71), so
+        # at the turn its drift passes through zero while the structure is still ordering, and a
+        # statistically correct drift test on area still certifies there.  Thickness does not turn
+        # (2 direction reversals against area's 5) and tracks chain order almost exactly
+        # (corr 0.955 on patchB), so it is the signal that would have caught it.
+        #
+        # It is measured first and gated later on purpose: switching it on sets the runtime of
+        # every membrane build, including ex16's quilt, whose gate is already correct -- and the
+        # tolerance would have to be guessed from two systems.  This run writes the traces that
+        # tolerance can be chosen from.  `self._mon_pp` is a full monitor so that flipping it to
+        # gating is adding it to JointConvergence, not writing new statistics.
+        self._psf_path = str(state.psf.path)
+        self._mon_pp = DensityConvergenceMonitor(self._params_for('area', self._area_min))
+        self._all_pp = []          # (step, thickness) for the report and plot
+        self._last_pp = None
         self._n_consecutive = int(specs['n_consecutive'])
         self._all_t, self._all_d, self._all_a = [], [], []   # series for the two-panel plot
         self._phase2_start_step = None                       # set at the stage-1 -> stage-2 handoff
@@ -182,6 +201,7 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
             self._all_t.extend(ts.tolist())
             self._all_d.extend(dens.tolist())
             self._all_a.extend(areas.tolist())
+        self._measure_thickness(total_steps)
         jr = self._conv.check()
         self._rows.append((n_chunk, total_steps, this_chunk, jr, self._phase))
         rd, ra = jr.reports.get('density'), jr.reports.get('area')
@@ -196,7 +216,8 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
                     f'rho={_fmt(rd.mean_density if rd else None)} g/cc '
                     f'(drift {_fmt(rd.signed_drift if rd else None)}), '
                     f'area={_fmt(area)} A^2 (drift {_fmt(ra.signed_drift if ra else None)}'
-                    f'{"" if apl is None else f", APL~{_fmt(apl)}"}) -- {jr.reason}')
+                    f'{"" if apl is None else f", APL~{_fmt(apl)}"})'
+                    f'{self._thickness_note()} -- {jr.reason}')
 
         # stage 1 -> stage 2 handoff: density has settled at constant area; hand off to tensionless
         # area relaxation.  Reset both monitors so stage-2 convergence is judged on stage-2 samples only,
@@ -227,6 +248,44 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
                             f'(cumulative quarter-drift {_fmt(pd)} >= {self._area_plateau_tol:.4f}); '
                             f'continuing')
         return jr.blowup, converged
+
+    def _measure_thickness(self, total_steps):
+        """Measure P-P thickness from this chunk's restart coordinates and feed the (non-gating)
+        monitor.
+
+        **Never raises**, and the whole body is inside the guard for that reason -- an advisory
+        observable must not be able to end a 2.5M-step equilibration.  An earlier version of this
+        method set up two locals before the `try` and an `AttributeError` from one of them escaped
+        into the convergence loop, which is precisely the failure the guard exists to prevent.
+        """
+        try:
+            self._last_pp = None
+            coor = f'{self.basename}.coor'
+            if not os.path.exists(coor):
+                raise FileNotFoundError(f'{coor} not written by this chunk')
+            r = membrane_pp_thickness(self._psf_path, coor)
+            self._last_pp = r
+            if r.thickness is not None:
+                self._all_pp.append((total_steps, r.thickness))
+                self._mon_pp.add_samples([float(total_steps)], [r.thickness])
+            elif not self._all_pp:
+                # say it once, on the first chunk, rather than every chunk for the whole run
+                logger.info(f'{self.taskname}: P-P thickness not measurable ({r.note}); '
+                            f'it will not be reported for this system')
+        except Exception as e:
+            logger.debug(f'{self.taskname}: P-P thickness unavailable this chunk ({e})')
+
+    def _thickness_note(self):
+        """The thickness fragment of the per-chunk log line, or '' when there is nothing to say."""
+        r = self._last_pp
+        if r is None or r.thickness is None:
+            return ''
+        pr = self._mon_pp.check() if len(self._all_pp) >= 4 else None
+        drift = f', drift {_fmt(pr.signed_drift)}' if pr is not None else ''
+        extra = ''
+        if r.n_unresolved:
+            extra = f', {r.n_unresolved} lipid(s) with ambiguous phosphorus excluded'
+        return f', P-P={r.thickness:.2f} A ({r.n_lower}/{r.n_upper} P{drift}{extra})'
 
     def _area_plateau_drift(self):
         """Cumulative area-plateau drift: the fractional change between the mean area over the final
@@ -303,6 +362,10 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
     def _write_report(self, stop_reason):
         """Write a per-chunk two-observable convergence report (``<basename>-membrane.dat``)."""
         fn = f'{self.basename}-membrane.dat'
+        # The thickness series is optional: a report may be written for a task that never measured
+        # it (an unmeasurable system, or a caller that drives the writer directly), and a missing
+        # advisory observable must not stop the report that carries everything else.
+        pp_at = dict(getattr(self, '_all_pp', None) or [])
         with open(fn, 'w') as f:
             f.write(f'# membrane_equilibrate convergence report -- {self.taskname}\n')
             f.write(f'# {self.build_stamp()}\n')
@@ -324,8 +387,12 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
             else:
                 f.write('# protocol: single-stage tensionless NPgT (density+area jointly)\n')
             f.write(f'# stop: {stop_reason}\n')
+            if pp_at:
+                f.write('# PP[A] is phosphate-to-phosphate bilayer thickness -- MEASURED, NOT GATED.\n'
+                        '# Area overshoots on release, so its drift passes through zero at the turn\n'
+                        '# while the bilayer is still ordering; thickness is the signal that sees it.\n')
             f.write('# stage  chunk  step  nsteps  rho[g/cc]  rho_drift  rho_SEM/m  area[A^2]  '
-                    'APL_lo[A^2]  APL_up[A^2]  area_drift  area_SEM/m  passes  reason\n')
+                    'APL_lo[A^2]  APL_up[A^2]  area_drift  area_SEM/m  PP[A]  passes  reason\n')
             for n, step, nsteps, jr, ph in self._rows:
                 rd, ra = jr.reports.get('density'), jr.reports.get('area')
                 area = ra.mean_density if ra else None
@@ -336,6 +403,7 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
                         f'{_fmt(area):>9}  {_fmt(apl_lo):>11}  {_fmt(apl_up):>11}  '
                         f'{_fmt(ra.signed_drift if ra else None):>10}  '
                         f'{_fmt(ra.sem_over_mean if ra else None):>10}  '
+                        f'{_fmt(pp_at.get(step)):>7}  '
                         f'{jr.passes:6d}  {jr.reason}\n')
         self.register(f'{self.basename}-membrane', key='membrane_report', artifact_type=DataFileArtifact)
         logger.info(f'{self.taskname}: convergence report -> {fn}')

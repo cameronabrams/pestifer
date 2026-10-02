@@ -149,7 +149,7 @@ def volume_to_density(volume_a3, mass_amu):
 
 
 def _parse_psf_atoms(psf_path):
-    """Return ``(segnames, resids, resnames, masses)`` in PSF atom order (XPLOR/CHARMM ``!NATOM``).
+    """Return ``(segnames, resids, resnames, atomnames, masses)`` in PSF atom order.
 
     Columns: ``id segname resid resname name type charge mass ...``."""
     with open(psf_path) as f:
@@ -163,6 +163,7 @@ def _parse_psf_atoms(psf_path):
     seg = np.empty(natom, dtype=object)
     resid = np.empty(natom, dtype=object)
     resn = np.empty(natom, dtype=object)
+    name = np.empty(natom, dtype=object)
     mass = np.empty(natom, dtype=float)
     block = lines[i + 1:i + 1 + natom]
     for k, line in enumerate(block):
@@ -174,11 +175,11 @@ def _parse_psf_atoms(psf_path):
             raise ValueError(
                 f'{psf_path}: the !NATOM block ends at atom {k + 1} of {natom} -- the file is '
                 f'truncated or is not a PSF (line reads {line.strip()!r})')
-        seg[k], resid[k], resn[k], mass[k] = p[1], p[2], p[3], float(p[7])
+        seg[k], resid[k], resn[k], name[k], mass[k] = p[1], p[2], p[3], p[4], float(p[7])
     if len(block) < natom:
         raise ValueError(f'{psf_path}: declares {natom} atoms but holds only {len(block)}; '
                          f'the file is truncated')
-    return seg, resid, resn, mass
+    return seg, resid, resn, name, mass
 
 
 def _read_coor_xyz(path, natom):
@@ -252,6 +253,97 @@ class LeafletGeometry:
         return 0.5 * (lo + up) if (lo is not None and up is not None) else (lo if lo is not None else up)
 
 
+def _lipid_molecules(seg, resid, mass, z, lip):
+    """``(midplane_z, [(atom_indices, mean_z), ...])`` for each lipid *molecule*.
+
+    Factored out of :func:`membrane_leaflet_geometry` when :func:`membrane_pp_thickness` needed the
+    same two things -- the mass-weighted bilayer midplane, and each lipid grouped by
+    ``segname:resid`` with its own mass-weighted mean z.  Leaflet membership is ``mean_z >
+    midplane``; deriving it per *molecule* rather than per atom is what keeps a splayed tail or a
+    headgroup dipping toward the midplane from being counted into the wrong leaflet.
+
+    Raises ``ValueError`` if ``lip`` selects nothing, since every caller needs a bilayer.
+    """
+    if not lip.any():
+        raise ValueError('no lipid atoms found; not a membrane system')
+    midplane = float(np.average(z[lip], weights=mass[lip]))
+    idx = np.flatnonzero(lip)
+    key = np.array([f'{seg[i]}:{resid[i]}' for i in idx])
+    out = []
+    for k in np.unique(key):
+        aidx = idx[key == k]
+        out.append((aidx, float(np.average(z[aidx], weights=mass[aidx]))))
+    return midplane, out
+
+
+@dataclass
+class MembraneThickness:
+    """Phosphate-to-phosphate bilayer thickness, the standard structural measure of a bilayer.
+
+    ``thickness`` is ``None`` whenever it could not be measured honestly; ``note`` says why.  A
+    caller that gates on this **must treat ``None`` as "do not certify"**, never as "skip this
+    observable" -- an unmeasurable structural coordinate is the case the gate exists for.
+    """
+    thickness: float | None      #: mean upper-leaflet P z minus mean lower-leaflet P z (A)
+    z_upper: float | None
+    z_lower: float | None
+    n_upper: int                 #: phospholipids contributing a resolved P to the upper leaflet
+    n_lower: int
+    n_no_phosphorus: int         #: lipid molecules with no P at all (sterols, glycolipids) -- expected
+    n_unresolved: int            #: lipid molecules with several P and no unambiguous headgroup one
+    midplane_z: float | None = None
+    note: str = ''
+
+
+def membrane_pp_thickness(psf_path, coor_path) -> MembraneThickness:
+    """Measure phosphate-to-phosphate bilayer thickness from one frame.
+
+    Why P-P and not chain order: a phosphorus is the one atom every phospholipid has exactly one
+    of, found here by *mass* rather than by name, so this needs no per-lipid atom-name table and
+    works on any mixture.  Sterols carry no phosphorus and are simply not counted -- correct, since
+    P-P is a phospholipid measure -- but that means a leaflet which is mostly cholesterol is
+    measured from the minority that are phospholipids, and a leaflet with none at all yields
+    ``None`` rather than a number.
+
+    Lipids with several phosphorus atoms (PIP2, cardiolipin) are resolved by preferring the atom
+    named exactly ``P``; one that stays ambiguous is counted in ``n_unresolved`` and excluded,
+    because averaging a headgroup phosphate with an inositol one would quietly bias the result
+    rather than fail.
+    """
+    from .densityprofile import classify_species
+    seg, resid, resn, name, mass = _parse_psf_atoms(psf_path)
+    xyz = _read_coor_xyz(coor_path, mass.size)
+    z = xyz[:, 2]
+    lip = classify_species(resn) == 'lipid'
+    midplane, molecules = _lipid_molecules(seg, resid, mass, z, lip)
+
+    upper, lower = [], []
+    n_no_p = n_unresolved = 0
+    for aidx, mean_z in molecules:
+        p_here = aidx[(mass[aidx] > 30.5) & (mass[aidx] < 31.5)]   # phosphorus by element mass
+        if p_here.size == 0:
+            n_no_p += 1
+            continue
+        if p_here.size > 1:
+            named = p_here[np.array([str(name[i]).strip().upper() == 'P' for i in p_here])]
+            if named.size != 1:
+                n_unresolved += 1
+                continue
+            p_here = named
+        (upper if mean_z > midplane else lower).append(float(z[p_here[0]]))
+
+    note = ''
+    if not upper or not lower:
+        empty = 'both leaflets' if (not upper and not lower) else ('upper' if not upper else 'lower')
+        note = (f'no resolved phosphorus in {empty} '
+                f'({n_no_p} lipid(s) carry none, {n_unresolved} ambiguous)')
+        return MembraneThickness(None, None, None, len(upper), len(lower), n_no_p, n_unresolved,
+                                 midplane, note)
+    zu, zl = float(np.mean(upper)), float(np.mean(lower))
+    return MembraneThickness(zu - zl, zu, zl, len(upper), len(lower), n_no_p, n_unresolved,
+                             midplane, note)
+
+
 def membrane_leaflet_geometry(psf_path, coor_path):
     """Measure per-leaflet lipid counts and protein cross-sections from an embedded membrane frame.
 
@@ -264,28 +356,14 @@ def membrane_leaflet_geometry(psf_path, coor_path):
     treated as lipid, matching the density-profile convention).  Returns a :class:`LeafletGeometry`;
     raises ``ValueError`` if no lipid atoms are found (not a membrane system)."""
     from .densityprofile import classify_species
-    seg, resid, resn, mass = _parse_psf_atoms(psf_path)
+    seg, resid, resn, name, mass = _parse_psf_atoms(psf_path)
     xyz = _read_coor_xyz(coor_path, mass.size)
     z = xyz[:, 2]
     cls = classify_species(resn)
     lip = cls == 'lipid'
-    if not lip.any():
-        raise ValueError('no lipid atoms found; not a membrane system')
-    midplane = float(np.average(z[lip], weights=mass[lip]))
-
-    # count lipids per leaflet by per-molecule mass-weighted mean-z vs the midplane
-    n_lower = n_upper = 0
-    lower_z, upper_z = [], []
-    idx = np.flatnonzero(lip)
-    key = np.array([f'{seg[i]}:{resid[i]}' for i in idx])
-    for k in np.unique(key):
-        aidx = idx[key == k]
-        zc = float(np.average(z[aidx], weights=mass[aidx]))
-        (upper_z if zc > midplane else lower_z).append(zc)
-        if zc > midplane:
-            n_upper += 1
-        else:
-            n_lower += 1
+    midplane, molecules = _lipid_molecules(seg, resid, mass, z, lip)
+    n_upper = sum(1 for _, zc in molecules if zc > midplane)
+    n_lower = len(molecules) - n_upper
 
     # protein heavy atoms, split by leaflet within the lipid z-extent
     prot = (cls == 'protein') & (mass > 2.0)
