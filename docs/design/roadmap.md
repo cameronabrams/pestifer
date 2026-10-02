@@ -866,4 +866,37 @@ real bug.
       Their two load-bearing cautions, worth keeping attached: **ex16's quilt gate is correct**, so a
       replacement must not simply run everything longer; and **do not ship a seed fix alone** — it
       improves the numbers while leaving them seed-dependent, hiding the defect.
+- [ ] **ex17's `lower_leaflet_phase: Ld` is a config defect — but fixing it recovers ~7%, not the
+      deficit.** Measured 2026-10-02 with the build-time P-P logging from `46488ed2`.
+      **Nothing changed in ex17; this is Cameron's call, and the sweep is mid-run.**
+
+      ex17's config declares the lower leaflet Ld and justifies it: *"the cis double bond can't be
+      ordered by the trans bias (its Lo ensemble == its fluid Ld one), so declare it Ld: same
+      result"*. pestifer-sweep noticed SOPE/SOPS are stearoyl and POPE palmitoyl — **sn-1 is fully
+      saturated in all three**; the cis kink is sn-2 only — so the trans bias should still extend
+      sn-1 and the two ensembles should differ. Built patchB's composition both ways at ex17's
+      SAPL 50:
+
+          Ld   28.083 A      Lo   29.008 A      Lo - Ld = +0.924 A
+
+      Identical across three seeds each (sd 0.000): `built_pp_thickness` is deterministic, since
+      every anchor is pinned to one plane and the jitter is xy-only. So +0.924 A is an exact
+      difference, not a sample. **The comment's "==" is false.**
+
+      **And the code already said so.** `make_membrane_system._warn_phase_composition_mismatch`
+      fires on this exact leaflet — 43% sterol, declared Ld — with *"expect the leaflet to order
+      (drift toward Lo) during equilibration; consider phase: Lo"*. That prediction is precisely
+      what the sweep measured (P-P 33.89 -> 42.30, still rising; corr(S, P-P) = +0.955). A correct
+      warning was overridden by a comment whose premise is wrong.
+
+      **But do not read this as the fix.** The grid builds patchB at 28.08 A against an
+      equilibrated 42.3+; switching to Lo recovers 0.92 of ~14 A. Both ensembles are too curled,
+      so the deficit is in how extended the MC conformers are, not in which ensemble is selected.
+      Flipping ex17 to Lo would improve the number slightly, leave the defect, and spend the
+      example's comparability to do it — the seed-fix-alone trap the sweep warned about, in a new
+      costume.
+
+      Open: (a) correct ex17's comment (false as written) — touches an example file the running
+      sweep hashes, so not done unilaterally; (b) whether to flip the setting at all; (c) the real
+      lever, conformer extension in the MC sampler. Probe kept at `~/devtests/pestifer/ld-vs-lo/`.
 - [ ] _(add items here)_
