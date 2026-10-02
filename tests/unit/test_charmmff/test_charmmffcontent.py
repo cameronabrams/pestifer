@@ -38,8 +38,11 @@ class TestCharmmffContent(unittest.TestCase):
         self.assertGreaterEqual(len(self.C.pdbrepository.collections), 2)
         self.assertIn('lipid', self.C.pdbrepository.collections)
         self.assertIn('solvent', self.C.pdbrepository.collections)
-        # 219 base lipid conformers + 47 curated <resname>__Lo phase conformers = 266
-        self.assertEqual(len(self.C.pdbrepository.collections['lipid'].info), 266)
+        # 219 base lipid conformers + 58 <resname>__Lo phase conformers = 277.  The Lo count
+        # rose from 47 on 2026-10-02: eleven that only ever existed in the on-demand cache
+        # (POPC__Lo, CHL1__Lo, POPE__Lo, SOPE__Lo, SOPS__Lo and six more) are now shipped,
+        # so a phase-Lo build no longer regenerates them on every machine with a cold cache.
+        self.assertEqual(len(self.C.pdbrepository.collections['lipid'].info), 277)
         self.assertEqual(len(self.C.pdbrepository.collections['solvent'].info), 15)
 
     def test_charmmffcontent_restricted_provisioning(self):
@@ -118,8 +121,14 @@ class TestCharmmffContent(unittest.TestCase):
         params=c.get_parameters()
         self.assertIn('toppar_all36_lipid_sphingo.str',params)
         self.assertEqual(len(c.info['conformers']),10)
-        self.assertAlmostEqual(c.info['conformers'][0]['head-tail-length'],11.389,places=2)
-        self.assertAlmostEqual(c.info['conformers'][0]['max-internal-length'],19.677,places=2)
+        # Watermark on the SHIPPED conformer collection, not an invariant: it moves whenever the
+        # collection is regenerated.  2026-10-02 it went 11.389 -> 14.714 when the MC sampler
+        # gained an axial penalty holding acyl tails below the headgroup; 90% of PE/PS
+        # conformers had been folding a chain back out of the membrane, which shortens the
+        # head-to-tail distance.  A change here is a prompt to ask WHICH way and why, not to
+        # re-pin on sight.
+        self.assertAlmostEqual(c.info['conformers'][0]['head-tail-length'],14.714,places=2)
+        self.assertAlmostEqual(c.info['conformers'][0]['max-internal-length'],21.782,places=2)
         c.get_pdb(0)
         self.assertTrue(os.path.exists('PSM-00.pdb'))
         os.remove('PSM-00.pdb')

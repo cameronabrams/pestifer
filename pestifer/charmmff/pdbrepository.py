@@ -255,6 +255,24 @@ class PDBInputDict(UserDict[str, PDBInput]):
     """ A dictionary mapping residue names to their corresponding PDBInput objects. """
     pass
 
+def _wanted(entry: str, resnames) -> bool:
+    """Whether a collection entry should be kept under a ``resnames`` filter.
+
+    An entry may be phase-qualified -- ``POPC__Lo`` carries POPC's liquid-ordered ensemble -- while
+    the filter is built from real CHARMM resnames.  A plain ``entry in resnames`` therefore dropped
+    every ordered ensemble from the shipped collection, so a build asking for phase ``Lo`` found
+    nothing there and regenerated it on demand each time its cache was empty.  The shipped tarball
+    has carried ``__Lo`` entries all along and none of them were readable: measured 2026-10-02,
+    a build with all 277 entries installed still regenerated PSM__Lo, POPC__Lo and CHL1__Lo.
+
+    An entry matches if its own name is wanted, or the resname it qualifies is.
+    """
+    if not resnames:
+        return True
+    from .autocache import base_resname_of   # deferred: autocache imports this module
+    return entry in resnames or base_resname_of(entry) in resnames
+
+
 @dataclass
 class PDBCollection:
     """ 
@@ -301,13 +319,13 @@ class PDBCollection:
             for solo in toplevel_solos:
                 # update info and contents for a solo PDB file (info is empty in this case)
                 resname = os.path.splitext(os.path.basename(solo))[0]
-                if not resnames or resname in resnames:
+                if _wanted(resname, resnames):
                     info[resname] = {}
                     with pdbrepo_fs.open(solo, 'r') as f:
                         contents[resname] = PDBInput(name=resname, pdbcontents={'0': f.read()}, info=info[resname])
             for subdir in toplevel_subdirs:
                 resname = os.path.basename(subdir)
-                if not resnames or resname in resnames:
+                if _wanted(resname, resnames):
                     info_search = [x for x in pdbrepo_fs.ls(subdir) if 'info.yaml' in x['name']]
                     if len(info_search) == 0:
                         logger.warning(f'No info.yaml found for {resname} in tarball {path_or_tarball}.')
@@ -342,13 +360,13 @@ class PDBCollection:
             subdirs = [x for x in dircontents if os.path.isdir(x) and not x.startswith('.')]
             for solo in solos:
                 resname = os.path.splitext(solo)[0]
-                if not resnames or resname in resnames:
+                if _wanted(resname, resnames):
                     info[resname] = {}
                     with open(solo, 'r') as f:
                         contents[resname] = PDBInput(name=resname, pdbcontents={0: f.read()}, info=info[resname])
             for subdir in subdirs:
                 resname = subdir
-                if not resnames or resname in resnames:
+                if _wanted(resname, resnames):
                     if os.path.exists(os.path.join(subdir, 'info.yaml')):
                         with open(os.path.join(subdir, 'info.yaml'), 'r') as f:
                             info[resname] = yaml.safe_load(f)
