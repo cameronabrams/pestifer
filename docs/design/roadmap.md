@@ -828,4 +828,42 @@ real bug.
       in our own schema would currently slip through. pestifer's own control re-introduces a
       *nested* swallow and fires on 2.4.3 and on #8 alike, so it needs no change either way.
       Report: `~/.local/state/fleet/drops/ycleptic-ce30989-control-does-not-fire-20261001.md`.
+- [ ] **The membrane-equilibrate convergence gate is not a convergence test — and the metric lives
+      at TWO call sites.** Reported 2026-10-02 by pestifer-sweep with trajectory evidence:
+      `~/.local/state/fleet/drops/pestifer-membrane-equilibrate-defects-20261002.md`, evidence trees
+      under `~/devtests/pestifer/ex17-equil-analysis/`. **Not started — the replacement criterion is
+      Cameron's design decision, not a cleanup.**
+
+      Verified here from source, independent of their trajectories:
+
+      - `_area_plateau_drift` (`tasks/membrane_equilibrate.py:231`) returns `(m2-m1)/m1` over the
+        3rd vs 4th quarter of the stage-2 series. Those centroids are `T/4` apart, so for a steady
+        descent the value scales as `slope x T` — **it grows with the window being tested**. A
+        convergence test must get harder to pass as the run lengthens; this gets easier, then
+        harder, then easier, which is why they measure 2–4 disjoint pass windows and why every
+        gate-off run passes at the earliest evaluable point (`tail.size < 8`, i.e. 16 samples).
+      - **The same arithmetic is implemented a second time**, independently, in
+        `make_membrane_system._area_convergence` (`:859`) — `tail = x[len//2:]`, `h = tail.size//2`,
+        `(m2-m1)/m1`. Its own docstring says the two "agree". They do: they are equally wrong.
+        `_plateau_drift_for_report` falls back to it, so **fixing only `membrane_equilibrate` leaves
+        the calibration-reliability check still using the broken metric.** This is the fourth
+        instance of CLAUDE.md's "one idea at several call sites" pattern; sweep with
+        `grep -rn 'tail.size // 2'` and treat the second site as part of the same fix.
+      - The gate's observables are exactly `density` and `area` (`JointConvergence` at `:157`/`:163`)
+        — no thickness, no chain order. Their Defect 4 stands.
+      - `SAPL` is one `float` for the whole bilayer (`schema/base.yaml:1352`) and there is **no
+        thickness key anywhere in the schema**, so their Defect 2 is a code fix by construction: a
+        user whose bilayer builds 8 Å too thin has no way to say so.
+
+      Resting on their trajectories, NOT verified here (I have no runs): that ex17's published
+      47.06 APL is an artifact of where this metric first dips below tolerance from SAPL 50; the
+      3–8 Å initial-thickness errors; patchB's stage-1 certification at rho=1.0101 while ~8 Å thin.
+      Reference values for testing a fix are in their file. One correction to it: `compare.CHAIN_C`
+      is in *their* analysis script, not in pestifer — pestifer ships no chain-atom table at all,
+      which strengthens rather than weakens their argument for P–P thickness (phosphorus z needs no
+      per-lipid table) over order parameter S.
+
+      Their two load-bearing cautions, worth keeping attached: **ex16's quilt gate is correct**, so a
+      replacement must not simply run everything longer; and **do not ship a seed fix alone** — it
+      improves the numbers while leaving them seed-dependent, hiding the defect.
 - [ ] _(add items here)_
