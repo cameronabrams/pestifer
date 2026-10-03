@@ -1120,4 +1120,38 @@ real bug.
       Dead ends already measured, so nobody repeats them: raising `_AXIAL_BIAS` makes folding WORSE
       (a large penalty is a wall); per-atom limits from the graph-nearest head did not reach PMCL1
       and regressed DSPE__Lo; clamping limits to the lowest phosphate changed PMCL1 by 0.00.
+- [ ] **Balance ring_check's lipid deletions across leaflets (and decide whether to replace them).**
+      Raised by Cameron's postdoc 2026-10-03 as an open question: should `ring_check` replace the
+      lipids it deletes, or should the APL use the surviving count? The APL half shipped in
+      `7659492c` (it divides by the measured count). This is what is left.
+
+      **The part with physical consequences is the ASYMMETRY, not the shortfall.** A symmetric
+      calibration patch that ends 93/98 is not tensionless per leaflet, so its box area is a
+      compromise between the two — and that biases the preferred APL it exists to measure. Fixing
+      that needs leaflet-balanced deletion (take one extra from the lighter-hit leaflet), not
+      replacement. **~half a day**, the open question being how `ring_check` learns which leaflet a
+      residue is in: it is deliberately structure-only today (no leaflet, bilayer, conformer or
+      midplane anywhere in it), so either a midplane z-split or a membrane-aware option rather than
+      a change to the generic task.
+
+      **True in-situ replacement is the expensive option and probably not worth it.** `ring_check`
+      would need the packer's conformer cache, leaflet geometry and clash machinery, which couples
+      a generic task to the membrane builder; psfgen builds segments wholesale, so adding one
+      residue means rewriting the lipid segment's PDB and re-running psfgen; and the void exists
+      *because* the local geometry favoured threading, so a fresh conformer dropped into it can
+      re-pierce on the follow-up minimize. **A few days**, with a retry loop likely needed anyway.
+      A replacement that re-pierces is worse than a deletion.
+
+      **Middle option: retry the patch build** until the surviving count hits the target — no new
+      placement code, just a loop around existing steps, and a patch build at that point is cheap
+      (packing + psfgen + one minimize, no MD). **~a day.** Buys exact requested counts, which
+      mostly stopped mattering once the APL divided by the measured count.
+
+      **Measure before investing.** All the deletion rates quoted (2 and 7 per leaflet; 5 CHL1
+      piercings in patchB) came from the OLD conformer collection. Piercings arise from packing
+      geometry, and the collection changed substantially on 2026-10-02, so the rate may now differ.
+
+      Context: grid placement itself leaves no pierced rings — the condensing minimize that opens
+      relaxation creates them, and `ring_check` is spliced in right after it, before any dynamics.
+      Deletion is already a fallback; rotation-resolution runs first.
 - [ ] _(add items here)_
