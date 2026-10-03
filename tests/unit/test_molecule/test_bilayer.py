@@ -418,12 +418,16 @@ class TestBilayer(unittest.TestCase):
         # head-to-tail-tip length -- so lipids don't overflow into and thin the water chambers.
         # Watermark on the shipped conformer collection: 87.86 with the old extended-rod set,
         # 78.14 with the athermal-MC set whose melted tails give a smaller z-extent, then 75.69
-        # and now 77.02 across two passes on 2026-10-02.  The direction is worth stating because it
-        # is counter-intuitive: removing folds makes lipids SHORTER in z, since a hairpin -- one
-        # chain folded back up out of the membrane -- spans more z than a correctly oriented
-        # molecule.  The partial recovery to 77.02 is the unfolding pre-pass straightening chains
-        # that the penalty alone had left curled against the limit.
-        assert test_bilayer.patch_ur_corner[2]==pytest.approx(77.02, rel=1e-2)
+        # then 75.69 and 77.02 across two passes on 2026-10-02, and 79.31 on 10-03.  The direction
+        # flips, and each flip has a cause worth keeping: removing a FOLD makes lipids shorter in z
+        # (a hairpin -- one chain doubled back out of the membrane -- spans more z than a correctly
+        # oriented molecule), while straightening a CURL or an arm makes them longer.  75.69 was
+        # the axial penalty removing folds; 77.02 the pre-pass uncurling chains left against the
+        # limit; 79.31 the arm pivots reorienting a cardiolipin's phosphatidyl arms, which had
+        # been built pointing out of the membrane.  Only this watermark moved on 10-03 -- the
+        # head-tail-length ones did not -- because arm pivots reach only multi-arm lipids, and the
+        # box z is set by the tallest conformer in the whole collection.
+        assert test_bilayer.patch_ur_corner[2]==pytest.approx(79.31, rel=1e-2)
         self.RM.charmmff_content.clean_local_charmmff_files()
 
         os.chdir('..')

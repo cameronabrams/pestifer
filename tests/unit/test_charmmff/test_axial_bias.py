@@ -156,5 +156,103 @@ class TestUnfoldingPrePass(unittest.TestCase):
         np.testing.assert_allclose(relieve_axial_excess(mol, coords), coords)
 
 
+class TestArmPivotsForMultiArmLipids(unittest.TestCase):
+    """The unfolding pre-pass may rotate a whole phosphatidyl arm; the MC still may not.
+
+    A bond is a tail torsion only when its tip-side fragment is all carbon, which keeps the
+    headgroup rigid by design.  A cardiolipin's arm carries phosphorus and oxygen, so the bond
+    joining it to the central glycerol is excluded and the arm cannot be reoriented at all --
+    PMCL1 is built with its A-arm ester at +6.64 A while both its phosphates sit at -2.31 and
+    +2.24, which no acyl torsion can fix and which `--refic-idx` 1, 2 and 3 all reproduce.
+
+    These pivots are for the pre-pass ALONE.  It is a one-time search for a better starting point,
+    and the IC-built arm orientation is an arbitrary starting choice rather than a physical
+    equilibrium, so correcting it is fixing the input, not biasing the output.
+    """
+
+    @staticmethod
+    def _cardiolipin_like():
+        """Central carbon with TWO arms, each `C-O-P-O-C` then an all-carbon chain.
+
+        The arm-joining bonds carry O and P on their tip side, so they are NOT acyl torsions.
+        """
+        coords, masses, bonds, names = [], [], [], []
+
+        def add(z, m, nm):
+            coords.append([0.0, 0.0, float(z)]); masses.append(m); names.append(nm)
+            return len(coords) - 1
+
+        centre = add(0.0, 12.011, 'C2')
+        for arm, sign in (('A', 1.0), ('B', -1.0)):
+            o1 = add(sign * 1.0, 15.999, f'O{arm}1')
+            ph = add(sign * 2.0, 30.974, f'P{arm}')
+            o2 = add(sign * 3.0, 15.999, f'O{arm}2')
+            bonds += [(centre, o1), (o1, ph), (ph, o2)]
+            prev = o2
+            for k in range(2, 10):                      # an 8-carbon all-carbon chain
+                c = add(sign * (3.0 + k), 12.011, f'C{arm}{k}')
+                bonds.append((prev, c)); prev = c
+        return np.array(coords), masses, bonds
+
+    def test_an_arm_is_a_pre_pass_pivot_but_not_an_mc_torsion(self):
+        from pestifer.charmmff.athermal_mc import build_lipid_mc
+        coords, masses, bonds = self._cardiolipin_like()
+        mol = build_lipid_mc(coords, None, masses, bonds, head_indices=[0],
+                             tail_indices=[12, 24], rmin_half=[1.0] * len(masses),
+                             cylinder_radius=50.0)
+
+        def moved(bond):
+            return frozenset(int(x) for x in np.flatnonzero(bond.moving))
+
+        mc_sets = {moved(b) for b in mol.rotatable}
+        extra_sets = {moved(b) for b in (mol.extra_pivots or [])}
+        self.assertTrue(extra_sets, 'no arm pivot was derived for a two-armed lipid')
+        self.assertFalse(mc_sets & extra_sets,
+                         'an arm pivot leaked into the MC torsions; the sampled degrees of '
+                         'freedom must be unchanged')
+        # at least one arm pivot must carry a phosphorus -- i.e. move a whole arm, not a sub-chain
+        phos = {i for i, m in enumerate(masses) if 30.5 < m < 31.5}
+        self.assertTrue(any(s & phos for s in extra_sets),
+                        'no pivot moves a phosphorus, so no whole arm can be reoriented')
+
+    def test_the_pre_pass_does_not_widen_what_the_mc_samples(self):
+        """The invariant, checked AFTER the pre-pass has run.
+
+        Comparing `rotatable` against `extra_pivots` at construction time cannot see this: caught
+        by mutation testing, where folding the arm pivots into `mol.rotatable` inside
+        `relieve_axial_excess` left all the other tests green.  A control aimed one level off is
+        the same bug it is guarding against, so this one runs the pre-pass first.
+        """
+        from pestifer.charmmff.athermal_mc import build_lipid_mc, relieve_axial_excess
+        coords, masses, bonds = self._cardiolipin_like()
+        mol = build_lipid_mc(coords, None, masses, bonds, head_indices=[0],
+                             tail_indices=[12, 24], rmin_half=[1.0] * len(masses),
+                             cylinder_radius=50.0)
+        mol.axial_limit = -1.0                      # force real work out of the pre-pass
+        before = [frozenset(int(x) for x in np.flatnonzero(b.moving)) for b in mol.rotatable]
+        relieve_axial_excess(mol, mol.coords)
+        after = [frozenset(int(x) for x in np.flatnonzero(b.moving)) for b in mol.rotatable]
+        self.assertEqual(before, after,
+                         'the pre-pass changed mol.rotatable, so the MC would now sample arm '
+                         'rotations too -- these pivots are for the pre-pass alone')
+
+    def test_an_ordinary_two_chain_lipid_gains_nothing(self):
+        """POSITIVE CONTROL in reverse: a lipid whose chains are already reachable by acyl
+        torsions must not acquire extra pivots, or this is changing every lipid rather than the
+        multi-arm ones."""
+        from pestifer.charmmff.athermal_mc import build_lipid_mc
+        coords = np.array([[0.0, 0.0, 10.0 - k] for k in range(12)])
+        masses = [14.007, 15.999] + [12.011] * 10
+        bonds = [(k, k + 1) for k in range(11)]
+        mol = build_lipid_mc(coords, None, masses, bonds, head_indices=[0, 1],
+                             tail_indices=[11], rmin_half=[1.0] * 12, cylinder_radius=50.0)
+        phos = []
+        for b in (mol.extra_pivots or []):
+            phos.append(int(np.count_nonzero(b.moving)))
+        self.assertEqual(mol.extra_pivots, [],
+                         f'a simple two-chain lipid gained {len(mol.extra_pivots or [])} arm '
+                         f'pivots (moving {phos}); only multi-arm lipids should')
+
+
 if __name__ == '__main__':
     unittest.main()

@@ -98,6 +98,23 @@ class MoleculeMC:
     axis_dir: np.ndarray = None
     cylinder_radius: float = float('inf')
     confined: np.ndarray = None
+    extra_pivots: list = None
+    """Bonds the UNFOLDING PRE-PASS may rotate, beyond the acyl torsions the MC samples.
+
+    The sampled degrees of freedom are unchanged -- :func:`run_mc` still pivots only
+    ``rotatable`` -- so the ensemble's physics is untouched.  These are for
+    :func:`relieve_axial_excess` alone, which is a one-time search for a better STARTING point.
+
+    They exist for the multi-arm lipids.  A bond is a tail torsion only when its tip-side fragment
+    is all carbon, which by design keeps the headgroup rigid; but a cardiolipin's phosphatidyl arm
+    carries phosphorus and oxygen, so the bond joining it to the central glycerol is excluded and
+    the arm cannot be reoriented at all.  PMCL1 is built with its A-arm ester at +6.64 A while both
+    its phosphates sit at -2.31 and +2.24 -- an entire arm pointing out of the membrane, which no
+    acyl torsion can fix and which `--refic-idx` 1, 2 and 3 all reproduce.  The IC-built arm
+    orientation is an arbitrary starting choice, not a physical equilibrium, so correcting it
+    before sampling is fixing the input rather than biasing the output.
+    """
+
     axial_limit: float | np.ndarray = float('inf')
     """Ceiling on the confined atoms' coordinate ALONG ``axis_dir``, measured from ``axis_point``.
 
@@ -240,7 +257,7 @@ def relieve_axial_excess(mol: MoleculeMC, coords: np.ndarray, n_angles: int = 24
     Returns the relieved coordinates (a copy); a no-op when there is no limit or no excess.
     """
     confined_idx = np.nonzero(mol.confined)[0]
-    if len(confined_idx) == 0 or not mol.rotatable:
+    if len(confined_idx) == 0 or not (mol.rotatable or mol.extra_pivots):
         return coords
     lim = (mol.axial_limit[confined_idx] if isinstance(mol.axial_limit, np.ndarray)
            else mol.axial_limit)
@@ -251,13 +268,14 @@ def relieve_axial_excess(mol: MoleculeMC, coords: np.ndarray, n_angles: int = 24
         a = np.dot(x[confined_idx] - mol.axis_point, mol.axis_dir) - lim
         return float(np.clip(a, 0.0, None).sum())
 
+    pivots = list(mol.rotatable) + list(mol.extra_pivots or [])
     coords = coords.copy()
     cur = excess(coords)
     start = cur
     angles = np.linspace(-np.pi, np.pi, n_angles, endpoint=False)
     for _ in range(max_passes):
         best = (cur, None, None)
-        for bond in mol.rotatable:
+        for bond in pivots:
             for th in angles:
                 if th == 0.0:
                     continue
@@ -274,7 +292,7 @@ def relieve_axial_excess(mol: MoleculeMC, coords: np.ndarray, n_angles: int = 24
             break
     if start > 0.0:
         logger.info(f'MC: axial relief {start:.1f} -> {cur:.1f} (A-atoms above the head plane) '
-                    f'over {len(mol.rotatable)} rotatable bonds'
+                    f'over {len(pivots)} pivots'
                     + ('' if cur <= 0.0 else '  -- RESIDUAL: a tail cannot reach the limit by '
                        'torsion alone'))
     return coords
@@ -502,6 +520,35 @@ def build_lipid_mc(coords, elements, masses, bonds, head_indices, tail_indices,
     if tail_atoms:
         confined[list(tail_atoms)] = True
 
+    # Pivots for the unfolding pre-pass only (see MoleculeMC.extra_pivots).  A bridge qualifies
+    # when its tip side CARRIES acyl tail atoms but is not itself all carbon -- i.e. a whole
+    # phosphatidyl arm, ester and phosphate included.  Bounded to under half the heavy atoms so
+    # this swings an arm rather than flipping the molecule, and skipped entirely for an ordinary
+    # two-chain lipid, whose arms are already reachable through its acyl torsions.
+    extra_pivots: list[RotatableBond] = []
+    if tail_atoms:
+        already = {(int(b.a), int(b.b)) for b in rotatable}
+        already |= {(b, a) for a, b in already}
+        nheavy = heavy.number_of_nodes()
+        for i, j in nx.bridges(heavy):
+            if (i, j) in already:
+                continue
+            g = heavy.copy()
+            g.remove_edge(i, j)
+            comp_i = nx.node_connected_component(g, i)
+            comp_j = nx.node_connected_component(g, j)
+            for tip_root, anchor_root, tip_comp in ((j, i, comp_j), (i, j, comp_i)):
+                if len(tip_comp) >= 0.5 * nheavy:
+                    continue
+                if all(elements[k] == 'C' for k in tip_comp):
+                    continue                       # an acyl torsion; already in `rotatable`
+                if not (tip_comp & tail_atoms):
+                    continue                       # carries no chain -- a headgroup stub
+                extra_pivots.append(RotatableBond(
+                    a=anchor_root, b=tip_root,
+                    moving=moving_set(full, anchor_root, tip_root), i=-1, j=-1))
+                break
+
     # Cylinder axis: the membrane normal (default +z, valid after head-up orientation), anchored
     # at the tail bundle's lateral centroid, so "radial distance" is the in-plane footprint radius
     # and confining it caps the footprint near the target APL.  Using the head->tail centroid
@@ -529,7 +576,7 @@ def build_lipid_mc(coords, elements, masses, bonds, head_indices, tail_indices,
                       exclusions=build_exclusions(full, order=exclusion_order),
                       axis_point=axis_point, axis_dir=axis_dir,
                       cylinder_radius=cylinder_radius, confined=confined,
-                      axial_limit=axial_limit)
+                      axial_limit=axial_limit, extra_pivots=extra_pivots)
 
 
 def cylinder_radius_for_apl(apl: float, inflation: float = 1.0) -> float:
