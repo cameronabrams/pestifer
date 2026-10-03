@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.25.0] - 2026-10-03
+
 - **Membrane builds change materially in this release.** Two defects in conformer generation and
   one in lipid placement all made bilayers build too thin, and all three are fixed. A rebuilt
   system will differ from one built with 3.24.x; this is the intended correction, not drift.
