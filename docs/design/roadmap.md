@@ -1103,4 +1103,21 @@ real bug.
 
       Both caveats weaken claims I made in favour of my own fixes, and neither changes the
       direction: patchB moved 28.08 -> 41.44 and patchA 39.87 -> 43.51.
+- [ ] **PINNED 2026-10-02: PMCL1 / PMCL1__Lo are the last two folded conformers, and need a model
+      decision.** Everything else is done and shipped (`160e332d`): the collection is at 20/2530
+      folded (0.79%), two entries, both this one lipid, down from 471/2440 (19.3%, 53 entries).
+
+      PMCL1 is a five-chain cardiolipin whose A-arm ester is BUILT at +6.64 while both its
+      phosphates sit at -2.31 and +2.24 — an entire arm points out of the membrane. `build_lipid_mc`
+      rotates only acyl-tail torsions and holds the headgroup rigid, so no torsion search can
+      reorient that arm; `--refic-idx` 1, 2 and 3 all reproduce it. It is not a regression: the
+      previously shipped collection had it at margin -22.41 against -10.40 now.
+
+      Closing it means letting the headgroup flex — backbone torsions for multi-arm lipids — which
+      changes conformer generation for EVERY lipid, not just this one. That is a model decision,
+      not a parameter, and 275 of 277 entries are already clean. Deliberately not attempted.
+
+      Dead ends already measured, so nobody repeats them: raising `_AXIAL_BIAS` makes folding WORSE
+      (a large penalty is a wall); per-atom limits from the graph-nearest head did not reach PMCL1
+      and regressed DSPE__Lo; clamping limits to the lowest phosphate changed PMCL1 by 0.00.
 - [ ] _(add items here)_
