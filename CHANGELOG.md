@@ -4,6 +4,66 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- **Membrane builds change materially in this release.** Two defects in conformer generation and
+  one in lipid placement all made bilayers build too thin, and all three are fixed. A rebuilt
+  system will differ from one built with 3.24.x; this is the intended correction, not drift.
+
+  - **Acyl chains could fold back out of the membrane.** The MC conformer sampler confined tails to
+    a cylinder about the membrane normal, which caps the in-plane footprint and is infinite along
+    that normal — so nothing held a chain to the tail side of the headgroup. The trans-ordering
+    field could not object either: its per-C–H term goes as `cos²θ`, so a chain folded 180° scores
+    exactly as well as an extended one. **19.3% of shipped conformers had a tail above its own
+    phosphate** (90% for PE/PS lipids; one POPE conformer put a chain tip 9 Å *above* its own
+    phosphate). An axial penalty now holds tails below the headgroup, and a deterministic pre-pass
+    unfolds conformers that were *built* folded, which the penalty alone cannot escape. The shipped
+    collection is regenerated: **19.3% → 0.79% folded**, 53 affected entries → 2.
+  - **A sterol was placed level with the phosphates.** Lipid placement pinned every species' head
+    marker to one plane computed from a composition-weighted mean, so a cholesterol 3-OH sat
+    *exactly* 0.00 Å from the phosphate plane, against −4.4 to −5.1 Å once equilibrated. The single
+    mean also dragged the plane down, because a sterol's anchor-to-tail distance is far shorter
+    than a phospholipid's — 4.68 Å of P–P on a 47%-cholesterol leaflet. Head planes are now per
+    species.
+  - **Net effect**, measured against equilibrated references for two ex17 patches: a PE/PS-rich
+    patch built 28.08 Å thick now builds 41.44 Å (equilibrium ≥41.12); a cholesterol-rich raft
+    built 39.87 Å now builds 42.87 Å (equilibrium 45.80). Bilayers now start near where they
+    equilibrate instead of condensing for millions of steps to get there.
+  - The collection also ships 11 phase-qualified (`__Lo`) entries that previously existed only in
+    the on-demand cache, and such entries are now readable from the shipped collection at all — a
+    `resname` filter had been dropping every one of them, so a phase-`Lo` build regenerated them on
+    every machine with a cold cache.
+
+- **fix: the differential-stress diagnostic re-solvated an already-solvated quilt.** The membrane
+  equilibration path appended a `solvate` task unconditionally — right for a freshly gridded patch,
+  whose chambers the packer leaves empty, and wrong for the finished quilt the diagnostic hands
+  back to it. psfgen stopped with `duplicate segment key WT1`, so the diagnostic could never
+  produce the leaflet-stress number it exists for. Reported against 3.24.1 after a run lost 19 h of
+  CPU to it. The step is now gated on whether the incoming structure already holds water.
+
+- **fix: calibrated APL divided by the requested lipid count, not the surviving one.** `ring_check`
+  deletes piercing lipids during the patch protocol, so a relaxed calibration patch holds fewer
+  lipids than requested. Dividing its area by the request gave an APL up to ~7% low and over-filled
+  the leaflet it calibrated — 744/691 lipids placed where the measured counts give 737/660, leaving
+  the two leaflets mismatched by ~3.7%. That is a built-in differential stress, which is the very
+  thing the calibration exists to remove. Each patch now divides by the lipids it actually ended
+  with. A second error in the same line is also fixed: both patches divided by the *upper* request,
+  so a config with different upper and lower counts mis-scaled the lower leaflet too. Box sizing
+  deliberately still uses the requested count — that is the system you asked for.
+  A symmetric patch whose leaflets end with unequal counts now warns.
+
+- **P–P bilayer thickness is now measured and reported.** `membrane_equilibrate` records
+  phosphate-to-phosphate thickness every chunk, in the log and as a `PP[A]` column in
+  `<basename>-membrane.dat`; the builder reports the thickness each patch was laid down at. It is
+  **reported, not gated** — nothing about convergence depends on it yet. Phosphorus is found by
+  element rather than by atom name, so a cardiolipin's `P1`/`P3` are not missed; multi-phosphorus
+  lipids are excluded from the measure and counted rather than guessed at.
+
+- **fix: `charmmff.user_pdbcollections` never reached the PDB repository.** Three spellings of one
+  feature disagreed: the schema declared `user_pdbcollections`, its own documented example named
+  `pdbcollections`, and the code read `pdbrepository` — which the schema does not declare at all.
+  A user following the documentation set a key nothing read, the collection was silently ignored,
+  and the shipped one was used instead. It works now, which also makes it possible to test a
+  custom conformer collection without installing it over the shipped one.
+
 - **feat: pestifer tells you when it is out of date.** A `check-update` subcommand asks PyPI
   whether a newer pestifer has been released, and pestifer makes the same check on its own before
   running whatever you asked for. The automatic check is deliberately narrow, because nothing
