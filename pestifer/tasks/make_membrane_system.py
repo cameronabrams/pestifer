@@ -24,6 +24,7 @@ from ..psfutil.psfcontents import get_toppar_from_psf
 
 from ..scripters import PsfgenScripter, VMDScripter
 
+from ..util.density_convergence import membrane_leaflet_geometry, psf_contains_water
 from ..util.util import cell_to_xsc,cell_from_xsc, protect_str_arg
 from ..util.units import _UNITS_
 
@@ -629,20 +630,40 @@ class MakeMembraneSystemTask(BaseTask):
         bs = self.bilayer_specs
         patch_nlipids = bs.get('patch_nlipids', dict(upper=100, lower=100))
         npatch = self._npatch()
-        n_cal = patch_nlipids['upper']                        # per-leaflet count in patchA/patchB
-        apl_upper = self.patchA.area / n_cal
-        apl_lower = self.patchB.area / n_cal
+        # Divide each patch's area by the lipids IT actually ended with, not by the requested
+        # count: ring_check deletes piercing lipids during the patch protocol.  Two separate errors
+        # lived in the old `n_cal = patch_nlipids['upper']` -- it ignored those deletions, and it
+        # divided patchB by the UPPER request, so a config with different upper/lower requests
+        # mis-scaled the lower leaflet as well.  Falling back per leaflet keeps the second fixed
+        # even when a count could not be measured.
+        def _divisor(patch, which):
+            # Only a real number counts.  `getattr` on a stand-in object hands back something
+            # truthy that is not a count, and `float()` on it raises inside the calibration --
+            # so the type is checked rather than the truthiness.
+            n = getattr(patch, 'n_leaflet', None)
+            if isinstance(n, (int, float)) and not isinstance(n, bool) and n > 0:
+                return float(n)
+            logger.warning(f'{which} patch lipid count unmeasured; falling back to the requested '
+                           f'patch_nlipids ({patch_nlipids[which]}), which ring_check deletions '
+                           f'make too large -- the calibrated APL will read low')
+            return float(patch_nlipids[which])
+
+        n_cal_upper = _divisor(self.patchA, 'upper')
+        n_cal_lower = _divisor(self.patchB, 'lower')
+        apl_upper = self.patchA.area / n_cal_upper
+        apl_lower = self.patchB.area / n_cal_lower
         # the stress-free counts are only as trustworthy as the calibrated APLs: if either
         # calibration cell had not equilibrated, warn that the resulting membrane may carry
         # residual differential stress (the classic symptom is two leaflets of different
         # composition reporting near-equal APLs because one under-condensed)
-        for patch, lname in ((self.patchA, 'upper'), (self.patchB, 'lower')):
+        for patch, lname, apl in ((self.patchA, 'upper', apl_upper),
+                                  (self.patchB, 'lower', apl_lower)):
             drift = getattr(patch, 'area_drift', None)
             if drift is not None and abs(drift) > _AREA_CONVERGENCE_TOL:
                 logger.warning(
                     f'Calibration cell for the {lname} leaflet had not equilibrated '
                     f'(area drift {100 * drift:+.2f}%); its preferred APL '
-                    f'({patch.area / n_cal:.2f} {sA2_}) and the resulting stress-free leaflet '
+                    f'({apl:.2f} {sA2_}) and the resulting stress-free leaflet '
                     f'counts may be unreliable. Lengthen bilayer.relaxation_protocols.patch.')
         if self.embedding:
             # size the common box to the protein footprint and place each leaflet at its own
@@ -654,7 +675,10 @@ class MakeMembraneSystemTask(BaseTask):
             n_lower = int(round(target_area / apl_lower))
         else:
             aspect = bs.get('xy_aspect_ratio', 1.0)
-            n_upper = int(round(n_cal * npatch[0] * npatch[1]))   # requested upper count
+            # the REQUESTED count, deliberately not the measured one: this sizes the system
+            # the user asked for (patch_nlipids x npatch).  Only the APL divisor above cares
+            # what ring_check deleted.
+            n_upper = int(round(patch_nlipids['upper'] * npatch[0] * npatch[1]))
             n_lower = int(round(n_upper * apl_upper / apl_lower)) # stress-free count ratio
             target_area = n_upper * apl_upper                     # target equilibrium box area
         # Grid the quilt AT the calibrated stress-free box area (target_area) -- where both leaflets
@@ -999,9 +1023,20 @@ class MakeMembraneSystemTask(BaseTask):
         # SolvateTask sees the lipid system's xsc and fills exactly that box (no padding); solvate drops
         # water clashing with the dense lipid slab, leaving water only in the chambers.
         bs = self.bilayer_specs
-        tasklist_user.append({'solvate': dict(
-            salt_con=bs.get('salt_con', 0.0), cation=bs.get('cation', 'POT'),
-            anion=bs.get('anion', 'CLA'), solvent=bs.get('solvents', 'TIP3'))})
+        # ...but only if it still needs it.  This runs on a freshly gridded patch, whose chambers
+        # the packer leaves empty, AND on an already-solvated quilt when the differential-stress
+        # diagnostic re-enters here for its pressure-profile pass.  Solvating the second kind puts
+        # a second water segment on top of the first and psfgen stops with `duplicate segment key
+        # WT1`, which cost a reported run 19 h of CPU before the diagnostic produced anything
+        # (3.24.1, job 26186243, 2026-10-03).  Decided from the STRUCTURE rather than from which
+        # caller this is, so any future path handing over a solvated state is covered too.
+        if psf_contains_water(state.psf.name):
+            logger.info(f'{bilayer_name}: already solvated; skipping solvate/autoionize '
+                        f'(re-solvating would collide with the existing water segment)')
+        else:
+            tasklist_user.append({'solvate': dict(
+                salt_con=bs.get('salt_con', 0.0), cation=bs.get('cation', 'POT'),
+                anion=bs.get('anion', 'CLA'), solvent=bs.get('solvents', 'TIP3'))})
         tasklist_user.extend(guarded_protocol)
         tasklist_user.extend([
             {'mdplot': dict(timeseries=timeseries, profiles=profiles, legend=True, grid=True, basename=self.basename)},
@@ -1031,6 +1066,30 @@ class MakeMembraneSystemTask(BaseTask):
             bilayer_state.xsc.name, f'{bilayer_name} after equilibration')
         bilayer.area = bilayer.box[0][0] * bilayer.box[1][1]
         logger.debug(f'{self.basename} area after equilibration: {bilayer.area:.3f} {sA2_}')
+        # Measured lipids per leaflet, for calibrating a preferred APL off this patch.  `ring_check`
+        # in the patch protocol deletes piercing lipids, so a relaxed patch holds FEWER than the
+        # requested `patch_nlipids`; dividing its area by the request gives an APL up to ~7% low and
+        # over-fills the leaflet it calibrates (reported 2026-10-03 against 3.24.1: 744/691 lipids
+        # placed where the measured counts give 737/660, leaving the two leaflets mismatched by
+        # ~3.7% -- a built-in differential stress, which is the very thing this calibration exists
+        # to remove).  The mean of the two leaflets is the right divisor for a SYMMETRIC calibration
+        # patch: both leaflets carry the same composition and sample one preferred APL, and
+        # ring_check need not delete the same number from each.
+        bilayer.n_leaflet = None
+        try:
+            g = membrane_leaflet_geometry(bilayer_state.psf.name, bilayer_state.pdb.name)
+            bilayer.n_leaflet = 0.5 * (g.n_lower + g.n_upper)
+            if g.n_lower != g.n_upper:
+                logger.warning(
+                    f'{bilayer_name}: leaflets ended with unequal lipid counts '
+                    f'({g.n_lower} lower / {g.n_upper} upper) -- a symmetric patch is then not '
+                    f'tensionless per leaflet, and its box area is a compromise between the two')
+            logger.info(f'{bilayer_name}: {bilayer.n_leaflet:.1f} lipids/leaflet after relaxation '
+                        f'(APL {bilayer.area / bilayer.n_leaflet:.2f} {sA2_})')
+        except Exception as e:
+            logger.warning(f'{bilayer_name}: could not measure lipids per leaflet ({e}); '
+                           f'a preferred APL calibrated from this patch will fall back to the '
+                           f'requested patch_nlipids, which ring_check deletions make too large')
         # flag (and record on the bilayer) whether its area actually equilibrated, so an
         # asymmetric build can tell whether the preferred APLs it calibrates are trustworthy.
         # A plateau-gated membrane_equilibrate is the authoritative "the lateral area has flattened"

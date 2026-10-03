@@ -502,8 +502,12 @@ class TestAsymmetricStressFreeCounts(unittest.TestCase):
         specs.update(bilayer_specs)
         t = _task(bilayer_specs=specs, embedding=embedding,
                   specs={'diagnose_differential_stress': diag or {}})
-        t.patchA = mock.Mock(area=apl_upper * n_cal, area_drift=drift)
-        t.patchB = mock.Mock(area=apl_lower * n_cal, area_drift=drift)
+        # n_leaflet is the count MEASURED after relaxation, which equilibrate_bilayer records and
+        # the APL calibration divides by.  A relaxed patch always has one, so the stand-ins carry it
+        # too; without it the calibration (correctly) warns that it is falling back to the requested
+        # count, and these tests assert on warnings.
+        t.patchA = mock.Mock(area=apl_upper * n_cal, area_drift=drift, n_leaflet=float(n_cal))
+        t.patchB = mock.Mock(area=apl_lower * n_cal, area_drift=drift, n_leaflet=float(n_cal))
         t._protein_box_dims = lambda: protein_xy
         t.quilt = mock.Mock()
         t.diagnose_differential_stress = mock.Mock()

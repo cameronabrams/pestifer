@@ -344,6 +344,32 @@ def membrane_pp_thickness(psf_path, coor_path) -> MembraneThickness:
                              midplane, note)
 
 
+def psf_contains_water(psf_path) -> bool:
+    """Whether a PSF already holds water.
+
+    Used to decide if a bilayer still needs solvating.  ``equilibrate_bilayer`` appended a
+    ``solvate`` task unconditionally, which is right for a freshly gridded patch (the packer leaves
+    the chambers empty) and wrong for anything already solvated: the differential-stress diagnostic
+    re-ran it on the finished quilt and psfgen died with ``duplicate segment key WT1``, after 19 h
+    of CPU (reported 2026-10-03 against 3.24.1, job 26186243).
+
+    Guards on the structure rather than on which caller it is, so any future path that hands over
+    a solvated state is covered too.
+
+    Best effort: **False when it cannot tell**, for any reason at all.  That is the safe default
+    rather than the tidy one -- False means "go ahead and solvate", which is the behaviour that
+    existed before this check, so an unreadable PSF degrades to the old path instead of silently
+    skipping a solvate the build actually needed.
+    """
+    from .densityprofile import WATER_RESNAMES
+    try:
+        _seg, _resid, resn, _name, _mass = _parse_psf_atoms(psf_path)
+        return any(r in WATER_RESNAMES for r in set(resn))
+    except Exception as e:  # noqa: BLE001 -- see docstring; unknown must mean "solvate as before"
+        logger.debug(f'could not read {psf_path} to check for water ({e}); assuming not solvated')
+        return False
+
+
 def membrane_leaflet_geometry(psf_path, coor_path):
     """Measure per-leaflet lipid counts and protein cross-sections from an embedded membrane frame.
 
