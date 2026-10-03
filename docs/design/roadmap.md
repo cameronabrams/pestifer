@@ -1103,8 +1103,14 @@ real bug.
 
       Both caveats weaken claims I made in favour of my own fixes, and neither changes the
       direction: patchB moved 28.08 -> 41.44 and patchA 39.87 -> 43.51.
-- [ ] **PINNED 2026-10-02: PMCL1 / PMCL1__Lo are the last two folded conformers, and need a model
-      decision.** Everything else is done and shipped (`160e332d`): the collection is at 20/2530
+- [x] **DONE 2026-10-03 (`7a3b3a82`): PMCL1 / PMCL1__Lo fixed; the collection is at ZERO folded
+      conformers.** The pre-pass may now rotate a whole phosphatidyl arm (`extra_pivots`), which the
+      MC still may not, so the sampled degrees of freedom are unchanged. The model decision below
+      turned out not to be needed: the headgroup stays rigid during sampling, and only the one-time
+      search for a starting point can swing an arm. Original note follows.
+
+- [ ] ~~PINNED 2026-10-02: PMCL1 / PMCL1__Lo are the last two folded conformers, and need a model
+      decision.~~ Everything else is done and shipped (`160e332d`): the collection is at 20/2530
       folded (0.79%), two entries, both this one lipid, down from 471/2440 (19.3%, 53 entries).
 
       PMCL1 is a five-chain cardiolipin whose A-arm ester is BUILT at +6.64 while both its
