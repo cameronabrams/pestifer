@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.25.1] - 2026-10-04
+
 - **No lipid conformer now has a chain pointing out of the membrane.** 3.25.0 shipped a collection
   at 0.79% folded, down from 19.3%, with two entries left — both the cardiolipin `PMCL1`. Those are
   now fixed too, and the shipped collection is at **zero**.
