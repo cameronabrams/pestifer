@@ -4,6 +4,27 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- **No lipid conformer now has a chain pointing out of the membrane.** 3.25.0 shipped a collection
+  at 0.79% folded, down from 19.3%, with two entries left — both the cardiolipin `PMCL1`. Those are
+  now fixed too, and the shipped collection is at **zero**.
+
+  `PMCL1` was not a sampling failure. A bond counts as a rotatable acyl torsion only when its
+  tip-side fragment is all carbon, which deliberately keeps the headgroup rigid — but a
+  cardiolipin's phosphatidyl arm carries phosphorus and oxygen, so the bond joining it to the
+  central glycerol was excluded and the arm could not be reoriented at all. The molecule was built
+  from its internal coordinates with one arm's ester at +6.64 Å while both its phosphates sat at
+  −2.31 and +2.24: an entire arm pointing out of the membrane, which no acyl torsion could reach.
+
+  The one-time pre-pass that unfolds a conformer *before* sampling may now rotate a whole arm. The
+  **sampled degrees of freedom are unchanged** — the Monte Carlo still pivots only acyl torsions,
+  so the ensemble's physics is untouched. An IC-built arm orientation is an arbitrary starting
+  choice rather than a physical equilibrium, so correcting it fixes the input rather than biasing
+  the output. The molecule's top drops from +11.49 Å to +2.97 Å, with all four chain tips at −12 to
+  −17 Å, in the hydrophobic core where they belong.
+
+  Only multi-arm lipids are affected; an ordinary two-chain lipid gains no new pivots and is
+  byte-identical to 3.25.0.
+
 ## [3.25.0] - 2026-10-03
 
 - **Membrane builds change materially in this release.** Two defects in conformer generation and
