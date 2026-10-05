@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.26.0] - 2026-10-05
+
 - **The on-demand generation cache no longer overrides the conformers pestifer ships.** It is
   documented as a fallback for residues the installed release has *no* entry for, but it was
   auto-registered last and the repository resolves a residue last-registered-first, so a cached
