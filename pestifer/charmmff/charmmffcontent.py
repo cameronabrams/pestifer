@@ -492,12 +492,26 @@ class CHARMMFFContent(CacheableObject):
             logger.info(f'Adding user PDB collection {path} to PDB repository')
             self.pdbrepository.add_resource(path)
         # auto-register any previously generated on-demand-cache collections for this release,
-        # so cached entries (e.g. solvent boxes built on a prior run) are available without regen
+        # so cached entries (e.g. solvent boxes built on a prior run) are available without regen.
+        # `fallback=True`: the cache supplies what the shipped repository LACKS, so it ranks below
+        # both the shipped collection and any explicit user_pdbcollections.  Registered last and
+        # ranked top, it silently overrode shipped conformers for anything it had ever generated.
         from .autocache import cached_collection_dirs
         release_key = os.path.basename(str(self.charmmff_path))
         for d in cached_collection_dirs(release_key):
             logger.debug(f'Adding user PDB cache collection {d} to PDB repository')
-            self.pdbrepository.add_resource(str(d))
+            before = set(self.pdbrepository.registration_order)
+            self.pdbrepository.add_resource(str(d), fallback=True)
+            for key in set(self.pdbrepository.registration_order) - before:
+                stale = self.pdbrepository.shadowed_by_higher_precedence(key)
+                if stale:
+                    shown = ', '.join(stale[:6]) + (', ...' if len(stale) > 6 else '')
+                    logger.warning(
+                        f'{len(stale)} entr{"y" if len(stale)==1 else "ies"} in the generation '
+                        f'cache {d} {"is" if len(stale)==1 else "are"} now also supplied by the '
+                        f'installed release and will NOT be used: {shown}. The cache is a '
+                        f'fallback for residues the release lacks; delete them to reclaim the '
+                        f'space.')
 
     def provision_residueobjects(self, force_rebuild: bool = False, resnames: list[str] = []):
         is_custom = len(resnames) > 0

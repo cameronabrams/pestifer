@@ -567,7 +567,8 @@ class PDBRepository(CacheableObject):
             datapath = os.path.join(charmmff_pdbrepository_path, m)
             self.add_resource(datapath, streamID_override=streamID_override, resnames=resnames)
 
-    def add_resource(self, path_or_tarball: str = '', streamID_override: str = '', resnames: list[str] = []):
+    def add_resource(self, path_or_tarball: str = '', streamID_override: str = '', resnames: list[str] = [],
+                     fallback: bool = False):
         """
         Add a new ``PDBCollection`` to the repository from a file path.
 
@@ -579,41 +580,90 @@ class PDBRepository(CacheableObject):
             An optional override for the stream ID.
         resnames: list[str]
             An optional list of resnames that the collection should minimally include.  This is for building custom, right-sized collections for any particular build.
+        fallback : bool
+            Register at the BOTTOM of the precedence order rather than the top.  See
+            :meth:`add_collection`.
         """
         c = PDBCollection.build_from_resources(path_or_tarball=path_or_tarball, streamID_override=streamID_override, resnames=resnames)
         if c is None:
             logger.debug(f'Skipping {path_or_tarball}: not a recognized PDB collection format.')
             return
-        self.add_collection(c, collection_key=c.streamID)
+        self.add_collection(c, collection_key=c.streamID, fallback=fallback)
 
-    def add_collection(self, collection: PDBCollection, collection_key='generic'):
-        """ 
-        Add a ``PDBCollection`` to the repository. If the collection_key already exists, it will be overwritten. 
-        
+    def add_collection(self, collection: PDBCollection, collection_key='generic', fallback: bool = False):
+        """
+        Add a ``PDBCollection`` to the repository.
+
+        :meth:`checkout` and :meth:`__contains__` walk ``registration_order`` **in reverse**, so
+        the LAST collection registered wins.  Two collections may legitimately carry the same
+        streamID -- the shipped ``lipid`` tarball and a user or cached ``lipid`` directory all
+        register under ``lipid`` -- and the duplicate is kept under a numbered key rather than
+        dropped, so the key collision is a precedence question, not an error.
+
+        ``fallback`` registers at the FRONT instead, i.e. at the bottom of the precedence order.
+        That is what the on-demand generation cache needs: it exists to supply residues the
+        shipped repository does NOT have (see :mod:`pestifer.charmmff.autocache`), so a cached
+        entry must never shadow a shipped one.  It did until 2026-10-05, because the cache is
+        auto-registered last and last wins; a `POPC__Lo` generated in August 2026 -- before the
+        shipped collection carried readable ``__Lo`` entries -- went on silently overriding the
+        shipped conformers under 3.25.1 on every machine that had ever built with a declared
+        leaflet phase.  Nothing tied the cache to a release or to collection content, so the
+        conformer work in 3.25.0/3.25.1 did not reach those machines at all.
+
+        The resulting order is: explicit ``user_pdbcollections`` > shipped > generation cache.
+
         Parameters
         ----------
         collection : PDBCollection
             The PDBCollection object to add to the repository.
         collection_key : str
-            The key under which to register the collection in the repository. If it already exists, a warning will be logged and the collection will not be added again. If a collection with the same base name already exists, a numbered suffix will be added to the collection_key to avoid conflicts.
-        
+            The key under which to register the collection.  A collision takes a numbered suffix.
+        fallback : bool
+            Register at the bottom of the precedence order instead of the top.
         """
         if not isinstance(collection, PDBCollection):
             raise TypeError('collection must be a PDBCollection object')
-        # logger.debug(f'registration_order \'{self.registration_order}\'')
+        original_key = collection_key
         if collection_key in self.registration_order:
-            logger.warning(f'Collection {collection_key} already registered; will not add again.')
             tag=1
             while f'{collection_key}_{tag}' in self.registration_order:
                 tag += 1
                 if tag > 10:
                     raise ValueError(f'Too many collections with the same base name {collection_key}; please choose a different name.')
             collection_key = f'{collection_key}_{tag}'
+            # The old message here read "already registered; will not add again", which was the
+            # opposite of what happens on both counts: it IS added, under the suffixed key, and
+            # before `fallback` existed the suffixed key took PRECEDENCE over the one it
+            # collided with.  That line was the only mark a shipped collection was being
+            # shadowed, and it read as benign dedup noise.
+            where = 'below' if fallback else 'ABOVE'
+            logger.info(f'Collection {original_key} is already registered; adding this one as '
+                        f'{collection_key}, which ranks {where} it.')
         self.collections[collection_key] = collection
-        self.registration_order.append(collection_key)
-        # logger.debug(f' -> registration_order \'{self.registration_order}\' streamID {collection.streamID}')
-        self.collections[collection_key].registration_place = len(self.registration_order)
+        if fallback:
+            self.registration_order.insert(0, collection_key)
+        else:
+            self.registration_order.append(collection_key)
+        for place, key in enumerate(self.registration_order, start=1):
+            self.collections[key].registration_place = place
         logger.debug(f'Added collection {collection_key} with {len(collection.info)} residue{plu(len(collection.info))}.')
+
+    def shadowed_by_higher_precedence(self, collection_key: str) -> list[str]:
+        """Resnames in ``collection_key`` that a higher-precedence collection also supplies.
+
+        The generation cache is meant to hold only what the shipped repository lacks, so a
+        non-empty result means the cache has gone stale against a newer release.  Reported
+        rather than deleted: the entries are the user's, and an inert stale entry is harmless
+        once precedence is right.
+        """
+        if collection_key not in self.registration_order:
+            return []
+        rank = self.registration_order.index(collection_key)
+        mine = set(self.collections[collection_key].info)
+        higher = set()
+        for key in self.registration_order[rank + 1:]:
+            higher |= set(self.collections[key].info)
+        return sorted(mine & higher)
 
     def show(self, out_stream: Callable = print, fullnames: bool = False, missing_fullnames: dict = {}):
         """ 
