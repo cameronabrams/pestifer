@@ -51,6 +51,41 @@ _AXIAL_BIAS = 1.0
 # docs/design/lipid-conformer-generation.md (Phase section).
 _PHASE_ORDER_TARGET = {'Ld': None, 'Lo': 0.30}
 
+_LO_COLLAPSE_FRACTION = 0.5
+"""An ordered ensemble shorter than this fraction of its own unbiased one is folded, not ordered.
+
+Calibrated against the shipped collections rather than picked: over 174 base/``__Lo`` pairs in
+three successive releases, ordinary sampling noise puts Lo within a few percent of Ld (worst
+benign case 0.94), while the two real collapses sit at 0.17 (``POPC__Lo``, v3.25.1) and 0.24
+(``DMPG__Lo``, the release before).  0.5 separates them with a wide margin on both sides and
+flags nothing else."""
+
+_MAX_ORDER_RESEEDS = 3
+"""Reseeds before giving up on an ordered ensemble that keeps collapsing.
+
+Measured 2026-10-05 on ``POPC__Lo``: of five seeds only seed 0 collapsed, and it is the one that
+shipped.  The other four needed a trans bias of 2.5-5.0 to reach the same chain order that seed 0
+chased to 20.0 by folding, so one reseed is usually enough and three is cheap insurance."""
+
+
+def ensemble_collapsed(ordered_extent: float, unbiased_extent: float,
+                       fraction: float = _LO_COLLAPSE_FRACTION) -> bool:
+    """Did a trans-ordered ensemble buy its chain order by FOLDING rather than extending?
+
+    ``ordered_extent`` and ``unbiased_extent`` are mean head-to-tail z-extents of the same
+    residue's tuned and bias-free ensembles.  Ordering straightens chains, so the ordered
+    ensemble cannot be dramatically shorter than the fluid one it came from; when it is, the
+    chains have satisfied the ``cos^2(theta)`` order objective by inverting, which scores
+    identically (see :attr:`~pestifer.charmmff.athermal_mc.MoleculeMC.axial_limit`).
+
+    An unmeasurable or zero control answers ``False``: with no baseline there is no evidence of
+    collapse, and refusing to write a conformer set on a missing measurement would turn a silent
+    wrong answer into a loud wrong failure.
+    """
+    if not (unbiased_extent > 0.0) or ordered_extent != ordered_extent:
+        return False
+    return ordered_extent < fraction * unbiased_extent
+
 # How far below the Lo order target a tuned ensemble may land and still count as ordered.  A lipid
 # whose tuned order clamps more than this below the target could not be ordered (cis-unsaturated
 # chains) and is recorded phase_effective='Ld'.
@@ -215,26 +250,43 @@ def _sample_and_write_mc_conformers(resid: str, psf_file: str, pdb_file: str,
     if not mol.rotatable:
         logger.warning(f'MC {resid}: no rotatable tail torsions found; conformers will be copies')
 
-    probed = {}   # bias -> (samples, chain_order)
+    def _mean_z_extent(samples_):
+        """Mean of the same head-to-tail z-extent the ``info.yaml`` block records per conformer.
 
-    def order_of(bias):
-        samples = run_mc(mol, nsamples=nsamples, n_equil=n_equil, n_decorr=n_decorr,
-                         axial_bias=_AXIAL_BIAS,
-                         max_angle=max_angle, seed=seed, torsion_bias=bias)
-        order = ensemble_chain_order(samples, None, masses, bonds)
-        probed[bias] = (samples, order)
-        logger.info(f'MC {resid}: probe trans bias {bias:.2f} -> chain order {order:.3f}')
-        return order
+        Deliberately the identical statistic -- min over (head, tail) pairs of ``|dz|`` -- rather
+        than something merely similar, so the guard below and the shipped metric cannot disagree.
+        It is a MINIMUM over pairs, which is what makes it sensitive: a two-chain lipid with one
+        chain folded and one extended reports the folded one.
+        """
+        out = []
+        for s in samples_:
+            hz, tz = s[head_idx][:, 2], s[tail_idx][:, 2]
+            out.append(float(np.abs(hz[:, None] - tz[None, :]).min()))
+        return float(np.mean(out)) if out else float('nan')
 
-    if target_order is None:
-        used_bias = 0.0
-        order_of(used_bias)
-        samples, order = probed[used_bias]
-        logger.info(f'MC {resid}: {len(mol.rotatable)} tail torsions, '
-                    f'{int(mol.confined.sum())} confined atoms, cylinder radius {R:.2f} A '
-                    f'(APL {cylinder_apl:.0f} x inflation {cylinder_inflation:.2f}); '
-                    f'chain order {order:.3f} (no bias)')
-    else:
+    used_seed = seed
+    for attempt in range(_MAX_ORDER_RESEEDS + 1):
+        probed = {}   # bias -> (samples, chain_order)
+
+        def order_of(bias, _seed=used_seed):
+            samples = run_mc(mol, nsamples=nsamples, n_equil=n_equil, n_decorr=n_decorr,
+                             axial_bias=_AXIAL_BIAS,
+                             max_angle=max_angle, seed=_seed, torsion_bias=bias)
+            order = ensemble_chain_order(samples, None, masses, bonds)
+            probed[bias] = (samples, order)
+            logger.info(f'MC {resid}: probe trans bias {bias:.2f} -> chain order {order:.3f}')
+            return order
+
+        if target_order is None:
+            used_bias = 0.0
+            order_of(used_bias)
+            samples, order = probed[used_bias]
+            logger.info(f'MC {resid}: {len(mol.rotatable)} tail torsions, '
+                        f'{int(mol.confined.sum())} confined atoms, cylinder radius {R:.2f} A '
+                        f'(APL {cylinder_apl:.0f} x inflation {cylinder_inflation:.2f}); '
+                        f'chain order {order:.3f} (no bias)')
+            break
+
         used_bias, tuned_order, bracketed = _bisect_to_order(
             order_of, target_order, bounds=bias_bounds, tol=order_tol, max_iters=max_tune_iters)
         samples, order = probed[used_bias]
@@ -247,6 +299,35 @@ def _sample_and_write_mc_conformers(resid: str, psf_file: str, pdb_file: str,
                     f'chain order {order:.3f} vs target {target_order:.3f} '
                     f'({len(mol.rotatable)} tail torsions)')
 
+        # ORDER MUST NOT BE BOUGHT BY FOLDING.  `_bisect_to_order` always evaluates the lower
+        # bound (bias 0) first, so the unbiased ensemble of this very residue is in hand, for
+        # free, as the control: an ordered ensemble is the fluid one with its chains straightened,
+        # so it cannot be dramatically SHORTER.  When it is, the trans bias has been satisfied by
+        # inversion instead of extension -- the `cos^2(theta)` degeneracy makes a hairpin score
+        # exactly as well as an extended chain (see MoleculeMC.axial_limit), and the axial ceiling
+        # cannot object to one that comes back to just under the head plane.
+        ordered_extent, unbiased_extent = _mean_z_extent(samples), _mean_z_extent(probed[0.0][0])
+        if not ensemble_collapsed(ordered_extent, unbiased_extent):
+            break
+        logger.warning(
+            f'MC {resid}: the tuned ensemble COLLAPSED -- mean head-to-tail z-extent '
+            f'{ordered_extent:.2f} A against {unbiased_extent:.2f} A unbiased (bias '
+            f'{used_bias:.2f}, order {order:.3f}). The chains satisfied the order target by '
+            f'folding, not by extending. Reseeding {used_seed} -> {used_seed + 1}.')
+        used_seed += 1
+    else:
+        # Loud rather than shipped.  v3.25.1 shipped POPC__Lo with all ten conformers hairpinned
+        # (sn-2 tip 7.7 A below its own phosphate instead of 23.5) because nothing checked this;
+        # it cost ~4.7 A of built bilayer thickness and was invisible to a fold audit keyed on
+        # "tip above the phosphate", since the fold stopped just under the head plane.  Measured
+        # 2026-10-05: of five seeds only seed 0 -- the one that shipped -- collapsed.
+        raise RuntimeError(
+            f'MC conformer generation for {resid}: the ordered ensemble (target order '
+            f'{target_order:.3f}) collapsed at every '
+            f'seed tried ({seed}..{used_seed}); its mean head-to-tail z-extent stayed below '
+            f'{_LO_COLLAPSE_FRACTION:.0%} of the unbiased ensemble\'s. Refusing to write a folded '
+            f'conformer set.')
+
     for f, s in enumerate(samples):
         with open(f'{resid}-{f:0{digits}d}.pdb', 'w') as out:
             for row, ln in enumerate(template):
@@ -254,7 +335,8 @@ def _sample_and_write_mc_conformers(resid: str, psf_file: str, pdb_file: str,
                 out.write(f'{ln[:30]}{x:8.3f}{y:8.3f}{z:8.3f}{ln[54:]}')
             out.write('END\n')
     return {'nconf': len(samples), 'torsion_bias': float(used_bias),
-            'chain_order': (float(order) if order == order else None)}
+            'chain_order': (float(order) if order == order else None),
+            'mc_seed': int(used_seed)}
 
 
 def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
@@ -541,6 +623,11 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             # the tuner resolves a trans-bias strength (0 for Ld) to hit the phase's order target
             torsion_bias = mc_result['torsion_bias']
             chain_order = mc_result['chain_order']
+            # The sampler reseeds when an ordered ensemble comes back folded, so the seed it
+            # actually used is not always the one requested.  Record what was used, not what was
+            # asked for: the provenance block exists to make an entry reproducible, and the
+            # requested seed would not reproduce it.
+            mc_seed = mc_result.get('mc_seed', mc_seed)
             # Whether the lipid actually ordered is MEASURED, not assumed from structure: a
             # cis-unsaturated chain clamps near the fluid floor (its Lo ensemble == its Ld one), while
             # a fully-saturated lipid -- INCLUDING a sphingomyelin, whose sphingosine trans double bond

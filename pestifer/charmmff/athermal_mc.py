@@ -126,14 +126,29 @@ class MoleculeMC:
     and 90% of drawn PE/PS conformers took it (measured 2026-10-02; POPE 10/10, with one tail tip
     9 A ABOVE its own phosphate).
 
-    This closes the open direction: a confined atom may not rise above ``axial_limit``.  It is
-    PER ATOM -- an ``(N,)`` array -- because one scalar cannot describe a lipid whose chains attach
-    at different heights.  A cardiolipin's four ester oxygens span ~10 A, so the minimum over them
-    is a plane the high chains cannot reach by any torsion: PMCL1 started with 991 A-atoms of
-    excess and greedy descent could only reach 737, because most of the molecule was above the
-    limit by construction.  Each atom is instead bounded by the head reference atom it hangs from,
-    found through the bond graph -- "a tail may not rise above its own attachment point".  A scalar
-    is still accepted and broadcasts; ``inf`` restores the old unbounded behaviour.
+    This closes the open direction: a confined atom may not rise above ``axial_limit``.
+
+    **It is ONE SCALAR plane, not a per-atom ceiling.**  :func:`build_lipid_mc` sets it to the
+    MINIMUM over the head reference atoms, and that is the only producer in the tree; the
+    ``(N,)`` form is accepted by the arithmetic and never constructed.  A per-atom version --
+    each atom bounded by the head reference atom it hangs from, found through the bond graph --
+    was written and measured WORSE (2026-10-02: DSPE__Lo went 0/10 folded to 10/10), so it was
+    reverted.  An earlier version of this docstring described that reverted design as though it
+    had shipped; corrected 2026-10-05.  ``inf`` restores the unbounded behaviour.
+
+    Two consequences of its being one low plane, both load-bearing:
+
+    - For a lipid whose chains attach at different heights -- a cardiolipin's four ester oxygens
+      span ~10 A -- the minimum is a plane the high chains cannot reach by any torsion.  PMCL1
+      started with 991 A-atoms of excess and greedy descent could only reach 737, because most
+      of the molecule was above the limit by construction.  That is why
+      :attr:`extra_pivots` exists: the remedy was to let the pre-pass swing a whole arm, not to
+      raise the ceiling per atom.
+    - A chain attached ABOVE the plane has headroom beneath it, so a hairpin that doubles back
+      and ends just under the plane carries **zero axial excess** and neither the penalty nor a
+      fold audit keyed on "tip above the phosphate" can object.  That is exactly how v3.25.1's
+      ``POPC__Lo`` shipped with all ten conformers hairpinned, sn-2 tip 7.7 A below its own
+      phosphate instead of 23.5.  Zero axial excess is not the same as extended.
     """
 
     def __post_init__(self):
