@@ -4,6 +4,44 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- **The on-demand generation cache no longer overrides the conformers pestifer ships.** It is
+  documented as a fallback for residues the installed release has *no* entry for, but it was
+  auto-registered last and the repository resolves a residue last-registered-first, so a cached
+  entry silently outranked both the shipped collection and an explicit `user_pdbcollections`
+  override.
+
+  The consequence was that **the conformer work in 3.25.0 and 3.25.1 did not reach any machine
+  that had ever built a membrane with a declared leaflet phase.** Nothing tied the cache to a
+  release or to collection content, so `__Lo` ensembles generated in August 2026 — before the
+  shipped collection carried readable `__Lo` entries — were still being used under 3.25.1.
+  Measured on a cluster install: ex17's patchA built from an August `POPC__Lo` rather than the
+  one in the release, and the two differ by 4.7 Å of bilayer thickness.
+
+  Precedence is now **explicit `user_pdbcollections` > shipped > generation cache**, and a cached
+  entry the installed release also supplies is reported by name at startup rather than used. The
+  one line that marked a shadowed collection said `already registered; will not add again`, which
+  was false on both counts — it *was* added, under a numbered key, at *higher* precedence — so it
+  read as routine deduplication noise. It now states which collection outranks which.
+
+- **A trans-ordered conformer ensemble can no longer buy its chain order by folding.** The order
+  objective goes as `cos²θ`, so an inverted chain scores exactly as well as an extended one, and
+  the axial ceiling is a single plane at the lowest head reference atom — so a hairpin that
+  doubles back to just under that plane carries no axial excess and no penalty. A fold audit
+  keyed on "tip above the phosphate" cannot see it either, because such a chain never gets there.
+
+  3.25.1 shipped `POPC__Lo` with all ten conformers hairpinned: the sn-2 tip sat 7.7 Å below its
+  own phosphate instead of 23.5 Å, costing 4.7 Å of built bilayer thickness on ex17's patchA.
+  **The entry is regenerated and reshipped** (mean head-to-tail extent 2.56 Å → 17.24 Å, which is
+  also better than the 16.56 Å of the entry it replaced); it was the only one in the collection
+  that fails the new check.
+
+  The sampler now compares each tuned ensemble against the same residue's *unbiased* ensemble,
+  which the bias tuner already samples as its lower bound, so the control is free and
+  self-calibrating. An ensemble that comes back under half the unbiased extent is reseeded, and a
+  collapse that survives every reseed raises rather than writing a folded conformer set. The seed
+  actually used is recorded, so a reseeded entry still reproduces. Of five seeds tried for
+  `POPC__Lo`, only seed 0 collapsed — and seed 0 is the one that shipped.
+
 ## [3.25.1] - 2026-10-04
 
 - **No lipid conformer now has a chain pointing out of the membrane.** 3.25.0 shipped a collection
@@ -26,6 +64,14 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
   Only multi-arm lipids are affected; an ordinary two-chain lipid gains no new pivots and is
   byte-identical to 3.25.0.
+
+  **Correction (2026-10-05): that last paragraph was wrong.** 124 of 277 entries changed in this
+  release, not only the multi-arm ones. The claim rested on collection-wide head-to-tail
+  *watermarks* not moving — but an aggregate minimum and maximum cannot see a per-entry collapse,
+  and in fact the collection-wide hairpin count *improved* (392 → 368) while `POPC__Lo` went from
+  0/10 to 10/10 hairpinned. The regeneration was a net gain with a few large individual losses;
+  `POPC__Lo` is fixed in Unreleased, above, and the other 15 entries that lost ≥2 Å of extent all
+  pass the check added there.
 
 ## [3.25.0] - 2026-10-03
 

@@ -1009,7 +1009,7 @@ real bug.
       under the new one, so decorrelation is not delivering ten distinct conformers. Ensemble
       diversity is the whole reason the grid packer draws per-lipid rather than stamping one
       shape, so this is worth its own look. Noted while checking it was not a regression.
-- [ ] **The on-demand autocache silently outranks an explicit `user_pdbcollections` override.**
+- [x] **The on-demand autocache silently outranks an explicit `user_pdbcollections` override.**
       Found 2026-10-02 measuring the regenerated collection end-to-end.
       `PDBRepository.checkout` walks `self.registration_order[::-1]` — **reversed** — and
       provisioning registers base, then the user override, then the autocache dirs. So the
@@ -1022,10 +1022,20 @@ real bug.
       patchA read identically in both arms because its three Lo entries were cached, while
       patchB's were not and the override worked.
 
-      **Not fixed:** reversing the precedence is a behavioural contract (an on-demand entry
-      generated this run arguably should beat a stale user path), and it is Cameron's call which
-      way it should go. Whatever is decided, the two docstrings and the code must be made to agree
-      — right now no reading of them is correct.
+      **Fixed 2026-10-05**, and it was worse than recorded here. The cache outranked the
+      *shipped* collection too, so the conformer work in 3.25.0 and 3.25.1 reached no machine that
+      had ever built with a declared leaflet phase: a cluster install was still drawing `POPC__Lo`
+      from an August 2026 autocache under 3.25.1, worth 4.7 Å of bilayer thickness, and the only
+      mark in the log was a line claiming the collection had *not* been added.
+
+      Resolved as **explicit `user_pdbcollections` > shipped > generation cache**, which is what
+      both the autocache module and the schema already describe the cache as being ("a residue
+      that ... has **no** entry in the shipped PDB repository"). It was not, in the end, a
+      finely-balanced contract call: the cache is a gap-filler by its own documentation, and the
+      "stale user path" worry cuts the other way — the user's explicit path is the deliberate act
+      and now wins over everything. Cached entries the release also supplies are named at startup
+      instead of used. `PDBRepository.add_collection` grew a `fallback` flag; the docstrings and
+      the code now agree.
 - [ ] **patchA's residual thinness is NOT curl — it tracks sterol fraction, through the
       composition-weighted head plane.** Measured 2026-10-02 after the axial fix closed patchB
       (deficit 13.04 -> 2.11 A) while leaving patchA at 6.95 A.
@@ -1087,6 +1097,12 @@ real bug.
       currently OUTRANK an explicit override — see the precedence item). Cameron asked for this
       2026-10-02; not done yet because it changes every membrane build and invalidates comparison
       against prior sweeps.
+
+      **2026-10-05:** the collection half of this shipped in 3.25.0/3.25.1. Clearing the stale
+      autocache is no longer required for correctness — it now ranks below the shipped collection
+      and every shadowed entry is named at startup — but a cluster install was measured still
+      drawing August conformers from it under 3.25.1, so anyone comparing against a pre-fix sweep
+      should check which conformers that sweep actually used before trusting the comparison.
 
       **Corrected comparison, after Cameron asked which patch is which phase.** patchA is the
       UPPER composition at phase **Lo** (PSM/POPC/47% CHL1); patchB is the LOWER composition at
