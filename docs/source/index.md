@@ -40,6 +40,7 @@ quickstart
 usage
 guides
 examples
+lipid_gallery/index
 config_ref
 API <api/API>
 Tcl sources <tcl/source>
