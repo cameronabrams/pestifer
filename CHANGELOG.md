@@ -4,6 +4,33 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- **Conformer generation now rejects a draw in which any acyl chain fails to descend, and draws a
+  replacement.** The collapse guard shipped in 3.26.0 compares a trans-ordered ensemble against its own
+  unbiased one, so it is blind to base-phase entries — a base entry *is* the unbiased ensemble and
+  has no control to compare against. That is where the remaining folds were: **123 of 2380
+  conformers in 45 entries** of the 3.26.0 collection, with fully saturated chains descending as
+  little as 0.01 of their contour length.
+
+  Each chain is now scored by how far its tip drops below **its own attachment carbon**, as a
+  fraction of that chain's all-trans contour, and a conformer is rejected if *any* chain scores
+  under 0.25. Per chain, and on the minimum rather than the mean, because the failure is one chain
+  folding while its partner extends — which is exactly how the old molecule-wide head-to-tail
+  measure let `POPC__Lo` pass a "zero folded" audit with half its chains hairpinned.
+
+  The threshold is geometric rather than tuned: classifying every suspect entry's worst conformer
+  by axial drop *and* radial displacement separates at 0.21/0.26 — at or below 0.21 each case is a
+  fold or a splay, at or above 0.26 each one descends. Unsaturation needs no correction, which was
+  measured rather than assumed: twelve sp² carbons cost about 0.15 of median score, against a cut
+  sitting 0.4 below the median.
+
+  Rejection tops up by redrawing at the same tuned bias, so the chain order the tuner resolved is
+  preserved, and gives up loudly after a bounded number of redraws rather than writing a short or
+  folded ensemble. It is a tail-rejection and deliberately not a ranking: keeping the most-extended
+  conformers would bias every ensemble toward order and could thicken every bilayer built from it.
+
+  **The shipped collection is not yet regenerated** — this release lands the guard only, so that
+  the next collection is one the guard gated rather than one audited afterwards.
+
 - **The differential-stress diagnostic no longer samples at the wrong temperature, and no longer
   replaces the membrane it was measuring.** Both reported 2026-10-07 against 3.25.1 from a
   pseudo-asymmetric PIP2 build, and both confirmed in the code. The diagnostic is opt-in

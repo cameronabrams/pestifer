@@ -7,6 +7,7 @@ import glob
 import logging
 import os
 import shutil
+import re
 import yaml
 import numpy as np
 from   itertools            import product
@@ -66,6 +67,76 @@ _MAX_ORDER_RESEEDS = 3
 Measured 2026-10-05 on ``POPC__Lo``: of five seeds only seed 0 collapsed, and it is the one that
 shipped.  The other four needed a trans bias of 2.5-5.0 to reach the same chain order that seed 0
 chased to 20.0 by folding, so one reseed is usually enough and three is cheap insurance."""
+
+
+_TRANS_CC_RISE = 1.27
+"""Axial rise per C-C bond in an all-trans acyl chain (A).  Normalises a chain's descent by what
+that chain could achieve if fully extended, so one threshold serves every chain length."""
+
+_MIN_CHAIN_EXTENSION = 0.25
+"""A chain must descend at least this fraction of its own all-trans contour below its attachment.
+
+Set from geometry, not tuned.  Classifying the worst conformer of every suspect entry in the
+3.26.0 collection by its tip's axial drop AND its radial displacement separates cleanly: at
+r <= 0.21 every case is a fold (tip back up near its attachment: DEPA 0.07, SOPG 0.02,
+POPI24 0.11, DXPC 0.21) or a splay (tip flung sideways: DYPS 0.07), while at r >= 0.26 every
+case descends, merely tilted (POPE 0.27, DCPC 0.27, DMPI2A 0.26, SAPI24 0.42).  The shipped
+POPC__Lo defect scored 0.07 and its replacement 0.76.
+
+Unsaturation does NOT need a correction here, which was checked rather than assumed: median r by
+(chain length, sp2 count) runs 0.81/0.75/0.73/0.75/0.72/0.60 from fully saturated to twelve sp2
+carbons, so the chemistry costs ~0.15 of median against a cut sitting 0.4 below it."""
+
+_MAX_FOLD_REDRAWS = 4
+"""Extra draws allowed while topping up an ensemble whose conformers keep coming back folded.
+
+The median entry has no failing conformer at all (median per-conformer minimum r is 0.68 over
+1720 shipped conformers), so this costs nothing on ~95% of entries; the worst -- DXPC at 8/10
+failing -- needs several.  Bounded so a pathological entry fails loudly instead of looping."""
+
+
+def acyl_chain_rows(names: list[str], min_length: int = 8) -> list[tuple[int, int, int]]:
+    """``[(attachment_row, tip_row, n_carbons)]`` for each real acyl chain.
+
+    Chains are read off CHARMM's own naming -- ``C2n`` is sn-2, ``C3n`` is sn-1, ``CAn``/``CBn``
+    and friends are a cardiolipin's arms -- taking the lowest-numbered carbon as the attachment
+    and the highest as the tip.  ``min_length`` keeps a glycerol backbone from being read as a
+    chain: ``C11``-``C13`` is three carbons and parses as a "chain 1" whose tip sits up by the
+    headgroup, which is how an earlier fold audit reported PMCL1 as folded when it was not.
+    """
+    groups: dict[str, list[tuple[int, int]]] = {}
+    for row, nm in enumerate(names):
+        m = re.fullmatch(r'C([0-9A-Z])([0-9]+)', nm or '')
+        if m:
+            groups.setdefault(m.group(1), []).append((int(m.group(2)), row))
+    out = []
+    for members in groups.values():
+        if len(members) >= min_length:
+            members.sort()
+            out.append((members[0][1], members[-1][1], len(members)))
+    return out
+
+
+def chain_extensions(coords: np.ndarray, chain_rows: list[tuple[int, int, int]],
+                     axis_dir: np.ndarray) -> list[float]:
+    """Per chain, its tip's descent below its own attachment as a fraction of its contour.
+
+    Measured against each chain's OWN attachment rather than a shared head plane, because the
+    failure being caught is one chain folding while its partner extends normally -- a molecule-
+    wide head-to-tail number averages those two and reports neither.
+    """
+    out = []
+    for a, t, n in chain_rows:
+        drop = float(np.dot(coords[a] - coords[t], axis_dir))
+        out.append(drop / ((n - 1) * _TRANS_CC_RISE))
+    return out
+
+
+def conformer_is_folded(coords: np.ndarray, chain_rows: list[tuple[int, int, int]],
+                        axis_dir: np.ndarray, threshold: float = _MIN_CHAIN_EXTENSION) -> bool:
+    """True when ANY chain fails to descend.  The minimum over chains, never the mean."""
+    r = chain_extensions(coords, chain_rows, axis_dir)
+    return bool(r) and min(r) < threshold
 
 
 def ensemble_collapsed(ordered_extent: float, unbiased_extent: float,
@@ -327,6 +398,49 @@ def _sample_and_write_mc_conformers(resid: str, psf_file: str, pdb_file: str,
             f'seed tried ({seed}..{used_seed}); its mean head-to-tail z-extent stayed below '
             f'{_LO_COLLAPSE_FRACTION:.0%} of the unbiased ensemble\'s. Refusing to write a folded '
             f'conformer set.')
+
+    # DISCARD CONFORMERS WHOSE CHAINS DO NOT DESCEND, AND DRAW REPLACEMENTS.
+    #
+    # The collapse guard above compares an ORDERED ensemble against its own unbiased one, so it
+    # cannot see anything here: a base-phase entry IS the unbiased ensemble and has no control to
+    # be measured against.  That is where the remaining damage sits -- 85 of 1720 conformers in
+    # 35 entries of the 3.26.0 collection, with fully SATURATED chains descending as little as
+    # 0.01 of their contour, which no kink can excuse.
+    #
+    # A tail-rejection, deliberately not a ranking: keeping the most-extended N would bias the
+    # ensemble toward order and could thicken every bilayer built from it.  Rejecting a ~5% tail
+    # leaves the surviving distribution where the sampler put it.
+    chain_rows = acyl_chain_rows([name_of[s] for s in serials])
+    if not chain_rows:
+        logger.debug(f'MC {resid}: no acyl chains resolved; fold filtering skipped')
+    else:
+        def _ok(sample):
+            return not conformer_is_folded(sample, chain_rows, mol.axis_dir)
+
+        kept = [s for s in samples if _ok(s)]
+        rejected = len(samples) - len(kept)
+        redraw_seed, redraws = used_seed, 0
+        while len(kept) < nsamples and redraws < _MAX_FOLD_REDRAWS:
+            redraws += 1
+            redraw_seed += 1
+            logger.info(f'MC {resid}: {rejected} conformer(s) rejected as folded (a chain '
+                        f'descending < {_MIN_CHAIN_EXTENSION:.0%} of its contour); redraw '
+                        f'{redraws} at seed {redraw_seed}')
+            # Redraw at the SAME tuned bias: a different bias would move the chain order the
+            # tuner just resolved, so the ensemble would no longer be the phase it claims.
+            more = run_mc(mol, nsamples=nsamples, n_equil=n_equil, n_decorr=n_decorr,
+                          axial_bias=_AXIAL_BIAS, max_angle=max_angle, seed=redraw_seed,
+                          torsion_bias=used_bias)
+            rejected += sum(1 for s in more if not _ok(s))
+            kept.extend(s for s in more if _ok(s))
+        if len(kept) < nsamples:
+            raise RuntimeError(
+                f'MC conformer generation for {resid}: only {len(kept)} of {nsamples} conformers '
+                f'have every chain descending at least {_MIN_CHAIN_EXTENSION:.0%} of its contour, '
+                f'after {redraws} redraw(s). Refusing to write an ensemble of folded chains.')
+        if rejected:
+            logger.info(f'MC {resid}: kept {nsamples} conformers, rejected {rejected} folded')
+        samples = kept[:nsamples]
 
     for f, s in enumerate(samples):
         with open(f'{resid}-{f:0{digits}d}.pdb', 'w') as out:
