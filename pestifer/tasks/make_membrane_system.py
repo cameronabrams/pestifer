@@ -42,6 +42,43 @@ _AREA_CONVERGENCE_TOL = 0.005
 # representative value for fluid lipid monolayers; the suggestion is a guide, not a fit.
 _DEFAULT_AREA_MODULUS = 250.0
 
+# Schema defaults for the two relaxation-stage task types, mirrored here so a protocol stage that
+# names no temperature can still be told what it ran at.  THEY DIFFER, and that is the point:
+# `md` is 300 K and `membrane_equilibrate` is 310 K, so "the default" is not a single number and
+# assuming it is produced a build equilibrated at 310 K and diagnosed at 300 K with nothing in
+# the config to show for it.  `_relaxation_temperature` is the only consumer; a test reads the
+# schema and fails if either value moves there without moving here.
+_MD_DEFAULT_TEMPERATURE = 300.0
+_MEMBRANE_EQUILIBRATE_DEFAULT_TEMPERATURE = 310.0
+
+
+def default_relaxation_protocol() -> list[dict]:
+    """The protocol :meth:`MakeMembraneSystemTask.equilibrate_bilayer` runs when given none.
+
+    Returned fresh on every call, never as a shared constant: the stage loop writes into each
+    stage's dict (``addl_paramfiles``, ``other_parameters``, the ``minimize``/``nsteps``
+    translation), so a module-level list would accumulate one bilayer's settings and hand them
+    to the next.
+
+    It is a function rather than an inline literal because two places need to know what an
+    unconfigured relaxation does: the one that RUNS it, and
+    :meth:`MakeMembraneSystemTask._relaxation_temperature`, which has to report the state point
+    it ended at.  Note every stage here is an ``md`` stage naming no temperature, so an
+    unconfigured quilt relaxes at the ``md`` default of 300 K -- not at ``membrane_equilibrate``'s
+    310 K.  Keeping the two readers on one definition is what stops that from being guessed.
+    """
+    return [
+        {'md': dict(ensemble='minimize', minimize=1000)},
+        {'md': dict(ensemble='NVT', nsteps=1000)},
+        {'md': dict(ensemble='NPT', nsteps=200)},
+        {'md': dict(ensemble='NPT', nsteps=400)},
+        {'md': dict(ensemble='NPT', nsteps=800)},
+        {'md': dict(ensemble='NPAT', nsteps=1600)},
+        {'md': dict(ensemble='NPAT', nsteps=3200)},
+        {'md': dict(ensemble='NPAT', nsteps=6400)},
+        {'md': dict(ensemble='NPAT', nsteps=12800)},
+        {'md': dict(ensemble='NPAT', nsteps=25600)}]
+
 # Minimum half-midplane gap (A) for deterministic grid placement.  The grid packer puts
 # opposing-leaflet tail atoms at ``midplane_z +/- half_mid_zgap``; too small a gap makes
 # them coincide, and the relaxation minimize then diverges (NaN forces -> segfault).
@@ -702,6 +739,35 @@ class MakeMembraneSystemTask(BaseTask):
         if diag_specs.get('enabled', False):
             self.diagnose_differential_stress(self.quilt, n_upper, n_lower, diag_specs)
 
+    @staticmethod
+    def _relaxation_temperature(protocol: list[dict]) -> float | None:
+        """The temperature the membrane's LAST dynamics stage actually ran at, or ``None``.
+
+        Walks the protocol backwards to the last stage that moves atoms at a temperature
+        (``minimize`` does not) and reports what that stage used.  When the stage names no
+        temperature it ran at its own task's schema default, and **those differ by task**:
+        ``md`` defaults to 300 K while ``membrane_equilibrate`` defaults to 310 K.  That
+        difference is the whole reason this helper exists rather than a single constant --
+        reading one default and applying it to the other task is how a build can equilibrate
+        at 310 K and be diagnosed at 300 K with nothing in the config to show for it.
+
+        Kept in sync with ``schema/base.yaml`` by
+        ``tests/unit/test_tasks/test_diffstress_temperature.py``, which reads the schema and
+        fails if either default moves.
+        """
+        for stage in reversed(protocol or []):
+            key = next((k for k in ('md', 'membrane_equilibrate') if k in stage), None)
+            if key is None:
+                continue
+            specs = stage[key] or {}
+            if key == 'md' and str(specs.get('ensemble', '') or '').casefold() == 'minimize':
+                continue    # a minimization has no thermostat; it says nothing about the state point
+            if specs.get('temperature') is not None:
+                return float(specs['temperature'])
+            return (_MEMBRANE_EQUILIBRATE_DEFAULT_TEMPERATURE if key == 'membrane_equilibrate'
+                    else _MD_DEFAULT_TEMPERATURE)
+        return None
+
     def diagnose_differential_stress(self, membrane: Bilayer, n_upper: int, n_lower: int, diag_specs: dict):
         """Measure and report the residual differential stress of an assembled asymmetric
         membrane.  Diagnostic only -- the membrane is *not* rebuilt.
@@ -721,8 +787,33 @@ class MakeMembraneSystemTask(BaseTask):
         slabs = int(diag_specs.get('slabs', 40))
         freq = int(diag_specs.get('freq', 500))
         K_A = float(diag_specs.get('area_modulus', _DEFAULT_AREA_MODULUS))
+        # The pass must sample at the state point the membrane was equilibrated at.  It used to
+        # take the `md` task's 300 K default while the quilt had been relaxed by
+        # `membrane_equilibrate`, whose default is 310 K -- so a build that set no temperature
+        # anywhere still equilibrated at 310 and was diagnosed at 300, and one that set 310 on
+        # every stage (as example 17 does) was diagnosed at 300 anyway, because this protocol
+        # never read it.  Some of a temperature mismatch cancels in a DIFFERENCE of leaflet
+        # tensions, but only insofar as the two leaflets share a thermal expansivity, which is
+        # exactly what a compositionally asymmetric bilayer does not do -- so it injected an
+        # artefact into the one observable this pass exists to report.  (Reported against 3.25.1,
+        # 2026-10-07.)
+        # An absent quilt protocol is not an unknown: `equilibrate_bilayer` then runs
+        # `default_relaxation_protocol()`, so that is what the membrane actually experienced.
+        quilt_protocol = (self.bilayer_specs.get('relaxation_protocols', {}).get('quilt')
+                          or default_relaxation_protocol())
+        temperature = diag_specs.get('temperature')
+        if temperature is None:
+            temperature = self._relaxation_temperature(quilt_protocol)
+        if temperature is None:
+            # Only reachable if a protocol has stages but none that move atoms at a temperature.
+            temperature = _MD_DEFAULT_TEMPERATURE
+            logger.warning(
+                f'Differential-stress diagnostic: the quilt relaxation protocol has no dynamics '
+                f'stage, so the temperature it equilibrated at cannot be read; sampling at '
+                f'{temperature:.0f} K. Set diagnose_differential_stress.temperature to be '
+                f'explicit.')
         logger.info(f'Differential-stress diagnostic: tensionless pressure-profile pass '
-                    f'({nsteps} steps, {slabs} slabs)')
+                    f'({nsteps} steps, {slabs} slabs, {temperature:.1f} K)')
         # The diagnostic continues from the relaxed membrane's PDB (3-decimal precision)
         # with fresh velocities, so a short minimize first reconditions the coordinates;
         # going straight to NPT dynamics off the PDB triggers RATTLE blow-ups.  Pin xstfreq
@@ -730,14 +821,22 @@ class MakeMembraneSystemTask(BaseTask):
         # timesteps (mdplot merges them by matching TS).
         pp_protocol = [
             {'md': dict(ensemble='minimize', nsteps=500)},
-            {'md': dict(ensemble='NPT', nsteps=nsteps, xstfreq=freq,
+            {'md': dict(ensemble='NPT', nsteps=nsteps, xstfreq=freq, temperature=temperature,
                         other_parameters=dict(pressureProfile=True,
                                               pressureProfileSlabs=slabs,
                                               pressureProfileFreq=freq,
                                               surfaceTensionTarget=0.0))}]
         # the pressure-profile pass is a fixed-length sampling run on the already-equilibrated membrane
-        # (which no longer condenses appreciably), so it runs as written -- no restart staging
-        self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=pp_protocol)
+        # (which no longer condenses appreciably), so it runs as written -- no restart staging.
+        # `preserve_state`: this measures the membrane, it does not advance it.  Without it the
+        # pass's final frame was rekeyed over `quilt_state` and embedded -- so the structure that
+        # went forward was the last frame of a FIXED-LENGTH, ungated run (and, with
+        # surfaceTensionTarget=0, one whose cell had moved off the calibrated stress-free area),
+        # in place of the convergence-gated membrane. Both this method's docstring and the schema
+        # said "the membrane is not rebuilt", which was true of rebuilding and silent about the
+        # state that actually reaches the embed step.
+        self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=pp_protocol,
+                                 preserve_state=True)
         mdplot_task = self.subcontroller.tasks[-1]
         dataframes = getattr(mdplot_task, 'dataframes', {})
         pp_df = dataframes.get('pressureprofile')
@@ -924,10 +1023,11 @@ class MakeMembraneSystemTask(BaseTask):
             return getattr(plateaued, '_last_plateau_drift', None)
         return self._area_convergence(last_task, bilayer_name)
 
-    def equilibrate_bilayer(self, bilayer: Bilayer, bilayer_name: str, relaxation_protocol: list[dict] = None):
+    def equilibrate_bilayer(self, bilayer: Bilayer, bilayer_name: str, relaxation_protocol: list[dict] = None,
+                            preserve_state: bool = False):
         """
         Equilibrates the bilayer patch using the specified relaxation protocol.
-        
+
         Parameters
         ----------
         bilayer : Bilayer
@@ -936,7 +1036,15 @@ class MakeMembraneSystemTask(BaseTask):
             A string identifier of this bilayer used for keeping track of artifacts.
         relaxation_protocol : list, optional
             A list of dictionaries specifying the stages of the relaxation protocol.
-            If not provided, a hard-coded relaxation protocol will be used. 
+            If not provided, a hard-coded relaxation protocol will be used.
+        preserve_state : bool, optional
+            Run the protocol but leave ``{bilayer_name}_state`` and the ``bilayer`` object
+            exactly as they were.  For a READ-ONLY pass -- one that measures the membrane
+            rather than advancing it.  See :meth:`diagnose_differential_stress`, which is the
+            only caller that sets it: this method normally ends by rekeying the subcontroller's
+            final state over ``{bilayer_name}_state`` and overwriting ``bilayer.box``/``area``/
+            ``n_leaflet``/``area_drift``, and a diagnostic that did that would hand the embed
+            step its own sampling frame in place of the convergence-gated membrane.
         """
         self.next_basename(f'equilibration-{bilayer_name}')
         # user_dict=deepcopy(self.config['user'])
@@ -944,17 +1052,7 @@ class MakeMembraneSystemTask(BaseTask):
         logger.debug(f'Bilayer area before equilibration: {bilayer.area:.3f} {sA2_}')
         if not relaxation_protocol:
             logger.debug(f'Using hard-coded relaxation protocol for {self.basename}!!')
-            relaxation_protocol=[
-                {'md': dict(ensemble='minimize', minimize=1000)},
-                {'md': dict(ensemble='NVT', nsteps=1000)},
-                {'md': dict(ensemble='NPT', nsteps=200)},
-                {'md': dict(ensemble='NPT', nsteps=400)},
-                {'md': dict(ensemble='NPT', nsteps=800)},
-                {'md': dict(ensemble='NPAT', nsteps=1600)},
-                {'md': dict(ensemble='NPAT', nsteps=3200)},
-                {'md': dict(ensemble='NPAT', nsteps=6400)},
-                {'md': dict(ensemble='NPAT', nsteps=12800)},
-                {'md': dict(ensemble='NPAT', nsteps=25600)}]
+            relaxation_protocol = default_relaxation_protocol()
         else:
             logger.debug(f'Using user-specified relaxation protocol:')
             my_logger(relaxation_protocol, logger.debug)
@@ -1060,6 +1158,13 @@ class MakeMembraneSystemTask(BaseTask):
         assert bilayer_state.vel.exists()
         assert bilayer_state.xsc.exists()
         assert bilayer_state.coor.exists()
+        if preserve_state:
+            # A read-only pass: the membrane this ran ON is the membrane that goes forward.
+            # Everything below replaces the state and the calibrated geometry, so a diagnostic
+            # must stop here -- see the `preserve_state` note in this method's docstring.
+            logger.info(f'{bilayer_name}: read-only pass complete; the equilibrated state and '
+                        f'calibrated geometry are unchanged by it')
+            return
         self.subcontroller.pipeline.rekey('state', f'{bilayer_name}_state')
         self.import_artifacts(subcontroller.pipeline)
         bilayer.box, bilayer.origin = _cell_or_raise(

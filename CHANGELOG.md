@@ -4,6 +4,40 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- **The differential-stress diagnostic no longer samples at the wrong temperature, and no longer
+  replaces the membrane it was measuring.** Both reported 2026-10-07 against 3.25.1 from a
+  pseudo-asymmetric PIP2 build, and both confirmed in the code. The diagnostic is opt-in
+  (`diagnose_differential_stress.enabled`), so only builds that switched it on were affected —
+  but for those, both defects touched the number it exists to report.
+
+  **Temperature.** The pass builds its own protocol out of `md` stages and named no temperature,
+  so it took the `md` task's schema default. The two relaxation task types disagree: `md`
+  defaults to 300 K and `membrane_equilibrate` to 310 K. So a build that set no temperature
+  anywhere still equilibrated at 310 K and was diagnosed at 300 K, with nothing in the config to
+  show for it — and a build that set 310 K on every stage, as example 17 does, was diagnosed at
+  300 K anyway, because the protocol never read it. Some of a mismatch cancels in a *difference*
+  of leaflet tensions, but only insofar as the two leaflets share a thermal expansivity, which
+  is exactly what a compositionally asymmetric bilayer does not do.
+
+  The pass now inherits the temperature the quilt's own relaxation protocol ended at, and a new
+  `diagnose_differential_stress.temperature` key overrides it.
+
+  **State hand-off.** The pass runs through `equilibrate_bilayer`, which ends by rekeying its
+  final state over `quilt_state` — and `quilt_state` is what the embed step consumes. So the
+  structure that went forward was the last frame of a fixed-length, *ungated* run whose cell had
+  also relaxed (`surfaceTensionTarget = 0`), in place of the convergence-gated membrane: the
+  calibrated stress-free area was overwritten by wherever the sampling pass happened to drift.
+
+  `equilibrate_bilayer` gained an opt-in `preserve_state` flag, set by the diagnostic alone, that
+  returns before the rekey and leaves the state and the calibrated geometry untouched. The other
+  two call sites — the patch and quilt relaxations, which are *supposed* to advance the membrane
+  — are unchanged.
+
+  The claim that the pass was harmless appeared twice, in the method docstring and verbatim in
+  the schema text ("Diagnostic only; the membrane is not rebuilt"). Both were true about
+  rebuilding and silent about the state that actually reaches the next task; both now say what
+  happens.
+
 ## [3.26.0] - 2026-10-05
 
 - **The on-demand generation cache no longer overrides the conformers pestifer ships.** It is
