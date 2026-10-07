@@ -71,6 +71,27 @@ def _with_element_column(pdb):
     return fh.name
 
 
+def _aliphatic_suffix(mol, ordered):
+    """Split a named carbon run into (pivot, moving tail) at the last substituted carbon.
+
+    A chain is only safe to swing rigidly where it is a plain hydrocarbon.  In a
+    glycerophospholipid it already is -- C21 carries the carbonyl and ester oxygens and
+    everything past it is CH2 -- but a sphingoid base is not: C1S, C2S and C3S carry the backbone
+    oxygen, the amide nitrogen and a hydroxyl.  Rotating from C1S dragged the whole polar head
+    with it and the ceramide came out with its hydroxyls crossing the backbone.
+
+    So walk inward from the tip while each carbon has only carbon neighbours, and pivot on the
+    first substituted one found.
+    """
+    cut = len(ordered) - 1
+    while cut > 0:
+        atom = mol.GetAtomWithIdx(ordered[cut])
+        if any(nb.GetSymbol() not in ('C', 'H') for nb in atom.GetNeighbors()):
+            break
+        cut -= 1
+    return ordered[cut], ordered[cut + 1:]
+
+
 def acyl_chains(names_by_index):
     """``[(pivot, tip, [moving])]`` per acyl chain, in the index space of ``names_by_index``.
 
@@ -93,7 +114,7 @@ def acyl_chains(names_by_index):
     for members in groups.values():
         if len(members) >= MIN_CHAIN_CARBONS:
             members.sort()
-            out.append((members[0][1], members[-1][1], [i for _, i in members[1:]]))
+            out.append([i for _, i in members])
     return out
 
 
@@ -166,13 +187,25 @@ def _read_molecule(pdb):
         atom.SetIntProp(_IDX, atom.GetIdx())
     _assign_formal_charges(mol)
     Chem.SanitizeMol(mol)
+    # STRIP STEREOCHEMISTRY.  Perceiving it from 3D tags every sp3 carbon it can, which on a lipid
+    # means every CH2 in both acyl chains: POPC arrived with 40 chiral atoms, of which one is a
+    # real stereocentre (the glycerol C2) and 39 are artefacts of a single arbitrary MC conformer.
+    # RDKit then wedges a bond at each, and the drawing comes out peppered with tapered bonds that
+    # assert stereochemistry nobody established.  These pages are identity and shape references,
+    # so no stereochemistry is better than stereochemistry read off one conformer out of ten.
+    Chem.RemoveStereochemistry(mol)
     mol = Chem.RemoveAllHs(mol)
     return mol, {a.GetIdx(): names[a.GetIntProp(_IDX)] for a in mol.GetAtoms()}
 
 
 def draw(pdb, out_svg, width=420, height=560, fan_degrees=12.0):
     mol, names_by_index = _read_molecule(pdb)
-    chains, heads = acyl_chains(names_by_index), head_indices(mol)
+    runs, heads = acyl_chains(names_by_index), head_indices(mol)
+    chains = []
+    for ordered in runs:
+        pivot, moving = _aliphatic_suffix(mol, ordered)
+        if moving:
+            chains.append((pivot, moving[-1], moving))
     if not chains:
         raise RuntimeError(f'{pdb}: no acyl chains found -- a sterol, or an unknown naming scheme')
     if not heads:
@@ -215,8 +248,12 @@ def draw(pdb, out_svg, width=420, height=560, fan_degrees=12.0):
                           out_svg[:-4] + '.png' if out_svg.endswith('.svg') else None)):
         if path is None:
             continue
-        drawer.drawOptions().addStereoAnnotation = False
-        drawer.drawOptions().explicitMethyl = False
+        opts = drawer.drawOptions()
+        opts.addStereoAnnotation = False
+        opts.explicitMethyl = False
+        # belt and braces: even with the tags gone, nothing should be drawn as a wedge or hash
+        if hasattr(opts, 'wedgeBonds'):
+            opts.wedgeBonds = False
         rdMolDraw2D.PrepareAndDrawMolecule(drawer, mol)
         drawer.FinishDrawing()
         txt = drawer.GetDrawingText()

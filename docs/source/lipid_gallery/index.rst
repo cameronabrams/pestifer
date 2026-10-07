@@ -92,6 +92,22 @@ before bond perception runs rather than corrected afterwards.
 
 It needs RDKit, which pestifer carries as the optional ``ligand-paramgen`` extra, plus Open Babel.
 
-**Remaining rough edge:** RDKit's depiction decides where the backbone and headgroup sit, and for
-the larger lipids that can be sprawling — a cardiolipin's four tails hang correctly but one curls
-around the headgroup. Fixing that needs a template layout for the backbone, not more rotation.
+Two more things it has to do, both found by looking at the output rather than by reasoning about
+it:
+
+**Stereochemistry is stripped.** Perceiving it from 3D tags every sp3 carbon RDKit can, which on a
+lipid means every CH₂ in both chains — POPC arrived with 40 chiral atoms, of which exactly one is
+a real stereocentre and 39 are artefacts of a single arbitrary conformer. RDKit then wedges a bond
+at each, and the drawing comes out peppered with tapered bonds asserting stereochemistry nobody
+established. These pages are identity and shape references, so no stereochemistry is better than
+stereochemistry read off one conformer out of ten.
+
+**A tail is swung from its last substituted carbon, not from where its name starts.** In a
+glycerophospholipid those coincide — ``C21`` carries the carbonyl and everything past it is CH₂ —
+but a sphingoid base's ``C1S``/``C2S``/``C3S`` carry the backbone oxygen, the amide nitrogen and a
+hydroxyl. Rotating from ``C1S`` dragged the polar head along with the tail and drew a ceramide
+with its hydroxyls crossing its own backbone.
+
+**Remaining rough edge:** RDKit still decides where the backbone and headgroup sit, and on the
+largest lipids that sprawls — a cardiolipin's four tails hang correctly but the headgroup spreads
+wide. Tightening that needs a template layout for the backbone, not more rotation.
