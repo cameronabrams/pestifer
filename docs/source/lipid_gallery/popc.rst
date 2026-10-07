@@ -25,8 +25,12 @@ Structure
 ---------
 
 .. image:: img/popc-structure.svg
-   :width: 320px
-   :alt: Two-dimensional structure of POPC
+   :width: 340px
+   :alt: Two-dimensional structure of POPC, headgroup up and both acyl tails hanging down
+
+Drawn the way lipids conventionally are: headgroup at the top, both tails hanging down, no
+explicit hydrogens. That orientation is derived from the molecule rather than set by hand, so it
+holds for every non-sterol lipid — see :ref:`lipid_gallery index`.
 
 Conformers
 ----------
