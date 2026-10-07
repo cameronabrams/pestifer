@@ -394,6 +394,20 @@ def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: i
 
     total_proposals = n_equil + nsamples * n_decorr
     for step in range(1, total_proposals + 1):
+        # SAMPLE ON A FIXED SCHEDULE, NOT ONLY ON ACCEPTANCE.  This test used to live at the
+        # bottom of the loop, after `n_accept += 1` -- and every rejection path reaches that point
+        # by `continue`, so a checkpoint fired only when the proposal that happened to land on it
+        # was accepted.  At the acceptance rates a confined, overlap-checked lipid actually runs
+        # at, most checkpoints missed, and the shortfall was silently padded below with copies of
+        # the final conformer: the shipped collection held 1416 distinct conformers out of 2690
+        # (53%), no entry reached ten, and one entry was a single conformer repeated ten times.
+        #
+        # Rejecting a move does not mean there is nothing to record: in Metropolis MC the chain
+        # stays in its current state and that state is re-counted.  Sampling belongs on the step
+        # schedule.  Taken at the TOP of the following iteration (and once after the loop) so the
+        # proposal logic below, with its several `continue`s, needs no restructuring.
+        if step > n_equil + 1 and (step - 1 - n_equil) % n_decorr == 0:
+            samples.append(coords.copy())
         bond = mol.rotatable[rng.integers(nbonds)]
         theta = rng.uniform(-max_angle, max_angle)
         trial = _apply_pivot(coords, bond, theta)
@@ -425,13 +439,18 @@ def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: i
         if cap:
             cur_excess = trial_excess
         n_accept += 1
-        if step > n_equil and (step - n_equil) % n_decorr == 0:
-            samples.append(coords.copy())
 
+    # the final checkpoint, which the in-loop test above cannot reach
+    if (total_proposals - n_equil) % n_decorr == 0:
+        samples.append(coords.copy())
     logger.debug(f'run_mc: {n_accept}/{n_attempt} moves accepted '
                  f'({100.0 * n_accept / max(n_attempt, 1):.1f}%); collected {len(samples)} samples')
-    # In the unlikely event decorrelation math left us short (e.g. tiny counts), pad with the
-    # last accepted conformer so callers always get `nsamples` structures.
+    # A genuine safety net now, rather than the normal path.  It used to absorb every checkpoint
+    # that a rejected proposal had skipped -- which is how duplicate conformers reached the
+    # shipped collection -- so if it ever fires again that is worth seeing, not papering over.
+    if len(samples) < nsamples:
+        logger.warning(f'run_mc: collected only {len(samples)} of {nsamples} conformers; padding '
+                       f'with copies of the last. The ensemble will contain duplicates.')
     while len(samples) < nsamples:
         samples.append(coords.copy())
     return samples[:nsamples]

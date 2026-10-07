@@ -4,6 +4,33 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- **The MC sampler collected a conformer only when a move was accepted, so half the shipped
+  ensemble was duplicates.** ``run_mc``'s sample-collection test sat at the bottom of the
+  proposal loop, after the accept counter — and every rejection path reaches that point by
+  ``continue``. A checkpoint therefore fired only if the proposal that happened to land on it was
+  accepted. At the acceptance rates a confined, overlap-checked lipid actually runs at, most
+  checkpoints never fired, and the shortfall was padded with copies of the final conformer by a
+  line whose comment called it "the unlikely event decorrelation math left us short".
+
+  It was not unlikely; it was the normal path. The collection shipped in 3.26.0 holds **1416
+  distinct conformers out of 2690 (53%)**, no entry reaches ten distinct, and one entry is a
+  single conformer repeated ten times. POPC shipped four distinct of ten, one draw repeated
+  seven times. The grid packer draws one conformer per lipid, so a built bilayer was assembled
+  from roughly half the variety its ensemble claimed to offer.
+
+  Rejecting a move does not mean there is nothing to record — in Metropolis MC the chain stays in
+  its current state and that state is re-counted. Sampling now runs on the step schedule.
+  Regenerating POPC with the same seed and settings gives ten distinct conformers, with all four
+  previously-shipped ones still among them: the fix restores draws that padding was swallowing
+  rather than moving the sampler somewhere new. The padding remains as a safety net and now warns
+  if it ever fires.
+
+  Found by drawing the conformers. The duplication was visible in the metadata for anyone who
+  looked, and nobody had; a rendered contact sheet made it obvious at a glance.
+
+  **The shipped collection is not yet regenerated.** The fold guard added above and this fix both
+  land first, so the next collection is one both have gated.
+
 - **Conformer generation now rejects a draw in which any acyl chain fails to descend, and draws a
   replacement.** The collapse guard shipped in 3.26.0 compares a trans-ordered ensemble against its own
   unbiased one, so it is blind to base-phase entries — a base entry *is* the unbiased ensemble and
