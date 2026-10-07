@@ -22,7 +22,8 @@ from rdkit import Chem
 from rdkit.Chem import rdDepictor
 from rdkit.Chem.Draw import rdMolDraw2D
 
-MIN_CHAIN_CARBONS = 8
+MIN_CHAIN_CARBONS = 6
+SUGAR_RING_SIZE = 5
 _IDX = 'pdb_row'
 
 # CHARMM names acyl carbons two different ways and both must be read:
@@ -92,16 +93,26 @@ def _aliphatic_suffix(mol, ordered):
     return ordered[cut], ordered[cut + 1:]
 
 
-def acyl_chains(names_by_index):
-    """``[(pivot, tip, [moving])]`` per acyl chain, in the index space of ``names_by_index``.
+def acyl_chains(mol, names_by_index):
+    """Ordered carbon runs, one per acyl chain, in the index space of ``names_by_index``.
 
     ``pivot`` is the chain's first carbon -- the ester or amide carbonyl -- and the moving set is
     every carbon beyond it.  Rotating that set about the pivot swings the tail rigidly: bond
     lengths and angles within the chain are untouched, and so is the carbonyl oxygen, which hangs
     off the pivot rather than moving with it.
 
-    A short run is not a chain: a glycerophosphocholine's C11-C15 parse as a five-member "chain 1"
-    whose tip sits up in the headgroup, so the length floor is what keeps the headgroup out.
+    Two filters, and the second is the one that is easy to get wrong.
+
+    A short run is not a chain: a glycerophosphocholine's C11-C15 parse as a five-member
+    "chain 1" whose tip sits up in the headgroup, so a length floor keeps the headgroup out.
+    But the floor cannot be the only filter.  At eight it also excluded dihexanoyl PC, whose
+    chains are genuinely six carbons; dropping it to six to admit them pulled in every
+    INOSITOL RING, six carbons that would then be swung downwards as though they were a tail,
+    which would have wrecked all 81 PI drawings.
+
+    So runs touching a ring are rejected -- but only a sugar-sized one.  Rejecting every ring
+    costs the bacterial cardiolipins their cyclopropane arm: PMCL1 carries a real CA9-CA17-CA10
+    cyclopropane and lost a whole chain under a blanket rule.
     """
     groups = {}
     for idx, nm in names_by_index.items():
@@ -110,9 +121,11 @@ def acyl_chains(names_by_index):
             if m:
                 groups.setdefault(m.group('tag'), []).append((int(m.group('pos')), idx))
                 break
+    in_sugar_ring = {i for ring in mol.GetRingInfo().AtomRings()
+                     if len(ring) >= SUGAR_RING_SIZE for i in ring}
     out = []
     for members in groups.values():
-        if len(members) >= MIN_CHAIN_CARBONS:
+        if len(members) >= MIN_CHAIN_CARBONS and not any(i in in_sugar_ring for _, i in members):
             members.sort()
             out.append([i for _, i in members])
     return out
@@ -200,7 +213,7 @@ def _read_molecule(pdb):
 
 def draw(pdb, out_svg, width=420, height=560, fan_degrees=12.0):
     mol, names_by_index = _read_molecule(pdb)
-    runs, heads = acyl_chains(names_by_index), head_indices(mol)
+    runs, heads = acyl_chains(mol, names_by_index), head_indices(mol)
     chains = []
     for ordered in runs:
         pivot, moving = _aliphatic_suffix(mol, ordered)

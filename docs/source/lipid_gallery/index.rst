@@ -80,8 +80,12 @@ across the collection:
   two chains leaving nearby attachments do not draw on top of each other. Rotating about the
   carbonyl leaves every bond length and angle inside the chain untouched.
 
-Verified across six lipid classes — PC, PE, PS, PI, sphingomyelin, ceramide and a four-chain
-cardiolipin — all of which come out in the same orientation.
+Run over the whole collection it draws **276 of 277 entries**, all in the same orientation —
+every PC, PE, PS, PG, PA, PI, sphingomyelin, ceramide, lyso lipid and four-chain cardiolipin,
+and the sterols too, which come out in their own conventional pose with the 3-OH up and the
+iso-octyl tail down. The one entry it declines is ``CHM1``, a twelve-atom ring model compound
+with no acyl chain at all, which it reports rather than guessing at. ``batch2d.py`` runs the
+sweep.
 
 Two things it has to get right that are easy to miss. CHARMM names acyl carbons **two** ways:
 ``C21``/``C318``/``CA16`` puts the chain tag first, while sphingolipids write ``C10S``/``C16F``
@@ -101,6 +105,13 @@ a real stereocentre and 39 are artefacts of a single arbitrary conformer. RDKit 
 at each, and the drawing comes out peppered with tapered bonds asserting stereochemistry nobody
 established. These pages are identity and shape references, so no stereochemistry is better than
 stereochemistry read off one conformer out of ten.
+
+**A run is a chain only if it is long enough AND clear of a sugar-sized ring.** Neither test
+works alone. A floor of eight carbons excluded dihexanoyl PC, whose chains genuinely are six;
+dropping the floor to six to admit them pulled in every inositol RING, six carbons that would
+then be swung downward as if they were a tail — all 81 PI drawings. But rejecting every ring
+costs the bacterial cardiolipins an entire arm, because PMCL1 carries a real CA9–CA17–CA10
+**cyclopropane**. So the filter rejects rings of five or more and lets cyclopropane through.
 
 **A tail is swung from its last substituted carbon, not from where its name starts.** In a
 glycerophospholipid those coincide — ``C21`` carries the carbonyl and everything past it is CH₂ —
