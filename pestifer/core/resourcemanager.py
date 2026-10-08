@@ -428,7 +428,14 @@ class ResourceManager:
         """Return the target collection for ``resname`` (explicit ``collection`` wins)."""
         if collection:
             return collection
-        seg = self.labels.segtype_of_resname.get(resname) or self.labels.segtype_of_resname.get(resname.upper())
+        # A phase-qualified entry ('POPC__Lo') is the same residue's liquid-ordered ensemble, not
+        # a different residue, so the segtype lookup has to be made on the base name.  Without
+        # this, installing a collection that contains any __Lo entry -- and the shipped lipid
+        # collection has 58 of them -- raises 'cannot infer a collection' on the first one, so
+        # the whole collection can only be installed with collection= passed by hand.
+        from ..charmmff.pdbrepository import _LO_SUFFIX
+        base = resname[:-len(_LO_SUFFIX)] if resname.endswith(_LO_SUFFIX) else resname
+        seg = self.labels.segtype_of_resname.get(base) or self.labels.segtype_of_resname.get(base.upper())
         coll = {'ion': 'solvent', 'water': 'solvent'}.get(seg, seg)
         if not coll:
             raise PestiferError(f'cannot infer a collection for {resname} (its segtype is unknown); pass collection= explicitly')

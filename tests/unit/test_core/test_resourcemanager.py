@@ -260,3 +260,43 @@ class TestResourceManager(unittest.TestCase):
         self.assertEqual(self.RM.search_resnames('ZZZZZZ'), [])
 
 
+
+
+class TestPhaseQualifiedEntriesResolveToACollection(unittest.TestCase):
+    """A ``<RESI>__Lo`` entry is the same residue's liquid-ordered ensemble, not a new residue.
+
+    ``_resolve_pdb_collection`` looked the segtype up under the entry's full name, so every
+    phase-qualified entry raised "cannot infer a collection". The shipped lipid collection
+    carries 58 of them, so ``add_pdb_collection`` could not install a regenerated collection at
+    all without ``collection=`` passed by hand -- it raised on the first ``__Lo`` it met.
+
+    Found 2026-10-08 while installing the regenerated collection, and worth recording precisely
+    because the first account of it was WRONG: the report was that the installer keys the
+    destination on the resname and would clobber ``POPC`` with ``POPC__Lo``. It does not. The
+    resname comes from the entry DIRECTORY name, so the entry lands at ``lipid/POPC__Lo/``
+    correctly; only the collection inference was broken. (The clobbering is real, but it belongs
+    to ``do_resi``, which writes to ``out/<resname-from-info.yaml>`` -- a different function.)
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.RM = ResourceManager()
+
+    def test_a_plain_lipid_resolves(self):
+        self.assertEqual(self.RM._resolve_pdb_collection('POPC', None), 'lipid')
+
+    def test_a_phase_qualified_lipid_resolves_to_the_same_collection(self):
+        for name in ('POPC__Lo', 'PSM__Lo', 'CHL1__Lo'):
+            self.assertEqual(self.RM._resolve_pdb_collection(name, None), 'lipid',
+                             f'{name} does not resolve to its base residue\'s collection')
+
+    def test_an_unknown_residue_still_raises(self):
+        """NEGATIVE CONTROL: the suffix strip must not turn the lookup into a blanket default."""
+        from pestifer.core.errors import PestiferError
+        with self.assertRaises(PestiferError):
+            self.RM._resolve_pdb_collection('NOTALIPID', None)
+        with self.assertRaises(PestiferError):
+            self.RM._resolve_pdb_collection('NOTALIPID__Lo', None)
+
+    def test_an_explicit_collection_still_wins(self):
+        self.assertEqual(self.RM._resolve_pdb_collection('POPC__Lo', 'lipid'), 'lipid')
