@@ -1406,6 +1406,26 @@ attributes:
                   square lattice's tight contacts and left the quilt badly under-dense.
                 type: float
                 default: 1.05
+              - name: leaflet_apl
+                text: >-
+                  Per-leaflet area per lipid, in square Angstroms, supplied instead of the value
+                  calibrated from the relaxed symmetric patches. Intended for re-using APLs
+                  measured on a large bilayer that has actually converged: a small patch
+                  systematically mis-states the APL of some mixtures (measured for a PIP2 mix,
+                  45.63 on the patch against 43.47 on a 700-lipid bilayer, a 10% error that left
+                  one leaflet 5% under-filled). Supply upper, lower, or both; whichever is omitted
+                  stays calibrated. This replaces a number pestifer otherwise earns, so pestifer
+                  cannot tell whether what you supply came from a converged run -- the patch
+                  calibration still runs, its convergence is still checked and reported, and both
+                  the supplied and the displaced values are logged.
+                type: dict
+                attributes:
+                  - name: upper
+                    text: area per lipid of the upper leaflet, in square Angstroms
+                    type: float
+                  - name: lower
+                    text: area per lipid of the lower leaflet, in square Angstroms
+                    type: float
               - name: seed
                 text: RNG seed (optional)
                 type: int
