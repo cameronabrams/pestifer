@@ -95,6 +95,81 @@ The median entry has no failing conformer at all (median per-conformer minimum r
 failing -- needs several.  Bounded so a pathological entry fails loudly instead of looping."""
 
 
+_MAX_CHAINS_WITHOUT_STRETCH = 2
+"""A molecule with more than this many acyl chains is crowded enough that the MC sampler
+cannot open a closed chain on its own.
+
+Crowding alone is not the trigger -- see :func:`stretch_before_sampling`.  Twelve TWO-chain
+entries are built just as coiled as the cardiolipins and the sampler opens every one of them
+(worst arm, medians 0.48-0.83), so stretching them would be churn on working entries."""
+
+_MIN_IC_END_TO_END = 1.0 / 3.0
+"""A chain whose IC-built ends sit closer than this fraction of its contour is coiled, not bent.
+
+End-to-end over contour rather than an axial drop, because this is measured BEFORE the orient
+step and so must not depend on which way the molecule points.
+
+The cut separates the two groups cleanly rather than being fitted to one: every CL2-type
+cardiolipin sits at 0.28 and every one of them is fixed by stretching, while PMCL2 at 0.36 and
+the CL1 entries at 0.44 are not -- stretching those made them WORSE, PMCL2 so much so that it
+stopped generating at all."""
+
+
+def stretch_before_sampling(sampler: str, n_chains: int, min_end_to_end: float) -> bool:
+    """Should the colvar-driven stretch run before this molecule is sampled?
+
+    Always for the vacuum-MD sampler, whose ensemble comes out of the stretched state.
+
+    For the athermal-MC sampler only when BOTH hold: the molecule is crowded (more than
+    :data:`_MAX_CHAINS_WITHOUT_STRETCH` chains) AND its IC-built structure leaves some chain
+    coiled (end-to-end under :data:`_MIN_IC_END_TO_END` of its contour).  Stretching pushes
+    tails into a rod, which is what this sampler exists to avoid, so it has to be earned.
+
+    Neither condition suffices alone, and both single-condition rules were tried and measured:
+
+    * Crowding alone stretches every cardiolipin.  That fixes the CL2 family but regresses the
+      CL1 entries, which were already healthy, and stops PMCL1/PMCL2 generating entirely --
+      12 improved against 8 worse or failing.
+    * A coiled start alone also catches twelve two-chain entries (DDOPC, SDPC, PDOPE and
+      friends) that are just as coiled and that the sampler opens perfectly well by itself.
+
+    Together they select exactly the entries where a chain starts closed and the sampler
+    cannot open it.
+    """
+    if sampler != 'mc':
+        return True
+    return n_chains > _MAX_CHAINS_WITHOUT_STRETCH and min_end_to_end < _MIN_IC_END_TO_END
+
+
+def _read_pdb_names_coords(path):
+    """Atom names and coordinates from a PDB, in file order.
+
+    A local reader rather than the project parser: this runs inside the collection builder on a
+    single-molecule file it has just written itself, and the decision it feeds must not depend
+    on anything heavier being importable.
+    """
+    names, xyz = [], []
+    with open(path) as fh:
+        for line in fh:
+            if line.startswith(('ATOM', 'HETATM')):
+                names.append(line[12:16].strip())
+                xyz.append([float(line[30 + 8 * i:38 + 8 * i]) for i in range(3)])
+    return names, np.array(xyz)
+
+
+def min_end_to_end_over_contour(coords, chain_rows) -> float:
+    """Smallest chain end-to-end distance as a fraction of its all-trans contour.
+
+    Rotation-invariant on purpose: this is read off the structure built from internal
+    coordinates, before anything has oriented the molecule along the membrane normal, so an
+    axial measure would be reading an arbitrary direction.
+    """
+    if not chain_rows:
+        return float('inf')
+    return min(float(np.linalg.norm(coords[a] - coords[t])) / ((n - 1) * _TRANS_CC_RISE)
+               for a, t, n in chain_rows)
+
+
 def acyl_chain_rows(names: list[str], min_length: int = 8) -> list[tuple[int, int, int]]:
     """``[(attachment_row, tip_row, n_carbons)]`` for each real acyl chain.
 
@@ -544,6 +619,7 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
     ]
     heads = []
     chain_info = []
+    pending_stretch = None
     if stream == 'lipid':
         topo.lipid_annotate()
         ano = topo.annotation
@@ -596,8 +672,35 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             assert 'minimize' not in base_md
             logger.debug(f'base_md {base_md}')
             # The colvar-driven stretch pushes tails apart into a 'standard' (rod-like) shape --
-            # exactly what the athermal-MC sampler must avoid, so skip it for sampler='mc'.
-            if sampler != 'mc':
+            # exactly what the athermal-MC sampler exists to avoid, so it is skipped for
+            # sampler='mc' ... EXCEPT on a multi-arm lipid, where skipping it is worse.
+            #
+            # That exception was measured, not assumed.  A cardiolipin's four chains are built
+            # from internal coordinates into a crowded coil around one backbone, and the MC
+            # sampler -- torsional, with overlap rejection -- opens three of them and leaves the
+            # fourth closed.  Across the SIX CL2-type cardiolipins the same arm sits in a band of
+            # about 0.24-0.28 of its all-trans contour while its three siblings span 0.4-0.9: a
+            # band roughly ten times narrower, straddling the 0.25 fold threshold, so which side
+            # an entry falls on is near-arbitrary.  LNACL2 falls below it and cannot be generated
+            # at all; TLCL2 clears it by a hundredth.
+            #
+            # Run the stretch first and the same arm reaches 0.77 (LNACL2: A 0.82, B 0.77, C 0.67,
+            # D 0.62), so nothing about the molecule prevents it -- only where the sampler starts.
+            # Melting a rod back to a fluid ensemble is the one thing this sampler is known to do
+            # well, which is why stretching first is the cheaper trade here than leaving an arm
+            # that never opens.
+            #
+            # Two-chain lipids are deliberately untouched: they are not crowded, their worst arm
+            # sits at a median of 0.71, and re-rodding them would risk the ordering the sampler
+            # was built to avoid for no gain.
+            #
+            # But the decision cannot be made HERE.  It turns on how coiled the IC-built
+            # structure is, and psfgen has not written it yet -- this tasklist is built BEFORE
+            # the Controller that runs psfgen exists.  So hold the stage and splice it in once
+            # there is a structure to measure.
+            if sampler == 'mc':
+                pending_stretch = {'md': base_md}
+            else:
                 tasklist.append({'md': base_md})
     else:
         my_logger(f'{resid} is from stream {stream}', logger.debug, just='^', frame='!', fill='!')
@@ -622,7 +725,9 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
         tasklist.append({'md': base_md})
         logger.debug(f'base_md (2): {base_md}')
     # All NAMD runs for PDB collection are single-molecule vacuum runs; restrict to 1 core.
-    for task_dict in tasklist:
+    # `pending_stretch` is not in `tasklist` yet -- it is spliced in after psfgen -- so it has
+    # to be included by hand here or it would be the one stage that runs multi-core.
+    for task_dict in tasklist + ([pending_stretch] if pending_stretch is not None else []):
         if 'md' in task_dict:
             task_dict['md']['single-core'] = True
     userspecs = {'title': f'Build PDBCollection entry for {resid}', 'tasks': tasklist}
@@ -659,6 +764,23 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             with open(f'{resid}-topo.rtf', 'w') as f:
                 topo.to_file(f)
             return -3
+
+    # psfgen has now written {resid}-init.pdb, so the coiled-ness of the IC build can finally be
+    # measured -- and it must be measured HERE rather than guessed at tasklist-construction time,
+    # where an earlier version of this read a file that did not exist yet.
+    if pending_stretch is not None:
+        ic_names, ic_coords = _read_pdb_names_coords(f'{resid}-init.pdb')
+        ic_min_ee = min_end_to_end_over_contour(ic_coords, acyl_chain_rows(ic_names))
+        if stretch_before_sampling(sampler, len(chain_info), ic_min_ee):
+            logger.info(f'{resid}: stretching before MC -- {len(chain_info)} chains, and a chain '
+                        f'built at {ic_min_ee:.2f} of its contour end to end')
+            spliced = list(userspecs['tasks'])
+            at = next((i for i, t in enumerate(spliced) if 'manipulate' in t), len(spliced))
+            spliced.insert(at, pending_stretch)
+            C.reconfigure_tasks(spliced)
+        else:
+            logger.debug(f'{resid}: no stretch -- {len(chain_info)} chains, min end-to-end '
+                         f'{ic_min_ee:.2f}')
 
     # now run the tasks to minimize, stretch, orient along z, equilibrate, and sample
     tasks = C.tasks
