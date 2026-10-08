@@ -19,6 +19,7 @@ from unittest import mock
 import networkx as nx
 import numpy as np
 
+from pestifer.objs.resid import ResID
 from pestifer.tasks.psfgen import PsfgenTask, _resid_seqnum
 
 
@@ -648,7 +649,7 @@ class TestEnumerateProteinLoops(unittest.TestCase):
     bridging two anchors, and is handled by the tail modeler instead.
     """
 
-    def _segment(self, segname='A', segtype='protein', subsegs=(), n_residues=50):
+    def _segment(self, segname='A', segtype='protein', subsegs=(), n_residues=50, resids=None):
         S = mock.Mock()
         S.segname = segname
         S.segtype = segtype
@@ -657,7 +658,11 @@ class TestEnumerateProteinLoops(unittest.TestCase):
         S.subsegments.data = sub
         S.subsegments.__len__ = mock.Mock(return_value=len(sub))
         S.subsegments.index = lambda x: sub.index(x)
-        S.residues.data = [mock.Mock(resid=mock.Mock(resseqnum=i + 1)) for i in range(n_residues)]
+        # Real ResIDs, not resseqnum stand-ins: the enumerator carries the whole ResID so an
+        # insertion-coded loop can be addressed downstream, and a mock that only has a
+        # resseqnum cannot tell a correct enumerator from one that drops the field.
+        ids = resids if resids is not None else [ResID(i + 1) for i in range(n_residues)]
+        S.residues.data = [mock.Mock(resid=r) for r in ids]
         return S
 
     def _enumerate(self, segments, chainmaps=None, min_length=4, include_c_termini=False):
@@ -680,7 +685,29 @@ class TestEnumerateProteinLoops(unittest.TestCase):
         self.assertEqual(len(got), 1)
         segname, resids = got[0]
         self.assertEqual(segname, 'A')
-        self.assertEqual(resids, list(range(11, 21)))
+        self.assertEqual(resids, [ResID(i) for i in range(11, 21)])
+
+    def test_an_insertion_coded_loop_keeps_its_insertion_codes(self):
+        """The reason the enumerator carries a ResID rather than an int.
+
+        A loop numbered 100, 100A, 100B ... is one residue to anything comparing resseqnum alone.
+        Unpacking to an int here threw the field away before the residue lookups downstream --
+        which used to drop it a second time -- so the declasher addressed the wrong residues, or
+        none.
+        """
+        ids = ([ResID(i + 1) for i in range(10)]
+               + [ResID('100'), ResID('100A'), ResID('100B'), ResID('100C'),
+                  ResID('100D'), ResID('100E'), ResID('100F'), ResID('100G'),
+                  ResID('100H'), ResID('100I')]
+               + [ResID(i + 101) for i in range(30)])
+        seg = self._segment(subsegs=[('RESOLVED', (0, 9)), ('MISSING', (10, 19)),
+                                     ('RESOLVED', (20, 49))], resids=ids)
+        _, resids = self._enumerate([seg])[0]
+        self.assertEqual([str(r) for r in resids],
+                         ['100', '100A', '100B', '100C', '100D',
+                          '100E', '100F', '100G', '100H', '100I'])
+        self.assertEqual(len({str(r) for r in resids}), 10,
+                         'the insertion codes were dropped, collapsing ten residues onto one')
 
     def test_a_short_gap_is_not_worth_declashing(self):
         seg = self._segment(subsegs=[('RESOLVED', (0, 9)), ('MISSING', (10, 11)),

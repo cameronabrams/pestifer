@@ -997,7 +997,11 @@ class PsfgenTask(VMDTask):
                     is_processible = False
                 if not is_processible:
                     continue
-                resids = [r.resid.resseqnum for r in S.residues.data[b.bounds[0]:b.bounds[1] + 1]]
+                # Carry the whole ResID, insertion code and all.  Unpacking it to an int
+                # here is the same field-dropping the two residue lookups used to do, one
+                # layer up: a loop over insertion-coded residues would address the wrong
+                # ones (or none).
+                resids = [r.resid for r in S.residues.data[b.bounds[0]:b.bounds[1] + 1]]
                 for transform in ba.transforms:
                     out.append((transform.chainIDmap.get(S.segname, S.segname), resids))
         return out
@@ -1017,7 +1021,9 @@ class PsfgenTask(VMDTask):
         not_nhn = ~np.isin(names, ['N', 'HN'])
         for segname, resids in loops:
             seg_mask = seg == segname
-            loop_mask = seg_mask & np.isin([a.resid.resseqnum for a in cm.atoms.data], resids)
+            # Match on the full resid ('100A', not 100) so the mask tracks the ResIDs above.
+            loop_keys = {str(r) for r in resids}
+            loop_mask = seg_mask & np.array([str(a.resid) in loop_keys for a in cm.atoms.data])
             env_heavy = np.nonzero(heavy & ~loop_mask)[0]
             try:
                 r_end = cm.residue_of_segname(segname, resids[-1])

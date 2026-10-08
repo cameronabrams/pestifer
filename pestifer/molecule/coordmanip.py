@@ -22,6 +22,7 @@ import numpy as np
 
 from pidibble.pdbparse import PDBParser
 
+from ..objs.resid import ResID
 from .atom import AtomList
 from .transform import Transform
 from ..core.labels import Labels
@@ -353,19 +354,40 @@ class CoordManipulator:
                     self._rchain[ridx[i]] = a.chainID
         return self._ridx
 
-    def _residue_of(self, chain, resid) -> int:
-        """VMD residue index of ``chain``/``resid`` (matched at its CA, else any atom)."""
+    def _find_residue(self, resid, match) -> int | None:
+        """VMD residue index of the residue picked out by ``match`` and ``resid``, preferring its
+        CA; ``None`` if nothing matches.
+
+        One implementation for both lookups below.  They used to be two copies of this loop and
+        **both copies compared ``resseqnum`` alone**, while :meth:`_residue_index`, which they
+        index into, keys each residue on ``(segname, resseqnum, insertion)``.  So with residues
+        100, 100A and 100B in one segment the lookup was ambiguous -- it resolved to whichever
+        atom came first in atom order -- and an insertion-coded residue could not be addressed at
+        all.  Three consumers of one idea; the index got it right and the two lookups on top of
+        it dropped the field.
+        """
+        want = resid if isinstance(resid, ResID) else ResID(resid)
         ridx = self._residue_index()
         cand = None
         for i, a in enumerate(self.atoms.data):
-            if a.chainID == chain and a.resid.resseqnum == resid:
+            if match(a) and a.resid == want:
                 if a.name == 'CA':
                     return int(ridx[i])
                 if cand is None:
                     cand = int(ridx[i])
-        if cand is None:
-            raise CoordManipulateError(f'crot: residue chain {chain} resid {resid} not found')
         return cand
+
+    def _residue_of(self, chain, resid) -> int:
+        """VMD residue index of ``chain``/``resid`` (matched at its CA, else any atom).
+
+        ``resid`` may be a :class:`~pestifer.objs.resid.ResID`, a string like ``100A``, or a bare
+        int.  A bare int means *this resseqnum with no insertion code*, strictly -- never "any
+        residue with this resseqnum".
+        """
+        r = self._find_residue(resid, lambda a: a.chainID == chain)
+        if r is None:
+            raise CoordManipulateError(f'crot: residue chain {chain} resid {resid} not found')
+        return r
 
     def _same_chain(self, q, r) -> bool:
         ridx = self._residue_index()
@@ -386,17 +408,17 @@ class CoordManipulator:
         chain = (chainIDmap or {}).get(crot.chainID, crot.chainID)
         angle = crot.angle
         if angle in ('PHI', 'PSI', 'OMEGA'):
-            r0 = self._residue_of(chain, crot.resid1.resseqnum)
-            r1 = self._residue_of(chain, crot.resid2.resseqnum)
+            r0 = self._residue_of(chain, crot.resid1)
+            r1 = self._residue_of(chain, crot.resid2)
             direction = 'C' if crot.resid1 <= crot.resid2 else 'N'
             self._brot(r0, r1, angle.lower(), direction, crot.degrees)
         elif angle in ('CHI1', 'CHI2'):
-            r0 = self._residue_of(chain, crot.resid1.resseqnum)
+            r0 = self._residue_of(chain, crot.resid1)
             self._brot(r0, -1, 'chi', int(angle[-1]), crot.degrees)
         elif angle == 'ALPHA':
-            rb = self._residue_of(chain, crot.resid1.resseqnum)
-            re = self._residue_of(chain, crot.resid2.resseqnum)
-            rt = self._residue_of(chain, crot.resid3.resseqnum)
+            rb = self._residue_of(chain, crot.resid1)
+            re = self._residue_of(chain, crot.resid2)
+            rt = self._residue_of(chain, crot.resid3)
             self._fold_alpha(rb, re, rt)
         elif angle == 'ANGLEIJK':
             raise CoordManipulateError('ANGLEIJK is deprecated; use a transrot AXISANGLE instead')
@@ -450,18 +472,15 @@ class CoordManipulator:
         self.coords = coords
 
     def residue_of_segname(self, segname, resid) -> int:
-        """VMD residue index of ``segname``/``resid`` (matched at its CA, else any atom)."""
-        ridx = self._residue_index()
-        cand = None
-        for i, a in enumerate(self.atoms.data):
-            if a.segname == segname and a.resid.resseqnum == resid:
-                if a.name == 'CA':
-                    return int(ridx[i])
-                if cand is None:
-                    cand = int(ridx[i])
-        if cand is None:
+        """VMD residue index of ``segname``/``resid`` (matched at its CA, else any atom).
+
+        ``resid`` may be a :class:`~pestifer.objs.resid.ResID`, a string like ``100A``, or a bare
+        int; see :meth:`_find_residue` for why the insertion code is part of the match.
+        """
+        r = self._find_residue(resid, lambda a: a.segname == segname)
+        if r is None:
             raise CoordManipulateError(f'residue segname {segname} resid {resid} not found')
-        return cand
+        return r
 
     def apply_scrot(self, chi, residue_index, deg):
         """
