@@ -136,8 +136,23 @@ class TestPDBRepository(unittest.TestCase):
         # headgroup (90% of PE/PS conformers had been folding a chain back out of the
         # membrane), then a deterministic pre-pass that unfolds a conformer BUILT folded.
         # A change here is a prompt to ask WHICH way and why, not to re-pin on sight.
-        self.assertAlmostEqual(c.info['conformers'][0]['head-tail-length'], 13.188, places=3)
-        self.assertAlmostEqual(c.info['conformers'][0]['max-internal-length'], 20.922, places=3)
+        #
+        # 2026-10-08: pinned BY NAME rather than at `conformers[0]`.  That list is built by a
+        # glob, so its order is the filesystem's: `conformers[0]` was PSM-04, and re-tarring the
+        # same collection in a different order would have moved this number with nothing about
+        # the science having changed.  A watermark on an arbitrary list position measures the
+        # wrong thing.
+        #
+        # PSM-00 went 14.155 -> 14.348 on the same date, when the collection was regenerated with
+        # the `run_mc` sampling-schedule fix.  WHICH way and why: the shipped PSM ensemble was
+        # 7 distinct conformers of 10, with 15.00 repeated four times -- the sample checkpoint sat
+        # inside the accepted-move branch, so most checkpoints never fired and the shortfall was
+        # padded with copies of the final draw.  Regenerated it is 10 of 10, and the three new
+        # values (13.40, 14.35, 14.75) displace three of those four duplicates.  So this is a
+        # draw that padding used to swallow, not the sampler moving somewhere new.
+        psm00 = next(e for e in c.info['conformers'] if e['pdb'] == 'PSM-00.pdb')
+        self.assertAlmostEqual(psm00['head-tail-length'], 14.348, places=3)
+        self.assertAlmostEqual(psm00['max-internal-length'], 21.377, places=3)
 
     def test_pdbrepository_checkout_tip3(self):
         c = self.pdbrepo.checkout('TIP3')

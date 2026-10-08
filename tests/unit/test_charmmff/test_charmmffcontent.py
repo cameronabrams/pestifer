@@ -121,14 +121,14 @@ class TestCharmmffContent(unittest.TestCase):
         params=c.get_parameters()
         self.assertIn('toppar_all36_lipid_sphingo.str',params)
         self.assertEqual(len(c.info['conformers']),10)
-        # Watermark on the SHIPPED conformer collection, not an invariant: it moves whenever the
-        # collection is regenerated.  2026-10-02 it went 11.389 -> 13.188 when the MC sampler
-        # passes that day: the MC sampler gained an axial penalty holding acyl tails below the
-        # headgroup (90% of PE/PS conformers had been folding a chain back out of the
-        # membrane), then a deterministic pre-pass that unfolds a conformer BUILT folded.
+        # Watermark on the SHIPPED conformer collection -- the same one pinned in
+        # test_pdbrepository.py::test_pdbrepository_checkout_fromtar, which carries the full
+        # history and the reason this is pinned BY NAME rather than at conformers[0] (that list
+        # is in glob order, so position 0 is whatever the filesystem hands back).
         # A change here is a prompt to ask WHICH way and why, not to re-pin on sight.
-        self.assertAlmostEqual(c.info['conformers'][0]['head-tail-length'],13.188,places=2)
-        self.assertAlmostEqual(c.info['conformers'][0]['max-internal-length'],20.922,places=2)
+        psm00 = next(e for e in c.info['conformers'] if e['pdb'] == 'PSM-00.pdb')
+        self.assertAlmostEqual(psm00['head-tail-length'],14.348,places=2)
+        self.assertAlmostEqual(psm00['max-internal-length'],21.377,places=2)
         c.get_pdb(0)
         self.assertTrue(os.path.exists('PSM-00.pdb'))
         os.remove('PSM-00.pdb')

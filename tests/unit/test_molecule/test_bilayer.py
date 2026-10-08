@@ -427,7 +427,25 @@ class TestBilayer(unittest.TestCase):
         # been built pointing out of the membrane.  Only this watermark moved on 10-03 -- the
         # head-tail-length ones did not -- because arm pivots reach only multi-arm lipids, and the
         # box z is set by the tallest conformer in the whole collection.
-        assert test_bilayer.patch_ur_corner[2]==pytest.approx(79.31, rel=1e-2)
+        #
+        # 79.31 -> 74.92 on 2026-10-08, from two changes that both shorten a leaflet in z and are
+        # the same change underneath.  WHICH way and why:
+        #   - The collection was regenerated with the `run_mc` sampling-schedule fix.  The shipped
+        #     set was 53% distinct (1416 of 2690) because the sample checkpoint sat inside the
+        #     accepted-move branch, so the shortfall was padded with copies of the final, most
+        #     extended draw.  A genuinely melted ensemble is shorter in z than one padded with
+        #     rods: this is the "removing a FOLD" direction above, applied to the whole collection
+        #     at once.  Regenerated it is 2690 of 2690 distinct, with 0 folded conformers
+        #     against 123.
+        #   - Leaflet registration moved from the head marker to the polar/apolar interface.  The
+        #     old rule placed each species' head at its own ensemble-MEAN anchor-to-tail distance,
+        #     which made the RELATIVE placement of two species depend on how melted their
+        #     ensembles happened to be -- and with an honest ensemble it put a rigid sterol's
+        #     hydroxyl 1.17 A ABOVE the phosphates.  See
+        #     test_a_sterol_is_not_placed_coplanar_with_the_phosphates.
+        # Built P-P on a 50:50 POPC:CHL1 patch goes 46.75 -> 39.88 A across the pair, against
+        # ~38 A measured for POPC, so this watermark moving down is the error getting smaller.
+        assert test_bilayer.patch_ur_corner[2]==pytest.approx(74.92, rel=1e-2)
         self.RM.charmmff_content.clean_local_charmmff_files()
 
         os.chdir('..')

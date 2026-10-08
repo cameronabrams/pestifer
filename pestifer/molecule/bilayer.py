@@ -5,6 +5,7 @@ A module for handling bilayer structures in molecular simulations.
 
 import copy
 import logging
+from collections import Counter
 
 import numpy as np
 
@@ -171,6 +172,23 @@ def _lipid_anchor_index(coords, lines, head_i):
         return head_i
     d2 = ((coords[o_idxs] - coords[head_i]) ** 2).sum(axis=1)
     return o_idxs[int(np.argmin(d2))]
+
+
+#: Atom-name first characters that mark a polar atom in the shipped lipid collection.  Measured
+#: rather than assumed: across all 277 entries and 2698 conformers the first character of every
+#: atom name is one of C, H, O, P, N -- no leading digits, no two-letter metals -- so a
+#: first-character test is exact here.  (The conformer PDBs leave the element column blank, which
+#: is why the name is what there is to read; a reader that guessed harder would read a
+#: cardiolipin's ``CA16`` as calcium.)
+_POLAR_FIRST_CHARS = frozenset('NOP')
+
+
+def _polar_rows(lines):
+    """Row indices of a conformer's polar (N/O/P) atoms -- its headgroup region.
+
+    Used to locate the polar/apolar interface, the depth a leaflet's species genuinely share.
+    """
+    return [i for i, ln in enumerate(lines) if ln[12:16].strip()[:1] in _POLAR_FIRST_CHARS]
 
 
 def specstrings_builddict(lipid_specstring='', lipid_ratio_specstring='', lipid_conformers_specstring='',
@@ -756,16 +774,55 @@ class Bilayer:
             #
             # Heads stay banded WITHIN a species, which is what the co-planar rule was protecting;
             # it is only the band-sharing ACROSS chemically different species that was wrong.
-            def _mean_anchor_offset(confs):
-                vs = [c[_lipid_anchor_index(c, ln, hi), 2] - c[list(ti), 2].mean()
-                      for c, ln, hi, ti in confs
-                      if _lipid_anchor_index(c, ln, hi) is not None and ti is not None]
-                return float(np.mean(vs)) if vs else 0.0
-            sp_off = {nm2: _mean_anchor_offset(confs) for nm2, confs in cache.items()}
+            # Register the leaflet at the POLAR/APOLAR INTERFACE, and give each species its own
+            # rigid height above it.  Two quantities, and only one of them is a property of the
+            # conformer ensemble:
+            #
+            #   iface_off  anchor -> lowest polar (N/O/P) atom.  Headgroup geometry: P sits 5.19 A
+            #              above POPC's deepest ester oxygen, 5.23 for POPE, 2.99 for PSM, and
+            #              0.00 for CHL1, whose anchor IS its 3-hydroxyl.  Rigid -- identical to
+            #              0.01 A between the 3.26.0 collection and its regeneration, whose
+            #              ensembles differ completely.  This sets the RELATIVE head heights.
+            #   depth      interface -> mean tail z.  How far that species' tails actually reach,
+            #              which legitimately depends on how melted the ensemble is.  Composition-
+            #              weighted over the leaflet, it sets the ABSOLUTE thickness.
+            #
+            # This used to be one number, `anchor -> mean tail z`, taken per species.  That makes
+            # the RELATIVE placement of two species depend on their ensembles' extension, and the
+            # two are not comparable: a melted phospholipid's tails reach less far than a rigid
+            # sterol's, so POPC's offset (15.76 A) came out BELOW CHL1's (16.93), putting the
+            # sterol hydroxyl 1.17 A ABOVE the phosphate plane.  It only ever looked right because
+            # the shipped POPC ensemble was seven copies of one extended draw -- the `run_mc`
+            # padding bug -- which biased its mean 6.6 A high and accidentally cleared the sterol.
+            # Fixing the sampler exposed it.  Interface-aligned, the sterol lands 5.19 A below the
+            # phosphates with no reference to either ensemble, which is the -4.4 to -5.1 A measured
+            # on equilibrated ex17 patches.
+            def _species_geometry(confs):
+                offs, deps = [], []
+                for c, ln, hi, ti in confs:
+                    ai = _lipid_anchor_index(c, ln, hi)
+                    pol = _polar_rows(ln)
+                    if ai is None or ti is None or not pol:
+                        continue
+                    iz = float(c[pol, 2].min())
+                    offs.append(float(c[ai, 2]) - iz)
+                    deps.append(iz - float(c[list(ti), 2].mean()))
+                if not offs:
+                    return 0.0, 0.0
+                return float(np.mean(offs)), float(np.mean(deps))
+
+            sp_geom = {nm2: _species_geometry(confs) for nm2, confs in cache.items()}
+            _n = Counter(bag)
+            _tot = sum(_n.values())
+            depth = (sum(_n[nm2] * sp_geom.get(nm2, (0.0, 0.0))[1] for nm2 in _n) / _tot
+                     if _tot else 0.0)
+            sp_off = {nm2: depth + g[0] for nm2, g in sp_geom.items()}
             if bag:
                 _by_sp = {nm2: target_z + (o if upper else -o) for nm2, o in sp_off.items()}
-                logger.debug(f'{"upper" if upper else "lower"} leaflet head planes (per species): '
-                             + ', '.join(f'{k} {v:.2f} (offset {sp_off[k]:.2f})'
+                logger.debug(f'{"upper" if upper else "lower"} leaflet interface depth {depth:.2f}; '
+                             + 'head planes (per species): '
+                             + ', '.join(f'{k} {v:.2f} (iface_off {sp_geom[k][0]:.2f}, '
+                                         f'offset {sp_off[k]:.2f})'
                                          for k, v in sorted(_by_sp.items())))
             k = 0
             for row in range(ny):
