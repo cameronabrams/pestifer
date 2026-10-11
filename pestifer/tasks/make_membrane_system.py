@@ -648,47 +648,6 @@ class MakeMembraneSystemTask(BaseTask):
         logger.debug(f'build_grid_membrane: {n_target} lipids per leaflet (aspect {aspect:.2f})')
         self._grid_membrane(dict(upper=n_target, lower=n_target), SAPL, aspect)
 
-    @staticmethod
-    def _apply_leaflet_apl_override(bs, apl_upper, apl_lower):
-        """Replace either calibrated APL with one the user supplied under ``bilayer.leaflet_apl``.
-
-        Both values already flow through the stress-free count logic below, so this is an
-        injection point on two existing variables, not new machinery.  It exists because a small
-        calibration patch systematically mis-states the APL of some mixtures: measured for a PIP2
-        mix, 45.63 on the patch against 43.47 on a 700-lipid bilayer, a 10% error that left one
-        leaflet ~5% under-filled.  Someone who has already equilibrated a large bilayer of the
-        same composition holds a better number than this task can derive.
-
-        **The calibration is not skipped, and its convergence check is not skipped.**  pestifer
-        cannot tell whether a supplied APL came from a converged run, so an override makes an
-        unconverged number easier to USE, not more correct -- and the failure it is most often
-        reached for (a calibration cell that had not equilibrated) is one the existing drift
-        warning already names.  Keeping the calibration means the warning still fires, and that
-        the log carries both numbers: a supplied APL far from the calibrated one is either the
-        patch being wrong, which is the case this is for, or the supplied value being wrong, and
-        the reader needs to see both to tell which.
-        """
-        spec = (bs or {}).get('leaflet_apl') or {}
-        if not spec:
-            return apl_upper, apl_lower
-        out = {'upper': apl_upper, 'lower': apl_lower}
-        for which in ('upper', 'lower'):
-            given = spec.get(which)
-            if given is None:
-                continue
-            given = float(given)
-            if given <= 0.0:
-                raise ValueError(f'bilayer.leaflet_apl.{which} must be positive, got {given}')
-            calibrated = out[which]
-            pct = 100.0 * (given - calibrated) / calibrated
-            logger.warning(
-                f'OVERRIDE: {which} leaflet APL supplied as {given:.2f} {sA2_}, replacing the '
-                f'{calibrated:.2f} {sA2_} calibrated from the relaxed patch ({pct:+.1f}%). '
-                f'pestifer cannot verify that the supplied value came from a converged run; the '
-                f'patch calibration above still ran and its convergence is reported there.')
-            out[which] = given
-        return out['upper'], out['lower']
-
     def build_grid_membrane_asymmetric(self):
         """Build a stress-free asymmetric membrane directly by grid placement.
 
@@ -743,7 +702,6 @@ class MakeMembraneSystemTask(BaseTask):
                     f'(area drift {100 * drift:+.2f}%); its preferred APL '
                     f'({apl:.2f} {sA2_}) and the resulting stress-free leaflet '
                     f'counts may be unreliable. Lengthen bilayer.relaxation_protocols.patch.')
-        apl_upper, apl_lower = self._apply_leaflet_apl_override(bs, apl_upper, apl_lower)
         if self.embedding:
             # size the common box to the protein footprint and place each leaflet at its own
             # preferred APL there; this keeps the stress-free ratio n_upper/n_lower = apl_lo/apl_up
