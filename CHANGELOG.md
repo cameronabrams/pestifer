@@ -28,8 +28,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   Found by drawing the conformers. The duplication was visible in the metadata for anyone who
   looked, and nobody had; a rendered contact sheet made it obvious at a glance.
 
-  **The shipped collection is not yet regenerated.** The fold guard added above and this fix both
-  land first, so the next collection is one both have gated.
+  **The collection IS regenerated in this release** (see below), so the ensemble that ships is one
+  this fix produced rather than one audited afterwards.
 
 - **Conformer generation now rejects a draw in which any acyl chain fails to descend, and draws a
   replacement.** The collapse guard shipped in 3.26.0 compares a trans-ordered ensemble against its own
@@ -55,8 +55,79 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   folded ensemble. It is a tail-rejection and deliberately not a ranking: keeping the most-extended
   conformers would bias every ensemble toward order and could thicken every bilayer built from it.
 
-  **The shipped collection is not yet regenerated** — this release lands the guard only, so that
-  the next collection is one the guard gated rather than one audited afterwards.
+  **The collection IS regenerated in this release** (see below), so the guard gated the ensemble
+  that ships rather than being applied to one after the fact.
+
+- **The lipid conformer collection is regenerated, and leaflets are now registered at the
+  polar/apolar interface rather than at each species' head marker.** Two defects that had been
+  cancelling each other, which is why neither was visible.
+
+  The regenerated collection goes from **1416 distinct conformers of 2690 (53%) to 2690 of 2690**,
+  and from **123 folded conformers in 45 entries to none**. One entry, the cardiolipin ``LNACL2``,
+  is generatable for the first time. The eight sterols are ``sampler: single``, were not
+  regenerated, and are byte-identical to 3.26.0.
+
+  Installing it exposed the second defect. The grid packer placed each species' head marker at
+  that species' ensemble-**mean** anchor-to-tail distance, which makes the *relative* placement of
+  two species a function of how melted their ensembles happen to be — and a melted phospholipid is
+  not comparable to a rigid sterol that way. With an honest POPC ensemble, POPC's offset came out
+  15.76 Å against CHL1's 16.93, placing a cholesterol hydroxyl **1.17 Å above** the phosphate
+  plane. It had only ever looked right because the shipped POPC ensemble was seven copies of one
+  extended draw, which biased its mean 6.6 Å high and accidentally cleared the sterol.
+
+  Registration now splits that one number into the two things it was conflating: ``iface_off``,
+  the anchor-to-lowest-polar-atom distance, which is rigid headgroup geometry (5.19 Å for POPC,
+  0.00 for CHL1, whose anchor *is* its 3-hydroxyl) and sets the relative heights; and ``depth``,
+  the interface-to-tail distance, which legitimately depends on the ensemble and, composition-
+  weighted, sets the absolute thickness. On a 50:50 POPC:CHL1 patch the sterol hydroxyl now sits
+  at **−5.19 Å** with *either* collection — inside the −4.4 to −5.1 Å measured on equilibrated
+  patches — and built P‑P goes 46.75 → 39.88 Å against ~38 Å measured for POPC.
+
+  Three pinned watermarks moved and each now records which way and why. Two were additionally
+  re-pinned **by name**: they indexed ``conformers[0]``, a glob-ordered list, so re-tarring the
+  same collection would have moved the number with nothing scientific having changed.
+
+- **A calibration patch is now gated on the area plateau by default.** A calibration patch's area
+  per lipid sizes the whole grid, and the stage that certified it was held to a looser standard
+  than the check that later judged it: ``membrane_equilibrate`` could converge on a small *local*
+  slope at ``area_drift_tol`` 0.012 while ``make_membrane_system`` grades the same system at
+  0.005. Two tolerances for one judgment, and only the looser one enforced. Reported consequence:
+  a patch certified an APL of 45.62 Å² and then condensed to 43.47 — 4.7% early, about nine times
+  the downstream tolerance — leaving the leaflet sized from it ~5% under-filled.
+
+  ``area_plateau_tol`` already existed and already closed this; it was simply off. It now defaults
+  to **0.005** on ``relaxation_protocols.patch``, the same number the downstream check uses, so the
+  two agree by construction. The quilt stage is deliberately left off — nothing downstream is sized
+  from the quilt's area. ``max_steps`` on the patch stage rises **500000 → 2000000** to match: it
+  is a ceiling on a loop that stops itself at convergence, so a fast patch pays nothing, but at the
+  old ceiling the new gate would have reported ``CEILING`` rather than convergence on exactly the
+  cholesterol-rich patches it exists for.
+
+  This changes behavior only for configs that never set the key; the two shipped membrane examples
+  already set it explicitly.
+
+- **A crowded multi-arm lipid is stretched before the MC sampler melts it.** The colvar-driven
+  stretch was skipped for ``sampler='mc'`` outright, since it pushes tails into a rod — which is
+  what that sampler exists to avoid. On a four-arm cardiolipin that is the worse trade: the IC
+  build coils all four chains around one backbone and torsional MC opens three, leaving the fourth
+  closed at 0.24–0.28 of its contour while its siblings span 0.4–0.9. It is now stretched only
+  where both conditions hold — more than two acyl chains **and** a measurably coiled IC build.
+  Neither alone is right: crowding alone regressed healthy entries and stopped two generating,
+  and a coiled start alone selects twelve two-chain entries the sampler opens unaided.
+
+- **A residue lookup matches the insertion code.** ``CoordManipulator._residue_index`` keys each
+  residue on ``(segname, resseqnum, insertion)``, but both lookups built on it compared
+  ``resseqnum`` alone — so with residues 100, 100A and 100B in one segment the lookup resolved to
+  whichever atom came first, and an insertion-coded residue could not be addressed at all. The
+  crot path discarded the field twice, unpacking a ``ResID`` to an int before a lookup that would
+  have dropped it anyway. A fourth site, the protein-loop enumerator, did the same. The ``resid``
+  *selection* term is deliberately unchanged: VMD's own keyword ignores insertion codes.
+
+- **A phase-qualified entry can be installed into a PDB collection.** ``<RESI>__Lo`` is the same
+  residue's liquid-ordered ensemble, not a different residue, but the collection lookup was made
+  on the full name — so every such entry raised "cannot infer a collection". The shipped lipid
+  collection carries 58 of them, which made installing a regenerated collection impossible without
+  naming the collection by hand.
 
 - **The differential-stress diagnostic no longer samples at the wrong temperature, and no longer
   replaces the membrane it was measuring.** Both reported 2026-10-07 against 3.25.1 from a
