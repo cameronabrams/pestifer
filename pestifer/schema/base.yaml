@@ -1575,9 +1575,19 @@ attributes:
                             type: bool
                             default: true
                           - name: max_steps
-                            text: hard ceiling on total NPgT steps for this relaxation stage
+                            text: >-
+                              hard ceiling on total NPgT steps for this relaxation stage. Raised from
+                              500000 to 2000000 when area_plateau_tol was defaulted ON here: this is a
+                              CEILING on an adaptive loop that stops itself at convergence, so a fast
+                              patch still stops early and pays nothing for the headroom, while a
+                              cholesterol-rich one is no longer cut off mid-descent. Measured on ex17's
+                              calibration patch across three replicas: 236870, 372360, and still
+                              descending at 1200000 -- so the old ceiling would have turned the new gate
+                              into a CEILING warning rather than a convergence. The cost it does carry:
+                              a patch that will never converge now burns up to 2000000 steps before
+                              saying so.
                             type: int
-                            default: 500000
+                            default: 2000000
                           - name: area_drift_tol
                             text: >-
                               per-stage override of the lateral-area drift tolerance (fraction). The
@@ -1597,12 +1607,16 @@ attributes:
                             default: 40000
                           - name: area_plateau_tol
                             text: >-
-                              cumulative area-plateau gate (fraction); when > 0, also require the stage-2
-                              area's quarter-over-quarter drift below this before converging -- the same
-                              metric make_membrane_system uses to judge a calibration patch's preferred
-                              APL reliable. Set e.g. 0.005 on calibration stages; 0 (default) disables it.
+                              cumulative area-plateau gate (fraction): also require the stage-2 area's
+                              quarter-over-quarter drift to fall below this before converging. ON by
+                              default here (0.005), because a calibration patch's APL sizes the whole
+                              grid and 0.005 is the same number make_membrane_system's own
+                              reliability check uses -- left off, this stage can certify on a small
+                              local slope at a tolerance (area_drift_tol, 0.012) looser than the check
+                              that later judges the result, and a slowly-condensing leaflet then sizes
+                              the grid from an APL several percent high. 0 disables the extra gate.
                             type: float
-                            default: 0.0
+                            default: 0.005
                           - name: addl_paramfiles
                             type: list
                             text: additional parameter files for the NAMD run
@@ -1746,7 +1760,11 @@ attributes:
                               cumulative area-plateau gate (fraction); when > 0, also require the stage-2
                               area's quarter-over-quarter drift below this before converging -- the same
                               metric make_membrane_system uses to judge a calibration patch's preferred
-                              APL reliable. Set e.g. 0.005 on calibration stages; 0 (default) disables it.
+                              APL reliable. 0 (default) disables it. Deliberately OFF here while it is
+                              ON for the patch stage: nothing downstream is sized from the quilt's
+                              area, so a slightly early stop costs a little extra relaxation later,
+                              not a mis-sized system. Set 0.005 if you want the quilt held to the
+                              same standard.
                             type: float
                             default: 0.0
                           - name: addl_paramfiles
