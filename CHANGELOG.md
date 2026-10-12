@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.27.0] - 2026-10-12
+
 - **The MC sampler collected a conformer only when a move was accepted, so half the shipped
   ensemble was duplicates.** ``run_mc``'s sample-collection test sat at the bottom of the
   proposal loop, after the accept counter — and every rejection path reaches that point by
