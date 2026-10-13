@@ -176,8 +176,37 @@ set pro_max_z [lindex $pro_max 2]
 set box_min_z [expr $pro_min_z - $zdist]
 set box_max_z [expr $pro_max_z + $zdist]
 
-# delete atoms that are in conflict with the protein
-set bad_atoms [measure contacts 2.4 $bilayer_sel $pro_sel]
+# Delete lipids that genuinely OVERLAP the protein -- on a HEAVY-ATOM test.
+#
+# This was `measure contacts 2.4 $bilayer_sel $pro_sel`, and both of those are
+# [atomselect ... "all"], so hydrogens counted on both sides.  2.4 A between ALL atoms is not
+# a clash criterion: a C-H bond is ~1.1 A, so two carbons at 3.5-4.0 A -- ordinary van der
+# Waals packing, not a clash -- present hydrogens about 2.4 A apart.  The test therefore
+# deleted every lipid merely IN CONTACT with the protein, which is the whole perimeter of the
+# TM bundle, and one contacting atom removes the entire lipid.
+#
+# Measured externally on three systems (2026-10-12): 36 lipids removed where ~21 overlap
+# (PS5 with its 711-716 linker), 28 vs ~21 (PS5, TM only), and 33 vs ~25 (M2, three TM
+# helices, a different protein, a different composition and a different pestifer version).
+# The excess tracks TM+linker PERIMETER, not composition, which is the signature of a
+# contact test rather than an overlap test.
+#
+# 2.4 A between HEAVY atoms is a real overlap: C...C van der Waals contact is 3.4-4.0 A, so
+# nothing at 2.4 A is merely packed.  The constant is unchanged; what changed is which atoms
+# it is applied to.
+#
+# NOTE for the mapping below: `measure contacts` returns GLOBAL atom indices, not indices
+# into the selections it was given (verified against VMD on a real psf/pdb: a contact index
+# of 13741 came back from a selection of 4870 atoms).  So the (segname,resid) lookup through
+# the parent "all" lists stays correct even though the test now uses a subselection.
+set pro_heavy [atomselect $protein "noh"]
+set bilayer_heavy [atomselect $bilayer "noh"]
+# Positive control: an empty selection would silently delete nothing and look like a clean
+# embed.  VMD rejects a bad selection by giving back zero atoms, not by failing loudly.
+if {[$pro_heavy num] == 0 || [$bilayer_heavy num] == 0} {
+   error "bilayer_embed: heavy-atom selection is empty (protein [$pro_heavy num], bilayer [$bilayer_heavy num]); refusing to embed without a working clash test"
+}
+set bad_atoms [measure contacts 2.4 $bilayer_heavy $pro_heavy]
 set bad_membrane_idx [lindex $bad_atoms 0]
 
 readpsf $psf pdb ${outbasename}_embedded.pdb
@@ -207,6 +236,7 @@ catch {
       }
    }
 } result
+vmdcon -info "bilayer_embed: deleted [array size _seen_membrane] lipid(s) overlapping the protein ([llength $bad_membrane_idx] contacting heavy atoms)"
 regenerate angles dihedrals
 
 writepsf cmap ${outbasename}_prefill.psf
@@ -411,7 +441,18 @@ set box_Lz [expr $box_max_z - $box_min_z]
 set segs_to_search [join $newsegids]
 set pro_sel [atomselect $embedded_system "not (segname $segs_to_search)"]
 set water_sel [atomselect $embedded_system "segname $segs_to_search"]
-set bad_atoms [measure contacts 2.4 $water_sel $pro_sel]
+# Heavy-atom test here too, and for this one the all-atom version was worse still: a water
+# hydrogen bonded to the protein sits with H...O about 1.8-2.0 A, well inside 2.4 A, so the
+# all-atom test deleted the protein's entire first hydration shell and left vacuum for the
+# equilibration to close.  On heavy atoms, an H-bond (O...O ~2.8 A) is kept and a genuine
+# overlap is still removed.  Same constant, same reasoning, and changed with the lipid test
+# deliberately rather than left as the one surviving copy of the idea.
+set pro_heavy_w [atomselect $embedded_system "not (segname $segs_to_search) and noh"]
+set water_heavy [atomselect $embedded_system "segname $segs_to_search and noh"]
+if {[$pro_heavy_w num] == 0 || [$water_heavy num] == 0} {
+   error "bilayer_embed: heavy-atom selection is empty for the water clash test (protein [$pro_heavy_w num], water [$water_heavy num])"
+}
+set bad_atoms [measure contacts 2.4 $water_heavy $pro_heavy_w]
 set bad_water_idx [lindex $bad_atoms 0]
 # Map contacting atom indices -> (segname,resid) via the parent "all" selection rather
 # than [atomselect $embedded_system "index <list>"]; the slab-water clash list runs to
@@ -432,6 +473,7 @@ catch {
       }
    }
 } result
+vmdcon -info "bilayer_embed: deleted [array size _seen_water] water(s) overlapping the protein ([llength $bad_water_idx] contacting heavy atoms)"
 regenerate angles dihedrals
 writepsf cmap ${outbasename}_filled.psf
 writepdb ${outbasename}_filled.pdb
