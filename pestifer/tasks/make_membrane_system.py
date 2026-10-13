@@ -698,19 +698,44 @@ class MakeMembraneSystemTask(BaseTask):
         n_cal_lower = _divisor(self.patchB, 'lower')
         apl_upper = self.patchA.area / n_cal_upper
         apl_lower = self.patchB.area / n_cal_lower
-        # the stress-free counts are only as trustworthy as the calibrated APLs: if either
-        # calibration cell had not equilibrated, warn that the resulting membrane may carry
-        # residual differential stress (the classic symptom is two leaflets of different
-        # composition reporting near-equal APLs because one under-condensed)
+        # An unconverged calibration STOPS the build.  The whole grid is sized from these two
+        # numbers, so a calibration cell that never equilibrated does not produce a slightly
+        # worse membrane -- it produces one built to the wrong size, and the failure surfaces
+        # far from its cause.  Observed 2026-10-12: a patchA that hit its step ceiling at area
+        # drift -2.50% (five times this tolerance, precision UNMET) sized the grid anyway, and
+        # the build died 2,100 steps into the quilt melt as a RATTLE failure on an arbitrary
+        # headgroup carbon, with nothing at the crash site pointing back at the calibration.
+        #
+        # This is the same judgment already made for `_verify_params_cover_psf`, and for the
+        # same reason: the condition is fatal to the build regardless, so the only question is
+        # whether it fails somewhere it can be diagnosed.  Every failing leaflet is reported,
+        # not just the first, because NAMD dying on one term and hiding the rest is exactly
+        # what that check exists to avoid.
+        #
+        # `drift is None` means the metric could not be measured, which is a different
+        # condition from "measured and bad" and is not made fatal here.
+        unconverged = []
         for patch, lname, apl in ((self.patchA, 'upper', apl_upper),
                                   (self.patchB, 'lower', apl_lower)):
             drift = getattr(patch, 'area_drift', None)
-            if drift is not None and abs(drift) > _AREA_CONVERGENCE_TOL:
-                logger.warning(
-                    f'Calibration cell for the {lname} leaflet had not equilibrated '
-                    f'(area drift {100 * drift:+.2f}%); its preferred APL '
-                    f'({apl:.2f} {sA2_}) and the resulting stress-free leaflet '
-                    f'counts may be unreliable. Lengthen bilayer.relaxation_protocols.patch.')
+            if drift is None:
+                logger.warning(f'Calibration cell for the {lname} leaflet reported no area-drift '
+                               f'measurement; its APL ({apl:.2f} {sA2_}) cannot be checked.')
+            elif abs(drift) > _AREA_CONVERGENCE_TOL:
+                unconverged.append(
+                    f'  {lname} leaflet: area drift {100 * drift:+.2f}% exceeds '
+                    f'{100 * _AREA_CONVERGENCE_TOL:.2f}%; its preferred APL would have been '
+                    f'{apl:.2f} {sA2_}')
+        if unconverged:
+            raise PestiferBuildError(
+                'Calibration did not converge, so the membrane cannot be sized:\n'
+                + '\n'.join(unconverged)
+                + '\nThe whole grid is sized from these APLs, so building on them produces a '
+                  'mis-sized membrane that typically fails later and elsewhere (a RATTLE '
+                  'failure in the quilt melt, far from this cause).\nRemedy: lengthen '
+                  'bilayer.relaxation_protocols.patch -- raise its max_steps, and keep '
+                  'area_plateau_tol at 0.005 so the stage stops on the plateau rather than on '
+                  'a local slope.')
         if self.embedding:
             # size the common box to the protein footprint and place each leaflet at its own
             # preferred APL there; this keeps the stress-free ratio n_upper/n_lower = apl_lo/apl_up

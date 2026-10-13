@@ -553,22 +553,38 @@ class TestAsymmetricStressFreeCounts(unittest.TestCase):
         _t, got = self._build(apl_upper=60.0, apl_lower=60.0, quilt_grid_slack=1.20)
         self.assertAlmostEqual(got['sapl'], 1.20 * 6000.0 / 100)
 
-    def test_an_unequilibrated_calibration_cell_is_flagged(self):
-        """The classic symptom is two leaflets of different composition reporting near-equal
-        APLs because one under-condensed -- which looks fine and is not."""
-        with self.assertLogs(LOGGER, level='WARNING') as cm:
+    def test_an_unequilibrated_calibration_cell_STOPS_the_build(self):
+        """Changed 2026-10-13 from a warning to a hard stop.
+
+        The classic symptom is two leaflets of different composition reporting near-equal APLs
+        because one under-condensed -- which looks fine and is not. Warning about it and then
+        sizing the grid from it anyway meant the failure surfaced far from its cause: an ex17
+        calibration patch at area drift -2.50% sized the grid and the build died 2,100 steps
+        into the quilt melt as a RATTLE failure on an arbitrary headgroup carbon.
+
+        Full reasoning and the sibling cases in
+        tests/unit/test_tasks/test_calibration_must_converge.py.
+        """
+        from pestifer.core.errors import PestiferBuildError
+        with self.assertRaises(PestiferBuildError) as cm:
             self._build(drift=0.25)
-        out = ''.join(cm.output)
-        self.assertIn('had not equilibrated', out)
-        self.assertIn('upper', out)
+        self.assertIn('did not converge', str(cm.exception))
+        self.assertIn('upper', str(cm.exception))
 
     def test_a_settled_calibration_cell_is_silent(self):
         with self.assertNoLogs(LOGGER, level='WARNING'):
             self._build(drift=0.0)
 
-    def test_an_unmeasured_drift_is_not_reported_as_a_problem(self):
-        with self.assertNoLogs(LOGGER, level='WARNING'):
+    def test_an_unmeasured_drift_is_reported_but_NOT_fatal(self):
+        """"Could not be measured" is a different condition from "measured and bad".
+
+        It was silent before. It is now said out loud -- a build sized from an APL nobody could
+        check should say so -- but it does not stop the build, because that would fail every
+        configuration that never produced the measurement.
+        """
+        with self.assertLogs(LOGGER, level='WARNING') as cm:
             self._build(drift=None)
+        self.assertIn('no area-drift measurement', ''.join(cm.output))
 
     def test_the_stress_diagnostic_runs_only_when_asked(self):
         t, _got = self._build()
