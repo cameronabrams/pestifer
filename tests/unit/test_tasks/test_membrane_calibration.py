@@ -27,6 +27,11 @@ from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
 def _task(**attrs):
     t = MakeMembraneSystemTask.__new__(MakeMembraneSystemTask)
     t.taskname = 'make_membrane_system'
+    # `__new__` bypasses BaseTask.__init__, so anything it sets up is absent unless named here.
+    # `outcome`/`substage_outcomes` are two of those: the task records the numbers that size the
+    # membrane into them, and a stand-in without them raises AttributeError inside record_outcome.
+    t.outcome = {}
+    t.substage_outcomes = []
     t.basename = 'mms'
     t.embedding = False
     t.bilayer_specs = dict(patch_nlipids=dict(upper=100, lower=100), npatch=[1, 1])

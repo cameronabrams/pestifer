@@ -37,6 +37,12 @@ sA2_ = _UNITS_['SQUARE-ANGSTROMS']
 # leaflet fails to condense and its APL comes out spuriously close to a pure-PC leaflet).
 _AREA_CONVERGENCE_TOL = 0.005
 
+
+def _as_float(v):
+    """``float(v)`` or ``None`` -- `record_outcome` drops None, so an unmeasured drift is simply
+    absent from the run record rather than recorded as a null."""
+    return None if v is None else float(v)
+
 # Assumed per-leaflet area-compressibility modulus K_A (mN/m), used only to translate a
 # measured residual differential stress into a suggested leaflet-count adjustment.  A
 # representative value for fluid lipid monolayers; the suggestion is a guide, not a fit.
@@ -566,7 +572,19 @@ class MakeMembraneSystemTask(BaseTask):
         ``aspect`` (Ly/Lx) defaults to the configured ``xy_aspect_ratio``; pass an explicit
         value to match a non-square target box (e.g. a protein footprint).  The result is
         registered as ``quilt_state`` and relaxed with the quilt protocol.
+
+        Records what it was asked to build.  This is the one point BOTH sizing paths pass
+        through -- :meth:`build_grid_membrane` (symmetric) and
+        :meth:`build_grid_membrane_asymmetric` -- so recording here means neither can be
+        extended later and quietly leave no trace, which is how this task came to write no run
+        record at all.  The asymmetric path adds the APL provenance on top; `record_outcome`
+        merges.
         """
+        self.record_outcome(n_upper=int(leaflet_nlipids['upper']),
+                            n_lower=int(leaflet_nlipids['lower']),
+                            box_SAPL=float(box_SAPL),
+                            aspect=_as_float(aspect),
+                            embedding=bool(self.embedding))
         bs = self.bilayer_specs
         if aspect is None:
             aspect = bs.get('xy_aspect_ratio', 1.0)
@@ -764,10 +782,31 @@ class MakeMembraneSystemTask(BaseTask):
         # so target_area/max(...) reproduces the stress-free area for the (larger) requested leaflet.
         grid_slack = float(bs.get('quilt_grid_slack', 1.05))   # small placement clearance (~5% area)
         box_SAPL = grid_slack * target_area / max(n_upper, n_lower)
-        logger.info(f'Calibrated preferred APL: upper {apl_upper:.2f}, lower {apl_lower:.2f} A^2 '
-                    f'(from relaxed symmetric patches)')
+        # Say where each number CAME FROM, not just what it is.  This line used to read
+        # "Calibrated preferred APL: ... (from relaxed symmetric patches)" unconditionally, which
+        # was true only because nothing can currently supply an APL.  A per-leaflet override was
+        # built and reverted (ea2fb6d1 / 705a56d3) and would sit upstream of this line, so the
+        # summary a reader greps for would have called a hand-supplied number calibrated --
+        # worse than silent.  The provenance is carried per leaflet so that if an override does
+        # return, the label follows it instead of having to be remembered.
+        apl_source = {'upper': 'calibrated', 'lower': 'calibrated'}
+        _src = (f"upper {apl_upper:.2f} ({apl_source['upper']}), "
+                f"lower {apl_lower:.2f} ({apl_source['lower']})")
+        logger.info(f'Preferred APL: {_src} {sA2_}')
         logger.info(f'Stress-free leaflet counts: upper {n_upper}, lower {n_lower} '
                     f'(target equilibrium box area {target_area:.0f} A^2); gridding at SAPL {box_SAPL:.1f}')
+        # The numbers that size the whole membrane are decided here at run time and appear
+        # nowhere in the config, so without this they survive only in the log -- which is one
+        # `tail` away from gone.  `record_outcome` appeared ZERO times in this task before
+        # 2026-10-13, which is why an APL could be wrong and leave no durable trace of what it
+        # was or where it came from.
+        self.record_outcome(
+            apl_upper=float(apl_upper), apl_lower=float(apl_lower),
+            apl_upper_source=apl_source['upper'], apl_lower_source=apl_source['lower'],
+            apl_upper_drift=_as_float(getattr(self.patchA, 'area_drift', None)),
+            apl_lower_drift=_as_float(getattr(self.patchB, 'area_drift', None)),
+            area_convergence_tol=_AREA_CONVERGENCE_TOL,
+            target_area=float(target_area))
         self._grid_membrane(dict(upper=n_upper, lower=n_lower), box_SAPL, aspect)
         diag_specs = self.specs.get('diagnose_differential_stress', {})
         if diag_specs.get('enabled', False):

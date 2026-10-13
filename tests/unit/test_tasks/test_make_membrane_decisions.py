@@ -36,6 +36,11 @@ LOGGER = 'pestifer.tasks.make_membrane_system'
 def _task(**attrs):
     t = MakeMembraneSystemTask.__new__(MakeMembraneSystemTask)
     t.taskname = 'make_membrane_system'
+    # `__new__` bypasses BaseTask.__init__, so anything it sets up is absent here unless named.
+    # `outcome`/`substage_outcomes` are two of those: the task records the numbers that size the
+    # membrane into them, and a stand-in without them raises AttributeError inside record_outcome.
+    t.outcome = {}
+    t.substage_outcomes = []
     t.specs = {}
     t.bilayer_specs = {}
     t.embed_specs = {}
