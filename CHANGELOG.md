@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.27.1] - 2026-10-13
+
 - **A build could delete a file it did not create.** ``make_tarball(remove=True)`` archived each
   artifact and then removed it, with no check that the path lay inside the run directory — and
   ``terminate`` sweeps build intermediates that way. Any artifact registered from a user-supplied
