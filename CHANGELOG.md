@@ -4,6 +4,45 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- **A build could delete a file it did not create.** ``make_tarball(remove=True)`` archived each
+  artifact and then removed it, with no check that the path lay inside the run directory — and
+  ``terminate`` sweeps build intermediates that way. Any artifact registered from a user-supplied
+  path was therefore deleted from wherever it lived. Reported against a ``bilayer.prebuilt``
+  bilayer carrying 28 ns of GPU calibration, which was archived into a build's tarball and
+  removed from its own folder; the files it did not name (``.coor``/``.vel``) stayed behind, so
+  the source directory still looked populated.
+
+  Fixed in two places, because either alone leaves a hole. ``make_membrane_system``'s prebuilt
+  branch now copies its three inputs into the run directory and registers the copies, as
+  ``continuation`` has always done for its five. And ``make_tarball`` refuses to remove anything
+  outside the run directory whatever registered it — the half that protects a caller nobody has
+  written yet. The helper that made ``continuation`` safe was private to that one module and
+  called nowhere else, which is why the second consumer of the idea was written without it; it
+  is shared now.
+
+- **Protein/lipid clash detection at embed time now runs on heavy atoms.** The test deleted any
+  lipid with an atom within 2.4 Å of the protein, with hydrogens counted on both sides — which
+  makes 2.4 Å a *contact* criterion rather than an overlap one. A C–H bond is ~1.1 Å, so two
+  carbons at ordinary van der Waals separation present hydrogens well inside 2.4 Å. Measured on a
+  built membrane protein system, closest approach is a median **1.4 Å larger on heavy atoms**, so
+  the old cut corresponded to ~3.8 Å between heavy atoms: packing, not a clash.
+
+  Reported with three independent reproductions, where the excess removal tracked TM+linker
+  *perimeter* rather than composition. The water clash test had the same defect and worse
+  consequences — a hydrogen-bonded water sits at H···O ~1.8–2.0 Å, so the protein's entire first
+  hydration shell was being deleted. Both are fixed; the 2.4 Å constant is unchanged, only the
+  atoms it applies to. The embed stage also now reports how many lipids and waters it deleted,
+  which it previously did silently.
+
+- **An unconverged calibration stops the build.** The membrane grid is sized from each
+  calibration patch's preferred area per lipid, so a patch that never equilibrated yields a
+  membrane built to the wrong size — and the failure surfaces far from its cause. Previously the
+  task warned and sized the grid anyway: a patch at area drift −2.50%, five times tolerance, sized
+  a grid whose build then died 2,100 steps into the quilt melt as a RATTLE failure on an arbitrary
+  headgroup carbon. Both leaflets are reported at once rather than one per run, and an
+  unmeasurable drift is reported but is not fatal, since that is a different condition from
+  measured-and-bad.
+
 ## [3.27.0] - 2026-10-12
 
 - **The MC sampler collected a conformer only when a move was accepted, so half the shipped
