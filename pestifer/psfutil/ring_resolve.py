@@ -101,6 +101,67 @@ def try_glycan_pendant(checker: RingChecker, working_pdb: str, base: np.ndarray,
     return out_pdb
 
 
+#: Sterol long-axis spin angles.  Coarse on purpose: the acceptance test is "does it un-thread",
+#: so a fine sweep only costs time.  Mirrors the staging of _PENDANT_DEGREES -- the large,
+#: least-biased rotations first, then the quarter turns.
+_SPIN_DEGREES = [180, 90, 270, 120, 240, 60, 300, 150, 210, 30, 330]
+
+
+def try_sterol_spin(checker: RingChecker, working_pdb: str, base: np.ndarray, box,
+                    piercee: dict, target: tuple, out_pdb: str, piercer_label: str = '',
+                    degrees=None):
+    """Rigidly spin the pierced molecule about its own long axis to un-thread it.
+
+    The partner move to :func:`try_glycan_pendant`. That one bends the piercing tail; this one
+    turns the speared ring. Either can clear a lipid-tail-through-sterol-ring piercing, and they
+    fail in different situations: a tail hinged near its tip has little leverage, while a sterol
+    wedged between neighbors cannot turn.
+
+    The axis is the molecule's first principal axis -- for a sterol, the ring plate plus its
+    iso-octyl tail -- taken through its centroid, so the rotation preserves the molecule's
+    position and its membrane-normal alignment and only turns it in place. That matters: a sterol
+    displaced laterally would trade one piercing for a clash.
+
+    Honest about what this can and cannot do: a fused ring system is roughly coaxial with its own
+    long axis, so spinning it moves the ring ATOMS much more than it moves the HOLE. It clears a
+    piercing whose bond passes near the rim, and will not clear one threaded through the centre.
+    The caller gets ``None`` for the latter and falls through to the next remedy.
+
+    Returns ``out_pdb`` on success or ``None`` if no spin clears the piercing.
+    """
+    if degrees is None:
+        degrees = _SPIN_DEGREES
+    seg, resid = piercee['segname'], str(piercee['resid'])
+    rows = np.array([checker._row_of_serial[a.serial] for a in checker._atoms
+                     if a.segname == seg and str(a.resid.resid) == resid], dtype=int)
+    if rows.size < 3:
+        logger.debug(f'  {_fmt(piercee)}: too few atoms to define a spin axis')
+        return None
+    pts = base[rows]
+    centroid = pts.mean(axis=0)
+    # first principal axis = the molecule's long axis
+    _u, _s, vt = np.linalg.svd(pts - centroid, full_matrices=False)
+    axis = vt[0]
+    best = None
+    scratch = base.copy()
+    for deg in degrees:
+        scratch[rows] = rotate_points_about_axis(pts, centroid, axis, deg)
+        if checker.check_coords(scratch, box, [target]):
+            continue  # still pierced
+        clash = checker.clash_count(scratch, rows)
+        if best is None or clash < best[0]:
+            best = (clash, scratch.copy(), deg)
+        if clash == 0:
+            break
+    if best is None:
+        return None
+    clash, coords, deg = best
+    pdb_replace_coords(working_pdb, out_pdb, coords, checker._row_of_serial)
+    logger.info(f'  {_fmt(piercee)}: spinning it {deg} deg about its long axis clears the '
+                f'piercing by {piercer_label or "a bond"} ({clash} new heavy-atom clash(es))')
+    return out_pdb
+
+
 def _piercer_within(p: dict, mover_serials: set) -> bool:
     """True if piercing ``p`` is caused by a bond whose atoms all lie in ``mover_serials`` -- i.e.
     a model-built branch (loop/tail) we are free to rotate."""

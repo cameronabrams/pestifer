@@ -27,7 +27,7 @@ from ..scripters import PsfgenScripter
 from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
 from ..psfutil.psfring import ring_check, RingChecker
-from ..psfutil.ring_resolve import try_glycan_pendant
+from ..psfutil.ring_resolve import try_glycan_pendant, try_sterol_spin
 from ..util.util import cell_from_xsc
 
 logger=logging.getLogger(__name__)
@@ -78,7 +78,15 @@ class RingCheckTask(BaseTask):
         # a glycan ring speared by a protein side chain: either partner can move
         sidechain = (piercee['segtype'] == 'glycan' and piercer['segtype'] == 'protein'
                      and (piercee.get('ring_serials') or piercer.get('bond_serials')))
-        return bool(aromatic or pendant or sidechain)
+        # A lipid ring speared by a lipid bond -- in practice a sterol ring threaded by an acyl
+        # tail, which is the overwhelming majority of membrane piercings.  These used to be
+        # excluded, so they never reached the rotation engine at all and went straight to
+        # deletion: an ex17 build deleted 7-11 lipids per run without attempting a single
+        # rotation.  At one or two piercings deletion is tolerable; at ten it changes the
+        # composition of the membrane being built.
+        lipid = (piercee['segtype'] == 'lipid' and piercer['segtype'] == 'lipid'
+                 and (piercer.get('bond_serials') or piercee.get('ring_serials')))
+        return bool(aromatic or pendant or sidechain or lipid)
 
     def do(self):
         state: StateArtifacts = self.get_current_artifact('state')
@@ -113,7 +121,14 @@ class RingCheckTask(BaseTask):
             logger.info(f'{len(rotatable)} ring piercing{ess} to resolve by rotation:')
             self._report(rotatable, logger.info)
             fixed_pdb, failed = self._resolve_by_rotation(state, rotatable, cutoff, segtypes, max_ring_size)
-            if fixed_pdb is None:
+            if fixed_pdb is None and failed['piercee']['segtype'] == 'lipid':
+                # A lipid that no rotation clears is not fatal -- deletion is still available for
+                # it below, and losing one lipid is a far smaller harm than failing the build.
+                # Protein and glycan rings have no such fallback, which is why they still raise.
+                logger.info(f'  {self._fmt(failed["piercee"])}: no rotation cleared the piercing '
+                            f'by {self._fmt(failed["piercer"])}; it will be resolved by deletion')
+                fixed_pdb = None
+            elif fixed_pdb is None:
                 self._report([failed], logger.error)
                 raise PestiferBuildError(
                     f'ring piercing of {self._fmt(failed["piercee"])} by a bond in '
@@ -245,6 +260,22 @@ class RingCheckTask(BaseTask):
                 if cand is None:
                     cand = self._try_piercer_sidechain(checker, working_pdb, base, box, piercer,
                                                        target, self._fmt(piercee), out_prefix)
+            # 4. lipid ring speared by a lipid bond (a sterol threaded by an acyl tail).
+            #    Two moves, cheapest-first by how much they disturb:
+            #      a) bend the piercing TAIL about an upstream chain dihedral -- the same
+            #         graph-branch rotation the glycan path uses, which is chemistry-agnostic
+            #         (its own docstring says so); the moving branch is a few tail carbons.
+            #      b) spin the pierced STEROL about its own long axis, in place.
+            #    (b) is the fallback because it turns a whole molecule rather than a tail end.
+            if (cand is None and piercee['segtype'] == 'lipid'
+                    and piercer['segtype'] == 'lipid'):
+                if piercer.get('bond_serials'):
+                    cand = try_glycan_pendant(checker, working_pdb, base, box, piercer, target,
+                                              f'{out_prefix}-lipidtail.pdb', self._fmt(piercee),
+                                              mover_kind='lipid tail')
+                if cand is None:
+                    cand = try_sterol_spin(checker, working_pdb, base, box, piercee, target,
+                                           f'{out_prefix}-spin.pdb', self._fmt(piercer))
             if cand is None:
                 return None, p
             working_pdb = cand

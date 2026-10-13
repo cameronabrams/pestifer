@@ -347,6 +347,14 @@ class RingChecker:
         Gg = self.topol.G.subgraph(seg_atoms).copy()
         if a not in Gg or b not in Gg:
             return []
+        # Restrict to the MOLECULE carrying the piercing bond, not the whole segment.  For a
+        # glycan the two are the same thing -- one glycan per segment -- which is the case this
+        # was written for.  A membrane puts every lipid in one segment: measured on an ex17
+        # build, segment L1 holds 56,535 atoms in 538 molecules with 52,173 bridges, and the
+        # loop below copies the graph once per bridge.  Scoped to the segment that is ~3 hours
+        # per piercing; scoped to the molecule it is milliseconds, and the answer is identical
+        # because a hinge in another molecule can never move this piercing bond.
+        Gg = Gg.subgraph(nx.node_connected_component(Gg, a)).copy()
         N = Gg.number_of_nodes()
         axes = []
         for u, v in nx.bridges(Gg):
