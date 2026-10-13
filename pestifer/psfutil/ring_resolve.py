@@ -63,34 +63,65 @@ def try_glycan_pendant(checker: RingChecker, working_pdb: str, base: np.ndarray,
     """
     if degrees is None:
         degrees = _PENDANT_DEGREES
-    axes = checker.pendant_axes(piercer['bond_serials'], piercer['segname'])
-    if mover_serials is not None:
-        mover_serials = set(int(s) for s in mover_serials)
+
+    _NEAREST = 10          # pendant_axes' own default; named so the escalation can say what it widened FROM
+
+    def _axes(max_axes):
+        ax = checker.pendant_axes(piercer['bond_serials'], piercer['segname'],
+                                  max_axes=max_axes)
+        if mover_serials is None:
+            return ax
+        want = set(int(s) for s in mover_serials)
         serial_of_row = {r: s for s, r in checker._row_of_serial.items()}
-        axes = [ax for ax in axes
-                if all(serial_of_row[int(r)] in mover_serials for r in ax['prows'])]
+        return [a for a in ax if all(serial_of_row[int(r)] in want for r in a['prows'])]
+
+    def _search(axes):
+        """Best pose over these hinges, or None. (clash, coords, i_ser, j_ser, deg)"""
+        best = None
+        scratch = base.copy()
+        for ax in axes:
+            prows = ax['prows']
+            pivot = base[ax['j_row']]
+            axis = base[ax['j_row']] - base[ax['i_row']]
+            branch = base[prows]
+            for deg in degrees:
+                scratch[prows] = rotate_points_about_axis(branch, pivot, axis, deg)
+                if checker.check_coords(scratch, box, [target]):
+                    continue  # still pierced
+                clash = checker.clash_count(scratch, prows)
+                if best is None or clash < best[0]:
+                    best = (clash, scratch.copy(), ax['i_ser'], ax['j_ser'], deg)
+                if clash == 0:
+                    break
+            scratch[prows] = branch  # restore before trying the next axis
+            if best is not None and best[0] == 0:
+                break
+        return best
+
+    axes = _axes(_NEAREST)
     if not axes:
         logger.debug(f'  no rotatable {mover_kind} hinge found for {_fmt(piercer)}')
         return None
-    best = None  # (clash, coords, i_ser, j_ser, deg)
-    scratch = base.copy()
-    for ax in axes:
-        prows = ax['prows']
-        pivot = base[ax['j_row']]
-        axis = base[ax['j_row']] - base[ax['i_row']]
-        branch = base[prows]
-        for deg in degrees:
-            scratch[prows] = rotate_points_about_axis(branch, pivot, axis, deg)
-            if checker.check_coords(scratch, box, [target]):
-                continue  # still pierced
-            clash = checker.clash_count(scratch, prows)
-            if best is None or clash < best[0]:
-                best = (clash, scratch.copy(), ax['i_ser'], ax['j_ser'], deg)
-            if clash == 0:
-                break
-        scratch[prows] = branch  # restore before trying the next axis
-        if best is not None and best[0] == 0:
-            break
+    best = _search(axes)
+    if best is None:
+        # ESCALATE.  `pendant_axes` returns hinges smallest-moving-branch-first and keeps only
+        # the first few, which optimizes for least collateral motion -- and that is exactly the
+        # wrong half of the list for un-threading a tail.  Measured on job 26469605's stuck
+        # piercings (2026-10-13): production tried 10 hinges with moving branches of 27-52
+        # atoms, while the hinge that clears the piercing moves ~130 of the lipid's ~134 --
+        # near the headgroup, swinging the whole tail.  All five stuck piercings across both
+        # stages clear from the full hinge set, with ZERO new clashes, using these same angles.
+        # The cap, not the move set and not the angle resolution, is what sent 4-5 cholesterols
+        # per build to deletion.
+        #
+        # Widening only on failure costs nothing on the piercings that already resolve, and is
+        # paid only where the alternative is deleting a molecule.
+        tried = {(a['i_ser'], a['j_ser']) for a in axes}
+        wider = [a for a in _axes(None) if (a['i_ser'], a['j_ser']) not in tried]
+        if wider:
+            logger.debug(f'  {_fmt(piercer)}: no hinge among the nearest {len(axes)} cleared it; '
+                         f'widening to {len(wider)} more')
+            best = _search(wider)
     if best is None:
         return None
     clash, coords, i_ser, j_ser, deg = best

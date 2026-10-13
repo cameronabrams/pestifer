@@ -396,10 +396,27 @@ class RingChecker:
         """Vectorized targeted check: test only the named ``only_piercees`` rings, finding
         candidate bonds by a direct distance filter instead of a whole-system link cell.
 
-        This is exact, not approximate -- :meth:`PSFRing.pierced_by` itself rejects any bond
-        whose midpoint is beyond ``cutoff`` of the ring COM, which is the same set the direct
-        filter selects.  It avoids the per-element pandas indexing and cell assignment that
-        make a full :meth:`check` cost tens of seconds.
+        Exact, not approximate -- :meth:`PSFRing.pierced_by` itself rejects any bond whose
+        midpoint is beyond ``cutoff`` of the ring COM, which is the same set this filter
+        selects.  It avoids the per-element pandas indexing and cell assignment that make a
+        full :meth:`check` cost tens of seconds.
+
+        **The candidate filter applies the minimum image.**  It did not, and the claim of
+        exactness above was false for exactly the systems this is used on.  The distance was
+        taken on raw coordinates and ``mic_shift`` applied only to bonds that had already
+        survived the filter, so a bond lying across a periodic boundary from the ring was
+        discarded before it could be shifted.  Measured on an ex17 calibration patch
+        (2026-10-13, box 76 x 66 x 86 A): a real piercing of ``CHL1 L1-199`` sat 1.13 A from
+        the ring under the minimum image and **66.56 A** in raw coordinates, so the filter
+        dropped it and this method reported the ring unpierced -- while the full
+        :meth:`check`, which is image-aware, reported it.
+
+        That mattered far beyond a missed report.  The rotation resolver's acceptance test is
+        ``check_coords(candidate, box, [target])``; for any boundary-crossing piercing it
+        returned "not pierced" whatever the candidate did, so the FIRST rotation tried was
+        accepted and logged as a success while the piercing survived to be deleted later.  In
+        a membrane, where lipids straddle the cell edge by construction, that is the common
+        case and not an edge case.
         """
         piercespecs = []
         if len(self._bonds) == 0:
@@ -409,10 +426,18 @@ class RingChecker:
         if not target_rings:
             return piercespecs
         bond_mid = coords[self._bond_rows].mean(axis=1)  # (Nbonds, 3)
+        # Orthorhombic cell edges for the minimum image, or None in a non-periodic run.
+        edges = np.diagonal(box).astype(float) if box is not None else None
         for ring in target_rings:
             ring.P = coords[ring._rows]
             ring.calculate_stuff()
-            d = np.linalg.norm(bond_mid - ring.COM, axis=1)
+            sep = bond_mid - ring.COM
+            if edges is not None:
+                # Minimum image BEFORE the cutoff test, not after.  Without this a bond one
+                # angstrom from the ring across the boundary measures a box-length away and is
+                # filtered out, and the ring is reported unpierced.
+                sep = sep - edges * np.round(sep / edges)
+            d = np.linalg.norm(sep, axis=1)
             ring_atoms = set(ring.idx_list)
             for bi in np.where(d <= self.cutoff)[0]:
                 bond = self._bonds[bi]
