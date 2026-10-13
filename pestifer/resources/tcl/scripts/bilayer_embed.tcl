@@ -112,6 +112,68 @@ if { $bilayer_xsc == "" } {
 
 set tmp_files [list]
 
+
+# ---------------------------------------------------------------------------------------------
+# Steric-overlap test, by fraction of the summed van der Waals radii.
+#
+# A FLAT distance cannot serve here, and both flat values tried have failed in opposite
+# directions.  2.4 A between ALL atoms deleted every lipid merely in van der Waals contact --
+# a C-H bond is ~1.1 A, so two carbons at normal packing present hydrogens 2.4 A apart
+# (measured: the median closest approach is 1.4 A larger on heavy atoms, so that test was
+# effectively a 3.8 A heavy-atom cut).  Replacing it with 2.4 A between HEAVY atoms kept the
+# constant and changed the atoms, which loosened the test by ~1.4 A and retained genuine
+# overlaps: an observed build hit 148 constraint failures across protein and lipid at the
+# first post-embed dynamics (job 26469605 rep-03).
+#
+# No single distance works, because the right threshold depends on the pair.  A lipid
+# phosphate hydrogen bonded to a protein nitrogen sits at ~2.8 A and must be KEPT; two carbons
+# at 2.8 A are badly overlapped and must go.  Scaling the summed radii separates them:
+#
+#     C...C  1.70+1.70 = 3.40   x0.85 = 2.89    a 2.8 A contact is removed   (clash)
+#     O...N  1.52+1.55 = 3.07   x0.85 = 2.61    a 2.8 A contact is kept      (H-bond)
+#     O...O  1.52+1.52 = 3.04   x0.85 = 2.58    a 2.8 A contact is kept      (H-bond, water)
+#
+# One criterion now covers both the lipid and the water test, which previously needed opposite
+# flat cutoffs to be even approximately right.
+#
+# Radii are keyed off the atom NAME's first character: the PSF/PDB element field is unpopulated
+# (VMD reports it as "X" for every atom here) and VMD's own `radius` is a display value, not a
+# van der Waals radius -- it reports 1.5 for carbon against 1.70 and 1.3 for oxygen against
+# 1.52, systematically ~0.2 A small.  Verified on a built membrane-protein system: the first
+# character of every heavy-atom name is C, N, O or P.
+array set _VDW_RADIUS {C 1.70 N 1.55 O 1.52 P 1.80 S 1.80}
+# 0.85 is chosen mid-window, not by taste: removing a 2.8 A C...C clash needs f > 0.824 and
+# keeping a 2.8 A hydrogen bond needs f < 0.912, so 0.824-0.912 is the whole usable range and
+# either endpoint sits one rounding away from breaking the property it was picked for.
+set _OVERLAP_FRACTION 0.85
+set _OVERLAP_SEARCH 3.6
+
+proc overlapping_indices {molid sel_a sel_b} {
+    global _VDW_RADIUS _OVERLAP_FRACTION _OVERLAP_SEARCH
+    set pairs [measure contacts $_OVERLAP_SEARCH $sel_a $sel_b]
+    set ia [lindex $pairs 0]
+    set ib [lindex $pairs 1]
+    if {[llength $ia] == 0} { return {} }
+    set all [atomselect $molid "all"]
+    set names [$all get name]
+    set xs [$all get x] ; set ys [$all get y] ; set zs [$all get z]
+    $all delete
+    set out {}
+    foreach i $ia j $ib {
+        set ei [string index [lindex $names $i] 0]
+        set ej [string index [lindex $names $j] 0]
+        set ri 1.70 ; set rj 1.70
+        if {[info exists _VDW_RADIUS($ei)]} { set ri $_VDW_RADIUS($ei) }
+        if {[info exists _VDW_RADIUS($ej)]} { set rj $_VDW_RADIUS($ej) }
+        set lim [expr {$_OVERLAP_FRACTION * ($ri + $rj)}]
+        set dx [expr {[lindex $xs $i] - [lindex $xs $j]}]
+        set dy [expr {[lindex $ys $i] - [lindex $ys $j]}]
+        set dz [expr {[lindex $zs $i] - [lindex $zs $j]}]
+        if {[expr {$dx*$dx + $dy*$dy + $dz*$dz}] < [expr {$lim*$lim}]} { lappend out $i }
+    }
+    return [lsort -unique -integer $out]
+}
+
 # load the protein system
 mol new $psf
 mol addfile $pdb waitfor all
@@ -206,8 +268,7 @@ set bilayer_heavy [atomselect $bilayer "noh"]
 if {[$pro_heavy num] == 0 || [$bilayer_heavy num] == 0} {
    error "bilayer_embed: heavy-atom selection is empty (protein [$pro_heavy num], bilayer [$bilayer_heavy num]); refusing to embed without a working clash test"
 }
-set bad_atoms [measure contacts 2.4 $bilayer_heavy $pro_heavy]
-set bad_membrane_idx [lindex $bad_atoms 0]
+set bad_membrane_idx [overlapping_indices $bilayer $bilayer_heavy $pro_heavy]
 
 readpsf $psf pdb ${outbasename}_embedded.pdb
 readpsf $bilayer_psf pdb $bilayer_pdb
@@ -452,8 +513,7 @@ set water_heavy [atomselect $embedded_system "segname $segs_to_search and noh"]
 if {[$pro_heavy_w num] == 0 || [$water_heavy num] == 0} {
    error "bilayer_embed: heavy-atom selection is empty for the water clash test (protein [$pro_heavy_w num], water [$water_heavy num])"
 }
-set bad_atoms [measure contacts 2.4 $water_heavy $pro_heavy_w]
-set bad_water_idx [lindex $bad_atoms 0]
+set bad_water_idx [overlapping_indices $embedded_system $water_heavy $pro_heavy_w]
 # Map contacting atom indices -> (segname,resid) via the parent "all" selection rather
 # than [atomselect $embedded_system "index <list>"]; the slab-water clash list runs to
 # ~10^5 atoms, and such an "index ..." selection overflows the stack via the recursive

@@ -20,6 +20,32 @@ protein, a different composition, a different pestifer version). The excess trac
 The constant is unchanged. What changed is which atoms it applies to: 2.4 A between heavy atoms
 is a genuine overlap.
 
+**Superseded 2026-10-13 by a fractional-vdW criterion, because the flat heavy-atom cut was wrong
+in the other direction.** Keeping the 2.4 A constant and changing the atoms it applied to
+LOOSENED the test by ~1.4 A: the old all-atom cut was effectively a ~3.8 A heavy-atom cut (the
+measured offset above), so 2.4 A heavy retained everything in the 2.4-3.4 A band, which is
+genuine steric overlap. An observed build then hit 148 constraint failures across protein and
+lipid at the first post-embed dynamics (job 26469605 rep-03).
+
+No single distance can be right, which is why both flat values failed. A lipid phosphate
+hydrogen bonded to a protein nitrogen sits at ~2.8 A and must be KEPT; two carbons at 2.8 A are
+badly overlapped and must go. Scaling the summed van der Waals radii separates them:
+
+    C...C  1.70+1.70 = 3.40  x0.85 = 2.89   a 2.8 A contact is removed  (clash)
+    O...N  1.52+1.55 = 3.07  x0.85 = 2.61   a 2.8 A contact is kept     (H-bond)
+    O...O  1.52+1.52 = 3.04  x0.85 = 2.58   a 2.8 A contact is kept     (H-bond, water)
+
+0.85 is mid-window and not a taste: removing a 2.8 A C...C clash needs f > 0.824 and keeping a
+2.8 A hydrogen bond needs f < 0.912, so either endpoint is one rounding from breaking the
+property it was picked for. Verified against known geometry on synthetic pairs: C-C at 2.50
+flagged, C-C at 2.90 kept, O-N at 2.80 kept, O-O at 2.30 flagged.
+
+Two things the implementation must NOT do, both verified on a built system: VMD's own ``radius``
+is a display value, not van der Waals -- 1.5 for carbon against 1.70, 1.3 for oxygen against
+1.52, systematically ~0.2 A small. And the element field is ``X`` for every atom, so it cannot be
+read either. Radii key off the atom name's first character, which across a built
+membrane-protein system is only C, N, O, P.
+
 There is no unit test that can run VMD here, so this pins the script's source. That is weaker
 than exercising it — and it is exactly the gap that let a shipped Tcl script carry this for as
 long as it did.
@@ -37,23 +63,72 @@ CONTACT_LINES = [ln.strip() for ln in SRC.splitlines()
 
 class TestBothClashTestsUseHeavyAtoms(unittest.TestCase):
 
-    def test_there_are_exactly_two_clash_tests(self):
-        """One for lipids, one for water. If a third appears, it needs the same decision."""
-        self.assertEqual(len(CONTACT_LINES), 2, CONTACT_LINES)
+    def test_there_is_ONE_shared_overlap_test(self):
+        """Both sites route through `overlapping_indices`, so the rule cannot drift apart
+        between them -- which it did when they were two flat constants."""
+        self.assertEqual(len(CONTACT_LINES), 1,
+                         f'expected the single search inside overlapping_indices: {CONTACT_LINES}')
+        self.assertIn('_OVERLAP_SEARCH', CONTACT_LINES[0])
+        self.assertEqual(SRC.count('overlapping_indices $'), 2,
+                         'both the lipid and the water site must use the shared test')
 
     def test_neither_uses_an_all_atom_selection(self):
-        """NEGATIVE CONTROL: the exact pre-fix lines must not come back."""
-        for ln in CONTACT_LINES:
+        """NEGATIVE CONTROL: the original pre-fix lines must not come back."""
+        for ln in CONTACT_LINES + re.findall(r'overlapping_indices [^\n]*', SRC):
             self.assertNotIn('$bilayer_sel', ln, f'all-atom lipid clash test is back: {ln}')
             self.assertNotIn('$water_sel', ln, f'all-atom water clash test is back: {ln}')
 
-    def test_both_test_heavy_against_heavy(self):
-        for ln in CONTACT_LINES:
-            sels = re.findall(r'\$(\w+)', ln)
-            self.assertEqual(len(sels), 2, ln)
-            for sel in sels:
-                self.assertIn('heavy', sel,
-                              f'{sel} in "{ln}" is not a heavy-atom selection')
+    def test_both_sites_pass_heavy_atom_selections(self):
+        for ln in re.findall(r'overlapping_indices \$\w+ ([^\n]*)', SRC):
+            for sel in re.findall(r'\$(\w+)', ln):
+                self.assertIn('heavy', sel, f'{sel} in "{ln}" is not a heavy-atom selection')
+
+
+class TestTheOverlapCriterion(unittest.TestCase):
+    """The thresholds, because a flat constant has now been wrong in BOTH directions."""
+
+    @staticmethod
+    def _limits():
+        radii = dict(re.findall(r'([A-Z])\s+([0-9.]+)', re.search(
+            r'array set _VDW_RADIUS \{([^}]*)\}', SRC).group(1)))
+        frac = float(re.search(r'set _OVERLAP_FRACTION ([0-9.]+)', SRC).group(1))
+        return {k: float(v) for k, v in radii.items()}, frac
+
+    def test_the_radii_are_van_der_waals_not_vmd_display_values(self):
+        """VMD reports 1.5 for carbon and 1.3 for oxygen -- ~0.2 A small. Using those would
+        quietly loosen every threshold."""
+        r, _ = self._limits()
+        self.assertAlmostEqual(r['C'], 1.70, places=2)
+        self.assertAlmostEqual(r['O'], 1.52, places=2)
+        self.assertAlmostEqual(r['N'], 1.55, places=2)
+
+    def test_a_carbon_carbon_clash_at_2_8_is_removed(self):
+        r, f = self._limits()
+        self.assertLess(2.8, f * (r['C'] + r['C']))
+
+    def test_a_hydrogen_bond_at_2_8_is_KEPT(self):
+        """The property no flat cutoff could deliver, and the reason both flat values failed."""
+        r, f = self._limits()
+        for a, b in (('O', 'N'), ('O', 'O')):
+            self.assertGreater(2.8, f * (r[a] + r[b]),
+                               f'a {a}...{b} H-bond at 2.8 A would be deleted')
+
+    def test_the_fraction_is_inside_the_window_that_satisfies_BOTH(self):
+        """NEGATIVE CONTROL for drifting the constant: outside 0.824-0.912 one of the two
+        properties above silently stops holding."""
+        _r, f = self._limits()
+        self.assertGreater(f, 0.824)
+        self.assertLess(f, 0.912)
+
+    def test_the_search_radius_exceeds_every_threshold(self):
+        """A search narrower than the widest limit silently misses clashes."""
+        r, f = self._limits()
+        search = float(re.search(r'set _OVERLAP_SEARCH ([0-9.]+)', SRC).group(1))
+        self.assertGreater(search, f * 2 * max(r.values()))
+
+    def test_an_unknown_element_falls_back_to_carbon(self):
+        self.assertIn('set ri 1.70', SRC)
+        self.assertIn('set rj 1.70', SRC)
 
     def test_every_heavy_selection_actually_excludes_hydrogens(self):
         """A selection NAMED heavy that is not would pass the test above and fail in the field."""
