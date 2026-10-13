@@ -49,6 +49,7 @@ from pathlib import Path
 import difflib
 import logging
 import os
+import shutil
 import tarfile
 
 from unidiff import PatchSet
@@ -624,8 +625,20 @@ class FileArtifactList(ArtifactList):
                         arcname = os.path.join(arcname_prefix, artifact.path.name)
                     tar.add(artifact.path, arcname=arcname)
                     if remove:
-                        remove_files.append(artifact.path)
-                        remove_artifacts.append(artifact)
+                        # NEVER delete outside the run directory.  `remove=True` means "these are
+                        # this build's intermediates, the tarball now holds them" -- it does not
+                        # mean "delete whatever this artifact points at".  An artifact registered
+                        # from a path the user supplied (a prebuilt bilayer, a borrowed state)
+                        # resolves outside the run dir, and removing it destroys an input the
+                        # build never created.  Archive it, keep it, and say so.
+                        if _inside_cwd(artifact.path):
+                            remove_files.append(artifact.path)
+                            remove_artifacts.append(artifact)
+                        else:
+                            logger.warning(
+                                f'{artifact.path} lies outside the run directory '
+                                f'({Path.cwd()}); archived into {basename}.tar.gz but NOT '
+                                f'removed. A build must not delete a file it did not create.')
         if remove:
             logger.debug(f"Removing files:")
             my_logger([str(f) for f in remove_files], logger.debug, depth=1)
@@ -636,6 +649,62 @@ class FileArtifactList(ArtifactList):
                     logger.warning(f"Failed to remove {f}: {e}")
             for a in remove_artifacts:
                 self.remove(a)
+
+def _inside_cwd(path) -> bool:
+    """Does the directory entry at ``path`` live inside the current working directory?
+
+    The question is about the entry, not its contents, because the operation being guarded is
+    ``os.remove(path)`` -- which unlinks that entry and nothing else.  So the PARENT is resolved
+    and the final component is not: a symlink sitting in the run directory counts as inside even
+    when it points somewhere else, since removing it cannot touch what it points at.  Several
+    test fixtures are exactly that, and treating them as outside leaves stray links behind every
+    run.
+
+    Resolving the parent is what stops ``..`` segments walking out, and what stops a symlinked
+    *directory* being used to make an outside file look local.
+    """
+    try:
+        p = Path(path)
+        entry = p.parent.resolve() / p.name
+        entry.relative_to(Path.cwd().resolve())
+        return True
+    except (ValueError, OSError):
+        return False
+
+
+def ensure_in_cwd(filepath: str) -> str:
+    """Return ``filepath`` unchanged if it already lives in the CWD; otherwise copy it here and
+    return the bare basename.
+
+    **Register the copy, never the caller's original.** A registered artifact's path is what
+    :meth:`FileArtifactList.make_tarball` deletes under ``remove=True``, so registering a path
+    that points outside the run directory makes an ordinary build delete a user's input file
+    from wherever it happens to live. That is not hypothetical: a ``bilayer.prebuilt`` bilayer --
+    28 ns of GPU calibration, in a sibling run's folder -- was archived into a build's tarball
+    and removed from its own directory (reported 2026-10-12).
+
+    This lived in ``tasks/continuation.py`` as a private helper and was called nowhere else,
+    which is exactly why the second consumer of the same idea got it wrong. It is shared now so
+    a third does not have to rediscover it.
+    """
+    if not filepath:
+        return filepath
+    src = Path(filepath).resolve()
+    if src.parent == Path.cwd():
+        return filepath
+    if not src.exists():
+        # Nothing to copy and nothing to protect: `make_tarball` archives and removes strictly
+        # inside `if artifact.exists()`, so a path with no file behind it is never deleted.
+        # Pass it through and let the caller's own existence check produce the error, which is
+        # more specific than a copy failure here would be.
+        logger.debug(f'{src} does not exist; registering the path as given')
+        return filepath
+    dest = Path.cwd() / src.name
+    if not dest.exists() or not dest.samefile(src):
+        shutil.copy2(src, dest)
+        logger.info(f'Copied {src} -> {dest}')
+    return src.name
+
 
 @dataclass
 class StateArtifacts(FileArtifactDict):

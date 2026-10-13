@@ -250,10 +250,19 @@ class MakeMembraneSystemTask(BaseTask):
             # Dereferencing the dict instead -- `quilt_state.xsc.path` on a dict -- is an
             # AttributeError on the first prebuilt build anyone runs (reported 2026-09-29 from
             # Picotte, against a restart config that supplies its own equilibrated bilayer).
+            # Copy the supplied files into the run directory and register the COPIES.  A
+            # registered artifact's path is what `make_tarball(remove=True)` deletes, and
+            # `terminate` sweeps build intermediates that way -- so registering the user's own
+            # paths made an ordinary build delete their prebuilt bilayer from the folder it
+            # lives in.  Reported 2026-10-12 against a bilayer carrying 28 ns of GPU
+            # calibration; the files survived only inside this run's tarball, and the siblings
+            # not named here (.coor/.vel) stayed behind, so the source folder still looked
+            # populated.  `continuation` has always done this for its five inputs; this is the
+            # same idea's second consumer, written without it.
             quilt_state: StateArtifacts = self.register(
-                dict(pdb=self.bilayer_specs['prebuilt']['pdb'],
-                     psf=self.bilayer_specs['prebuilt']['psf'],
-                     xsc=self.bilayer_specs['prebuilt']['xsc']),
+                dict(pdb=ensure_in_cwd(self.bilayer_specs['prebuilt']['pdb']),
+                     psf=ensure_in_cwd(self.bilayer_specs['prebuilt']['psf']),
+                     xsc=ensure_in_cwd(self.bilayer_specs['prebuilt']['xsc'])),
                 key='quilt_state', artifact_type=StateArtifacts)
             self.quilt.box, self.quilt.origin = _cell_or_raise(
                 quilt_state.xsc.path, 'prebuilt bilayer')
