@@ -2,6 +2,10 @@ from_chatgpt/
 scratch/
 
 *.dcd
+# ...except the one trajectory that is a test FIXTURE rather than build output.  It feeds
+# test_desolvate.py, which used to read it from the gitignored scratch/ and so could only
+# pass on a machine that had run that build.
+!tests/unit/test_tasks/fixtures/bpti_build/*.dcd
 *.bak
 __defunct__/
 __test*

@@ -2,13 +2,12 @@
 """
 Integration tests for DesolvateTask  (require VMD + catdcd; run with --runslow).
 
-Fixtures are extracted on-demand from the BPTI build tarball in scratch/builds/1/.
+Fixtures are copied from the tracked BPTI build in fixtures/bpti_build/.
 The solvated PSF carries three DISU patch remarks; the test verifies that the
 desolvated (dry) PSF preserves them.
 """
 import os
 import shutil
-import tarfile
 import unittest
 from pathlib import Path
 
@@ -20,8 +19,11 @@ from pestifer.core.controller import Controller
 pytestmark = pytest.mark.needs_tools
 
 
-_TARBALL = (Path(__file__).parents[3] / 'scratch' / 'builds' / '1' / 'artifacts.tar.gz').resolve()
-_ARCHIVE_PREFIX = 'artifacts'
+# TRACKED fixtures (see the directory's README).  These used to be extracted from a 37 MB
+# `artifacts.tar.gz` under the gitignored `scratch/builds/1/`, so the module passed only on a
+# machine that happened to have run that build and raised FileNotFoundError on every fresh
+# clone.  CI never saw it: the module is `needs_tools` and skips there.
+_FIXTURES = (Path(__file__).parent / 'fixtures' / 'bpti_build').resolve()
 _SOLVATED_PSF = '00-04-00_solvate.psf'
 _SOLVATED_PDB = '00-04-00_solvate.pdb'
 _MINIMIZE_DCD = '00-05-00_md-minimize.dcd'
@@ -32,13 +34,10 @@ _DISU_REMARKS = {
 }
 
 
-def _extract_from_tarball(*member_basenames: str):
-    """Extract named files from the build tarball into the current directory."""
-    with tarfile.open(_TARBALL) as tar:
-        for basename in member_basenames:
-            member = tar.getmember(f'{_ARCHIVE_PREFIX}/{basename}')
-            member.name = basename
-            tar.extract(member, path='.')
+def _stage_fixtures(*basenames: str):
+    """Copy named fixture files into the current directory."""
+    for basename in basenames:
+        shutil.copy(_FIXTURES / basename, basename)
 
 
 def _psf_patch_remarks(psf_path: str) -> set[str]:
@@ -64,7 +63,7 @@ class TestDesolvateTask(unittest.TestCase):
             shutil.rmtree(name)
         os.makedirs(name)
         os.chdir(name)
-        _extract_from_tarball(_SOLVATED_PSF, _SOLVATED_PDB, _MINIMIZE_DCD)
+        _stage_fixtures(_SOLVATED_PSF, _SOLVATED_PDB, _MINIMIZE_DCD)
 
 
     def test_desolvate_preserves_patch_remarks(self):

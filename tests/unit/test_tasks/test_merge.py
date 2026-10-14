@@ -336,9 +336,12 @@ class TestResolveErrorStrategy(unittest.TestCase):
 # Integration tests  (require VMD/psfgen; run with --runslow)
 # ---------------------------------------------------------------------------
 
-# BPTI vacuum build (scratch/builds/1): 1108 atoms, segments A (protein) + B, C
-# (glycan/ion); three DISU patches on segment A.
-_FIXTURES = (Path(__file__).parents[3] / 'scratch' / 'builds' / '1' / 'standards').resolve()
+# BPTI vacuum build: 1108 atoms, segments A (protein) + B, C (glycan/ion); three DISU
+# patches on segment A.  These files are TRACKED (see the directory's README).  They used to
+# be read out of `scratch/builds/1/standards/`, which is gitignored -- so the module passed
+# only on a machine that happened to have run that build, and raised FileNotFoundError on
+# every fresh clone.  CI never saw it: the module is `needs_tools` and skips there.
+_FIXTURES = (Path(__file__).parent / 'fixtures' / 'bpti_build').resolve()
 _PSF = '00-01-00_psfgen-build.psf'
 _PDB = '00-01-00_psfgen-build.pdb'
 _N_ATOMS = 1108
