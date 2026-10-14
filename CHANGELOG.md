@@ -4,6 +4,67 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+- **A lipid tail threaded through a sterol ring is now un-threaded by rotation instead of
+  deleting the sterol.** `ring_check`'s rotation engine was reachable only by aromatic side
+  chains and glycans, so every membrane piercing fell straight through to deletion without one
+  rotation attempted — an ex17 build deleted 7–11 lipids per run that way, and **every piercee
+  was a cholesterol**, so this was in effect a cholesterol-deletion rule applied to a membrane
+  whose defining property is its 43–47% sterol fraction. Two moves are tried, cheapest first: a
+  chain-dihedral rotation of the piercing tail, then a long-axis spin of the speared molecule.
+  Deletion remains the last resort and now says rotation was tried.
+
+- **The fast ring check was blind across periodic boundaries.** `RingChecker._check_fast`
+  filtered candidate bonds on raw coordinates and applied the minimum image only afterward, so a
+  bond lying across the cell edge from a ring measured a box length away and was discarded.
+  Measured on an ex17 patch: a real piercing sat **1.13 Å** from the ring under the minimum image
+  and **66.56 Å** in raw coordinates. Its docstring claimed the path was "exact, not approximate",
+  which held only for a piercing wholly inside the box — and in a membrane, lipids straddle the
+  edge by construction.
+
+  The consequence ran well beyond a missed report: the rotation resolver's acceptance test asked
+  only whether the target ring was clear, so for a boundary-crossing piercing it answered "not
+  pierced" whatever the candidate did. The first rotation tried was accepted and logged as
+  cleared while the piercing survived — to be resolved by deleting a cholesterol, stranding its
+  threading partner in a contorted pose that RATTLE-failed at the first dynamics step. Fixed,
+  together with a hinge search that widens when the narrow pass finds nothing. On the structures
+  that motivated it, deletions go to zero.
+
+- **Protein/lipid clash detection at embed time is judged by van der Waals overlap.** A flat
+  cutoff was wrong in both directions: 2.4 Å between *all* atoms deleted every lipid merely in
+  contact, and 2.4 Å between *heavy* atoms — which kept the constant and changed the atoms —
+  loosened the test by ~1.4 Å and retained genuine overlap, producing 148 constraint failures at
+  the first post-embed dynamics. No single distance works, because a lipid phosphate hydrogen
+  bonded to a protein nitrogen sits at ~2.8 Å and must be kept while two carbons at 2.8 Å must
+  go. The test now scales the summed radii (0.85), which separates them.
+
+- **The calibration audit no longer quotes the verdict it audits.** `_relaxed_area_drift`
+  returned the convergence gate's own stored drift, and the gate declares convergence only when
+  that number is below the tolerance the audit then tests it against — so the check could not
+  fire on a converged patch. The fatal calibration gate was therefore blind to *premature*
+  convergence, which is the dangerous case. It now recomputes from the recorded series.
+
+  **Reported alongside it, and new:** the lateral-area rate, in percent per 100k steps, in the
+  convergence report and the run record. The convergence metric is a difference of adjacent
+  window means, so it shrinks the earlier you stop; across 28 measured series, runs declared
+  CONVERGED were changing area *faster* (median 1.33 %/100k) than runs that merely hit their step
+  ceiling (0.76). Read the rate, not the verdict. The gate's pass/fail is deliberately unchanged
+  — switching it would mark most membrane calibrations unconverged, which is a decision about
+  what the patch protocol promises.
+
+- **The numbers that size a membrane are recorded, with their provenance.**
+  `make_membrane_system` wrote no run record at all, so the step that decides the whole
+  membrane's size was absent from every `run-record.json`. It now records the leaflet counts, box
+  area, both APLs, each one's source, each patch's drift and rate, and the tolerance the drift was
+  judged against.
+
+- **`bilayer.leaflet_apl` supplies a per-leaflet area per lipid** instead of calibrating it.
+  Intended for re-using an APL measured on a converged bilayer, because a short calibration patch
+  cannot currently be trusted to produce the APL of the mixture it models — one reported itself
+  CONVERGED at 88,210 steps certifying 50.53 Å² against a truth near 43. Supply either leaflet or
+  both; whichever is omitted stays calibrated. The calibration and its convergence gate still run
+  and an override cannot suppress them, and the source of each leaflet's APL is logged and
+  recorded.
+
 ## [3.27.1] - 2026-10-13
 
 - **A build could delete a file it did not create.** ``make_tarball(remove=True)`` archived each
