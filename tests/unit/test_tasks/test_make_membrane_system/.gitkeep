@@ -1,0 +1,15 @@
+# Tracked so this directory exists in a FRESH CHECKOUT.
+#
+# tests/conftest.py::change_test_dir chdirs into <module_name>/ when that directory exists and
+# falls back to the module's own directory when it does not. Every relative path in the module
+# is written for the first case, so a missing directory silently shifts the whole module one
+# level up: '../../fixtures/embed_inputs' resolves to tests/unit/fixtures (absent) instead of
+# tests/unit/test_tasks/fixtures (present), and the module fails with FileNotFoundError.
+#
+# It passes on a developer machine because the directory survives from an earlier run, and fails
+# on any clean clone -- CI, a new contributor, a release checkout. Measured 2026-10-14: a fresh
+# export of main failed 13 tests that pass in a working tree.
+#
+# CLAUDE.md records this exact failure ("a per-module test working directory that was never
+# tracked, so conftest.py's chdir fell back a level and every path in that module resolved
+# wrongly"). This is its third occurrence.

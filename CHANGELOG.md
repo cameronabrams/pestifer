@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.27.2] - 2026-10-14
+
 - **A lipid tail threaded through a sterol ring is now un-threaded by rotation instead of
   deleting the sterol.** `ring_check`'s rotation engine was reachable only by aromatic side
   chains and glycans, so every membrane piercing fell straight through to deletion without one
