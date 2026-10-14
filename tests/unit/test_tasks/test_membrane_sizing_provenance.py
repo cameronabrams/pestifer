@@ -92,7 +92,16 @@ class TestTheAsymmetricPathRecordsProvenance(unittest.TestCase):
         self.assertIn('area_convergence_tol', self.src)
 
     def test_the_log_line_names_the_source_of_each_apl(self):
-        self.assertIn("apl_source = {'upper': 'calibrated', 'lower': 'calibrated'}", self.src)
+        """The provenance is PRODUCED by the override, not hardcoded here.
+
+        It was hardcoded while `bilayer.leaflet_apl` was reverted, which was safe only because
+        nothing could supply an APL. With the override landed the dict must come from it, or a
+        hand-supplied number would be labelled 'calibrated' -- the exact defect that made the
+        first version of that feature unsafe to ship.
+        """
+        self.assertIn('apl_source = self._apply_leaflet_apl_override'.split('=')[0].strip(),
+                      self.src)
+        self.assertIn('_apply_leaflet_apl_override', self.src)
         self.assertIn("apl_source['upper']", self.src)
         self.assertIn("apl_source['lower']", self.src)
 

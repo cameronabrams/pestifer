@@ -680,6 +680,63 @@ class MakeMembraneSystemTask(BaseTask):
         logger.debug(f'build_grid_membrane: {n_target} lipids per leaflet (aspect {aspect:.2f})')
         self._grid_membrane(dict(upper=n_target, lower=n_target), SAPL, aspect)
 
+    @staticmethod
+    def _apply_leaflet_apl_override(bs, apl_upper, apl_lower):
+        """Replace either calibrated APL with one the user supplied under ``bilayer.leaflet_apl``.
+
+        Both values already flow through the stress-free count logic below, so this is an
+        injection point on two existing variables, not new machinery.  It exists because a small
+        calibration patch systematically mis-states the APL of some mixtures: measured for a PIP2
+        mix, 45.63 on the patch against 43.47 on a 700-lipid bilayer, a 10% error that left one
+        leaflet ~5% under-filled.  Someone who has already equilibrated a large bilayer of the
+        same composition holds a better number than this task can derive.
+
+        **The calibration is not skipped, and neither is its convergence gate.**  They run first
+        and this replaces only the resulting number, so an override can never suppress the report
+        that the calibration it displaces had not settled.
+
+        **Why this exists at all, which changed between being written and being landed.**  It was
+        built, then reverted on the argument that it routed around a defect the plateau gate would
+        fix.  That argument was wrong on the facts: the gate WAS enabled in the run that motivated
+        it, and the patch still over-stated the APL by ~4.7%.  Worse, the calibration can be
+        confidently wrong while reporting itself converged -- with example 17's own settings a
+        patch converged at 88,210 steps certifying 50.53 A^2 against a truth near 43, because the
+        convergence metric is a difference of adjacent-window means and so shrinks the earlier you
+        stop (see :meth:`MembraneEquilibrateTask.area_rate`).  A short calibration patch cannot
+        currently be trusted to produce the APL of the mixture it models, and someone who has
+        equilibrated a large bilayer of the same composition holds a better number than this task
+        can derive.
+
+        **What pestifer still cannot do is check the number you give it.**  So the supplied value
+        and the one it displaced are both logged with the percentage between them, and the source
+        is carried per leaflet into the log line and the run record -- a built system should never
+        leave a reader guessing whether its APL was earned or asserted.  A supplied APL far from
+        the calibrated one is either the patch being wrong, which is the case this is for, or the
+        supplied value being wrong; the reader needs both numbers to tell which.
+        """
+        source = {'upper': 'calibrated', 'lower': 'calibrated'}
+        spec = (bs or {}).get('leaflet_apl') or {}
+        if not spec:
+            return apl_upper, apl_lower, source
+        out = {'upper': apl_upper, 'lower': apl_lower}
+        for which in ('upper', 'lower'):
+            given = spec.get(which)
+            if given is None:
+                continue
+            given = float(given)
+            if given <= 0.0:
+                raise ValueError(f'bilayer.leaflet_apl.{which} must be positive, got {given}')
+            calibrated = out[which]
+            pct = 100.0 * (given - calibrated) / calibrated
+            logger.warning(
+                f'OVERRIDE: {which} leaflet APL supplied as {given:.2f} {sA2_}, replacing the '
+                f'{calibrated:.2f} {sA2_} calibrated from the relaxed patch ({pct:+.1f}%). '
+                f'pestifer cannot verify that the supplied value came from a converged run; the '
+                f'patch calibration above still ran and its convergence is reported there.')
+            out[which] = given
+            source[which] = 'supplied'
+        return out['upper'], out['lower'], source
+
     def build_grid_membrane_asymmetric(self):
         """Build a stress-free asymmetric membrane directly by grid placement.
 
@@ -759,6 +816,10 @@ class MakeMembraneSystemTask(BaseTask):
                   'bilayer.relaxation_protocols.patch -- raise its max_steps, and keep '
                   'area_plateau_tol at 0.005 so the stage stops on the plateau rather than on '
                   'a local slope.')
+        # Replace either calibrated APL with one the user supplied.  This runs AFTER the
+        # convergence gate above, deliberately: an override must not be able to suppress the
+        # report that the calibration it is replacing had not settled.
+        apl_upper, apl_lower, apl_source = self._apply_leaflet_apl_override(bs, apl_upper, apl_lower)
         if self.embedding:
             # size the common box to the protein footprint and place each leaflet at its own
             # preferred APL there; this keeps the stress-free ratio n_upper/n_lower = apl_lo/apl_up
@@ -794,7 +855,6 @@ class MakeMembraneSystemTask(BaseTask):
         # summary a reader greps for would have called a hand-supplied number calibrated --
         # worse than silent.  The provenance is carried per leaflet so that if an override does
         # return, the label follows it instead of having to be remembered.
-        apl_source = {'upper': 'calibrated', 'lower': 'calibrated'}
         _src = (f"upper {apl_upper:.2f} ({apl_source['upper']}), "
                 f"lower {apl_lower:.2f} ({apl_source['lower']})")
         logger.info(f'Preferred APL: {_src} {sA2_}')

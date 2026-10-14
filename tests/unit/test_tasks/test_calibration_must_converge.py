@@ -35,7 +35,10 @@ def _check(drift_upper, drift_lower):
     """Run only the convergence gate, with the surrounding sizing logic stubbed out."""
     src = inspect.getsource(MakeMembraneSystemTask.build_grid_membrane_asymmetric)
     start = src.index('unconverged = []')
-    end = src.index('if self.embedding:')
+    # Stop at the override call, not at `if self.embedding:` -- the override is downstream of
+    # the gate and needs `bs`, which this harness deliberately does not provide. Extracting past
+    # it would make the harness fail for a reason that has nothing to do with the gate.
+    end = src.rindex('\n', 0, src.index('self._apply_leaflet_apl_override')) + 1
     body = '\n'.join(line[8:] if line.startswith('        ') else line
                      for line in src[start:end].rstrip().splitlines())
     ns = {
