@@ -12,10 +12,20 @@ marked `needs_tools` and skip there, so a developer machine with the toolchain r
 tests that CI never sees -- and, more dangerously, a fresh checkout lacks untracked state that a
 working machine has accumulated.
 
-Two separate failures have reached `main` this way: fixture symlinks committed with absolute
-paths, which become dangling links in any other checkout, and a per-module test working directory
+Four separate failures have reached `main` this way. Fixture symlinks committed with absolute
+paths, which become dangling links in any other checkout. A per-module test working directory
 that was never tracked, so `conftest.py`'s `chdir` fell back a level and every path in that module
-resolved wrongly. Both passed locally, for the same reason each broke everywhere else.
+resolved wrongly -- **twice more** on 2026-10-14, `test_tasks/test_make_membrane_system/` and
+`test_core/test_tcl/`, each of which existed locally with zero tracked files in it; a `.gitkeep`
+in each fixes it, and a directory the suite needs now has to carry one. And `test_merge.py` and
+`test_desolvate.py`, which read their inputs out of `scratch/builds/1/` -- a **gitignored**
+leftover of a build someone had once run on that machine. All passed locally, for the same reason
+each broke everywhere else.
+
+A test directory that holds only generated output, and a fixture that is a file nothing in the
+repo produces, are the same defect wearing different clothes: the suite depends on state the
+repository does not carry. Both are invisible to `git status` -- one because the directory is
+untracked, the other because it is ignored.
 
 Before pushing anything that could affect CI, run it the way CI will see it -- a clean export,
 with the tools hidden:
@@ -26,6 +36,16 @@ git archive HEAD | tar -x -C $CISIM && cd $CISIM
 PATH="$(echo "$PATH" | tr : '\n' | grep -v /usr/local/bin | paste -sd:)" \
     uv run --extra test pytest tests/unit -q
 ```
+
+**This gate alone is not enough, and the reason is the subject of the next section.** It hides the
+toolchain on purpose, so every `needs_tools` test skips in it -- correctly, since that is what CI
+sees. If your ordinary repo run also omits `--runslow`, the 11 `slow` tests in `tests/unit` run in
+**neither** place. Five of them are the membrane builds, the only tests anywhere that build a
+bilayer from a composition. Two filters, each right on its own, whose intersection is empty: in
+October 2026 that pair hid four real defects in `test_make_membrane_system.py` through about
+twenty full-suite runs, during a week spent almost entirely on the membrane builder. Run the repo
+suite as `uv run --extra test pytest tests/unit -q --runslow` (about 9 minutes), and report a run
+without the flag as "N passed, with the build tests skipped" -- which is what it is.
 
 The export goes under `~/devtests/pestifer/` rather than `/tmp`: `/tmp` is shared with every other
 session's scratch, which makes anything there unsafe for anyone else to clean up, and a `/tmp` that
@@ -57,6 +77,7 @@ most of them self-inflicted (two more added since):
 | "0 unset coordinates" on a sugar, grepping the psfgen log for `AGALNA` | nothing. psfgen logs coordinate warnings under the residue's *PDB* name (`A2G`); the grep could not match, so the control without the fix also read 0. (2026-09-14) |
 | VMD selecting the right number of lipid atoms after regenerating `macros.tcl` | VMD's *built-in* `lipid` keyword. One hyphenated name made VMD reject pestifer's whole macro and fall back silently; the count was identical. Read the macro back with `atomselect macro lipid`. (2026-09-14) |
 | `sha256sum` on the artifacts a release should have written, diffed against a reference | nothing. The files did not exist, so `sha256sum` wrote its complaint to *stderr* and nothing to stdout -- the comparison was `"" = ""`, and it printed MATCH for three missing files in a row. (2026-10-01) |
+| `uv run --extra test pytest tests/unit -q` reporting "2353 passed, 0 failed", about twenty times in a week spent on the membrane builder | the 2367 tests that are **not** the membrane builds. Those five are `slow`, so they need `--runslow`; the clean-export gate that would otherwise run them hides VMD and NAMD on purpose. Two filters whose intersection is empty, and four real defects sat inside it. (2026-10-14) |
 
 **A hash is not evidence that anything was hashed.** The last row has a sibling worth knowing
 before you meet it, hit the same day in ycleptic: `curl -sL <url> | sha256sum` through a failed
@@ -154,6 +175,59 @@ This is why the clean-export gate above is written as it is, and why
 is pure logic over environment variables, and it is exactly the code that misbehaves on a
 cluster CI cannot reach, so it has to run everywhere. Marking a test `needs_tools` that does not
 need them is how a guard against silent failure becomes silent itself.
+
+## Four defects in one test module, and none of them could fail where anyone would look
+
+Found 2026-10-14 in `tests/unit/test_tasks/test_make_membrane_system.py` -- five `slow` +
+`needs_tools` tests that are the **only** tests anywhere that build a bilayer from a composition.
+They had been broken for a long time and nothing said so, because of the filter intersection
+described above. Worth recording as a set, because they are four different shapes of the same
+root condition: *a shared thing that one test mutates and the next one inherits.*
+
+| what was shared | how it failed |
+| :--- | :--- |
+| `cls.common_patch_relaxation_protocols`, a class-level list of dicts | ycleptic's `dwalk` fills in schema defaults **in place** on the dict it is handed, so after the first test the list carries `temperature`, `pressure`, `addl_paramfiles`, `other_parameters` and lower-cased ensembles; the task then restructures it further. Every later test died in `reconfigure_tasks` with `Attribute 'minimize' invalid ... under 'md'`. |
+| `cls.controller`, one per class | `Bilayer.__init__` calls `charmmffcontent.provision(resnames=...)`, which **replaces** the exposed residue set rather than adding to it. The first test narrowed the content to its own lipids; the next got `Cannot find residue POPC in CHARMMFFContent`. |
+| `z_dist`, a config key | Exists nowhere -- not in `base.yaml`, not in any Python, not in `bilayer_embed.tcl` (whose arg loop ignores it silently). Two tests passed it and died on schema validation; a third passes it to the Tcl script, where it is simply dropped. |
+| `patch_nlipids['lower']`, read as if it sized the quilt | It does not. `make_membrane_system` sizes the lower leaflet from the stress-free ratio `n_upper * apl_upper / apl_lower`, and when embedding sizes **both** from the protein footprint. A 49/49 request correctly builds 50 POPE against 49 POPC, and `assertLessEqual(POPE, 49)` correctly failed. |
+
+The last one is the one to think about. The test was not merely stale: it was asserting against a
+config key that **has no effect on the thing it names**. `patch_nlipids['lower']` reaches the two
+calibration patches and stops there. Tests now assert against `task.outcome['n_upper']` /
+`['n_lower']`, which the task records precisely so the decision is not left to a log line -- and
+`n_lower` is a derived number that appears in no config, so without the record there was nothing
+to compare a built system to.
+
+Two habits this reinforces, both already in this file in other costumes:
+
+- **A fixture that one test can mutate is not a fixture.** `setUpClass` is the natural place to
+  put something expensive, and it is the wrong place for anything a test hands to code that
+  normalizes its input in place. Which test breaks depends on alphabetical order, so the symptom
+  moves when a test is renamed -- two of the four above only surfaced once an *earlier* test
+  stopped failing fast.
+- **A config key that the code ignores is worse than one it rejects.** `z_dist` on the Tcl side
+  is dropped without a word; `patch_nlipids['lower']` is accepted, validated, and then not used
+  for the leaflet it names.
+
+**Still open, and not a test bug.** Once the four above were fixed and the module could run end
+to end, `test_makemembranesystem_popc_chl1_psm_chl1` failed 2 of 3 runs: patchB's NPT stage dies
+with NAMD's `FATAL ERROR: Periodic cell has become too small for original patch grid!`. It builds
+PSM/CHL1 50/50 at `SAPL: 75`, far above where a cholesterol-rich leaflet sits, and the patch
+collapses faster than the patch grid can follow.
+
+**And pestifer says so, before the build, in every run** -- for both leaflets:
+
+```
+WARNING pestifer.tasks.make_membrane_system: lower_leaflet: phase Ld requested but sterol
+fraction is 50% (cholesterol-rich) -- expect the leaflet to order (drift toward Lo) during
+equilibration; consider phase: Lo
+```
+
+That is the ex17 lesson again, in a test rather than a build: the diagnostic was already there,
+already right, already specific, and nobody read it -- here because the module it was warning
+about could not run at all. Marked `xfail(strict=False)` with the cause in its `reason`, rather
+than retuned: choosing a composition-appropriate `SAPL` (or `phase`, or a longer patch protocol)
+is a decision about what the test should build, not a defect in the code under test.
 
 ## The test suite dirties the working tree
 

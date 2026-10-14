@@ -72,10 +72,29 @@ So:
 
 .. code-block:: bash
 
-   pytest tests/unit -q                                  # the fast core
+   pytest tests/unit -q --runslow                        # the unit tier, in full
    pytest tests/integration -q --runslow                 # builds, including the expensive one
    pytest tests/integration -q --runslow -m 'not expensive'   # what the release gate runs
    pytest tests/integration -q --runslow -m expensive         # only the expensive ones
+
+.. warning::
+
+   **Use ``--runslow`` on ``tests/unit`` too.**  The tier is described above as the fast,
+   hermetic one, and it mostly is — but 11 of its 2378 tests are marked ``slow``, 6 of those
+   also ``needs_tools``, and 5 of *those* are the membrane builds in
+   ``test_tasks/test_make_membrane_system.py``.  They are the only tests anywhere that build a
+   bilayer from a composition, and ``pytest tests/unit -q`` skips every one of them without
+   saying anything louder than a ``s`` in the progress dots.
+
+   That matters because of where the *other* standard check sends them.  The clean-export gate
+   in ``CLAUDE.md`` deliberately hides VMD and NAMD, to reproduce what CI sees — so those tests
+   skip there as well, correctly.  Two filters, each right on its own, whose **intersection is
+   empty**: run the repo suite without ``--runslow`` and the export gate without the toolchain,
+   and the membrane builds run in neither.  In October 2026 that combination hid four real
+   defects in that module through roughly twenty full-suite runs during a week of work on the
+   membrane builder, and every "all tests pass" in between was a statement about the other 2367.
+
+   The honest report of a run without the flag is "N passed, with the build tests skipped".
 
 Why CI runs only ``tests/unit``
 -------------------------------

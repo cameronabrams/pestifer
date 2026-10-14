@@ -1,0 +1,12 @@
+# Tracked so this directory exists in a FRESH CHECKOUT.
+#
+# tests/conftest.py::change_test_dir chdirs into <module_name>/ when that directory exists and
+# falls back to the module's own directory when it does not. Every relative path in the module
+# is written for one of those two, so a directory that exists here and not in a clone shifts the
+# whole module one level up. This one holds only generated output, so nothing in it was tracked
+# and nothing reported it missing.
+#
+# Added 2026-10-14 as prevention, not repair: unlike test_make_membrane_system/ and test_tcl/,
+# this module did not yet fail on a clean export -- it is one relative path away from doing so,
+# and a .gitkeep is the whole fix. tests/unit/test_repo_layout.py fails if a module working
+# directory loses its last tracked file.

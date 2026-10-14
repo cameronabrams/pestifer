@@ -875,7 +875,13 @@ class MakeMembraneSystemTask(BaseTask):
             apl_upper_area_rate=_as_float(getattr(self.patchA, 'area_rate', None)),
             apl_lower_area_rate=_as_float(getattr(self.patchB, 'area_rate', None)),
             area_convergence_tol=_AREA_CONVERGENCE_TOL,
-            target_area=float(target_area))
+            target_area=float(target_area),
+            # The two numbers that decide how big the membrane actually is.  They were printed
+            # above and recorded nowhere, which is the same gap the APLs had until 2026-10-13:
+            # `n_lower` in particular is DERIVED (stress-free ratio, or the protein footprint
+            # when embedding) and is not any key the user wrote, so without this there is no
+            # durable record of how many lipids the build decided to make or why.
+            n_upper=int(n_upper), n_lower=int(n_lower))
         self._grid_membrane(dict(upper=n_upper, lower=n_lower), box_SAPL, aspect)
         diag_specs = self.specs.get('diagnose_differential_stress', {})
         if diag_specs.get('enabled', False):
