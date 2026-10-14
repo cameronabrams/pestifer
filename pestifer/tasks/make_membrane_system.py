@@ -39,9 +39,14 @@ _AREA_CONVERGENCE_TOL = 0.005
 
 
 def _as_float(v):
-    """``float(v)`` or ``None`` -- `record_outcome` drops None, so an unmeasured drift is simply
-    absent from the run record rather than recorded as a null."""
-    return None if v is None else float(v)
+    """``float(v)`` for a real number, else ``None`` -- `record_outcome` drops None, so an
+    unmeasured quantity is simply absent from the run record rather than recorded as a null.
+
+    The type is checked rather than the truthiness, because a stand-in object answers `getattr`
+    with something that is neither None nor a number and `float()` on it raises mid-build."""
+    if isinstance(v, bool) or not isinstance(v, (int, float)):
+        return None
+    return float(v)
 
 # Assumed per-leaflet area-compressibility modulus K_A (mN/m), used only to translate a
 # measured residual differential stress into a suggested leaflet-count adjustment.  A
@@ -805,6 +810,10 @@ class MakeMembraneSystemTask(BaseTask):
             apl_upper_source=apl_source['upper'], apl_lower_source=apl_source['lower'],
             apl_upper_drift=_as_float(getattr(self.patchA, 'area_drift', None)),
             apl_lower_drift=_as_float(getattr(self.patchB, 'area_drift', None)),
+            # the independent rate, so a run record carries the number that actually says whether
+            # the area had stopped moving -- the drift above cannot, and nothing recorded it before
+            apl_upper_area_rate=_as_float(getattr(self.patchA, 'area_rate', None)),
+            apl_lower_area_rate=_as_float(getattr(self.patchB, 'area_rate', None)),
             area_convergence_tol=_AREA_CONVERGENCE_TOL,
             target_area=float(target_area))
         self._grid_membrane(dict(upper=n_upper, lower=n_lower), box_SAPL, aspect)
@@ -1093,7 +1102,17 @@ class MakeMembraneSystemTask(BaseTask):
                           if getattr(t, '_area_plateau_tol', 0.0) > 0.0 and getattr(t, 'converged', False)),
                          None)
         if plateaued is not None:
-            return getattr(plateaued, '_last_plateau_drift', None)
+            # RECOMPUTE from the recorded series; do NOT read the stage's stored
+            # `_last_plateau_drift`.  Reading it made this a tautology: the gate declares
+            # convergence only when that number is below `area_plateau_tol`, stores it, and this
+            # handed the same number back to a check that asks whether it EXCEEDS the tolerance.
+            # For any converged plateau-gated patch the check could not fire -- so the fatal
+            # calibration gate was blind to premature convergence, which is the dangerous case
+            # (a confident, specific, wrong APL) and silent only on CEILING, which was already
+            # loud.  Recomputing cannot fix the statistic, but it does mean the audit derives its
+            # own answer instead of quoting the verdict it is auditing.
+            fresh = getattr(plateaued, '_area_plateau_drift', None)
+            return fresh() if callable(fresh) else None
         return self._area_convergence(last_task, bilayer_name)
 
     def equilibrate_bilayer(self, bilayer: Bilayer, bilayer_name: str, relaxation_protocol: list[dict] = None,
@@ -1277,6 +1296,18 @@ class MakeMembraneSystemTask(BaseTask):
         # over-reports when the tensionless stage is short (it still spans the earlier annealing /
         # density-settling descent) and would warn spuriously on a genuinely-plateaued patch.
         bilayer.area_drift = self._relaxed_area_drift(subcontroller.tasks, last_task, bilayer_name)
+        # The independent signal, reported but NOT gated on -- see MembraneEquilibrateTask.area_rate
+        # for why the gate's own statistic cannot answer "has the area stopped moving".
+        bilayer.area_rate = next((t.area_rate() for t in reversed(subcontroller.tasks)
+                                  if callable(getattr(t, 'area_rate', None))), None)
+        # Only a real number counts -- the same lesson `_divisor` above already carries: a
+        # stand-in object answers `getattr` with something that is not None and not a number,
+        # and formatting it raises from inside the build.
+        if isinstance(bilayer.area_rate, (int, float)) and not isinstance(bilayer.area_rate, bool):
+            logger.info(f'{bilayer_name} lateral area is changing {bilayer.area_rate:+.2f}% per '
+                        f'100k steps over the late half of the tensionless stage '
+                        f'(reported, not gated: the convergence verdict uses a window-difference '
+                        f'metric that scales with run length)')
         if bilayer.area_drift is not None:
             pct = 100.0 * bilayer.area_drift
             if abs(bilayer.area_drift) > _AREA_CONVERGENCE_TOL:

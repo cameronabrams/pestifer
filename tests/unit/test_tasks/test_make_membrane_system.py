@@ -111,24 +111,44 @@ class TestAreaConvergence(unittest.TestCase):
 
 
 class TestRelaxedAreaDrift(unittest.TestCase):
-    """The reconciliation: trust a converged plateau-gated membrane_equilibrate over the cruder
-    whole-trajectory _area_convergence check."""
+    """Prefer a converged plateau-gated membrane_equilibrate's own stage-2 measure over the
+    cruder whole-trajectory _area_convergence check -- but RECOMPUTE it, never read the stored
+    verdict.
+
+    This class previously contained ``test_trusts_converged_plateau_gated``, which asserted that
+    a converged stage's stored ``_last_plateau_drift`` was handed straight back. That encoded the
+    tautology as intended behavior: the gate declares convergence only when that number is below
+    ``area_plateau_tol``, and the downstream calibration check asks whether it EXCEEDS the same
+    tolerance -- so the check could never fire on a converged patch, and was blind to premature
+    convergence, which is the dangerous case. The word "trusts" in the old name was accurate and
+    was the problem. Renamed and inverted 2026-10-14.
+    """
 
     def _mms(self):
         return MakeMembraneSystemTask.__new__(MakeMembraneSystemTask)
 
     @staticmethod
-    def _me(plateau_tol, converged, drift):
+    def _me(plateau_tol, converged, drift, recomputed=None):
         from types import SimpleNamespace
-        return SimpleNamespace(_area_plateau_tol=plateau_tol, converged=converged,
-                               _last_plateau_drift=drift)
+        ns = SimpleNamespace(_area_plateau_tol=plateau_tol, converged=converged,
+                             _last_plateau_drift=drift)
+        ns._area_plateau_drift = lambda: (drift if recomputed is None else recomputed)
+        return ns
 
-    def test_trusts_converged_plateau_gated(self):
+    def test_uses_the_stage_2_measure_not_the_whole_trajectory(self):
         from types import SimpleNamespace
-        # converged plateau-gated ME -> use its own plateau drift, ignore the still-descending whole run
+        # a converged plateau-gated ME -> its own stage-2 drift, not the still-descending whole run
         tasks = [SimpleNamespace(), self._me(0.005, True, 0.0012)]
-        last = _StubMDPlot(_xst_from_area(np.linspace(7000, 6000, 120)))  # -X% whole-trajectory drift
+        last = _StubMDPlot(_xst_from_area(np.linspace(7000, 6000, 120)))
         self.assertEqual(self._mms()._relaxed_area_drift(tasks, last, 'patchA'), 0.0012)
+
+    def test_it_RECOMPUTES_rather_than_reading_the_stored_verdict(self):
+        """The regression. If the stored number and a fresh computation disagree, the fresh one
+        must win -- otherwise the audit is quoting the verdict it audits."""
+        from types import SimpleNamespace
+        tasks = [SimpleNamespace(), self._me(0.005, True, 0.0012, recomputed=-0.0400)]
+        last = _StubMDPlot(_xst_from_area(np.linspace(7000, 6000, 120)))
+        self.assertEqual(self._mms()._relaxed_area_drift(tasks, last, 'patchA'), -0.0400)
 
     def test_falls_back_when_ceilinged(self):
         # a plateau-gated ME that hit its ceiling (converged False) -> whole-trajectory _area_convergence

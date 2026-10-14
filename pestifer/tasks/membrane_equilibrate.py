@@ -306,6 +306,56 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         m1, m2 = float(tail[:h].mean()), float(tail[h:].mean())
         return (m2 - m1) / m1 if m1 else None
 
+    def area_rate(self):
+        """Fractional area change per 100,000 steps over the late half of the stage-2 series,
+        as a percentage.  ``None`` until there are enough samples.
+
+        **An independent measure of whether the area has stopped moving**, and the one that
+        should be read when asking that question.  :meth:`_area_plateau_drift` -- the statistic
+        the convergence gate uses -- is a difference of adjacent-window MEANS, so its value
+        scales with the length of the window it is computed over: the same steady descent reads
+        flatter the earlier you stop.  Demonstrated on a synthetic linear decline, the quarter
+        drift grows from 0.012 to 0.369 over the same per-step rate as the series lengthens.
+
+        The consequence is visible in this repository's own build reports.  Measured across 28
+        stage-2 series under ``~/devtests/pestifer`` (2026-10-14):
+
+            verdict      median |%area / 100k steps|     max
+            CONVERGED              1.325                2.548
+            CEILING                0.760                1.117
+
+        Runs the gate declared CONVERGED are changing area FASTER than runs that merely ran out
+        of steps -- the verdict is anti-correlated with the property it names, because the
+        converged ones stopped sooner and the metric rewards that.  Nothing in that corpus is
+        settled by a rate criterion; the quietest run is still moving at 0.76 %/100k.
+
+        This is reported, not gated on.  Switching the gate to a rate would mark most membrane
+        calibrations unconverged -- which is probably correct and is a decision about what the
+        patch protocol promises, not a tolerance to be tuned.
+        """
+        import numpy as np
+        # NEVER RAISES.  This is an advisory observable -- reported, not gated -- and this module
+        # already carries the rule for those: `_measure_thickness` is wrapped for exactly this
+        # reason, after an AttributeError from a half-initialized local escaped into the
+        # convergence loop.  The series are set up in `_setup`, so a task that has not run a
+        # stage simply has no rate; it must not take the report (or the run) down with it.
+        t = np.asarray(getattr(self, '_all_t', None) or [], dtype=float)
+        a = np.asarray(getattr(self, '_all_a', None) or [], dtype=float)
+        if a.size != t.size or a.size < 8:
+            return None
+        start = getattr(self, '_phase2_start_step', None)
+        if start is not None and t.size:
+            keep = t >= start
+            t, a = t[keep], a[keep]
+        if a.size < 8:
+            return None
+        h = a.size // 2
+        tt, aa = t[h:], a[h:]
+        if tt.size < 4 or float(np.max(tt) - np.min(tt)) <= 0 or not float(aa.mean()):
+            return None
+        slope = float(np.polyfit(tt, aa, 1)[0])          # area units per step
+        return 100.0 * 1.0e5 * slope / float(aa.mean())  # percent of area per 100k steps
+
     def _converged_stop_reason(self, total_steps):
         extra = ('' if self._area_plateau_tol <= 0.0
                  else f' (area plateaued: cumulative quarter-drift {_fmt(self._last_plateau_drift)} < '
@@ -387,6 +437,16 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
             else:
                 f.write('# protocol: single-stage tensionless NPgT (density+area jointly)\n')
             f.write(f'# stop: {stop_reason}\n')
+            _rate = self.area_rate()
+            if _rate is not None:
+                f.write(f'# lateral area rate: {_rate:+.3f} % per 100k steps over the late half of\n'
+                        f'#   the tensionless stage -- REPORTED, NOT GATED.  The convergence verdict\n'
+                        f'#   above uses a difference of adjacent-window means, which scales with how\n'
+                        f'#   long the stage ran, so stopping earlier makes the same descent look\n'
+                        f'#   flatter.  Across 28 stage-2 series measured 2026-10-14, runs declared\n'
+                        f'#   CONVERGED were moving FASTER (median 1.33 %/100k) than runs that hit\n'
+                        f'#   their step ceiling (0.76).  Read this number, not the verdict, when\n'
+                        f'#   asking whether the area had stopped moving.\n')
             if pp_at:
                 f.write('# PP[A] is phosphate-to-phosphate bilayer thickness -- MEASURED, NOT GATED.\n'
                         '# Area overshoots on release, so its drift passes through zero at the turn\n'

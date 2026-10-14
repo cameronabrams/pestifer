@@ -36,7 +36,7 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   atoms it applies to. The embed stage also now reports how many lipids and waters it deleted,
   which it previously did silently.
 
-- **An unconverged calibration stops the build.** The membrane grid is sized from each
+- **A calibration that runs out of steps stops the build.** The membrane grid is sized from each
   calibration patch's preferred area per lipid, so a patch that never equilibrated yields a
   membrane built to the wrong size — and the failure surfaces far from its cause. Previously the
   task warned and sized the grid anyway: a patch at area drift −2.50%, five times tolerance, sized
@@ -44,6 +44,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   headgroup carbon. Both leaflets are reported at once rather than one per run, and an
   unmeasurable drift is reported but is not fatal, since that is a different condition from
   measured-and-bad.
+
+  **CORRECTION (2026-10-14).** This was released saying "an unconverged calibration stops the
+  build", which overstates it. It stops the build when a patch hits its step ceiling. It is
+  **silent on premature convergence** — a patch that declares itself converged early and
+  certifies a confidently wrong APL — because the check read the convergence gate's own stored
+  drift, and the gate only declares convergence when that number is below the tolerance the check
+  then tests it against. The check could not fire on the case that matters. Fixed after this
+  release; the audit now recomputes from the recorded series. Premature convergence is real and
+  measured: with example 17's own settings a patch converged at 88,210 steps certifying 50.53 Å²
+  against a truth near 43.
 
 ## [3.27.0] - 2026-10-12
 
