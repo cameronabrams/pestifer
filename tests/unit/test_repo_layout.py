@@ -12,10 +12,27 @@ _REPO = Path(__file__).resolve().parents[2]
 _UNIT = Path(__file__).resolve().parent
 
 
+def _is_git_work_tree() -> bool:
+    """Whether ``_REPO`` is a git checkout at all.
+
+    It is not, in the clean-export gate: that gate untars `git archive` output, which carries no
+    `.git`.  Without this the question "is this file tracked?" has no answer, `git ls-files`
+    fails, and an empty stdout reads as "nothing is tracked" -- so the test below would report
+    every module working directory as an offender.  That is the same success-shaped-emptiness
+    failure the test exists to guard against, and it came from this very test on its first run
+    through the export gate.
+    """
+    out = subprocess.run(['git', 'rev-parse', '--is-inside-work-tree'],
+                         cwd=_REPO, capture_output=True, text=True)
+    return out.returncode == 0 and out.stdout.strip() == 'true'
+
+
 def _tracked(path: Path) -> list[str]:
     """Files git tracks under ``path`` (empty list if it tracks none)."""
     out = subprocess.run(['git', 'ls-files', '--', str(path)],
                          cwd=_REPO, capture_output=True, text=True)
+    if out.returncode != 0:
+        raise RuntimeError(f'git ls-files failed in {_REPO}: {out.stderr.strip()}')
     return [ln for ln in out.stdout.splitlines() if ln.strip()]
 
 
@@ -35,6 +52,9 @@ class TestModuleWorkingDirectoriesAreTracked(unittest.TestCase):
     """
 
     def test_every_module_working_directory_has_a_tracked_file(self):
+        if not _is_git_work_tree():
+            self.skipTest(f'{_REPO} is not a git work tree; tracking cannot be determined. '
+                          'CI checks out the repository, so this still runs there.')
         offenders = []
         for module in sorted(_UNIT.rglob('test_*.py')):
             workdir = module.with_suffix('')
