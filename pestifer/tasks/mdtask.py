@@ -402,6 +402,15 @@ class MDTask(VMDTask):
             return
         if str(ens or '').casefold() == 'minimize':
             return
+        # ONCE PER TASK, not once per namdrun.  `ChunkedEquilibrateTask` calls namdrun() in a
+        # loop -- a real example-17 patch equilibration ran 1,105 chunks -- and the check costs
+        # ~10 s, which would be ~3 hours of pure overhead on that one task.  It is also pointless
+        # there: chunk N+1 starts from chunk N's output, and if THAT were overlapped NAMD would
+        # have died producing it.  What this gate is for is the hand-off INTO the task, from a
+        # build or a transform whose geometry nothing has integrated yet.
+        if getattr(self, '_contact_gate_done', False):
+            return
+        self._contact_gate_done = True
         coor = state.coor if state.coor else state.pdb
         if coor is None or state.psf is None:
             return

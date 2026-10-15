@@ -146,3 +146,54 @@ class TestTheGateIsReachableFromAnMdSpec(unittest.TestCase):
         self.assertIsInstance(gate, dict, 'contact_gate did not resolve under the md task')
         self.assertTrue(gate.get('enabled'))
         self.assertAlmostEqual(float(gate['min_distance']), DEFAULT_MIN_CONTACT, places=6)
+
+
+class TestTheGateRunsOncePerTaskNotOncePerChunk(unittest.TestCase):
+    """``ChunkedEquilibrateTask`` calls ``namdrun()`` in a loop -- a real example-17 patch
+    equilibration ran **1,105** chunks.  At ~10 s per check that is ~3 hours of overhead on one
+    task, and it buys nothing: chunk N+1 starts from chunk N's output, and if that were
+    overlapped NAMD would have died producing it.  The gate is for the hand-off INTO a task.
+
+    The first version of this feature had no such guard.  It was caught by asking how often the
+    call site fires, not by any test going red, which is why there is a test now.
+    """
+
+    def _task(self):
+        from pestifer.tasks.mdtask import MDTask
+        calls = []
+
+        class _Probe(MDTask):
+            def __init__(self):            # bypass BaseTask.__init__; this exercises one method
+                self.taskname = 'md'
+
+        t = _Probe()
+        t._checked = calls
+        return t, calls
+
+    def test_second_and_later_calls_short_circuit(self):
+        task, calls = self._task()
+        state = SimpleNamespace(psf=None, pdb=None, coor=None, xsc=None)
+        specs = {'contact_gate': {'enabled': True, 'min_distance': 1.8}}
+        # state has no psf/coor, so the body returns early *after* setting the flag; what this
+        # asserts is the flag's lifecycle, which is what bounds the cost
+        task._gate_steric_overlaps(state, 'NVT', specs)
+        self.assertTrue(getattr(task, '_contact_gate_done', False),
+                        'first dynamics call did not mark the task as gated')
+        task._gate_steric_overlaps(state, 'NVT', specs)   # must be a no-op
+        self.assertTrue(task._contact_gate_done)
+
+    def test_a_minimize_does_not_consume_the_one_check(self):
+        """A minimize is skipped before the flag is set, so the dynamics stage after it is still
+        gated -- otherwise a `minimize -> dynamics` pair would never be checked at all."""
+        task, _ = self._task()
+        state = SimpleNamespace(psf=None, pdb=None, coor=None, xsc=None)
+        specs = {'contact_gate': {'enabled': True}}
+        task._gate_steric_overlaps(state, 'minimize', specs)
+        self.assertFalse(getattr(task, '_contact_gate_done', False),
+                         'a minimize consumed the task\'s one steric check')
+
+    def test_disabled_does_not_consume_the_one_check_either(self):
+        task, _ = self._task()
+        state = SimpleNamespace(psf=None, pdb=None, coor=None, xsc=None)
+        task._gate_steric_overlaps(state, 'NVT', {'contact_gate': {'enabled': False}})
+        self.assertFalse(getattr(task, '_contact_gate_done', False))
