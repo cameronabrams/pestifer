@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.27.3] - 2026-10-15
+
 ### Fixed
 
 - **Corrected a wrong measurement quoted in 3.27.2's docstrings and release notes.** The claim
