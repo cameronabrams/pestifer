@@ -24,6 +24,22 @@ So the finished membrane is **reproducible within a protocol** -- sd 0.34 and 0.
 independent builds -- and the two protocols give two tightly clustered, cleanly separated
 answers 3 A^2 apart.  The variation is not noise; it is the stopping rule.
 
+**Group by SUBMISSION, which is what ``--by-job`` does and what the summary above hides.**  One
+SLURM job is one wheel on one set of nodes; two jobs that report the same ``pestifer v.`` string
+can still be different builds from different commits.  Grouping on the banner version pools them
+and inflates the designed contrast.  Here:
+
+    job 26350491   gated    n=3   48.74 +- 0.83
+    job 26429575   gated    n=3   49.59 +- 0.35
+    job 26461736   gated    n=1   49.71
+    job 26461736   CEILING  n=6   46.20 +- 0.34
+
+Three independent gated submissions spanning code versions all land 48.7-49.7, against the one
+gate-off submission at 46.20 -- the effect survives a code-version change, which a single-version
+result could not show.  But the only contrast with protocol varied INSIDE one submission is job
+26461736, and it is **n=6 against n=1**.  Consistency across submissions carries this result;
+design does not.
+
 **Two things this does NOT establish.**  First, which answer is right: that needs an APL for this
 composition from outside the pipeline.  Second, causation -- the two groups have NO overlap in
 calibration APL (42.19 then 44.47), and the gate-off set was a separate deliberate experiment, so
@@ -41,6 +57,7 @@ import re, sys
 import numpy as np
 from scipy import stats as st
 
+JOB  = re.compile(r'2[0-9]{7}')      # SLURM job id, taken from the path: one job = one wheel
 CNT  = re.compile(r'Stress-free leaflet counts: upper (\d+), lower (\d+) \(target equilibrium box area (\d+)')
 VERD = re.compile(r'membrane_equilibrate-patchA: (CONVERGED at step (\d+)|CEILING)')
 PA   = re.compile(r'membrane_equilibrate-patchA: \[stage 2\].*?APL~([0-9.]+)')
@@ -70,9 +87,34 @@ def collect(paths, footprint=13983.0):
         if key in seen:
             continue
         seen.add(key)
+        j = JOB.search(p)
         rows.append(dict(calib=float(pa[-1]), n_u=n_u, n_l=n_l, apl=apl,
+                         job=j.group(0) if j else 'none',
                          proto='CEILING' if v.group(1) == 'CEILING' else 'gated'))
     return rows
+
+
+def by_submission(rows):
+    """Per-job means, and the within-job contrasts -- the only ones where protocol is the thing
+    that varied.  Everything else is a between-submission comparison wearing a protocol label."""
+    print('\ngrouped by submission (one SLURM job = one wheel = one set of nodes):')
+    for j in sorted({r['job'] for r in rows}):
+        for pr in ('CEILING', 'gated'):
+            g = np.array([r['apl'] for r in rows if r['job'] == j and r['proto'] == pr])
+            if g.size:
+                sd = f'{g.std(ddof=1):.2f}' if g.size > 1 else '  --'
+                print(f'  job {j}  {pr:8s} n={g.size}  mean {g.mean():.2f}  sd {sd}')
+    clean = False
+    for j in sorted({r['job'] for r in rows}):
+        ce = np.array([r['apl'] for r in rows if r['job'] == j and r['proto'] == 'CEILING'])
+        ga = np.array([r['apl'] for r in rows if r['job'] == j and r['proto'] == 'gated'])
+        if ce.size and ga.size:
+            clean = True
+            print(f'  WITHIN-JOB {j}: CEILING n={ce.size} {ce.mean():.2f} vs gated n={ga.size} '
+                  f'{ga.mean():.2f}  diff {ga.mean()-ce.mean():+.2f}'
+                  f'{"   <- n=1 on one side" if min(ce.size, ga.size) == 1 else ""}')
+    if not clean:
+        print('  no submission varied protocol internally -- every contrast here is between jobs')
 
 
 def main(paths):
@@ -105,6 +147,7 @@ def main(paths):
         if g.size >= 3:
             lr = st.linregress(c, g)
             print(f'  within {k:8s}: slope {lr.slope:+.3f}  p={lr.pvalue:.3f}')
+    by_submission(rows)
 
 
 if __name__ == '__main__':
