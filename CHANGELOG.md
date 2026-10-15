@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.28.0] - 2026-10-15
+
 ### Added
 
 - **A build is now refused, before it starts, if its task list would RATTLE-fail.**
