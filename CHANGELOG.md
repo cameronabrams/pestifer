@@ -4,6 +4,46 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Added
+
+- **A build is now refused, before it starts, if its task list would RATTLE-fail.**
+  `validate_pipeline` rejects any pipeline that integrates dynamics on coordinates a
+  `ring_check`, `cleave` or `ligate` moved with no minimization in between, and names the
+  remedy. `make_membrane_system._guard_pierced_lipids` already enforced this for the
+  relaxation protocol it generates — a piercing resolution "frees the other lipid into a
+  strained pose", and a threading "RATTLE-fails the first dynamics step" — but it never saw
+  the user's own task list, which is how example 17 shipped `minimize → ring_check → 410 K
+  dynamics` for several releases. **This can reject a configuration that previous versions
+  accepted**; the fix is a `- md: {ensemble: minimize, minimize: 1000}` between the two.
+- **`md.contact_gate`** (on by default, 1.2 Å): before *dynamics* — never before a minimize,
+  which is the remedy for an overlap — the coordinates NAMD is about to read are scanned for
+  a non-bonded heavy-atom pair closer than `min_distance`, and the build stops naming both
+  residues instead of dying later inside NAMD as an atom serial. Heavy atoms only; 1-2 and
+  1-3 pairs excluded; reads the binary `.coor` NAMD will actually use, not the `.pdb` beside
+  it. Runs once per task, not once per `namdrun` — a real example-17 patch equilibration runs
+  1,105 chunks. **This can also stop a build that previous versions would have started**; set
+  `contact_gate: {enabled: false}` on a stage to opt out.
+- `scripts/measure_area_rate_from_logs.py` and `scripts/measure_apl_seed_propagation.py` —
+  both parse build logs without importing pestifer, so they run over an archive from any
+  version.
+
+### Changed
+
+- **Example 17 approaches its 410 K melt from below.** Its post-embed ladder minimized *before*
+  `ring_check` and then went straight to 410 K at 2 fs with `rigidbonds all`, on the most
+  complex system in the example set. A minimize now follows `ring_check`, and the melt is
+  preceded by 1 ps at 50 K / 0.5 fs / `rigidbonds none` — no constraints, so none can fail —
+  and 2 ps at 150 K / 1 fs, the cure example 25 already documented for the same failure.
+
+### Fixed
+
+- The `area_rate` docstring table rendered as a docutils *error* on the API page: written as an
+  indented block quote, `|%area / 100k steps|` reads as a substitution reference. The docs build
+  reported "build succeeded" throughout, in 3.27.2 and 3.27.3.
+- The membrane run record quoted the superseded 28-series convergence figures in text written at
+  run time; replaced with the 107-series numbers, and with the part that changes a reader's
+  conclusion — the long references do settle.
+
 ## [3.27.3] - 2026-10-15
 
 ### Fixed
