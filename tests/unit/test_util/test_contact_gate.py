@@ -197,3 +197,40 @@ class TestTheGateRunsOncePerTaskNotOncePerChunk(unittest.TestCase):
         state = SimpleNamespace(psf=None, pdb=None, coor=None, xsc=None)
         task._gate_steric_overlaps(state, 'NVT', {'contact_gate': {'enabled': False}})
         self.assertFalse(getattr(task, '_contact_gate_done', False))
+
+
+class TestTheGatePassesRealShippedStructures(unittest.TestCase):
+    """A false positive here stops a build that would have worked, so the threshold is checked
+    against real structures, not only synthetic ones.
+
+    These are the tracked BPTI fixtures, and the unminimized one is the point: a fresh psfgen
+    structure already has a non-bonded heavy-atom pair at 1.819 A.  The first draft of this
+    module defaulted to 1.8 -- calibrated on an equilibrated membrane alone -- which left no
+    margin at all and would have refused real work.  Pure file reading; no VMD, no NAMD.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        from importlib.resources import files as pkg_files
+        from pathlib import Path
+        # the fixtures live in the test tree, not the package, so walk up from this file
+        cls.d = Path(__file__).resolve().parents[1] / 'test_tasks' / 'fixtures' / 'bpti_build'
+
+    def _closest(self, psf, pdb):
+        from pestifer.psfutil.psfcontents import PSFContents
+        from pestifer.util.density_convergence import _read_coor_xyz
+        s = PSFContents(str(self.d / psf), parse_topology=['bonds'])
+        xyz = _read_coor_xyz(str(self.d / pdb), len(s.atoms))
+        return worst_nonbonded_contact(s, xyz, box=None)[0]
+
+    def test_unminimized_psfgen_output_is_not_refused(self):
+        d = self._closest('00-01-00_psfgen-build.psf', '00-01-00_psfgen-build.pdb')
+        self.assertGreater(d, DEFAULT_MIN_CONTACT,
+                           f'a fresh psfgen structure ({d:.3f} A) would be refused by the '
+                           f'{DEFAULT_MIN_CONTACT} A default')
+        # and pin the margin, so a future threshold change has to confront this number
+        self.assertLess(d, 2.0, 'fixture changed; re-derive the threshold from it')
+
+    def test_solvated_structure_is_not_refused(self):
+        d = self._closest('00-04-00_solvate.psf', '00-04-00_solvate.pdb')
+        self.assertGreater(d, DEFAULT_MIN_CONTACT, f'solvated BPTI ({d:.3f} A) would be refused')

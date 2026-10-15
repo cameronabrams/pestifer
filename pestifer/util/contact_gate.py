@@ -19,13 +19,23 @@ is what makes this work across a polymer: a peptide C-N bond is 1.33 A and the C
 is ~2.4 A, and neither is a clash.  Anything else below the threshold is two molecules, or two
 distant parts of one, occupying the same space.
 
-**The threshold, and the evidence for it.**  On a healthy embedded example-17 membrane (136,514
-atoms, 48,933 heavy) the closest non-bonded heavy-atom pair in the whole system was **further
-than 2.2 A** -- the scan found nothing at all inside that radius.  Real chemistry does come
-closer than 2.2 in other systems (a short strong hydrogen bond reaches ~2.4, metal coordination
-~2.0), so the default sits at 1.8 A: below anything with a chemical reason to be there, far
-above the sub-angstrom overlaps that actually diverge.  Raising it risks refusing a legitimate
-structure; lowering it toward zero gives back the failure this exists to prevent.
+**The threshold, and the evidence for it.**  A false positive here stops a build that would
+have worked, so the default is set from measured structures rather than from what sounds safe:
+
+    minimized, embedded example-17 membrane (136,514 atoms)   2.525 A
+    solvated BPTI                                             2.478 A
+    BPTI straight out of psfgen, unminimized                  1.819 A
+
+That third number is the one that matters.  A fresh psfgen structure -- a real, shipped,
+perfectly good one -- already sits at 1.8 A, so a 1.8 A threshold has no margin at all and
+would refuse builds that go on to work.  (The first draft of this module used 1.8, calibrated
+on the membrane alone.)  The default is therefore **1.2 A**: 0.6 A below the closest legitimate
+contact observed, and far above the sub-angstrom overlaps that actually diverge -- the synthetic
+control, one atom displaced to 0.5 A from an unbonded neighbour, is still caught.
+
+Three structures is a thin corpus next to the 63 real builds that validated
+``_verify_params_cover_psf`` before it was allowed to raise.  If this gate ever refuses a build
+that then succeeds with it disabled, the threshold is wrong and not the structure.
 """
 import logging
 
@@ -36,8 +46,9 @@ from .density_convergence import _read_coor_xyz
 
 logger = logging.getLogger(__name__)
 
-#: Heavy-atom separation (A) below which a non-bonded pair is an overlap rather than a contact.
-DEFAULT_MIN_CONTACT = 1.8
+#: Heavy-atom separation (A) below which a non-bonded pair is an overlap rather than a
+#: contact.  See the module docstring for the measurements behind this value.
+DEFAULT_MIN_CONTACT = 1.2
 
 #: Search radius (A) for candidate pairs.  Only pairs inside this are examined, so it bounds the
 #: cost; it must exceed any threshold a caller may set.

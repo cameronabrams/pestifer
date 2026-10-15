@@ -1902,8 +1902,9 @@ attributes:
               fatal to the run regardless -- NAMD reports it as "Constraint failure in RATTLE
               algorithm for atom N" once the run has started -- so this only decides whether the
               failure is diagnosable.  On a healthy embedded membrane the closest such pair was
-              further than 2.2 A, so the 1.8 A default sits below anything with a chemical reason
-              to be there.
+              2.525 A, on solvated BPTI 2.478, and on BPTI straight out of psfgen 1.819 -- so the
+              default of 1.2 sits 0.6 A below the closest legitimate contact measured, rather
+              than at the edge of it.
             type: dict
             attributes:
               - name: enabled
@@ -1915,7 +1916,7 @@ attributes:
                   heavy-atom separation in Angstroms below which a non-bonded pair is treated as
                   a steric overlap rather than a close contact
                 type: float
-                default: 1.8
+                default: 1.2
           - name: minimize
             text: Number of minimization steps; ignored if ensemble is not 'minimize' (used with the 'minimize' command)
             type: int
