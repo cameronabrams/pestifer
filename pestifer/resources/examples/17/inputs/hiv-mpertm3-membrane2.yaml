@@ -145,6 +145,19 @@ tasks:
         atoms: protein and name CA
   - ring_check:  # there are sterols (cholesterol rings are lipid rings)
       segtypes: [lipid, glycan]
+  # ring_check can MOVE atoms -- it rotates a pendant branch or a side chain to unthread a
+  # piercing -- and whatever it moves is not minimized by the stage above, which runs before it.
+  # make_membrane_system's own `_guard_pierced_lipids` splices exactly this pair in the other
+  # order (ring_check, THEN minimize) for the quilt relaxation, and says why: the resolution
+  # "frees the other lipid into a strained pose, so a short minimize follows to relax it before
+  # any dynamics".  The top-level post-embed sequence here is a hand-rolled copy of that guard
+  # with the minimize on the wrong side.  Cheap when ring_check changed nothing.
+  - md:
+      ensemble: minimize
+      minimize: 1000
+      constraints:
+        k: 10
+        atoms: protein and name CA
   - validate:
       tests:
         - residue_test:
@@ -161,6 +174,40 @@ tasks:
   # have converged -- replacing the old fixed NPT-condense + NPgT-area ladder. Weak CA
   # restraints hold the protein steady while the box relaxes and are released only on the
   # final stage, on which the pressure profile is computed.
+  # COLD, SOFT PROLOGUE -- this exists to make a RATTLE failure impossible here, not to
+  # equilibrate anything.  The 410 K pass below is the hottest stage in the pipeline and it ran
+  # on the most complex system in the example set, started from freshly assigned 410 K
+  # velocities at 2 fs with `rigidbonds all`, directly on just-built coordinates.  Example 25
+  # documents the same start failing the same way on a different system ("a full-temperature
+  # NVT start RATTLE-fails on the first step") and documents this cure: come up cold and slow
+  # first, with the constraints OFF so there is nothing for RATTLE to fail, and let residual
+  # strain dissipate before any constrained, long-timestep integration.
+  #
+  # The 50 K stage is 1 ps of 0.5 fs steps; the 150 K stage 2 ps of 1 fs.  CA stays restrained
+  # at k=10, matching the stages on either side -- the strain to be bled off is in the LIPIDS
+  # packed against the freshly embedded protein, and the protein is meant to hold still while
+  # they move.  `timestep` and `rigidbonds` must be spelled exactly as the built-in solvated
+  # defaults spell them; pestifer merges NAMD directives into a case-sensitive dict, so a
+  # mismatched spelling emits a second directive and NAMD rejects the duplicate.
+  - md:
+      ensemble: NVT
+      nsteps: 2000
+      temperature: 50
+      constraints:
+        k: 10
+        atoms: protein and name CA
+      other_parameters:
+        timestep: 0.5
+        rigidbonds: none   # no constraints exist, so none can fail
+  - md:
+      ensemble: NVT
+      nsteps: 2000
+      temperature: 150
+      constraints:
+        k: 10
+        atoms: protein and name CA
+      other_parameters:
+        timestep: 1.0
   - md:
       ensemble: NVT
       nsteps: 1000

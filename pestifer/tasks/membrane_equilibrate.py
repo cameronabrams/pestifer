@@ -319,9 +319,12 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
 
         The consequence is visible in this repository's own build reports.  Recomputed 2026-10-15
         with this exact statistic over every stage-2 series in 512 build logs under
-        ``~/devtests/pestifer`` (107 series; an earlier 28-series sample is superseded):
+        ``~/devtests/pestifer`` (107 series; an earlier 28-series sample is superseded).  The
+        table is a literal block: written as an indented block quote, docutils reads ``|...|``
+        as a substitution reference and errors out of the API page, and the docs build still
+        reports "build succeeded"::
 
-            verdict      median |%area / 100k steps|     max      min
+            verdict      median abs(%area / 100k steps)   max      min
             CONVERGED (n=72)          1.744             4.274    0.000
             CEILING   (n=35)          0.227             1.144    0.008
 
@@ -451,10 +454,12 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
                         f'#   the tensionless stage -- REPORTED, NOT GATED.  The convergence verdict\n'
                         f'#   above uses a difference of adjacent-window means, which scales with how\n'
                         f'#   long the stage ran, so stopping earlier makes the same descent look\n'
-                        f'#   flatter.  Across 28 stage-2 series measured 2026-10-14, runs declared\n'
-                        f'#   CONVERGED were moving FASTER (median 1.33 %/100k) than runs that hit\n'
-                        f'#   their step ceiling (0.76).  Read this number, not the verdict, when\n'
-                        f'#   asking whether the area had stopped moving.\n')
+                        f'#   flatter.  Across 107 stage-2 series from 512 build logs (2026-10-15),\n'
+                        f'#   runs declared CONVERGED were moving about EIGHT TIMES FASTER (median\n'
+                        f'#   1.744 %/100k, n=72) than runs that hit their step ceiling (0.227,\n'
+                        f'#   n=35) -- and the long references DO settle, reaching 0.008-0.175.\n'
+                        f'#   Read this number, not the verdict, when asking whether the area had\n'
+                        f'#   stopped moving.\n')
             if pp_at:
                 f.write('# PP[A] is phosphate-to-phosphate bilayer thickness -- MEASURED, NOT GATED.\n'
                         '# Area overshoots on release, so its drift passes through zero at the turn\n'
