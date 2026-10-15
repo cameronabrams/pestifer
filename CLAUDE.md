@@ -229,6 +229,33 @@ about could not run at all. Marked `xfail(strict=False)` with the cause in its `
 than retuned: choosing a composition-appropriate `SAPL` (or `phase`, or a longer patch protocol)
 is a decision about what the test should build, not a defect in the code under test.
 
+## The working tree IS the installed pestifer on this machine
+
+Verified 2026-10-15, after `coord` raised it: a bare `python3` run from anywhere on panacea
+resolves `import pestifer` to `/home/cfa/Git/pestifer/pestifer/__init__.py`, through an
+editable `.pth` in the repo venv. **There is no install step between an edit and anything that
+imports pestifer.** An uncommitted change is live, including a deliberately broken one.
+
+That matters here because of how often this file asks you to break something on purpose.
+"Prove the check can fail -- revert the fix and confirm the test goes red" is the standard
+move, and doing it in place publishes the broken state to every process on the host for as
+long as it takes to run the check. I did exactly that the day this was written: reverted
+example 17's relaxation ladder in the tree, ran the tests against it, restored from a copy,
+about 30 seconds live.
+
+**Run negative controls in an export, not in the tree.** The clean-export gate above already
+builds one; use it for this too:
+
+```bash
+export BR=~/devtests/pestifer/breakroom && rm -rf $BR && mkdir -p $BR
+git archive HEAD | tar -x -C $BR && cd $BR
+# now break whatever you like and run the check here
+```
+
+The cost is one `tar`. The alternative is a window in which someone else's build reads your
+half-finished idea as the shipped code -- and they will have no way of knowing, because
+nothing about their run looks unusual.
+
 ## The test suite dirties the working tree
 
 Several tracked files under `tests/unit/test_tasks/` are generated test output, rewritten on every
