@@ -234,3 +234,76 @@ class TestTheGatePassesRealShippedStructures(unittest.TestCase):
     def test_solvated_structure_is_not_refused(self):
         d = self._closest('00-04-00_solvate.psf', '00-04-00_solvate.pdb')
         self.assertGreater(d, DEFAULT_MIN_CONTACT, f'solvated BPTI ({d:.3f} A) would be refused')
+
+
+class TestEveryDynamicsTaskCanTurnTheGateOff(unittest.TestCase):
+    """3.28.0 shipped a gate with no escape hatch on four task types.
+
+    `MembraneEquilibrateTask`, `DensityEquilibrateTask`, `LigateTask` and `DomainSwapTask` are
+    all `MDTask` subclasses that reach the gate through `namdrun`, and none of them has a
+    `contact_gate` key in its own schema -- only `md` does.  The first version read the key from
+    the stage's specs alone, so on those tasks it resolved to nothing, defaulted to enabled, and
+    **no configuration could stop it**.  The module docstring promises that a build refused by a
+    wrong threshold can be re-run with the gate disabled; on those tasks it could not.
+
+    Caught by pestifer-sweep querying an enumeration I had given them, while an arm was already
+    running on 3.28.0.
+    """
+
+    def _probe(self, global_cfg, specs):
+        from pestifer.tasks.mdtask import MDTask
+
+        class _Probe(MDTask):
+            def __init__(self):
+                self.taskname = 'membrane_equilibrate'
+                self.namd_global_config = global_cfg
+
+        task = _Probe()
+        state = SimpleNamespace(psf=None, pdb=None, coor=None, xsc=None)
+        task._gate_steric_overlaps(state, 'NPgT', specs)
+        return getattr(task, '_contact_gate_done', False)
+
+    def test_a_task_with_no_key_of_its_own_follows_the_global(self):
+        """This is the membrane_equilibrate shape: specs carry nothing."""
+        on = self._probe({'contact_gate': {'enabled': True, 'min_distance': 1.2}}, {})
+        self.assertTrue(on, 'global enabled=True did not reach a task with no key of its own')
+        off = self._probe({'contact_gate': {'enabled': False}}, {})
+        self.assertFalse(off, 'global enabled=False could not disable the gate -- '
+                              'this is the 3.28.0 defect')
+
+    def test_a_stage_key_overrides_the_global(self):
+        off = self._probe({'contact_gate': {'enabled': True}},
+                          {'contact_gate': {'enabled': False}})
+        self.assertFalse(off, 'a per-stage disable did not override an enabled global')
+        on = self._probe({'contact_gate': {'enabled': False}},
+                         {'contact_gate': {'enabled': True}})
+        self.assertTrue(on, 'a per-stage enable did not override a disabled global')
+
+    def test_a_missing_global_still_defaults_to_enabled(self):
+        self.assertTrue(self._probe({}, {}), 'gate silently off when no global is configured')
+        self.assertTrue(self._probe(None, {}), 'gate silently off when there is no namd config')
+
+    def test_the_global_default_matches_the_module_constant(self):
+        from importlib.resources import files as pkg_files
+        import yaml
+        spec = yaml.safe_load((pkg_files('pestifer.schema') / 'base.yaml').read_text())
+
+        def find(node):
+            if isinstance(node, dict):
+                if node.get('name') == 'contact_gate' and isinstance(node.get('default'), dict):
+                    return node['default']
+                for v in node.values():
+                    r = find(v)
+                    if r is not None:
+                        return r
+            elif isinstance(node, list):
+                for v in node:
+                    r = find(v)
+                    if r is not None:
+                        return r
+            return None
+
+        d = find(spec)
+        self.assertIsNotNone(d, 'no global namd.contact_gate default in base.yaml')
+        self.assertAlmostEqual(float(d['min_distance']), DEFAULT_MIN_CONTACT, places=6)
+        self.assertTrue(d['enabled'])

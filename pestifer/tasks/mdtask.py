@@ -397,7 +397,16 @@ class MDTask(VMDTask):
         turn a late, cryptic failure into an early, specific one; it must not become a new way
         for a build to die.
         """
-        gate = specs.get('contact_gate', {}) or {}
+        # The GLOBAL default first, then this stage's own override.  Only `md` has a per-stage
+        # `contact_gate` in its schema; `membrane_equilibrate`, `density_equilibrate`, `ligate`
+        # and `domainswap` are all MDTask subclasses that reach here through `namdrun` and have
+        # no such key, so for them `specs` carries nothing and the global is the only control.
+        # 3.28.0 read only `specs` and shipped a gate that ran on those tasks with no way to
+        # turn it off -- an escape hatch the module docstring promises and did not have.
+        # getattr, not attribute access: this helper must never raise (see the docstring),
+        # and a task whose provisioning has not run has no `namd_global_config` at all.
+        gate = dict((getattr(self, 'namd_global_config', None) or {}).get('contact_gate', {}) or {})
+        gate.update(specs.get('contact_gate', {}) or {})
         if not gate.get('enabled', True):
             return
         if str(ens or '').casefold() == 'minimize':

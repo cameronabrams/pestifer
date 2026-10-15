@@ -36,6 +36,13 @@ control, one atom displaced to 0.5 A from an unbonded neighbour, is still caught
 Three structures is a thin corpus next to the 63 real builds that validated
 ``_verify_params_cover_psf`` before it was allowed to raise.  If this gate ever refuses a build
 that then succeeds with it disabled, the threshold is wrong and not the structure.
+
+**And it must always be possible to disable it.**  That sentence is only honest if every task
+the gate runs on can be told not to.  `md` carries a per-stage ``contact_gate``, but
+``membrane_equilibrate``, ``density_equilibrate``, ``ligate`` and ``domainswap`` are all
+``MDTask`` subclasses that reach the gate through ``namdrun`` and have no such key -- so they
+are controlled by the global ``namd.contact_gate``, which a stage key overrides.  3.28.0 read
+only the stage specs and therefore ran the gate on those four tasks with no way to stop it.
 """
 import logging
 

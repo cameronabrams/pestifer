@@ -325,6 +325,17 @@ attributes:
           CUDASOAintegrate: on
           margin: 4
           outputEnergies: 500
+      - name: contact_gate
+        text: >-
+          Default for the pre-flight steric check, applied to EVERY task that runs dynamics.
+          `md` stages may override it per stage; tasks whose own schema has no contact_gate key
+          -- membrane_equilibrate, density_equilibrate, ligate, domainswap -- are controlled only
+          from here.  Without this there is no way to disable the check on those tasks at all,
+          which 3.28.0 shipped: the gate ran on them and no configuration could stop it.
+        type: dict
+        default:
+          enabled: True
+          min_distance: 1.2
       - name: deprecated3
         type: dict
         text: Deprecated namd2 configuration parameters and their namd3 counterparts
