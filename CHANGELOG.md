@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.28.1] - 2026-10-15
+
 ### Fixed
 
 - **`md.contact_gate` could not be turned off on four task types.** 3.28.0 read the key from a
