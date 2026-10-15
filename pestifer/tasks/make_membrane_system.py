@@ -699,13 +699,31 @@ class MakeMembraneSystemTask(BaseTask):
         built, then reverted on the argument that it routed around a defect the plateau gate would
         fix.  That argument was wrong on the facts: the gate WAS enabled in the run that motivated
         it, and the patch still over-stated the APL by ~4.7%.  Worse, the calibration can be
-        confidently wrong while reporting itself converged -- with example 17's own settings a
-        patch converged at 88,210 steps certifying 50.53 A^2 against a truth near 43, because the
-        convergence metric is a difference of adjacent-window means and so shrinks the earlier you
-        stop (see :meth:`MembraneEquilibrateTask.area_rate`).  A short calibration patch cannot
-        currently be trusted to produce the APL of the mixture it models, and someone who has
-        equilibrated a large bilayer of the same composition holds a better number than this task
-        can derive.
+        confidently wrong while reporting itself converged, because the convergence metric is a
+        difference of adjacent-window means and so shrinks the earlier you stop (see
+        :meth:`MembraneEquilibrateTask.area_rate`).  Example 17's patchA, 100 lipids per leaflet,
+        against its own six gate-off 2.5M-step references (APL 41.0-42.4, rate 0.008-0.175
+        %/100k, i.e. actually settled):
+
+            gated CONVERGED at    certified APL      error
+                 51,540              44.44           +6%
+                 83,590              43.36           +3%
+                140,190              48.00          +15%
+                165,520              46.28          +11%
+                191,870              46.54          +12%
+
+        Always high, by 3-15%, and not monotone in the stopping point.  A short calibration patch
+        cannot currently be trusted to produce the APL of the mixture it models, and someone who
+        has equilibrated a large bilayer of the same composition holds a better number than this
+        task can derive.
+
+        An earlier version of this docstring cited "a patch converged at 88,210 steps certifying
+        50.53 A^2 against a truth near 43".  That is wrong and is corrected here: 88,210 is a step
+        number from a gate-off run, where nothing converged and the area was not even measured;
+        50.53 is **patchB's** APL (the lower leaflet, a different composition) while 43 is
+        patchA's reference, so the two were never comparable.  Measured like for like, patchB
+        converges at 301,510 steps certifying 50.83 against 5M-step references of 51.9-52.5 --
+        about 2% LOW.  The high-side bias is demonstrated for patchA, not for both.
 
         **What pestifer still cannot do is check the number you give it.**  So the supplied value
         and the one it displaced are both logged with the percentage between them, and the source

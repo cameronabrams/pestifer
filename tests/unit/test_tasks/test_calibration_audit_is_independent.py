@@ -9,8 +9,10 @@ is below ``area_plateau_tol`` (0.005), and the downstream check asks whether it 
 
 The fatal calibration gate therefore fired only on ``CEILING``, which was already loud, and was
 **structurally blind to premature convergence** -- a patch that stops early and certifies a
-confident, specific, wrong APL. That is the dangerous case. Measured: with example 17's own
-settings a patch converged at 88,210 steps certifying 50.53 A^2 against a truth near 43.
+confident, specific, wrong APL. That is the dangerous case. Measured on example 17's patchA
+(100 lipids/leaflet) against its own gate-off 2.5M-step references (APL 41.0-42.4, and settled:
+0.008-0.175 % area per 100k steps): gated convergences at 51,540 / 83,590 / 140,190 / 165,520 /
+191,870 steps certified 44.44 / 43.36 / 48.00 / 46.28 / 46.54 -- high by 3-15% every time.
 
 Recomputing cannot repair the statistic -- it is the same formula -- but it removes the property
 that made the check unfalsifiable, and it is a prerequisite for ever gating on something better.
@@ -18,15 +20,17 @@ that made the check unfalsifiable, and it is a prerequisite for ever gating on s
 **Why the statistic itself cannot answer the question**, recorded here because it is the reason
 the gate is not simply re-tuned: ``_area_plateau_drift`` is a difference of adjacent-window
 MEANS, so its value scales with the length of the window. The same steady descent reads flatter
-the earlier you stop -- the metric rewards stopping early. Across 28 stage-2 series measured
-2026-10-14, runs the gate called CONVERGED were changing area FASTER (median 1.33 % per 100k
-steps) than runs that merely hit their ceiling (0.76). The verdict is anti-correlated with the
-property it names.
+the earlier you stop -- the metric rewards stopping early. Across 107 stage-2 series recomputed
+2026-10-15 from 512 build logs, runs the gate called CONVERGED were changing area about eight
+times FASTER (median 1.744 % per 100k steps, n=72) than runs that merely hit their ceiling
+(0.227, n=35). The verdict is anti-correlated with the property it names.
 
 :meth:`MembraneEquilibrateTask.area_rate` is the independent measure. It is reported in the
-convergence report and the run record and is deliberately **not** gated on: switching the gate to
-a rate would mark most membrane calibrations unconverged, which is probably correct and is a
-decision about what the patch protocol promises rather than a tolerance to tune.
+convergence report and the run record and is deliberately **not** gated on -- but the decision
+that holds it back is now a concrete one rather than an open question. The long references DO
+settle (0.008-0.175 %/100k for patchA at 2.5M steps), so the protocol is not finite-size-limited
+at 100 lipids per leaflet; it is stopped early. A rate threshold near 0.2 %/100k is reachable,
+at roughly 2.5M steps per calibration patch instead of the 50k-300k at which the gate fires.
 """
 import inspect
 import unittest

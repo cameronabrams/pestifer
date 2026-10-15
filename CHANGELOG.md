@@ -4,6 +4,24 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Fixed
+
+- **Corrected a wrong measurement quoted in 3.27.2's docstrings and release notes.** The claim
+  that "a patch converged at 88,210 steps certifying 50.53 Å² against a truth near 43" does not
+  hold: 88,210 is a step number from a *gate-off* run, where nothing converged and the area was
+  not measured at that chunk, and it compared patchB's APL (the lower leaflet) against patchA's
+  reference — two different compositions. Replaced with the like-for-like measurement. Example
+  17's patchA (100 lipids per leaflet) converged at 51,540 / 83,590 / 140,190 / 165,520 / 191,870
+  steps certifying 44.44 / 43.36 / 48.00 / 46.28 / 46.54 Å², against six gate-off 2.5M-step
+  references at 41.0–42.4 Å² — high by 3–15% every time. patchB, measured against its own 5M-step
+  references, converges about 2% *low*, so the high-side bias is patchA's, not both leaflets'.
+- The convergence-rate comparison in `MembraneEquilibrateTask.area_rate` is recomputed over 107
+  stage-2 series from 512 build logs (it was 28): CONVERGED median 1.744 %/100k (n=72) against
+  CEILING 0.227 (n=35). The anti-correlation is stronger than reported, but the accompanying
+  claim that "nothing in that corpus is settled by a rate criterion" was an artifact of the small
+  sample and is withdrawn — the gate-off references reach 0.008–0.175 %/100k. The calibration
+  patch is stopped early, not finite-size-limited.
+
 ## [3.27.2] - 2026-10-14
 
 - **A lipid tail threaded through a sterol ring is now un-threaded by rotation instead of

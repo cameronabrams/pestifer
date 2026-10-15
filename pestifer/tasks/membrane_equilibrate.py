@@ -317,21 +317,29 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         flatter the earlier you stop.  Demonstrated on a synthetic linear decline, the quarter
         drift grows from 0.012 to 0.369 over the same per-step rate as the series lengthens.
 
-        The consequence is visible in this repository's own build reports.  Measured across 28
-        stage-2 series under ``~/devtests/pestifer`` (2026-10-14):
+        The consequence is visible in this repository's own build reports.  Recomputed 2026-10-15
+        with this exact statistic over every stage-2 series in 512 build logs under
+        ``~/devtests/pestifer`` (107 series; an earlier 28-series sample is superseded):
 
-            verdict      median |%area / 100k steps|     max
-            CONVERGED              1.325                2.548
-            CEILING                0.760                1.117
+            verdict      median |%area / 100k steps|     max      min
+            CONVERGED (n=72)          1.744             4.274    0.000
+            CEILING   (n=35)          0.227             1.144    0.008
 
-        Runs the gate declared CONVERGED are changing area FASTER than runs that merely ran out
-        of steps -- the verdict is anti-correlated with the property it names, because the
-        converged ones stopped sooner and the metric rewards that.  Nothing in that corpus is
-        settled by a rate criterion; the quietest run is still moving at 0.76 %/100k.
+        Runs the gate declared CONVERGED are changing area roughly **eight times faster** than
+        runs that merely ran out of steps -- the verdict is anti-correlated with the property it
+        names, because the converged ones stopped sooner and the metric rewards that.
 
-        This is reported, not gated on.  Switching the gate to a rate would mark most membrane
-        calibrations unconverged -- which is probably correct and is a decision about what the
-        patch protocol promises, not a tolerance to be tuned.
+        **But the long runs do settle, and that is the useful half of this.**  The six gate-off
+        example-17 patchA references (2.5M steps) reach 0.008-0.175 %/100k; the three 5M patchB
+        references reach 0.33-0.58.  So the patch protocol is not finite-size-limited at 100
+        lipids per leaflet -- it is stopped early.  An earlier note here claimed "nothing in that
+        corpus is settled by a rate criterion; the quietest run is still moving at 0.76 %/100k",
+        drawn from the smaller sample; it is wrong, and it pointed the remedy in the opposite
+        direction from where the data points.
+
+        This is still reported rather than gated on, but the decision it feeds is now a concrete
+        one: a rate threshold near 0.2 %/100k is reachable, at a calibration cost of roughly 2.5M
+        steps per patch instead of the 50k-300k at which the gate currently fires.
         """
         import numpy as np
         # NEVER RAISES.  This is an advisory observable -- reported, not gated -- and this module
