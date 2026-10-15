@@ -4,6 +4,21 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Fixed
+
+- **`md.contact_gate` could not be turned off on four task types.** 3.28.0 read the key from a
+  stage's own specs, and only `md` declares one; `membrane_equilibrate`, `density_equilibrate`,
+  `ligate` and `domainswap` are `MDTask` subclasses that reach the gate through `namdrun` and
+  declare none. On those the key resolved to nothing, `enabled` defaulted to true, and **no
+  configuration could stop the check** — so a threshold calibrated on three structures had no
+  escape hatch on the very tasks most likely to meet an awkward one. A global
+  `namd.contact_gate` now supplies the default for every task that runs dynamics, and an `md`
+  stage's own `contact_gate` overrides it.
+
+  This was not hypothetical: 2 of the 4 build failures in the most recent example-17 reference
+  arm were in `membrane_equilibrate` stages, which is exactly where the gate inspects a
+  hand-off.
+
 ## [3.28.0] - 2026-10-15
 
 ### Added
