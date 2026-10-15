@@ -33,8 +33,12 @@ class TestPipelineContract(unittest.TestCase):
         self._assert_ok([{'fetch': {'sourceID': '6pti'}}, {'psfgen': {}}, {'md': {}}])
 
     def test_continuation_transform_ok(self):
+        # the minimize between `ring_check` and the dynamics is required (see
+        # TestUnminimizedDynamics below); this test is about the STATE hand-off, and the
+        # hand-off is unchanged by it
         self._assert_ok([{'continuation': {'psf': 'x.psf', 'pdb': 'x.pdb'}},
-                         {'ring_check': {'segtypes': ['lipid']}}, {'md': {}}])
+                         {'ring_check': {'segtypes': ['lipid']}},
+                         {'md': {'ensemble': 'minimize'}}, {'md': {}}])
 
     def test_membrane_embed_and_mdplot_ok(self):
         self._assert_ok([{'fetch': {'sourceID': '6e8w'}}, {'psfgen': {}},
@@ -112,3 +116,73 @@ class TestPipelineContract(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestUnminimizedDynamics(unittest.TestCase):
+    """Dynamics must not integrate coordinates an earlier task moved and nothing minimized.
+
+    `make_membrane_system._guard_pierced_lipids` enforces this for the relaxation protocol it
+    generates, and says why: a piercing resolution "frees the other lipid into a strained pose",
+    and a threading "RATTLE-fails the first dynamics step".  That guard never saw the user's own
+    top-level task list, so example 17 shipped `minimize -> ring_check -> 410 K dynamics` -- the
+    same pair with the minimize on the wrong side -- for several releases.
+    """
+
+    def _tasks(self, specs):
+        return _build(specs)
+
+    def test_ring_check_then_dynamics_is_rejected(self):
+        with self.assertRaises(PestiferBuildError) as cm:
+            validate_pipeline(self._tasks([
+                {'continuation': {'psf': 'x.psf', 'pdb': 'x.pdb'}},
+                {'ring_check': {'segtypes': ['lipid']}},
+                {'md': {'ensemble': 'NVT'}}]))
+        msg = str(cm.exception)
+        self.assertIn('ring_check', msg)
+        self.assertIn('no minimization in between', msg)
+        self.assertIn('ensemble: minimize', msg)   # the message must name the remedy
+
+    def test_a_minimize_in_between_clears_it(self):
+        validate_pipeline(self._tasks([
+            {'continuation': {'psf': 'x.psf', 'pdb': 'x.pdb'}},
+            {'ring_check': {'segtypes': ['lipid']}},
+            {'md': {'ensemble': 'minimize'}},
+            {'md': {'ensemble': 'NVT'}}]))
+
+    def test_a_minimize_BEFORE_the_mover_does_not_count(self):
+        """Example 17's actual defect: it minimized, then ring_checked, then ran dynamics."""
+        with self.assertRaises(PestiferBuildError):
+            validate_pipeline(self._tasks([
+                {'continuation': {'psf': 'x.psf', 'pdb': 'x.pdb'}},
+                {'md': {'ensemble': 'minimize'}},
+                {'ring_check': {'segtypes': ['lipid']}},
+                {'md': {'ensemble': 'NVT'}}]))
+
+    def test_membrane_equilibrate_counts_as_dynamics(self):
+        with self.assertRaises(PestiferBuildError):
+            validate_pipeline(self._tasks([
+                {'continuation': {'psf': 'x.psf', 'pdb': 'x.pdb'}},
+                {'ring_check': {'segtypes': ['lipid']}},
+                {'membrane_equilibrate': {}}]))
+
+    def test_each_mover_is_reported_once_not_once_per_following_stage(self):
+        with self.assertRaises(PestiferBuildError) as cm:
+            validate_pipeline(self._tasks([
+                {'continuation': {'psf': 'x.psf', 'pdb': 'x.pdb'}},
+                {'ring_check': {'segtypes': ['lipid']}},
+                {'md': {'ensemble': 'NVT'}},
+                {'md': {'ensemble': 'NPT'}}]))
+        self.assertEqual(str(cm.exception).count('no minimization in between'), 1)
+
+    def test_every_shipped_example_satisfies_the_rule(self):
+        """The rule must not be retro-fitted to a set of pipelines that violate it."""
+        from importlib.resources import files as pkg_files
+        from pathlib import Path
+        import yaml
+        examples = Path(str(pkg_files('pestifer.resources'))) / 'examples'
+        files = sorted(examples.glob('*/inputs/*.yaml'))
+        self.assertGreater(len(files), 25, f'no example configs under {examples}')
+        for f in files:
+            with self.subTest(example=f.parent.parent.name):
+                specs = (yaml.safe_load(f.read_text()) or {}).get('tasks') or []
+                validate_pipeline(_build(specs, add_terminate=False))

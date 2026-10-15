@@ -135,9 +135,79 @@ def validate_pipeline(tasks):
         available |= contract.provides
         if contract.terminal:
             terminal_task = task.taskname
+    errors.extend(_check_unminimized_dynamics(tasks))
+
     for w in warnings:
         logger.warning(f'pipeline check: {w}')
     if errors:
         bullets = '\n  - '.join(errors)
         raise PestiferBuildError(f'Malformed task pipeline ({len(errors)} problem(s) found before execution):'
                                  f'\n  - {bullets}')
+
+
+#: Tasks that MOVE ATOMS without integrating equations of motion, so whatever they displace is
+#: left unrelaxed.
+#:
+#: Only ``ring_check`` has an observed failure behind it: it rotates a pendant branch or an
+#: aromatic side chain to unthread a piercing, and example 17 ran 410 K dynamics directly on its
+#: output for several releases.  ``cleave``/``ligate`` are included because the same reasoning
+#: applies -- they cut and reconnect a chain -- and because the rule is free there: every shipped
+#: use of both already minimizes immediately afterwards (example 15), so nothing is being
+#: retro-fitted to a working pipeline on a hunch.
+#:
+#: The list is deliberately short and explicit.  A task added later is simply not covered, which
+#: is a visible gap rather than a silent misclassification; `solvate`, `psfgen` and
+#: `make_membrane_system` also hand over unminimized coordinates, but every shipped pipeline
+#: minimizes after them and no failure has been traced to them, so they are left out rather than
+#: guessed in.
+_MOVES_ATOMS = frozenset({'ring_check', 'cleave', 'ligate'})
+
+
+def _is_dynamics(task):
+    """True for a task that integrates equations of motion (not a minimization)."""
+    name = getattr(task, 'taskname', '')
+    if name == 'membrane_equilibrate':
+        return True
+    if name != 'md':
+        return False
+    return str((task.specs or {}).get('ensemble', '') or '').casefold() != 'minimize'
+
+
+def _is_minimize(task):
+    return (getattr(task, 'taskname', '') == 'md'
+            and str((task.specs or {}).get('ensemble', '') or '').casefold() == 'minimize')
+
+
+def _check_unminimized_dynamics(tasks):
+    """Refuse dynamics on coordinates an earlier task moved and nothing minimized.
+
+    This is the static half of a rule ``make_membrane_system._guard_pierced_lipids`` already
+    enforces dynamically for the membrane relaxation protocol it generates, and whose docstring
+    states the consequence: a resolution "frees the other lipid into a strained pose", and a
+    threading "survives further minimization (it is topological, not just strained) and then
+    RATTLE-fails the first dynamics step".  That guard never saw the user's own top-level task
+    list, so example 17 shipped the same sequence with the minimize on the WRONG SIDE of its
+    ``ring_check`` -- minimize, ring_check, then 410 K dynamics -- for several releases.
+
+    A RATTLE failure costs the whole build and is reported by NAMD as an atom serial, hours in.
+    This costs a second, before anything runs, and names the fix.
+    """
+    problems = []
+    moved_by = None
+    for task in tasks:
+        name = getattr(task, 'taskname', '')
+        if name in _MOVES_ATOMS:
+            moved_by = task
+            continue
+        if _is_minimize(task):
+            moved_by = None
+            continue
+        if _is_dynamics(task) and moved_by is not None:
+            problems.append(
+                f"task {task.index:02d} '{name}' integrates dynamics on coordinates that task "
+                f"{moved_by.index:02d} '{moved_by.taskname}' moved, with no minimization in "
+                f"between -- `{moved_by.taskname}` displaces atoms to resolve a problem and "
+                f"leaves them unrelaxed, which RATTLE-fails on the first dynamics step. "
+                f"Insert `- md: {{ensemble: minimize, minimize: 1000}}` between them")
+            moved_by = None     # report each moving task once, not once per following stage
+    return problems

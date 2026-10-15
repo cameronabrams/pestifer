@@ -9,6 +9,8 @@ updating artifacts, and handling the results of the simulation.
 """
 import glob
 import logging
+
+import numpy as np
 import zlib
 
 
@@ -18,8 +20,9 @@ from ..core.errors import PestiferBuildError
 
 from ..scripters.namd import NAMDScripter
 from ..scripters.namd_colvar_input import NAMDColvarInputScripter
+from ..util.contact_gate import DEFAULT_MIN_CONTACT, check_contacts
 from ..util.density_convergence import total_atoms
-from ..util.util import is_periodic
+from ..util.util import cell_from_xsc, is_periodic
 
 logger = logging.getLogger(__name__)
 
@@ -325,6 +328,7 @@ class MDTask(VMDTask):
             logger.debug(f'namdrun script_only is True; skipping execution')
             # self.pipeline.show_artifacts(header=f'Current artifacts after preparing NAMD run script only for {self.basename}')
             return result
+        self._gate_steric_overlaps(state, ens, specs)
         local_execution_only = not self.get_current_artifact_data('periodic')
         single_gpu_only = kwargs.get('single_gpu_only', False) or constraints
         single_cpu_only = specs.get('single-core', False)
@@ -376,3 +380,45 @@ class MDTask(VMDTask):
 
         self.pipeline.show_artifacts(header=f'Current artifacts after completing NAMD run {self.basename}')
         return 0
+
+    def _gate_steric_overlaps(self, state, ens, specs):
+        """Refuse to start DYNAMICS on coordinates carrying a steric overlap.
+
+        The sibling of ``_verify_params_cover_psf``, and the same bargain: the run dies either
+        way, so the only question is whether it dies somewhere a reader can act on.  NAMD
+        reports "Constraint failure in RATTLE algorithm for atom 30728" after the run starts;
+        this names two residues before it does.
+
+        **Dynamics only.**  A minimization is the remedy for an overlap, so gating one would
+        make an overlapped system unfixable -- the check would forbid its own cure.
+
+        Advisory failures stay advisory: if the geometry cannot be read (a missing or truncated
+        file, a PSF that will not parse), that is logged and the run proceeds.  This exists to
+        turn a late, cryptic failure into an early, specific one; it must not become a new way
+        for a build to die.
+        """
+        gate = specs.get('contact_gate', {}) or {}
+        if not gate.get('enabled', True):
+            return
+        if str(ens or '').casefold() == 'minimize':
+            return
+        coor = state.coor if state.coor else state.pdb
+        if coor is None or state.psf is None:
+            return
+        try:
+            box = None
+            if state.xsc is not None:
+                cell = cell_from_xsc(str(state.xsc.path))[0]
+                if cell is not None:
+                    box = np.diagonal(cell).astype(float)
+            ok, message = check_contacts(state.psf.path, coor.path, box=box,
+                                         min_distance=float(gate.get('min_distance',
+                                                                     DEFAULT_MIN_CONTACT)))
+        except Exception as e:
+            logger.debug(f'{self.taskname}: steric-overlap check skipped ({type(e).__name__}: {e})')
+            return
+        if ok:
+            logger.debug(f'{self.taskname}: {message}')
+            return
+        raise PestiferBuildError(f'{self.taskname} would start dynamics on an overlapped '
+                                 f'structure: {message}')

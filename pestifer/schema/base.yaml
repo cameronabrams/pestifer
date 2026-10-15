@@ -1893,6 +1893,29 @@ attributes:
             choices: [minimize, NVT, NPT, NPgT, NPAT]
             default: NVT
             case_sensitive: False
+          - name: contact_gate
+            text: >-
+              Pre-flight steric check.  Before DYNAMICS starts (never before a minimize, which is
+              the remedy for an overlap), the coordinates NAMD is about to read are scanned for a
+              pair of heavy atoms that are not 1-2 or 1-3 bonded and are closer than min_distance;
+              if one is found the build stops and names the two residues.  A steric overlap is
+              fatal to the run regardless -- NAMD reports it as "Constraint failure in RATTLE
+              algorithm for atom N" once the run has started -- so this only decides whether the
+              failure is diagnosable.  On a healthy embedded membrane the closest such pair was
+              further than 2.2 A, so the 1.8 A default sits below anything with a chemical reason
+              to be there.
+            type: dict
+            attributes:
+              - name: enabled
+                text: whether to run the pre-flight steric check before a dynamics stage
+                type: bool
+                default: True
+              - name: min_distance
+                text: >-
+                  heavy-atom separation in Angstroms below which a non-bonded pair is treated as
+                  a steric overlap rather than a close contact
+                type: float
+                default: 1.8
           - name: minimize
             text: Number of minimization steps; ignored if ensemble is not 'minimize' (used with the 'minimize' command)
             type: int

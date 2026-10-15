@@ -13,8 +13,11 @@ step.  Two places in this repository already say so in prose:
   stage with rigidBonds off (no constraints to fail) lets the residual strain dissipate".
 
 Example 17 had neither: its post-embed ladder minimized BEFORE ``ring_check`` and then went
-straight to 410 K at 2 fs with ``rigidbonds all`` and freshly assigned 410 K velocities -- the
-hottest stage in the example set, on the most complex system in it, on just-built coordinates.
+straight to 410 K at 2 fs with ``rigidbonds all`` -- the hottest stage in the example set, on
+the most complex system in it, on just-built coordinates.  (410 K is the Langevin target, not a
+velocity assignment: :class:`~pestifer.tasks.mdtask.MDTask` writes ``binvelocities`` and deletes
+``temperature`` whenever a ``.vel`` exists, so the stage inherits the preceding minimize's
+near-zero velocities and is driven to 410 K by the thermostat.)
 These tests pin the repaired ladder, because a protocol is a claim like any other and nothing
 else here would fail if it were reverted.
 
@@ -40,8 +43,22 @@ _EX17 = str(_EXAMPLES / '17' / 'inputs' / 'hiv-mpertm3-membrane2.yaml')
 _HOT_K = 320.0
 
 
+def _resolve(path):
+    """Resolve a config through the real schema WITHOUT requiring the NAMD toolchain.
+
+    `Config` treats a `userfile` as a build run and verifies that charmrun/namd3/vmd/catdcd
+    all resolve on PATH; the clean-export gate hides exactly those, so a `userfile` here makes
+    the module untestable in the one environment that matters.  A `userdict` is the same
+    resolution without that gate -- which is the point: this check is about schema and task
+    order, not about whether NAMD is installed.
+    """
+    import yaml
+    return Config(userdict=yaml.safe_load(Path(path).read_text()) or {},
+                  quiet=True).configure_new()
+
+
 def _tasks(userfile):
-    return Config(userfile=userfile, quiet=True).configure_new()['user']['tasks']
+    return _resolve(userfile)['user']['tasks']
 
 
 def _kind(task):
@@ -106,7 +123,7 @@ class TestOtherParametersOverrideRatherThanDuplicate(unittest.TestCase):
     this fails if example 17's spellings drift off the built-ins."""
 
     def test_timestep_and_rigidbonds_replace_the_solvated_defaults(self):
-        c = Config(userfile=_EX17, quiet=True).configure_new()
+        c = _resolve(_EX17)
         solvated = c['user']['namd']['solvated']
         softened = False
         for i, t in enumerate(c['user']['tasks']):
@@ -129,4 +146,4 @@ class TestEveryShippedExampleStillResolves(unittest.TestCase):
         self.assertGreater(len(files), 25, f'no example configs under {_EXAMPLES}')
         for f in files:
             with self.subTest(example=f):
-                Config(userfile=str(f), quiet=True).configure_new()
+                _resolve(f)

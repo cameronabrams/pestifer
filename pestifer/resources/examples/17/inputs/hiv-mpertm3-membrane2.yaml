@@ -176,8 +176,12 @@ tasks:
   # final stage, on which the pressure profile is computed.
   # COLD, SOFT PROLOGUE -- this exists to make a RATTLE failure impossible here, not to
   # equilibrate anything.  The 410 K pass below is the hottest stage in the pipeline and it ran
-  # on the most complex system in the example set, started from freshly assigned 410 K
-  # velocities at 2 fs with `rigidbonds all`, directly on just-built coordinates.  Example 25
+  # on the most complex system in the example set, at 2 fs with `rigidbonds all`, directly on
+  # just-built coordinates.  (410 K is the LANGEVIN TARGET, not a velocity assignment: MDTask
+  # writes `binvelocities` and deletes `temperature` whenever the previous stage left a .vel,
+  # so the system carries the preceding minimize's near-zero velocities and the thermostat
+  # drives it to 410 K across 2 ps.  Rapid constrained heating of possibly-strained
+  # coordinates, rather than a hot start -- the remedy is the same.)  Example 25
   # documents the same start failing the same way on a different system ("a full-temperature
   # NVT start RATTLE-fails on the first step") and documents this cure: come up cold and slow
   # first, with the constraints OFF so there is nothing for RATTLE to fail, and let residual
