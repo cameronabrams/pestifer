@@ -172,12 +172,17 @@ class TestNothingToDo(_DoCase):
         self.assertEqual(self.result, 0)
         self.task.register.assert_not_called()
 
-    def test_no_segtypes_checks_nothing_and_says_so(self):
-        """``segtypes`` has no default, so an unset one would otherwise scan nothing in silence."""
-        with self.assertLogs('pestifer.tasks.ringcheck', level='WARNING') as cm:
-            t = self._run([_piercing(_side('lipid'), _side('lipid'))], segtypes=[])
-        self.assertIn('no segtypes specified', ''.join(cm.output))
-        self.assertEqual(self.result, 0)
+    def test_an_empty_segtypes_list_is_a_hard_error(self):
+        """It used to warn and return 0 -- a `ring_check` that checked nothing and reported
+        success, which is the silent-no-op shape this repository keeps a list of.
+
+        A threaded ring is a topologically wrong molecule that no later dynamics can undo, so a
+        check configured to look at nothing is a configuration error.  `segtypes` now defaults to
+        all three, so an empty list is only reachable by writing `segtypes: []` deliberately."""
+        from pestifer.core.errors import PestiferBuildError
+        with self.assertRaises(PestiferBuildError) as cm:
+            self._run([_piercing(_side('lipid'), _side('lipid'))], segtypes=[])
+        self.assertIn('check nothing', str(cm.exception))
         self.assertEqual(self.checks, [], 'the detector should not have run at all')
 
 

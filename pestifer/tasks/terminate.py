@@ -121,20 +121,31 @@ class TerminateTask(MDTask):
         not to become a new way for a finished build to be thrown away.
         """
         from ..psfutil.psfring import ring_check
-        state: StateArtifacts = self.get_current_artifact('state')
-        if state is None or state.psf is None or state.pdb is None:
-            return
+        # Resolved up front, and defensively: a partially-constructed task has no `taskname`
+        # either, so reaching for one INSIDE the handler makes the handler raise the same class
+        # of error it was written to absorb.  That is what happened on the first attempt -- the
+        # try caught the AttributeError from `get_current_artifact` and the warning that
+        # reported it raised a second one.
+        who = getattr(self, 'taskname', 'terminate')
         try:
+            # inside the try: `get_current_artifact` reaches through `self.pipeline`, which a
+            # partially-constructed task does not have, and this gate must never be the thing
+            # that takes a finished build down.  Found by the clean-export gate -- two existing
+            # terminate tests build exactly such a task and my first version raised
+            # AttributeError in both.
+            state: StateArtifacts = self.get_current_artifact('state')
+            if state is None or state.psf is None or state.pdb is None:
+                return
             piercings = ring_check(str(state.psf.path), str(state.pdb.path),
                                    xsc=str(state.xsc.path) if state.xsc else None,
                                    segtypes=['lipid', 'glycan', 'protein'],
                                    cutoff=4.0, max_ring_size=7)
         except Exception as e:
-            logger.warning(f'{self.taskname}: could not check the final structure for pierced '
+            logger.warning(f'{who}: could not check the final structure for pierced '
                            f'rings ({type(e).__name__}: {e}); packaging anyway')
             return
         if not piercings:
-            logger.info(f'{self.taskname}: final structure carries no pierced rings '
+            logger.info(f'{who}: final structure carries no pierced rings '
                         f'(lipid, glycan and protein all checked)')
             return
         lines = []
@@ -143,7 +154,7 @@ class TerminateTask(MDTask):
             lines.append(f"  {pe.get('segname')} {pe.get('resname')} {pe.get('resid')} ring "
                          f"<- {pr.get('segname')} {pr.get('resname')} {pr.get('resid')} bond")
         raise PestiferBuildError(
-            f'{self.taskname}: refusing to package a structure with '
+            f'{who}: refusing to package a structure with '
             f'{len(piercings)} pierced ring(s):\n' + '\n'.join(lines) +
             '\nA threaded ring is a topologically wrong molecule that no further dynamics can '
             'undo, so this system would carry the defect through the whole production run. '

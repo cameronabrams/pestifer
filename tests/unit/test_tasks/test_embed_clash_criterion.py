@@ -56,9 +56,10 @@ from importlib.resources import files as pkg_files
 
 SRC = (pkg_files('pestifer.resources.tcl.scripts') / 'bilayer_embed.tcl').read_text()
 
-#: every clash test in the script
+#: every clash test in the script.  Matched on `[measure contacts`, with the bracket, so the
+#: phrase quoted inside the positive-control error message is not counted as a second search.
 CONTACT_LINES = [ln.strip() for ln in SRC.splitlines()
-                 if 'measure contacts' in ln and not ln.strip().startswith('#')]
+                 if '[measure contacts' in ln and not ln.strip().startswith('#')]
 
 
 class TestBothClashTestsUseHeavyAtoms(unittest.TestCase):
@@ -79,9 +80,39 @@ class TestBothClashTestsUseHeavyAtoms(unittest.TestCase):
             self.assertNotIn('$water_sel', ln, f'all-atom water clash test is back: {ln}')
 
     def test_both_sites_pass_heavy_atom_selections(self):
-        for ln in re.findall(r'overlapping_indices \$\w+ ([^\n]*)', SRC):
-            for sel in re.findall(r'\$(\w+)', ln):
+        """`overlapping_indices molid_a sel_a molid_b sel_b` -- the SELECTIONS are the 2nd and
+        4th arguments.  The signature grew a second molid on 2026-10-16 because the old
+        three-argument form assumed one molecule and let the lipid site pass a selection from
+        another, whose indices were then read against the wrong coordinates."""
+        # `overlapping_indices \$...` with the dollar excludes the `proc` definition line,
+        # whose argument list is bare names
+        calls = re.findall(r'overlapping_indices (\$[^\n\]]*)', SRC)
+        self.assertEqual(len(calls), 2, f'expected two call sites, found {calls}')
+        for ln in calls:
+            args = re.findall(r'\$(\w+)', ln)
+            self.assertEqual(len(args), 4, f'not a four-argument call: "{ln}"')
+            for sel in (args[1], args[3]):
                 self.assertIn('heavy', sel, f'{sel} in "{ln}" is not a heavy-atom selection')
+
+    def test_each_index_list_is_read_in_its_own_molecule(self):
+        """The defect that made the whole test a no-op: `measure contacts` returns two index
+        lists, each in its own molecule's space, and both were read from one molecule's arrays.
+        A lipid C218 and a protein OT2 3.497 A apart computed as 62.873 A, so every pair failed
+        and ZERO of 465 overlapping lipids were deleted."""
+        body = re.search(r'proc overlapping_indices.*?\n\}', SRC, re.S).group(0)
+        for ax in 'xyz':
+            self.assertIn(f'[lindex ${ax}a $i] - [lindex ${ax}b $j]', body,
+                          f'{ax}: the piercer coordinate is not read from its own molecule')
+        self.assertIn('names_b $j', body, 'the piercer element is not read from its own molecule')
+
+    def test_the_arithmetic_has_a_positive_control(self):
+        """Checking that the two selections are non-empty did not catch the mis-indexing: the
+        selections were fine, the arithmetic between them was not.  Every pair `measure contacts
+        R` returns is within R by construction, so a computed distance above R means we are not
+        measuring the pair VMD gave us."""
+        body = re.search(r'proc overlapping_indices.*?\n\}', SRC, re.S).group(0)
+        self.assertIn('_OVERLAP_SEARCH + 1.0e-3', body, 'no bound on the computed distance')
+        self.assertIn('error "bilayer_embed:', body, 'the bound does not stop the build')
 
 
 class TestTheOverlapCriterion(unittest.TestCase):
