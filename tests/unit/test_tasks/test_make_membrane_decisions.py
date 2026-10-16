@@ -140,15 +140,17 @@ class TestPipelineContract(unittest.TestCase):
 
 
 class TestGuardPiercings(unittest.TestCase):
-    """A threaded ring is a topologically wrong molecule: once a bond is on the wrong side of a
-    ring, neither further minimization nor further dynamics puts it back.  A build carrying one
-    has produced wrong chemistry whether or not the integrator ever complains.
+    """A ring piercing is created by a MINIMIZER or by the initial build, never by dynamics.
 
-    So the guard runs before EVERY dynamics stage, not just the first.  It used to splice one
-    check ahead of the first, on the theory that the opening condensing minimize was what created
-    piercings.  Dynamics creates them too: in the 2026-10-16 example-17 arm two replicas carried
-    lipid-lipid piercings at a hand-off that came AFTER an earlier ring_check had reported the
-    structure clean, and nothing looked again.
+    Threading a bond through a ring means pushing an atom through tens of kcal/mol of van der
+    Waals repulsion.  kT at 310-410 K is about 0.6, so NVT/NPT/NPgT cannot do it -- they can
+    only carry forward a piercing that already exists.  A minimizer can: it has no kinetic
+    energy to respect a barrier with, and from a high-force start takes steps large enough to
+    pass straight through one.
+
+    So the check belongs after each minimize, and nowhere else.  An earlier version of this
+    guard checked before every DYNAMICS stage, which bought nothing for the stages themselves
+    and paid a whole-system scan each time.
     """
 
     MINIMIZE = {'md': {'ensemble': 'minimize', 'minimize': 1000}}
@@ -156,39 +158,46 @@ class TestGuardPiercings(unittest.TestCase):
     NVT = {'md': {'ensemble': 'NVT', 'nsteps': 500}}
     MEMEQ = {'membrane_equilibrate': {'temperature': 310}}
 
-    def test_a_ring_check_is_inserted_before_the_first_dynamics_stage(self):
-        got = _task()._guard_piercings([self.MINIMIZE, self.NPT])
-        self.assertEqual(list(got[0]), ['md'])
-        self.assertIn('ring_check', got[1])
-
-    def test_one_is_inserted_before_EVERY_dynamics_stage(self):
-        """The defect in one assertion: this used to be 1 regardless of how many stages ran."""
-        got = _task()._guard_piercings([self.MINIMIZE, self.NPT, self.NVT])
+    def test_a_check_follows_every_minimize(self):
+        got = _task()._guard_piercings([self.MINIMIZE, self.NPT, self.MINIMIZE, self.NVT])
+        for i, stage in enumerate(got):
+            if stage is self.MINIMIZE or stage == self.MINIMIZE:
+                self.assertIn('ring_check', got[i + 1],
+                              f'no ring_check after the minimize at index {i}')
         self.assertEqual(sum('ring_check' in s for s in got), 2)
 
-    def test_membrane_equilibrate_counts_as_dynamics(self):
-        """It integrates for millions of steps; it is the last place to skip."""
-        got = _task()._guard_piercings([self.MINIMIZE, self.MEMEQ])
-        self.assertEqual(sum('ring_check' in s for s in got), 1)
-        self.assertIn('ring_check', got[1])
+    def test_dynamics_stages_get_no_check_of_their_own(self):
+        """The defect in one assertion: this used to insert one before every dynamics stage."""
+        got = _task()._guard_piercings([self.MINIMIZE, self.NPT, self.NVT, self.MEMEQ])
+        self.assertEqual(sum('ring_check' in s for s in got), 1,
+                         'a dynamics stage is still being given a check it cannot need')
+        self.assertIn('ring_check', got[1], 'the check does not follow the minimize')
+
+    def test_no_minimize_is_inserted_after_the_check(self):
+        """It used to splice `ring_check` then `minimize`, to relax a lipid left strained by a
+        DELETION -- but `delete` defaults to `none` now, so nothing is deleted.  That minimize
+        then ran unverified immediately before dynamics: a minimizer acting on a just-rotated
+        structure with nothing looking afterwards, which is the one place a lipid-lipid piercing
+        could still be created and carried into a melt unseen."""
+        got = _task()._guard_piercings([self.MINIMIZE, self.NPT])
+        rc = next(i for i, s in enumerate(got) if 'ring_check' in s)
+        self.assertNotEqual(str((got[rc + 1].get('md') or {}).get('ensemble', '')).casefold(),
+                            'minimize', 'an unverified minimize follows the check again')
+
+    def test_a_protocol_with_no_minimize_gets_no_check(self):
+        """Nothing in it can create a piercing."""
+        protocol = [self.NPT, self.NVT]
+        self.assertEqual(_task()._guard_piercings(protocol), protocol)
 
     def test_the_check_looks_at_all_three_segtypes(self):
         """`['lipid']` cannot see a sterol ring threaded by a protein side chain, which is what
-        every replica of the 2026-10-16 arm carried, 2-6 of them, at the post-embed hand-off."""
-        spec = _task()._guard_piercings([self.MINIMIZE, self.NPT])[1]['ring_check']
+        every replica of the 2026-10-16 arm carried at the post-embed hand-off."""
+        spec = _task()._guard_piercings([self.MINIMIZE])[1]['ring_check']
         self.assertEqual(spec['segtypes'], ['lipid', 'glycan', 'protein'])
 
     def test_an_unresolvable_piercing_stops_the_build_rather_than_losing_a_lipid(self):
-        spec = _task()._guard_piercings([self.MINIMIZE, self.NPT])[1]['ring_check']
+        spec = _task()._guard_piercings([self.MINIMIZE])[1]['ring_check']
         self.assertEqual(spec['delete'], 'none')
-
-    def test_a_minimize_follows_each_ring_check(self):
-        """Whatever the rotation moved is relaxed before it is integrated."""
-        got = _task()._guard_piercings([self.MINIMIZE, self.NPT, self.NVT])
-        for i, stage in enumerate(got):
-            if 'ring_check' in stage:
-                self.assertEqual(got[i + 1]['md']['ensemble'], 'minimize',
-                                 f'no minimize after the ring_check at index {i}')
 
     def test_the_original_stages_are_all_preserved_in_order(self):
         protocol = [self.MINIMIZE, self.NPT, self.NVT]
@@ -196,15 +205,7 @@ class TestGuardPiercings(unittest.TestCase):
         it = iter(got)
         self.assertTrue(all(stage in it for stage in protocol),
                         f'original stages not preserved in order: {got}')
-        self.assertEqual(len(got), len(protocol) + 4)   # two guards, two stages each
-
-    def test_an_all_minimize_protocol_is_left_alone(self):
-        protocol = [self.MINIMIZE, self.MINIMIZE]
-        self.assertEqual(_task()._guard_piercings(protocol), protocol)
-
-    def test_a_protocol_that_opens_with_dynamics_is_still_guarded(self):
-        got = _task()._guard_piercings([self.NPT])
-        self.assertIn('ring_check', got[0])
+        self.assertEqual(len(got), len(protocol) + 1)
 
     def test_a_non_list_protocol_passes_through(self):
         for protocol in ({}, None, 'quilt'):

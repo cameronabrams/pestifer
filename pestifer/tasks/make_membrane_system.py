@@ -194,6 +194,17 @@ def _per_leaflet_tension(pp_df, c_z, midplane_slab=None):
     return dict(total=float(gamma_slab.sum()), lower=lower, upper=upper,
                 dgamma=upper - lower, nslabs=nslabs, nframes=int(len(frames)))
 
+
+def _is_minimize_stage(stage):
+    """True for a protocol stage that MINIMIZES.
+
+    These are the stages a ring piercing can be created in -- a minimizer has no kinetic energy
+    to respect a barrier with, and from a high-force start takes steps large enough to push an
+    atom through a ring.  Dynamics cannot: the barrier is tens of kcal/mol against a kT of
+    about 0.6 at membrane temperatures.
+    """
+    return str((stage.get('md') or {}).get('ensemble', '') or '').casefold() == 'minimize'
+
 class MakeMembraneSystemTask(BaseTask):
     """
     A class for building a lipid bilayer system (with the grid packer),
@@ -539,50 +550,41 @@ class MakeMembraneSystemTask(BaseTask):
                                      relaxation_protocol=copy.deepcopy(patch_protocol))
 
     def _guard_piercings(self, protocol):
-        """Insert a ``ring_check`` (and a follow-up minimize) before **every** dynamics stage of
-        a gridded membrane's relaxation.
+        """Insert a ``ring_check`` after every MINIMIZATION in a gridded membrane's relaxation.
 
-        Grid placement itself leaves no pierced rings, but the condensing minimize that opens
-        the relaxation can pull a lipid tail through a sterol ring.  Such a threading survives
-        further minimization -- it is topological, not just strained -- and no later dynamics
-        can unthread it either: once a bond is on the wrong side of a ring it stays there for
-        the rest of the run.  A build carrying one has produced a chemically wrong molecule
-        whether or not the integrator ever complains about it.
+        **After minimizations, and only after minimizations.**  Threading a bond through a ring
+        means pushing an atom through it against tens of kcal/mol of van der Waals repulsion.
+        At 310-410 K, kT is about 0.6, so NVT/NPT/NPgT dynamics cannot do it: a piercing either
+        comes out of the initial build or is driven in by a minimizer, which has no kinetic
+        energy to respect a barrier with and from a high-force start takes steps large enough to
+        pass straight through one.  Dynamics can only carry forward a piercing that already
+        exists; it cannot create one.
 
-        **Before every dynamics stage, not just the first.**  This used to splice one check
-        ahead of the first non-minimize stage, on the theory that the opening minimize was what
-        created piercings.  Dynamics creates them too: in the 2026-10-16 example-17 arm, two
-        replicas carried lipid-lipid piercings at a hand-off that came *after* an earlier
-        ``ring_check`` had reported the structure clean, and nothing looked again.  Checking
-        before stage N catches whatever stage N-1 made; the final stage's output is caught by
-        the gate in ``TerminateTask``, so nothing can be packaged unexamined.
+        So checking before every dynamics stage -- which this did until now -- buys nothing for
+        the stages themselves and costs a whole-system scan each time.  Checking after each
+        minimize covers every point at which a piercing can appear, with no trailing check
+        needed: if the protocol ends in dynamics, that dynamics cannot have introduced anything.
 
-        ``segtypes`` is all three.  The old ``['lipid']`` could not see a sterol ring threaded
-        by a protein side chain, which is what every replica of that arm carried, 2-6 of them,
-        at the post-embed hand-off.  ``delete='none'`` because a piercing rotation cannot clear
-        should stop the build rather than be hidden by removing a lipid, which silently changes
-        the composition being built.
-
-        The minimize after each check runs regardless and does real work only when something
-        moved; otherwise it re-relaxes an already-minimized structure."""
+        **And no minimize after the check.**  The old splice was ``ring_check`` then
+        ``minimize``, to relax a lipid left strained by a deletion -- but ``delete`` now defaults
+        to ``none``, so nothing is deleted and nothing is left strained.  Worse, that minimize
+        ran UNVERIFIED immediately before dynamics, which is precisely a minimizer acting on a
+        just-rotated structure with nothing looking afterwards.  It is the one remaining place a
+        lipid-lipid piercing could be created and carried into a melt unseen, which is what both
+        pre-embed deaths of the 2026-10-16 arm were.  A rotation is a small rigid move chosen
+        for fewest new clashes; the dynamics that follows relaxes it and cannot re-thread it.
+        """
         if not isinstance(protocol, list):
             return protocol
         guarded = []
         for stage in protocol:
-            ensemble = str(stage.get('md', {}).get('ensemble', '') or '').casefold()
-            is_dynamics = bool(ensemble) and ensemble != 'minimize'
-            if 'membrane_equilibrate' in stage:
-                is_dynamics = True
-            if is_dynamics:
-                # cutoff 4.0 A: the piercing test itself accepts a bond only within ~3.5 A of
-                # the ring centre, so a slightly larger link-cell search radius finds every
-                # piercing without the ~10x cost of the schema default (10.0 A), which on a
-                # ~350k-atom membrane only adds duplicate reports of the same molecule.
+            guarded.append(stage)
+            if _is_minimize_stage(stage):
+                # cutoff 4.0 A: the piercing test accepts a bond only within ~3.5 A of the ring
+                # centre, so a slightly larger link-cell radius finds every piercing without the
+                # ~10x cost of the schema default (10.0).
                 guarded.append({'ring_check': dict(segtypes=['lipid', 'glycan', 'protein'],
                                                    delete='none', cutoff=4.0)})
-                # relax whatever the rotation moved before integrating it
-                guarded.append({'md': dict(ensemble='minimize', minimize=1000)})
-            guarded.append(stage)
         return guarded
 
     def _grid_membrane(self, leaflet_nlipids, box_SAPL, aspect=None):
