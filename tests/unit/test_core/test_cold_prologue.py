@@ -6,7 +6,7 @@ the same shape: a stage that modified coordinates is followed directly by dynami
 enough, long-stepped enough and constrained enough to turn residual strain into a divergent
 step.  Two places in this repository already say so in prose:
 
-- ``make_membrane_system._guard_pierced_lipids``: a threading "survives further minimization
+- ``make_membrane_system._guard_piercings``: a threading "survives further minimization
   (it is topological, not just strained) and then RATTLE-fails the first dynamics step".  Its
   cure is ``ring_check`` THEN ``minimize``, spliced before the first non-minimize stage.
 - example 25: "a full-temperature NVT start RATTLE-fails on the first step... a 50 K, 0.5 fs

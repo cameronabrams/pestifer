@@ -538,32 +538,50 @@ class MakeMembraneSystemTask(BaseTask):
             self.equilibrate_bilayer(patch, bilayer_name=f'patch{specbyte}',
                                      relaxation_protocol=copy.deepcopy(patch_protocol))
 
-    def _guard_pierced_lipids(self, protocol):
-        """Insert a lipid ``ring_check`` (and a follow-up minimize) before the first dynamics
-        stage of a gridded membrane's relaxation.
+    def _guard_piercings(self, protocol):
+        """Insert a ``ring_check`` (and a follow-up minimize) before **every** dynamics stage of
+        a gridded membrane's relaxation.
 
         Grid placement itself leaves no pierced rings, but the condensing minimize that opens
         the relaxation can pull a lipid tail through a sterol ring.  Such a threading survives
-        further minimization (it is topological, not just strained) and then RATTLE-fails the
-        first dynamics step.  ``ring_check`` deletes the pierced lipid on the minimized
-        coordinates; the deletion frees the *other* (threading) lipid into a strained pose, so
-        a short minimize follows to relax it before any dynamics.  The minimize runs
-        regardless, but does real work only when a lipid was removed (otherwise it re-relaxes
-        an already-minimized structure)."""
+        further minimization -- it is topological, not just strained -- and no later dynamics
+        can unthread it either: once a bond is on the wrong side of a ring it stays there for
+        the rest of the run.  A build carrying one has produced a chemically wrong molecule
+        whether or not the integrator ever complains about it.
+
+        **Before every dynamics stage, not just the first.**  This used to splice one check
+        ahead of the first non-minimize stage, on the theory that the opening minimize was what
+        created piercings.  Dynamics creates them too: in the 2026-10-16 example-17 arm, two
+        replicas carried lipid-lipid piercings at a hand-off that came *after* an earlier
+        ``ring_check`` had reported the structure clean, and nothing looked again.  Checking
+        before stage N catches whatever stage N-1 made; the final stage's output is caught by
+        the gate in ``TerminateTask``, so nothing can be packaged unexamined.
+
+        ``segtypes`` is all three.  The old ``['lipid']`` could not see a sterol ring threaded
+        by a protein side chain, which is what every replica of that arm carried, 2-6 of them,
+        at the post-embed hand-off.  ``delete='none'`` because a piercing rotation cannot clear
+        should stop the build rather than be hidden by removing a lipid, which silently changes
+        the composition being built.
+
+        The minimize after each check runs regardless and does real work only when something
+        moved; otherwise it re-relaxes an already-minimized structure."""
         if not isinstance(protocol, list):
             return protocol
-        guarded, inserted = [], False
+        guarded = []
         for stage in protocol:
             ensemble = str(stage.get('md', {}).get('ensemble', '') or '').casefold()
-            if not inserted and ensemble and ensemble != 'minimize':
+            is_dynamics = bool(ensemble) and ensemble != 'minimize'
+            if 'membrane_equilibrate' in stage:
+                is_dynamics = True
+            if is_dynamics:
                 # cutoff 4.0 A: the piercing test itself accepts a bond only within ~3.5 A of
                 # the ring centre, so a slightly larger link-cell search radius finds every
-                # pierced lipid without the ~10x cost of the schema default (10.0 A), which on
-                # a ~350k-atom membrane only adds duplicate reports of the same lipid.
-                guarded.append({'ring_check': dict(segtypes=['lipid'], delete='piercee', cutoff=4.0)})
-                # relax the lipid freed by the deletion (and the void) before dynamics
+                # piercing without the ~10x cost of the schema default (10.0 A), which on a
+                # ~350k-atom membrane only adds duplicate reports of the same molecule.
+                guarded.append({'ring_check': dict(segtypes=['lipid', 'glycan', 'protein'],
+                                                   delete='none', cutoff=4.0)})
+                # relax whatever the rotation moved before integrating it
                 guarded.append({'md': dict(ensemble='minimize', minimize=1000)})
-                inserted = True
             guarded.append(stage)
         return guarded
 
@@ -1248,7 +1266,7 @@ class MakeMembraneSystemTask(BaseTask):
         # a grid-packed membrane may get a ring_check (+ minimize) spliced in before its
         # first dynamics stage; build that list now so the inserted minimize is configured
         # (parameter files, flexible cell) alongside the user's own stages
-        guarded_protocol = self._guard_pierced_lipids(relaxation_protocol)
+        guarded_protocol = self._guard_piercings(relaxation_protocol)
         for stage in guarded_protocol:
             # a relaxation stage is an `md` stage or a self-terminating `membrane_equilibrate` stage
             # (the latter converges density + lateral area under NPgT, replacing a fixed NPT/NPgT tail);

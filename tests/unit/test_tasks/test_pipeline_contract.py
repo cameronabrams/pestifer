@@ -121,7 +121,7 @@ if __name__ == '__main__':
 class TestUnminimizedDynamics(unittest.TestCase):
     """Dynamics must not integrate coordinates an earlier task moved and nothing minimized.
 
-    `make_membrane_system._guard_pierced_lipids` enforces this for the relaxation protocol it
+    `make_membrane_system._guard_piercings` enforces this for the relaxation protocol it
     generates, and says why: a piercing resolution "frees the other lipid into a strained pose",
     and a threading "RATTLE-fails the first dynamics step".  That guard never saw the user's own
     top-level task list, so example 17 shipped `minimize -> ring_check -> 410 K dynamics` -- the

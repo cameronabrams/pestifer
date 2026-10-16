@@ -181,7 +181,7 @@ def _is_minimize(task):
 def _check_unminimized_dynamics(tasks):
     """Refuse dynamics on coordinates an earlier task moved and nothing minimized.
 
-    This is the static half of a rule ``make_membrane_system._guard_pierced_lipids`` already
+    This is the static half of a rule ``make_membrane_system._guard_piercings`` already
     enforces dynamically for the membrane relaxation protocol it generates, and whose docstring
     states the consequence: a resolution "frees the other lipid into a strained pose", and a
     threading "survives further minimization (it is topological, not just strained) and then

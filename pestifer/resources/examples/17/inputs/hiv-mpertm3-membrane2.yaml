@@ -143,8 +143,14 @@ tasks:
       constraints:
         k: 10
         atoms: protein and name CA
+  # protein is in the list because the 2026-10-16 arm measured 2-6 protein-lipid ring
+  # piercings at the post-embed hand-off of EVERY replica -- CHL1 rings threaded by MPER side
+  # chains, and PHE rings threaded by acyl tails -- all of them invisible to [lipid, glycan],
+  # which is what this example asked for until now.  A threaded ring is a topologically wrong
+  # molecule: no further dynamics can unthread it, so it propagates through the whole
+  # production run whether or not the integrator ever complains.
   - ring_check:  # there are sterols (cholesterol rings are lipid rings)
-      segtypes: [lipid, glycan]
+      segtypes: [lipid, glycan, protein]
   # ring_check can MOVE atoms -- it rotates a pendant branch or a side chain to unthread a
   # piercing -- and whatever it moves is not minimized by the stage above, which runs before it.
   # make_membrane_system's own `_guard_pierced_lipids` splices exactly this pair in the other

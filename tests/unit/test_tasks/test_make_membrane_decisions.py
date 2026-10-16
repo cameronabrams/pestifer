@@ -139,57 +139,77 @@ class TestPipelineContract(unittest.TestCase):
         self.assertIn(SOLVATED, MakeMembraneSystemTask.pipeline_contract({}).warn_if_present)
 
 
-class TestGuardPiercedLipids(unittest.TestCase):
-    """Grid placement leaves no pierced rings, but the opening condensing minimize can pull a tail
-    through a sterol ring -- a topological defect that survives further minimization and then
-    RATTLE-fails the first dynamics step.  The guard goes in just before dynamics begins."""
+class TestGuardPiercings(unittest.TestCase):
+    """A threaded ring is a topologically wrong molecule: once a bond is on the wrong side of a
+    ring, neither further minimization nor further dynamics puts it back.  A build carrying one
+    has produced wrong chemistry whether or not the integrator ever complains.
+
+    So the guard runs before EVERY dynamics stage, not just the first.  It used to splice one
+    check ahead of the first, on the theory that the opening condensing minimize was what created
+    piercings.  Dynamics creates them too: in the 2026-10-16 example-17 arm two replicas carried
+    lipid-lipid piercings at a hand-off that came AFTER an earlier ring_check had reported the
+    structure clean, and nothing looked again.
+    """
 
     MINIMIZE = {'md': {'ensemble': 'minimize', 'minimize': 1000}}
     NPT = {'md': {'ensemble': 'NPT', 'nsteps': 1000}}
     NVT = {'md': {'ensemble': 'NVT', 'nsteps': 500}}
+    MEMEQ = {'membrane_equilibrate': {'temperature': 310}}
 
     def test_a_ring_check_is_inserted_before_the_first_dynamics_stage(self):
-        got = _task()._guard_pierced_lipids([self.MINIMIZE, self.NPT])
+        got = _task()._guard_piercings([self.MINIMIZE, self.NPT])
         self.assertEqual(list(got[0]), ['md'])
         self.assertIn('ring_check', got[1])
 
-    def test_the_ring_check_targets_lipids_and_deletes_the_pierced_one(self):
-        got = _task()._guard_pierced_lipids([self.MINIMIZE, self.NPT])
-        spec = got[1]['ring_check']
-        self.assertEqual(spec['segtypes'], ['lipid'])
-        self.assertEqual(spec['delete'], 'piercee')
+    def test_one_is_inserted_before_EVERY_dynamics_stage(self):
+        """The defect in one assertion: this used to be 1 regardless of how many stages ran."""
+        got = _task()._guard_piercings([self.MINIMIZE, self.NPT, self.NVT])
+        self.assertEqual(sum('ring_check' in s for s in got), 2)
 
-    def test_a_minimize_follows_the_ring_check(self):
-        """Deleting the pierced lipid frees the threading one into a strained pose."""
-        got = _task()._guard_pierced_lipids([self.MINIMIZE, self.NPT])
-        self.assertEqual(got[2]['md']['ensemble'], 'minimize')
+    def test_membrane_equilibrate_counts_as_dynamics(self):
+        """It integrates for millions of steps; it is the last place to skip."""
+        got = _task()._guard_piercings([self.MINIMIZE, self.MEMEQ])
+        self.assertEqual(sum('ring_check' in s for s in got), 1)
+        self.assertIn('ring_check', got[1])
+
+    def test_the_check_looks_at_all_three_segtypes(self):
+        """`['lipid']` cannot see a sterol ring threaded by a protein side chain, which is what
+        every replica of the 2026-10-16 arm carried, 2-6 of them, at the post-embed hand-off."""
+        spec = _task()._guard_piercings([self.MINIMIZE, self.NPT])[1]['ring_check']
+        self.assertEqual(spec['segtypes'], ['lipid', 'glycan', 'protein'])
+
+    def test_an_unresolvable_piercing_stops_the_build_rather_than_losing_a_lipid(self):
+        spec = _task()._guard_piercings([self.MINIMIZE, self.NPT])[1]['ring_check']
+        self.assertEqual(spec['delete'], 'none')
+
+    def test_a_minimize_follows_each_ring_check(self):
+        """Whatever the rotation moved is relaxed before it is integrated."""
+        got = _task()._guard_piercings([self.MINIMIZE, self.NPT, self.NVT])
+        for i, stage in enumerate(got):
+            if 'ring_check' in stage:
+                self.assertEqual(got[i + 1]['md']['ensemble'], 'minimize',
+                                 f'no minimize after the ring_check at index {i}')
 
     def test_the_original_stages_are_all_preserved_in_order(self):
         protocol = [self.MINIMIZE, self.NPT, self.NVT]
-        got = _task()._guard_pierced_lipids(protocol)
-        # the guard adds a ring_check *and* a follow-up minimize, so the original stages are a
-        # subsequence of the result rather than everything that is not a ring_check
+        got = _task()._guard_piercings(protocol)
         it = iter(got)
         self.assertTrue(all(stage in it for stage in protocol),
                         f'original stages not preserved in order: {got}')
-        self.assertEqual(len(got), len(protocol) + 2)
-
-    def test_the_guard_is_inserted_only_once(self):
-        got = _task()._guard_pierced_lipids([self.MINIMIZE, self.NPT, self.NVT])
-        self.assertEqual(sum('ring_check' in s for s in got), 1)
+        self.assertEqual(len(got), len(protocol) + 4)   # two guards, two stages each
 
     def test_an_all_minimize_protocol_is_left_alone(self):
         protocol = [self.MINIMIZE, self.MINIMIZE]
-        self.assertEqual(_task()._guard_pierced_lipids(protocol), protocol)
+        self.assertEqual(_task()._guard_piercings(protocol), protocol)
 
     def test_a_protocol_that_opens_with_dynamics_is_still_guarded(self):
-        got = _task()._guard_pierced_lipids([self.NPT])
+        got = _task()._guard_piercings([self.NPT])
         self.assertIn('ring_check', got[0])
 
     def test_a_non_list_protocol_passes_through(self):
         for protocol in ({}, None, 'quilt'):
             with self.subTest(protocol=protocol):
-                self.assertEqual(_task()._guard_pierced_lipids(protocol), protocol)
+                self.assertEqual(_task()._guard_piercings(protocol), protocol)
 
 
 class _InitializeCase(unittest.TestCase):
@@ -812,7 +832,7 @@ class TestProtocolMinimizeStepCount(unittest.TestCase):
         t = _task(provisions={'processor-type': 'cpu'}, substage_outcomes=[], basename='mms')
         t.next_basename = mock.Mock()
         t.get_current_artifact = lambda key: mock.Mock()
-        t._guard_pierced_lipids = lambda p: p
+        t._guard_piercings = lambda p: p
         t.import_artifacts = mock.Mock()
         t._relaxed_area_drift = mock.Mock(return_value=None)
         sent = {}
@@ -885,7 +905,7 @@ class TestRelaxationStagesReachTheRunRecord(unittest.TestCase):
         t = _task(provisions={'processor-type': 'cpu'}, substage_outcomes=[], basename='mms')
         t.next_basename = mock.Mock()
         t.get_current_artifact = lambda key: mock.Mock()
-        t._guard_pierced_lipids = lambda protocol: protocol
+        t._guard_piercings = lambda protocol: protocol
         t.import_artifacts = mock.Mock()
         t._relaxed_area_drift = mock.Mock(return_value=None)
         t.subcontroller = mock.Mock(config={'user': {}})

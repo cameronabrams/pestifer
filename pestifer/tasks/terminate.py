@@ -15,6 +15,7 @@ import numpy as np
 
 from .mdtask import MDTask
 from ..charmmff.charmmffprm import CharmmParamFile
+from ..core.errors import PestiferBuildError
 from ..core.artifacts import *
 from ..molecule.molecule import Molecule
 from ..psfutil.psfcontents import PSFContents
@@ -96,6 +97,59 @@ class TerminateTask(MDTask):
         # packages the final system and closes the build -- nothing may follow it
         return TaskContract(requires=(STATE,), provides=(), terminal=True)
 
+    def _refuse_to_ship_a_piercing(self):
+        """Refuse to package a structure containing a pierced ring.
+
+        A threaded ring is a topologically wrong molecule.  Once a bond sits on the wrong side
+        of a ring, no minimization and no further dynamics puts it back -- it propagates through
+        however many microseconds of production follow, and every number computed from that run
+        is computed on the wrong chemistry.  **It is a failure whether or not the integrator
+        ever complains**, which is why this gate is not conditional on anything having crashed.
+
+        Everything upstream resolves piercings; this one only looks.  By the time a build
+        reaches ``terminate`` there is no later stage to repair anything in, so the honest
+        action is to refuse the package and say where the piercing is.
+
+        Measured 2026-10-16: every replica of an example-17 arm carried 2-6 protein-lipid ring
+        piercings at its post-embed hand-off -- CHL1 rings threaded by MPER side chains, PHE
+        rings threaded by acyl tails -- and all of them were invisible, because every shipped
+        example ran ``ring_check`` with ``segtypes: [lipid, glycan]`` and nothing checked the
+        final structure at all.  Three of those builds completed and were packaged.
+
+        Never raises for a reason it cannot substantiate: if the structure cannot be read, that
+        is logged and the package proceeds.  This gate exists to stop wrong chemistry shipping,
+        not to become a new way for a finished build to be thrown away.
+        """
+        from ..psfutil.psfring import ring_check
+        state: StateArtifacts = self.get_current_artifact('state')
+        if state is None or state.psf is None or state.pdb is None:
+            return
+        try:
+            piercings = ring_check(str(state.psf.path), str(state.pdb.path),
+                                   xsc=str(state.xsc.path) if state.xsc else None,
+                                   segtypes=['lipid', 'glycan', 'protein'],
+                                   cutoff=4.0, max_ring_size=7)
+        except Exception as e:
+            logger.warning(f'{self.taskname}: could not check the final structure for pierced '
+                           f'rings ({type(e).__name__}: {e}); packaging anyway')
+            return
+        if not piercings:
+            logger.info(f'{self.taskname}: final structure carries no pierced rings '
+                        f'(lipid, glycan and protein all checked)')
+            return
+        lines = []
+        for p in piercings:
+            pe, pr = p['piercee'], p['piercer']
+            lines.append(f"  {pe.get('segname')} {pe.get('resname')} {pe.get('resid')} ring "
+                         f"<- {pr.get('segname')} {pr.get('resname')} {pr.get('resid')} bond")
+        raise PestiferBuildError(
+            f'{self.taskname}: refusing to package a structure with '
+            f'{len(piercings)} pierced ring(s):\n' + '\n'.join(lines) +
+            '\nA threaded ring is a topologically wrong molecule that no further dynamics can '
+            'undo, so this system would carry the defect through the whole production run. '
+            'Add or widen a `ring_check` (segtypes: [lipid, glycan, protein]) earlier in the '
+            'pipeline so the piercing is resolved while there is still a stage that can fix it.')
+
     def do(self) -> int:
         self.next_basename()
         if 'chainmapfile' in self.specs:
@@ -111,6 +165,7 @@ class TerminateTask(MDTask):
                 logger.warning(f'could not write the chain map ({type(e).__name__}: {e}); '
                                'continuing -- the state files, parameters, package and run record '
                                'are unaffected')
+        self._refuse_to_ship_a_piercing()
         self.result = self.test_standard()
         if self.specs.get('basename'):
             self.copy_state_to_basename()

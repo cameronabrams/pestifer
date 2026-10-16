@@ -1199,17 +1199,45 @@ attributes:
         type: dict
         attributes:
           - name: delete
-            text: "for a pierced LIPID ring, which segment(s) to delete: 'piercee' (the ring's segment), 'piercer' (the threading bond's segment), 'both' (piercee plus the piercer when it too is a lipid -- robust for inter-threaded lipids, which strain both molecules), or 'none' (no deletion; the piercing is reported and the build stops). Does not apply to glycan or protein piercings"
+            text: >-
+              for a pierced LIPID ring that NO rotation could clear, which segment(s) to delete:
+              'piercee' (the ring's segment), 'piercer' (the threading bond's segment), 'both'
+              (piercee plus the piercer when it too is a lipid), or 'none' (no deletion; the
+              piercing is reported and the build STOPS).  Does not apply to glycan or protein
+              piercings, which are always fatal when unresolved.  The default is 'none' because a
+              threaded ring is a topologically wrong molecule -- no further dynamics can unthread
+              it -- so a build carrying one has already failed whether or not NAMD complains, and
+              deleting a lipid to hide it silently changes the composition being built.  Set this
+              to 'piercee' only when losing a lipid is preferable to losing the build.
             type: str
-            default: piercee
+            default: none
             choices: ['piercee','piercer','both','none']
           - name: cutoff
             text: "candidate search radius (Å) between a bond midpoint and a ring COM; only candidates within this distance are tested for piercing. Any value >= the piercing gate (3.5 Å, in PSFRing.pierced_by) gives identical results, so the default is kept just above it to prune candidates and keep the whole-system scan fast on large membranes"
             type: float
             default: 4.0
           - name: segtypes
-            text: "list of segment types whose rings are checked for piercing -- there is no default, so specify it explicitly (e.g. [lipid, glycan, protein]); an empty list checks nothing. The action on a detected piercing depends on the pierced ring's segtype: a pierced LIPID ring is resolved by deleting the offending segment (see delete); a pierced GLYCAN ring is fatal (a glycan cannot be deleted without breaking the glycan tree -- rebuild, e.g. with a different seed or more minimization); a pierced PROTEIN side-chain ring (His/Phe/Tyr/Trp/Pro) is resolved by rotating the side chain (chi2, then chi1) until it clears"
+            text: >-
+              list of segment types whose rings are checked for piercing.  The action depends on
+              the pierced ring's segtype: a LIPID ring is cleared by rotation and, failing that,
+              by `delete`; a GLYCAN ring is fatal (a glycan cannot be deleted without breaking
+              the glycan tree); a PROTEIN side-chain ring (His/Phe/Tyr/Trp/Pro) is cleared by
+              rotating the side chain, and is fatal if no rotation clears it.  The default checks
+              ALL THREE.  It used to have none, so a bare `ring_check:` silently checked nothing
+              -- and every shipped example asked for [lipid, glycan] only.  Example 17 was
+              measured on 2026-10-16 to carry 2-6 protein-lipid ring piercings at the post-embed
+              hand-off of every replica, CHL1 rings threaded by MPER side chains and PHE rings
+              threaded by acyl tails, none of which anything in the pipeline could see.  An empty
+              list is a configuration error and stops the build.
+              .
+              `list_defaults: replace` is load-bearing.  ycleptic APPENDS a list default to what
+              the user wrote by default, so without it `segtypes: [lipid]` would resolve to
+              `[lipid, glycan, protein, lipid]` -- silently checking three segtypes for someone
+              who asked for one.  With it, an omitted key gets all three and an explicit list is
+              taken as written.
             type: list
+            list_defaults: replace
+            default: [lipid, glycan, protein]
           - name: max_ring_size
             text: only rings of at most this many atoms are considered (keeps real 5/6-membered rings while skipping the giant chordless cycles a disulfide makes through the protein backbone)
             type: int

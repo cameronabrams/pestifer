@@ -106,10 +106,15 @@ class RingCheckTask(BaseTask):
         delete_these: str = self.specs.get('delete', 'piercee')
         max_ring_size: int = self.specs.get('max_ring_size', 7)
         if not segtypes:
-            logger.warning('ring_check: no segtypes specified (segtypes has no default) — '
-                           'nothing checked. Set e.g. segtypes: [lipid, glycan, protein].')
-            self.result = 0
-            return self.result
+            # Was a warning that returned 0 -- a `ring_check` task that checked nothing and
+            # reported success, which is the silent-no-op shape this repository keeps a list of.
+            # A threaded ring is a topologically wrong molecule that no later dynamics can undo,
+            # so a check configured to look at nothing is a configuration error.  Reachable only
+            # by writing `segtypes: []` on purpose, since an omitted key now takes the default.
+            raise PestiferBuildError(
+                'ring_check: `segtypes` is empty, so this task would check nothing and report '
+                'success. Omit the key to get the default [lipid, glycan, protein], or name the '
+                'segtypes you want explicitly.')
 
         def run_check(st):
             xsc = st.xsc.name if st.xsc else None
