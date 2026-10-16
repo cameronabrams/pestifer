@@ -148,28 +148,59 @@ array set _VDW_RADIUS {C 1.70 N 1.55 O 1.52 P 1.80 S 1.80}
 set _OVERLAP_FRACTION 0.85
 set _OVERLAP_SEARCH 3.6
 
-proc overlapping_indices {molid sel_a sel_b} {
+# TWO molids, and that is the whole point.  `measure contacts R selA selB` returns two index
+# lists, each in ITS OWN molecule's space.  Reading both from one molecule's arrays -- which
+# this did until 2026-10-16 -- compares a bilayer atom against whatever bilayer atom happens to
+# sit at the protein atom's index.  It cannot error: the protein (2712 atoms) indexes safely
+# inside the bilayer's 119461, so every lookup succeeds and returns a wrong number.
+#
+# Measured on a real ex17 embed: 7963 contact pairs within 3.6 A, of which the correct
+# criterion deletes 465 overlapping lipids and the mis-indexed one deleted ZERO.  The first
+# pair was a lipid C218 and a protein OT2 3.497 A apart, computed as 62.873 A because index
+# 1807 in the bilayer is a hydrogen 60 A away -- read as element "H", which is not in the
+# radius table either, so even the cutoff was wrong.  The protein was then inserted straight
+# through 465 lipids it overlapped, which is where the ring piercings come from.
+proc overlapping_indices {molid_a sel_a molid_b sel_b} {
     global _VDW_RADIUS _OVERLAP_FRACTION _OVERLAP_SEARCH
     set pairs [measure contacts $_OVERLAP_SEARCH $sel_a $sel_b]
     set ia [lindex $pairs 0]
     set ib [lindex $pairs 1]
     if {[llength $ia] == 0} { return {} }
-    set all [atomselect $molid "all"]
-    set names [$all get name]
-    set xs [$all get x] ; set ys [$all get y] ; set zs [$all get z]
-    $all delete
+    set all_a [atomselect $molid_a "all"]
+    set names_a [$all_a get name]
+    set xa [$all_a get x] ; set ya [$all_a get y] ; set za [$all_a get z]
+    $all_a delete
+    set all_b [atomselect $molid_b "all"]
+    set names_b [$all_b get name]
+    set xb [$all_b get x] ; set yb [$all_b get y] ; set zb [$all_b get z]
+    $all_b delete
     set out {}
+    set worst 0.0
     foreach i $ia j $ib {
-        set ei [string index [lindex $names $i] 0]
-        set ej [string index [lindex $names $j] 0]
+        set ei [string index [lindex $names_a $i] 0]
+        set ej [string index [lindex $names_b $j] 0]
         set ri 1.70 ; set rj 1.70
         if {[info exists _VDW_RADIUS($ei)]} { set ri $_VDW_RADIUS($ei) }
         if {[info exists _VDW_RADIUS($ej)]} { set rj $_VDW_RADIUS($ej) }
         set lim [expr {$_OVERLAP_FRACTION * ($ri + $rj)}]
-        set dx [expr {[lindex $xs $i] - [lindex $xs $j]}]
-        set dy [expr {[lindex $ys $i] - [lindex $ys $j]}]
-        set dz [expr {[lindex $zs $i] - [lindex $zs $j]}]
-        if {[expr {$dx*$dx + $dy*$dy + $dz*$dz}] < [expr {$lim*$lim}]} { lappend out $i }
+        set dx [expr {[lindex $xa $i] - [lindex $xb $j]}]
+        set dy [expr {[lindex $ya $i] - [lindex $yb $j]}]
+        set dz [expr {[lindex $za $i] - [lindex $zb $j]}]
+        set d2 [expr {$dx*$dx + $dy*$dy + $dz*$dz}]
+        if {$d2 > $worst} { set worst $d2 }
+        if {$d2 < [expr {$lim*$lim}]} { lappend out $i }
+    }
+    # POSITIVE CONTROL on the arithmetic, not on the inputs.  Every pair `measure contacts R`
+    # returned is, by construction, within R -- so if our own distance for any of them exceeds
+    # R, we are not measuring the pair VMD gave us.  That is exactly and only what the
+    # mis-indexing did, and the old selections-are-non-empty check sailed straight past it:
+    # the selections were fine, the arithmetic between them was not.  A tolerance of 1e-3 A
+    # covers the single-precision round trip through the coordinate lists.
+    set worst [expr {sqrt($worst)}]
+    if {$worst > $_OVERLAP_SEARCH + 1.0e-3} {
+        error "bilayer_embed: a pair returned by 'measure contacts $_OVERLAP_SEARCH' measures\
+               [format %.3f $worst] A here, so the two index lists are not being read in their\
+               own molecules' coordinate spaces; the clash test is not measuring what it selected"
     }
     return [lsort -unique -integer $out]
 }
@@ -268,7 +299,7 @@ set bilayer_heavy [atomselect $bilayer "noh"]
 if {[$pro_heavy num] == 0 || [$bilayer_heavy num] == 0} {
    error "bilayer_embed: heavy-atom selection is empty (protein [$pro_heavy num], bilayer [$bilayer_heavy num]); refusing to embed without a working clash test"
 }
-set bad_membrane_idx [overlapping_indices $bilayer $bilayer_heavy $pro_heavy]
+set bad_membrane_idx [overlapping_indices $bilayer $bilayer_heavy $protein $pro_heavy]
 
 readpsf $psf pdb ${outbasename}_embedded.pdb
 readpsf $bilayer_psf pdb $bilayer_pdb
@@ -513,7 +544,11 @@ set water_heavy [atomselect $embedded_system "segname $segs_to_search and noh"]
 if {[$pro_heavy_w num] == 0 || [$water_heavy num] == 0} {
    error "bilayer_embed: heavy-atom selection is empty for the water clash test (protein [$pro_heavy_w num], water [$water_heavy num])"
 }
-set bad_water_idx [overlapping_indices $embedded_system $water_heavy $pro_heavy_w]
+# Both selections are on $embedded_system here, so this call was never affected by the
+# index-space defect that broke the lipid test above -- it is spelled out twice because the
+# old three-argument signature ASSUMED one molecule, which is what let the lipid call pass a
+# selection from another one and read its indices against the wrong coordinates.
+set bad_water_idx [overlapping_indices $embedded_system $water_heavy $embedded_system $pro_heavy_w]
 # Map contacting atom indices -> (segname,resid) via the parent "all" selection rather
 # than [atomselect $embedded_system "index <list>"]; the slab-water clash list runs to
 # ~10^5 atoms, and such an "index ..." selection overflows the stack via the recursive
