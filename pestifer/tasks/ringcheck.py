@@ -86,7 +86,18 @@ class RingCheckTask(BaseTask):
         # composition of the membrane being built.
         lipid = (piercee['segtype'] == 'lipid' and piercer['segtype'] == 'lipid'
                  and (piercer.get('bond_serials') or piercee.get('ring_serials')))
-        return bool(aromatic or pendant or sidechain or lipid)
+        # A lipid ring speared by a PROTEIN bond -- a sterol threaded by a side chain of an
+        # embedded protein.  This was the one combination with no entry here, so it fell through
+        # to the lipid deletion path and `delete: piercee` removed the CHOLESTEROL while leaving
+        # the side chain doing the threading exactly where it was: the sterol depletion d89cc518
+        # eliminated, re-entering through a different door, and not even a fix.
+        #
+        # Measured, not anticipated: `CHL1 159 ring <- LEU 702 bond` on the replica of the
+        # 2026-10-16 example-17 arm that died post-embed.  It is invisible to that build because
+        # ex17 runs `segtypes: [lipid, glycan]`, so nothing had ever reached this branch.
+        lipid_protein = (piercee['segtype'] == 'lipid' and piercer['segtype'] == 'protein'
+                         and (piercer.get('bond_serials') or piercee.get('ring_serials')))
+        return bool(aromatic or pendant or sidechain or lipid or lipid_protein)
 
     def do(self):
         state: StateArtifacts = self.get_current_artifact('state')
@@ -276,6 +287,21 @@ class RingCheckTask(BaseTask):
                 if cand is None:
                     cand = try_sterol_spin(checker, working_pdb, base, box, piercee, target,
                                            f'{out_prefix}-spin.pdb', self._fmt(piercer))
+            # 5. lipid ring speared by a PROTEIN bond -- a sterol threaded by a side chain of an
+            #    embedded protein.  Spin the sterol first and disturb the protein only if that
+            #    fails, which is case 3's rule applied here: move the model-built partner before
+            #    the deposited one, and in a membrane build the lipid is the grid-placed one.
+            #    `try_sterol_spin` is honest about its own limit -- it clears a bond passing near
+            #    the ring rim and returns None for one threaded through the centre -- so the
+            #    fall-through costs a single attempt and the side-chain rotation is the move that
+            #    actually pulls the piercing bond out of the ring.
+            if (cand is None and piercee['segtype'] == 'lipid'
+                    and piercer['segtype'] == 'protein'):
+                cand = try_sterol_spin(checker, working_pdb, base, box, piercee, target,
+                                       f'{out_prefix}-spin.pdb', self._fmt(piercer))
+                if cand is None:
+                    cand = self._try_piercer_sidechain(checker, working_pdb, base, box, piercer,
+                                                       target, self._fmt(piercee), out_prefix)
             if cand is None:
                 return None, p
             working_pdb = cand

@@ -171,3 +171,76 @@ class TestPendantAxesIsScopedToTheMOLECULE(unittest.TestCase):
             moved = {s for s, r in rc._row_of_serial.items() if r in set(ax['prows'].tolist())}
             self.assertTrue(moved <= molecule_a,
                             f'the moving branch escapes the piercer\'s molecule: {moved}')
+
+
+class TestASterolSpearedByAProteinSideChain(unittest.TestCase):
+    """The one combination with no entry in ``_rotatable``: a LIPID ring pierced by a PROTEIN
+    bond.
+
+    It fell through every branch to the lipid deletion path, so ``delete: piercee`` removed the
+    **cholesterol** and left the side chain doing the threading exactly where it was -- the
+    sterol depletion ``d89cc518`` eliminated, re-entering through a different door, and not even
+    a fix for the piercing.
+
+    Nothing had ever reached this branch because no example puts ``protein`` in ``ring_check``'s
+    ``segtypes``.  It was found on the replica of the 2026-10-16 example-17 arm that died
+    post-embed: ``CHL1 159 ring <- LEU 702 bond``, with a second piercing ``PHE 699 ring <-
+    SOPE 119 bond`` on the same structure.  The dying atom was ``LEU 702 CB``.
+    """
+
+    def test_a_sterol_speared_by_a_protein_bond_is_rotatable(self):
+        """The defect in one assertion: this used to be False, and False meant delete a sterol."""
+        self.assertTrue(RingCheckTask._rotatable(_p('lipid', 'protein', pr_resname='LEU')))
+
+    def test_it_still_needs_something_to_rotate(self):
+        p = _p('lipid', 'protein', pr_resname='LEU')
+        p['piercer']['bond_serials'] = []
+        p['piercee']['ring_serials'] = []
+        self.assertFalse(RingCheckTask._rotatable(p))
+
+    def test_the_reverse_pairing_was_already_handled_and_still_is(self):
+        """An AROMATIC protein ring speared by a lipid bond is case 1 and must be untouched."""
+        self.assertTrue(RingCheckTask._rotatable(
+            dict(piercee=dict(segtype='protein', resname='PHE'),
+                 piercer=dict(segtype='lipid', bond_serials=[1, 2]))))
+
+    def test_a_non_aromatic_protein_ring_speared_by_a_lipid_is_still_not_rotatable(self):
+        """NEGATIVE CONTROL. Widening for lipid<-protein must not also widen protein<-lipid:
+        there is no ring to spin on a LEU, so it has no remedy and must not claim one."""
+        self.assertFalse(RingCheckTask._rotatable(
+            dict(piercee=dict(segtype='protein', resname='LEU'),
+                 piercer=dict(segtype='lipid', bond_serials=[1, 2]))))
+
+    def test_water_and_ion_piercers_are_still_rejected(self):
+        for other in ('water', 'ion', 'unknown'):
+            self.assertFalse(RingCheckTask._rotatable(_p('lipid', other)))
+
+
+class TestTheProteinPiercerDispatchOrder(unittest.TestCase):
+    """Spin the sterol first, disturb the protein second -- case 3's rule applied here: move the
+    model-built partner before the deposited one, and in a membrane build the lipid is the
+    grid-placed one.
+
+    ``try_sterol_spin`` is honest about its own limit (it clears a bond near the ring rim and
+    returns ``None`` for one through the centre), so the fall-through costs one attempt and the
+    side-chain rotation is the move that actually pulls the bond out of the ring.
+    """
+
+    def setUp(self):
+        self.src = inspect.getsource(RingCheckTask._resolve_by_rotation)
+
+    def test_the_protein_piercer_branch_exists(self):
+        self.assertIn("piercer['segtype'] == 'protein'", self.src)
+        self.assertIn('_try_piercer_sidechain', self.src)
+
+    def test_the_sterol_spin_is_attempted_before_the_side_chain(self):
+        branch = self.src[self.src.index("# 5. lipid ring speared by a PROTEIN bond"):]
+        self.assertLess(branch.index('try_sterol_spin'), branch.index('_try_piercer_sidechain'),
+                        'the side chain is being disturbed before the sterol is spun')
+
+    def test_the_branch_is_guarded_by_cand_is_none(self):
+        """Every earlier remedy must get its turn first; an unguarded branch would re-resolve a
+        piercing another case had already cleared."""
+        branch = self.src[self.src.index("# 5. lipid ring speared by a PROTEIN bond"):]
+        guard = branch[branch.index('if ('):branch.index('cand = try_sterol_spin')]
+        self.assertIn('cand is None', guard)
