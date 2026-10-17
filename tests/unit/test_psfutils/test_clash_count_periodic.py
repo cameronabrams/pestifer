@@ -37,11 +37,18 @@ def _probe(n_atoms, neighbors=None):
 
 class TestClashCountAcrossPeriodicBoundaries(unittest.TestCase):
 
-    BOX = np.array([20.0, 20.0, 20.0])
+    # The 3x3 cell, which is what every caller actually holds -- `check_coords(scratch, box,
+    # ...)` sits on the line above each `clash_count` call and takes the matrix.  The first
+    # version of this test passed a bare 3-vector, so it exercised a shape no caller uses and
+    # went green while the real call raised
+    # `ValueError: operands could not be broadcast together with shapes (15189,3) (3,3)`
+    # on the first patchB rotation of a real build.
+    BOX = np.diag([20.0, 20.0, 20.0])
+    EDGES = np.array([20.0, 20.0, 20.0])
 
     def _coords(self, gap):
         """Two atoms either side of the x face, `gap` apart under the minimum image."""
-        return np.array([[0.2, 10.0, 10.0], [0.2 - gap + self.BOX[0], 10.0, 10.0]])
+        return np.array([[0.2, 10.0, 10.0], [0.2 - gap + self.EDGES[0], 10.0, 10.0]])
 
     def test_a_contact_across_a_face_is_counted_when_the_box_is_given(self):
         """The defect in one assertion: this used to be 0."""
@@ -57,7 +64,7 @@ class TestClashCountAcrossPeriodicBoundaries(unittest.TestCase):
 
     def test_a_genuinely_distant_pair_is_not_counted_either_way(self):
         coords = np.array([[2.0, 10.0, 10.0], [12.0, 10.0, 10.0]])
-        for box in (self.BOX, None):
+        for box in (self.BOX, self.EDGES, None):
             with self.subTest(box=box):
                 self.assertEqual(
                     RingChecker.clash_count(_probe(2), coords, moved_rows=[0],
@@ -74,6 +81,19 @@ class TestClashCountAcrossPeriodicBoundaries(unittest.TestCase):
         probe = _probe(2, neighbors={1: (2,), 2: (1,)})
         self.assertEqual(RingChecker.clash_count(probe, coords, moved_rows=[0],
                                                  cutoff=2.0, box=self.BOX), 0)
+
+
+    def test_a_bare_edge_vector_works_too(self):
+        n = RingChecker.clash_count(_probe(2), self._coords(0.451), moved_rows=[0],
+                                    cutoff=2.0, box=self.EDGES)
+        self.assertEqual(n, 1)
+
+    def test_the_cell_matrix_is_the_shape_callers_pass(self):
+        """Guards the regression directly: a 3x3 must not be broadcast against (N,3)."""
+        self.assertEqual(np.asarray(self.BOX).shape, (3, 3))
+        n = RingChecker.clash_count(_probe(2), self._coords(0.451), moved_rows=[0],
+                                    cutoff=2.0, box=self.BOX)
+        self.assertEqual(n, 1)
 
     def test_every_call_site_passes_a_box(self):
         """A periodic-aware scorer helps nobody if a caller leaves the box out -- the same

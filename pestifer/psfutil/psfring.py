@@ -338,7 +338,10 @@ class RingChecker:
         if mv.size == 0 or um.size == 0:
             return 0
         if box is not None:
+            # `box` is the 3x3 cell, as `_check_fast` and `check_coords` take it; accept a bare
+            # 3-vector of edges too, so a caller holding one does not have to fake a matrix.
             L = np.asarray(box, dtype=float)
+            L = np.diagonal(L).astype(float) if L.ndim == 2 else L.astype(float)
             tree = cKDTree(np.mod(coords[um], L), boxsize=L)
             probe = np.mod(coords[mv], L)
         else:
