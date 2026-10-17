@@ -370,7 +370,10 @@ class TestTrySidechain(unittest.TestCase):
         # check_coords returns truthy while still pierced
         checker.check_coords.side_effect = lambda coords, box, targets: (
             [] if self.loaded[-1] in clears else ['still pierced'])
-        checker.clash_count.side_effect = lambda coords, moved: clashes.get(self.loaded[-1], 0)
+        # `box=` is keyword-only in practice but accepted positionally too; the stub takes
+        # **kw so a later signature change shows up as a real failure, not a TypeError here
+        checker.clash_count.side_effect = \
+            lambda coords, moved, **kw: clashes.get(self.loaded[-1], 0)
 
         return t._try_sidechain(checker, 'in.psf', 'in.pdb', np.ones((3, 3)), None, None,
                                 'A', 42, 'TYR', ('A', 42), 'pfx')

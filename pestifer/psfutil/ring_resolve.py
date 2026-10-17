@@ -88,7 +88,7 @@ def try_glycan_pendant(checker: RingChecker, working_pdb: str, base: np.ndarray,
                 scratch[prows] = rotate_points_about_axis(branch, pivot, axis, deg)
                 if checker.check_coords(scratch, box, [target]):
                     continue  # still pierced
-                clash = checker.clash_count(scratch, prows)
+                clash = checker.clash_count(scratch, prows, box=box)
                 if best is None or clash < best[0]:
                     best = (clash, scratch.copy(), ax['i_ser'], ax['j_ser'], deg)
                 if clash == 0:
@@ -179,7 +179,7 @@ def try_sterol_spin(checker: RingChecker, working_pdb: str, base: np.ndarray, bo
         scratch[rows] = rotate_points_about_axis(pts, centroid, axis, deg)
         if checker.check_coords(scratch, box, [target]):
             continue  # still pierced
-        clash = checker.clash_count(scratch, rows)
+        clash = checker.clash_count(scratch, rows, box=box)
         if best is None or clash < best[0]:
             best = (clash, scratch.copy(), deg)
         if clash == 0:

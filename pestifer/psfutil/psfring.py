@@ -305,11 +305,22 @@ class RingChecker:
         :meth:`_check_fast`); no PDB round-trip, so a trial rotation can be scored directly."""
         return self._check_fast(coords, box, only_piercees)
 
-    def clash_count(self, coords, moved_rows, cutoff=2.0):
+    def clash_count(self, coords, moved_rows, cutoff=2.0, box=None):
         """Number of heavy-atom contacts closer than ``cutoff`` between the moved atoms
         (``moved_rows``) and the rest of the system, ignoring pairs that are covalently
         bonded across the boundary.  A cheap proxy for how sterically clean a trial pose is
-        (lower is better)."""
+        (lower is better).
+
+        **Pass ``box``.**  Without it the scan is non-periodic, and a rotation that swings a
+        tail into a neighbour ACROSS a cell face scores zero clashes while putting two heavy
+        atoms on top of each other.  Measured 2026-10-16 on an example-17 patchB: a rotation
+        reported as "0 new heavy-atom clash(es)" left ``SOPE 18 C29`` and ``SOPE 98 C26``
+        **0.451 A** apart under the minimum image -- 65.7 A apart in raw coordinates, which is
+        what this saw.  The resolver then handed that structure to dynamics.
+
+        This is the same blindness ``_check_fast`` had before ``d89cc518``: that fix went to
+        the piercing detector and not to the clash scorer beside it, which is why a module is
+        not a unit of correctness here."""
         moved = np.asarray(sorted(set(int(r) for r in moved_rows)), dtype=int)
         if moved.size == 0:
             return 0
@@ -326,8 +337,14 @@ class RingChecker:
                        if r not in moved_set and r not in bonded and self._heavy[r]], dtype=int)
         if mv.size == 0 or um.size == 0:
             return 0
-        tree = cKDTree(coords[um])
-        return int(sum(len(hits) for hits in tree.query_ball_point(coords[mv], cutoff)))
+        if box is not None:
+            L = np.asarray(box, dtype=float)
+            tree = cKDTree(np.mod(coords[um], L), boxsize=L)
+            probe = np.mod(coords[mv], L)
+        else:
+            tree = cKDTree(coords[um])
+            probe = coords[mv]
+        return int(sum(len(hits) for hits in tree.query_ball_point(probe, cutoff)))
 
     def pendant_axes(self, bond_serials, segname, max_pendant=180, max_axes=10):
         """Candidate hinge axes for swinging a glycan pendant (that contains the piercing

@@ -328,7 +328,7 @@ class RingCheckTask(BaseTask):
                 if checker.check_coords(coords, box, [target]):
                     continue  # still pierced
                 moved = np.where(np.abs(coords - base).max(axis=1) > 1e-3)[0]
-                clash = checker.clash_count(coords, moved)
+                clash = checker.clash_count(coords, moved, box=box)
                 if best is None or clash < best[0]:
                     best = (clash, cand, chi, deg)
                 if clash == 0:
