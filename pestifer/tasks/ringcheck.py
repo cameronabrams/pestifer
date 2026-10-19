@@ -110,6 +110,7 @@ class RingCheckTask(BaseTask):
         segtypes: list = self.specs.get('segtypes', []) or []
         delete_these: str = self.specs.get('delete', 'piercee')
         max_ring_size: int = self.specs.get('max_ring_size', 7)
+        resolve: bool = bool(self.specs.get('resolve', True))
         if not segtypes:
             # Was a warning that returned 0 -- a `ring_check` task that checked nothing and
             # reported success, which is the silent-no-op shape this repository keeps a list of.
@@ -129,6 +130,32 @@ class RingCheckTask(BaseTask):
                               segtypes=segtypes, max_ring_size=max_ring_size)
 
         npiercings = run_check(state)
+        n_initial = len(npiercings)
+        n_rotations = 0
+
+        # VERIFY-ONLY.  `resolve: false` is the terminator of the minimize-after-rotation loop
+        # spliced by MakeMembraneSystemTask._guard_piercings: by this point the structure has
+        # had its rotations relaxed by a minimize, and anything still threaded is something two
+        # rounds of rotate-and-relax could not clear.  Rotating here would hand dynamics a
+        # structure whose coordinates were last changed by a rigid move nothing minimized --
+        # which is the exact failure this pass exists to prevent -- so it reports and stops.
+        if not resolve:
+            self.record_outcome(piercings_initial=n_initial, rotations=0,
+                                piercings_remaining=n_initial, resolve=False)
+            if not npiercings:
+                self.result = 0
+                return self.result
+            self._report(npiercings, logger.error)
+            named = '; '.join(f'{self._fmt(p["piercee"])} pierced by {self._fmt(p["piercer"])}'
+                              for p in npiercings)
+            raise PestiferBuildError(
+                f'{len(npiercings)} ring piercing(s) survived the rotate-and-minimize loop: '
+                f'{named}.  This is the verification pass that runs with `resolve: false` after '
+                f'the loop, so these were not cleared by two rounds of rotation followed by a '
+                f'minimize.  A doubly-threaded molecule is the usual cause -- one rigid rotation '
+                f'about one hinge cannot undo two threadings -- and so is a composition whose '
+                f'SAPL is far from where that leaflet sits.  Resolving it here would mean '
+                f'starting dynamics on coordinates last changed by an unrelaxed rigid move.')
 
         # ITERATE.  Clearing one piercing can create another -- a rotated tail has to go
         # somewhere -- and a molecule can be threaded twice, which one rigid rotation about one
@@ -143,6 +170,7 @@ class RingCheckTask(BaseTask):
             self._report(rotatable, logger.info)
             fixed_pdb, unresolved = self._resolve_by_rotation(state, rotatable, cutoff,
                                                               segtypes, max_ring_size)
+            n_rotations += len(rotatable) - len(unresolved)
             for failed in unresolved:
                 logger.info(f'  {self._fmt(failed["piercee"])}: no rotation cleared the piercing '
                             f'by {self._fmt(failed["piercer"])}')
@@ -165,6 +193,12 @@ class RingCheckTask(BaseTask):
                 logger.info(f'  {len(npiercings)} piercing(s) remain and that pass made no net '
                             f'progress; stopping the rotation loop')
                 break
+
+        # Record the decision rather than leaving it to a log line: a caller that wants to know
+        # whether this pass MOVED anything -- and therefore whether a minimize is owed before any
+        # dynamics -- must not have to parse INFO output for it.
+        self.record_outcome(piercings_initial=n_initial, rotations=n_rotations,
+                            piercings_remaining=len(npiercings), resolve=True)
 
         if not npiercings:
             self.result = 0

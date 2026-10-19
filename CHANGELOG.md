@@ -4,6 +4,46 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Fixed
+
+- **A ring_check that rotated handed its result straight to dynamics, unminimized.** Clearing a
+  piercing by rotation is a rigid displacement, and the pose is chosen for the *fewest* new
+  heavy-atom clashes, not *few*. Example 17's patchB accepted poses leaving 5, 2 and 3 new
+  clashes on 2026-10-19 (24 in an earlier pass), went straight into `NVT 410`, and died with six
+  RATTLE failures — every failing atom in or beside a branch the preceding check had rotated:
+  atom 448 is one end of the rotation bond `445-448` (C27–C28 of SOPS L1-4), 470 is C216 of that
+  same lipid, 19143 is C218 of SOPS L1-179 (rotated twice), and 350/7489/8475 are the SOPE and
+  CHL1 neighbors they were pushed into.
+
+  `_guard_piercings` now splices a loop rather than a sandwich:
+
+  ```
+  ring_check                 # clear what placement made, while it is clearable
+  <the protocol's minimize>
+  ring_check                 # did that minimize complete a near-threading?
+  md: minimize               # relax whatever THAT check just rotated
+  ring_check(resolve=false)  # verify -- and never rotate here
+  ```
+
+  The terminator is a new `ring_check.resolve` spec. With `resolve: false` the pass detects and
+  reports only; any piercing is fatal. It has to work that way: a rotation in the last pass
+  before dynamics would be precisely the unminimized rigid move the loop exists to prevent, and
+  what survives two rounds of rotate-and-relax is not something a third round fixes — it is a
+  doubly-threaded molecule (one hinge cannot undo two threadings) or a leaflet built far from
+  its true SAPL.
+
+  Example 17's own post-embed ladder gained the same round. Its previous comment argued that "a
+  further minimize here would be the one stage nothing checks" — the right worry, the wrong
+  conclusion; the answer is to check it with a pass that cannot itself rotate. The 50 K / 0.5 fs
+  / `rigidbonds none` prologue stays.
+
+  `RingCheckTask` now records `piercings_initial`, `rotations` and `piercings_remaining` in its
+  outcome, so whether a pass *moved* anything is a recorded fact rather than something a caller
+  has to parse out of INFO logs.
+
+  Costs one extra minimize per minimization stage: ~50 s for a patch, ~1 min for the quilt,
+  against multi-hour builds.
+
 ### Changed
 
 - **One flat `charmmff.files` list replaces `standard` / `custom` / `user_custom`.** The three

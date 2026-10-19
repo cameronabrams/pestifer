@@ -156,6 +156,23 @@ class TestGuardPiercings(unittest.TestCase):
     while it is still clearable, and after, because the pass before could not see which
     near-threadings the relaxation would complete.  Dynamics stages get none -- they cannot
     make one.
+
+    **And the check after is itself a displacement.**  It resolves by rotating a branch, and
+    it picks the pose with the FEWEST new heavy-atom clashes, which is not the same as few:
+    the same example-17 patchB accepted poses leaving 5, 2 and 3 of them on 2026-10-19 (24 in
+    an earlier pass), went straight into NVT 410 K and died with six RATTLE failures, every
+    failing atom in or beside a rotated branch.  So the splice is a loop::
+
+        ring_check                 # clear what placement made
+        <minimize>
+        ring_check                 # did that minimize complete a near-threading?
+        md: minimize               # relax whatever THAT check rotated
+        ring_check(resolve=False)  # verify -- and never rotate here
+
+    The last pass must not resolve, or it would be the unminimized rotation the loop exists
+    to prevent.  `resolve: false` detects and reports only; what survives two rounds of
+    rotate-and-relax is a doubly-threaded molecule or a badly chosen SAPL, not something a
+    third round fixes.
     """
 
     MINIMIZE = {'md': {'ensemble': 'minimize', 'minimize': 1000}}
@@ -166,32 +183,75 @@ class TestGuardPiercings(unittest.TestCase):
     def _rc(self, stages):
         return [i for i, s in enumerate(stages) if 'ring_check' in s]
 
+    def _shape(self, stages):
+        out = []
+        for st in stages:
+            key = next(iter(st))
+            if key == 'ring_check':
+                out.append('verify' if st[key].get('resolve') is False else 'check')
+            else:
+                out.append(str(st[key].get('ensemble', key)).casefold())
+        return out
+
     def test_every_minimize_is_bracketed(self):
         got = _task()._guard_piercings([self.MINIMIZE, self.NPT, self.MINIMIZE, self.NVT])
         for i, s in enumerate(got):
             if s == self.MINIMIZE:
                 self.assertIn('ring_check', got[i - 1], f'nothing checks before index {i}')
                 self.assertIn('ring_check', got[i + 1], f'nothing checks after index {i}')
-        self.assertEqual(len(self._rc(got)), 4)
+        self.assertEqual(len(self._rc(got)), 6)
+
+    def test_the_spliced_shape_is_the_loop(self):
+        self.assertEqual(self._shape(_task()._guard_piercings([self.MINIMIZE, self.NVT])),
+                         ['check', 'minimize', 'check', 'minimize', 'verify', 'nvt'])
+
+    def test_no_dynamics_stage_follows_a_resolving_check_unminimized(self):
+        """The invariant, independent of the exact splice: between the last pass that may MOVE
+        atoms and any dynamics stage there must be a minimize.  A future rewrite that gets the
+        order right by accident still has to satisfy this."""
+        shape = self._shape(_task()._guard_piercings(
+            [self.MINIMIZE, self.NPT, self.MINIMIZE, self.NVT, self.MEMEQ]))
+        for i, what in enumerate(shape):
+            if what in ('check', 'verify', 'minimize'):
+                continue
+            before = shape[:i]
+            last_mover = max((j for j, w in enumerate(before) if w == 'check'), default=None)
+            last_min = max((j for j, w in enumerate(before) if w == 'minimize'), default=-1)
+            self.assertIsNotNone(last_mover, f'{what} at {i} has no check before it: {shape}')
+            self.assertGreater(last_min, last_mover,
+                               f'{what} at {i} follows a resolving ring_check with no minimize '
+                               f'in between: {shape}')
+
+    def test_the_verify_pass_may_not_resolve(self):
+        got = _task()._guard_piercings([self.MINIMIZE, self.NVT])
+        verify = [st['ring_check'] for st in got
+                  if 'ring_check' in st and st['ring_check'].get('resolve') is False]
+        self.assertEqual(len(verify), 1, 'there is no detect-only pass before dynamics')
+        self.assertIs(verify[0]['resolve'], False)
 
     def test_dynamics_stages_get_no_check_of_their_own(self):
         """They cannot create a piercing, so a scan before each one is pure cost."""
         got = _task()._guard_piercings([self.MINIMIZE, self.NPT, self.NVT, self.MEMEQ])
-        self.assertEqual(len(self._rc(got)), 2, 'a dynamics stage is being given a check')
-        self.assertEqual(self._rc(got), [0, 2], 'the checks are not around the minimize')
+        self.assertEqual(len(self._rc(got)), 3, 'a dynamics stage is being given a check')
+        self.assertEqual(self._rc(got), [0, 2, 4], 'the checks are not around the minimize')
 
     def test_a_protocol_with_no_minimize_gets_no_check(self):
         protocol = [self.NPT, self.NVT]
         self.assertEqual(_task()._guard_piercings(protocol), protocol)
 
-    def test_no_minimize_is_inserted_by_the_guard(self):
-        """The guard used to splice `ring_check` then `minimize`, to relax a lipid freed by a
-        DELETION -- but `delete` defaults to `none` now, so nothing is deleted.  That minimize
-        then ran unverified immediately before dynamics, which is the one place a piercing
-        could still be created and carried forward unseen."""
+    def test_the_inserted_minimize_is_itself_checked(self):
+        """The guard DOES insert a minimize -- to relax a just-rotated branch -- and the
+        objection to that (an earlier version of this test: "it then ran unverified
+        immediately before dynamics") is answered by the detect-only pass after it, not by
+        leaving the rotation unrelaxed."""
         got = _task()._guard_piercings([self.MINIMIZE, self.NPT])
-        self.assertEqual(sum(1 for s in got if s == self.MINIMIZE), 1,
-                         'the guard added a minimize of its own')
+        self.assertEqual(self._shape(got),
+                         ['check', 'minimize', 'check', 'minimize', 'verify', 'npt'])
+
+    def test_the_inserted_minimize_takes_the_protocols_step_count(self):
+        got = _task()._guard_piercings([{'md': {'ensemble': 'minimize', 'nsteps': 7777}}])
+        relax = [st['md'] for st in got if 'md' in st and st['md'].get('nsteps') == 7777]
+        self.assertEqual(len(relax), 2, 'the spliced relax did not take the step count')
 
     def test_the_check_looks_at_all_three_segtypes(self):
         spec = _task()._guard_piercings([self.MINIMIZE])[0]['ring_check']
@@ -207,7 +267,7 @@ class TestGuardPiercings(unittest.TestCase):
         it = iter(got)
         self.assertTrue(all(stage in it for stage in protocol),
                         f'original stages not preserved in order: {got}')
-        self.assertEqual(len(got), len(protocol) + 2)
+        self.assertEqual(len(got), len(protocol) + 4)   # 3 checks + 1 relax minimize
 
     def test_a_non_list_protocol_passes_through(self):
         for protocol in ({}, None, 'quilt'):

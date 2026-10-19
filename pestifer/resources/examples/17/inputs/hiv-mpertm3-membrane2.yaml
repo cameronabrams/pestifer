@@ -161,12 +161,28 @@ tasks:
   # production run whether or not the integrator ever complains.
   - ring_check:  # there are sterols (cholesterol rings are lipid rings)
       segtypes: [lipid, glycan, protein]
-  # No minimize after this one.  The sequence above is embed -> ring_check -> minimize ->
-  # ring_check, which is the loop: clear what the embed made, relax, then confirm the relaxation
-  # did not complete a near-threading the first pass could not see.  A further minimize here
-  # would be the one stage nothing checks, and an unchecked minimize is exactly where a nascent
-  # piercing gets cemented.  Whatever this check rotates goes into the 50 K / 0.5 fs /
-  # `rigidbonds none` prologue below, which is there to absorb precisely that.
+  # This check may ROTATE, and a rotation is a rigid move chosen for FEWEST new heavy-atom
+  # clashes, not few -- example 17's patchB accepted poses leaving 5, 2 and 3 of them on
+  # 2026-10-19 (24 in an earlier pass) and died six RATTLE failures later, every failing atom in
+  # or beside a rotated branch.  So the rotation gets its own minimize, and that minimize gets
+  # its own check.
+  #
+  # An earlier version stopped at the check above and argued that "a further minimize here would
+  # be the one stage nothing checks".  That was the right worry and the wrong conclusion: the
+  # answer is to check it, with a pass that may not itself rotate.  `resolve: false` detects and
+  # reports only, so it cannot be the unminimized rotation it exists to catch -- anything it
+  # finds survived two rounds of rotate-and-relax and is worth stopping for.
+  - md:
+      ensemble: minimize
+      minimize: 1000
+      constraints:
+        k: 10
+        atoms: protein and name CA
+  - ring_check:
+      segtypes: [lipid, glycan, protein]
+      resolve: false
+  # The 50 K / 0.5 fs / `rigidbonds none` prologue below stays. It no longer has an unrelaxed
+  # rotation to absorb, but it still absorbs whatever the embed left that a minimize cannot.
   - validate:
       tests:
         - residue_test:

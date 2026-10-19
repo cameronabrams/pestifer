@@ -415,6 +415,54 @@ set, so the two gates cannot drift apart.
 If you add a task to the schema, declare it `type: dict`, then prove a bad value in it is
 rejected. A passing parse is not evidence that anything was checked.
 
+## Clearing a piercing is itself an unphysical displacement
+
+Found 2026-10-19 on example 17. `ring_check` resolves a pierced ring by rotating a branch about
+a rotatable bond, picking the pose with the **fewest** new heavy-atom clashes. Fewest is not
+few. patchB's post-minimize check accepted three poses leaving 5, 2 and 3 new clashes; an
+earlier pass accepted one leaving **24**. Nothing relaxed them, and the next stage was
+`NVT 410 K, 1 fs, rigidbonds on`.
+
+It died with six RATTLE failures, and every one of them is in or beside a rotated branch:
+
+| atom | is | why |
+| :--- | :--- | :--- |
+| 448 | `C28 SOPS L1-4` | one end of the rotation bond `445-448` |
+| 470 | `C216 SOPS L1-4` | same lipid, inside the rotated branch |
+| 19143 | `C218 SOPS L1-179` | rotated twice in that pass |
+| 350, 7489, 8475 | `SOPE L1-3`, `CHL1 L1-69`, `CHL1 L1-78` | the neighbors they were pushed into |
+
+The guard had been written as a sandwich -- `ring_check, minimize, ring_check` -- with a comment
+reasoning that "a rotation is a small rigid move chosen for fewest new clashes; the dynamics
+that follows relaxes it". Dynamics does not get the chance: the first step sees the overlap at
+full force. **A check that rotated owes a minimize, and that minimize owes a check.**
+
+The hard part is the terminator, and it is not "add one more minimize". Every minimize needs a
+check after it, and every check that rotates needs a minimize after it, so the obvious loop does
+not end. It ends by making the last pass *unable to move anything*: `ring_check.resolve: false`
+detects and reports only, and anything it finds is fatal. That is the right answer for what
+survives two rounds -- a doubly-threaded molecule, which one rigid rotation about one hinge
+cannot undo, or a composition whose `SAPL` is far from where that leaflet sits.
+
+Two things to keep:
+
+- **A pose chosen as the best available is not thereby acceptable.** `min(new_clashes)` over a
+  set of bad options is still a bad option. The eligibility filter added in `b23cd1e0` helps and
+  does not finish the job; the minimize is what finishes it.
+- **The sandwich's comment was a claim, and it rotted exactly like the ex17 phase comment
+  did.** It was written when `delete` still mattered and reasoned about deletions; by the time
+  rotation was the main path it was describing a different mechanism. A comment that justifies
+  *not* doing something is the kind to re-derive.
+
+`tests/unit/test_tasks/test_ringcheck.py::TestGuardSplicesTheLoop` pins the spliced order and,
+separately, the invariant itself -- no dynamics stage may follow a resolving `ring_check`
+without a minimize in between -- so a future splice that gets the order right by accident still
+has to satisfy the rule. `TestVerifyOnlyPass` pins that `resolve: false` raises and does not
+move atoms, with a negative control that the default *does* reach the rotation path. That
+control was initially written as `assertRaises(Exception)` and passed against an
+`AttributeError` from an incomplete stub -- this file's own lesson, caught by the fact that the
+spy never fired.
+
 ## A schema key with no consumer passes every check pestifer has
 
 Found 2026-10-19, asking why "add one more CHARMM stream file" had no obvious keyword.

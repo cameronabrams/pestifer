@@ -44,6 +44,10 @@ def _task(**specs):
     t.taskname = 'ring_check'
     t.basename = 'test'
     t.specs = dict(specs)
+    # __new__ skips BaseTask.__init__, so anything do() touches on `self` has to be set here.
+    # `outcome` is one of them: do() records piercings_initial/rotations/piercings_remaining so
+    # a caller can tell whether the pass MOVED anything without parsing INFO logs.
+    t.outcome = {}
     return t
 
 

@@ -195,6 +195,11 @@ def _per_leaflet_tension(pp_df, c_z, midplane_slab=None):
                 dgamma=upper - lower, nslabs=nslabs, nframes=int(len(frames)))
 
 
+#: Step count for the minimize spliced in to relax a just-rotated structure, used only when
+#: the protocol's own minimize stage names none.  A rotation strains a few atoms locally, so
+#: this does not need the step count a fresh grid does.
+_RELAX_AFTER_ROTATION_STEPS = 1000
+
 def _is_minimize_stage(stage):
     """True for a protocol stage that MINIMIZES.
 
@@ -565,14 +570,34 @@ class MakeMembraneSystemTask(BaseTask):
         minimize covers every point at which a piercing can appear, with no trailing check
         needed: if the protocol ends in dynamics, that dynamics cannot have introduced anything.
 
-        **And no minimize after the check.**  The old splice was ``ring_check`` then
-        ``minimize``, to relax a lipid left strained by a deletion -- but ``delete`` now defaults
-        to ``none``, so nothing is deleted and nothing is left strained.  Worse, that minimize
-        ran UNVERIFIED immediately before dynamics, which is precisely a minimizer acting on a
-        just-rotated structure with nothing looking afterwards.  It is the one remaining place a
-        lipid-lipid piercing could be created and carried into a melt unseen, which is what both
-        pre-embed deaths of the 2026-10-16 arm were.  A rotation is a small rigid move chosen
-        for fewest new clashes; the dynamics that follows relaxes it and cannot re-thread it.
+        **A check that rotated owes a minimize, and that minimize owes a check.**  An earlier
+        version of this reasoned that "a rotation is a small rigid move chosen for fewest new
+        clashes; the dynamics that follows relaxes it".  That is wrong, and example 17 measured
+        how wrong on 2026-10-19.  A rotation is chosen for *fewest* new clashes, not *few*: the
+        poses accepted in that build left 5, 2 and 3 new heavy-atom clashes, and one earlier pass
+        accepted 24.  Those are unrelaxed overlaps, and dynamics does not get a chance to relax
+        them gently -- the first NVT step sees them at full force.  patchB died with six RATTLE
+        failures whose atoms are, every one, in or beside a branch the preceding check had
+        rotated: atom 448 is literally one end of the rotation bond ``445-448`` (C27-C28 of
+        SOPS L1-4), 470 is C216 of that same lipid, 19143 is C218 of SOPS L1-179 (rotated twice),
+        and 350/7489/8475 are the SOPE and CHL1 neighbors they were pushed into.
+
+        So the splice is a loop, not a sandwich::
+
+            ring_check                 # clear what placement made, while it is clearable
+            <the protocol's minimize>
+            ring_check                 # did that minimize complete a near-threading?
+            md: minimize               # relax whatever THAT check just rotated
+            ring_check(resolve=False)  # verify -- and never rotate here
+
+        The last pass must not resolve.  A rotation in it would be the very thing the loop
+        exists to prevent: coordinates last changed by a rigid move that nothing minimized,
+        handed straight to dynamics.  So it reports and stops instead, which is the right answer
+        for what survives two rounds -- a doubly-threaded molecule (one hinge cannot undo two
+        threadings) or a leaflet built far from its true SAPL.
+
+        The extra round is cheap where it runs: a patch minimize is about 50 s and a quilt
+        minimize about a minute, against multi-hour builds.
         """
         if not isinstance(protocol, list):
             return protocol
@@ -584,8 +609,7 @@ class MakeMembraneSystemTask(BaseTask):
                 # measured on an example-17 patchB, the opening minimize cleared 3 piercings
                 # and created 2 from a structure that already had 9.  Those 2 were primed by
                 # the grid placement; clearing the 9 first is what stops them.
-                guarded.append({'ring_check': dict(segtypes=['lipid', 'glycan', 'protein'],
-                                                   delete='none', cutoff=4.0)})
+                guarded.append(self._ring_check_stage())
             guarded.append(stage)
             if _is_minimize_stage(stage):
                 # AFTER: and this is not a formality.  The same measurement says a minimize can
@@ -595,9 +619,27 @@ class MakeMembraneSystemTask(BaseTask):
                 # cutoff 4.0 A: the piercing test accepts a bond only within ~3.5 A of the ring
                 # centre, so a slightly larger link-cell radius finds every piercing without the
                 # ~10x cost of the schema default (10.0).
-                guarded.append({'ring_check': dict(segtypes=['lipid', 'glycan', 'protein'],
-                                                   delete='none', cutoff=4.0)})
+                guarded.append(self._ring_check_stage())
+                # RELAX: that check may have rotated, and a rotation leaves new heavy-atom
+                # clashes nothing has relieved.  Take the step count from the protocol's own
+                # minimize so a build that needs a long minimization gets one here too.
+                guarded.append({'md': dict(ensemble='minimize',
+                                           nsteps=int((stage.get('md') or {}).get('nsteps', 0))
+                                                  or _RELAX_AFTER_ROTATION_STEPS)})
+                # VERIFY: strictly detect-only.  See the loop note in this method's docstring.
+                guarded.append(self._ring_check_stage(resolve=False))
         return guarded
+
+    @staticmethod
+    def _ring_check_stage(resolve: bool = True) -> dict:
+        """One spliced ``ring_check`` stage.
+
+        Written once rather than at each splice point: three call sites carrying the same four
+        keyword arguments is how the next one gets written with a different ``cutoff`` and
+        nobody notices.
+        """
+        return {'ring_check': dict(segtypes=['lipid', 'glycan', 'protein'],
+                                   delete='none', cutoff=4.0, resolve=resolve)}
 
     def _grid_membrane(self, leaflet_nlipids, box_SAPL, aspect=None):
         """Grid, build, and relax a full-size membrane with the given per-leaflet counts.
