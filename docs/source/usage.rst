@@ -125,15 +125,14 @@ Using a custom CHARMM stream file for a small molecule
 If you have a CHARMM-format stream (``.str``) file for a small molecule -- for
 example, a CGenFF stream you generated for a ligand that is not covered by the
 standard CHARMM36 release -- pestifer can pull it into a build without any code
-or psfgen-script editing.  Add a ``charmmff.user_custom`` block to your build
-YAML pointing at the directory that contains the file:
+or psfgen-script editing.  Point ``charmmff.searchpath`` at the directory that
+contains the file:
 
 .. code-block:: yaml
 
    charmmff:
-     user_custom:
-       searchpath:
-         - /path/to/my_ligand_params/
+     searchpath:
+       - /path/to/my_ligand_params/
 
    tasks:
      # ...your normal task list...
@@ -148,30 +147,54 @@ emitted as a ``topology <basename>`` directive in the psfgen script, and
 registered in the pipeline so its parameter section is also included in the
 NAMD parameter file list.
 
-Each residue picked up this way is also classified for the molecule parser.
-By default a new residue is treated as a ``ligand`` so it lands in its own
-segment.  To override the default, add a ``segtypes`` mapping under
-``user_custom``:
+Resolution by residue name is automatic, so for a ligand already named in your
+input PDB there is nothing more to declare.  To load a file **unconditionally**
+-- a stream whose residues nothing in the input names, or an extra stream from
+the CHARMM release itself -- name its basename in ``charmmff.files``:
 
 .. code-block:: yaml
 
    charmmff:
-     user_custom:
-       searchpath:
-         - /path/to/my_ligand_params/
-       segtypes:
-         cofactor: [NADX]
+     searchpath:
+       - /path/to/my_ligand_params/
+     files:
+       - toppar_all36_lipid_sphingo.str   # from the CHARMM release
+       - my_ligand.str                    # from the searchpath directory above
+
+Release files and your own files go in the same list: pestifer resolves each
+basename against the CHARMM release tree and your ``searchpath`` directories
+alike, so you never have to say which kind a file is.  Entries are **appended**
+to pestifer's default set and therefore load last, winning any duplicate
+parameter.  To supply the whole set yourself instead, set
+``replace_defaults: true``.
+
+Each residue picked up this way is also classified for the molecule parser.
+By default a new residue is treated as a ``ligand`` so it lands in its own
+segment.  To override the default, add a ``segtypes`` mapping:
+
+.. code-block:: yaml
+
+   charmmff:
+     searchpath:
+       - /path/to/my_ligand_params/
+     segtypes:
+       cofactor: [NADX]
 
 A few things worth knowing:
 
 * A single ``.str`` file containing both ``read rtf … END`` and
-  ``read para … END`` blocks is sufficient.  You do not need to also list it
-  under ``rtf:`` or ``prm:``.
-* The per-extension lists (``rtf:``, ``str:``, ``prm:``) take **basenames only**
-  -- any path separator there is rejected.  Directories go under
-  ``searchpath:``.
-* ``charmmff.user_custom`` is for files you supply.  Do not put them under
-  ``charmmff.custom``, which is reserved for files that ship with pestifer.
+  ``read para … END`` blocks is sufficient; pestifer emits it as a ``topology``
+  line for psfgen *and* as a ``parameters`` line for NAMD.
+* ``files:`` takes **basenames only** -- any path separator there is rejected.
+  Directories go under ``searchpath:``.
+* The order of ``files`` is the order the files are loaded in, and it is
+  load-bearing twice over: psfgen gives a residue the ``DEFA FIRS ... LAST ...``
+  in force when that residue's *definition* is read, and parameter merging is
+  last-wins.
+* The older ``charmmff.standard``, ``charmmff.custom`` and
+  ``charmmff.user_custom`` groups still parse, but they named a file's
+  *provenance* where what you need to express is *intent*.  Their entries are
+  folded into ``files`` with a warning.
 * Your PDB must use the residue name as it appears in the ``RESI`` card of
   your stream file (e.g. if the stream defines ``RESI LIG``, use ``LIG`` in
   the input PDB).
@@ -190,7 +213,7 @@ A few things worth knowing:
            - LIG O1A O1
            - LIG O2A O2
 
-See :ref:`config_ref charmmff user_custom` for the full reference.
+See :ref:`config_ref charmmff files` for the full reference.
 
 .. seealso::
 

@@ -25,6 +25,9 @@ from ..core.resourcemanager import ResourceManager
 from ..util.stringthings    import my_logger
 from ..psfutil.psfcontents  import PSFContents
 
+from . import fileset
+from .fileset import add as _add_charmmfile
+
 logger = logging.getLogger(__name__)
 
 # Fluid area per acyl chain (A^2).  A single-molecule athermal-MC confinement cylinder is sized as
@@ -739,14 +742,11 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
     extension = os.path.splitext(charmm_topfile)[1][1:]
     if extension not in ['rtf', 'str']:
         raise ValueError(f'Invalid CHARMM topology file extension: {extension}. Expected .rtf or .str.')
-    if not charmm_topfile in W.charmmff_config['standard'][extension]:
-        W.charmmff_config['standard'][extension].append(charmm_topfile)
+    _add_charmmfile(W.charmmff_config, charmm_topfile, extension)
     if charmm_topfile.endswith('detergent.str'):
-        needed='toppar_all36_lipid_sphingo.str'
-        W.charmmff_config['standard']['str'].append(needed)
+        _add_charmmfile(W.charmmff_config, 'toppar_all36_lipid_sphingo.str', 'str')
     if charmm_topfile.endswith('initosol.str'):
-        needed='toppar_all36_carb_glycolipid.str'
-        W.charmmff_config['standard']['str'].append(needed)
+        _add_charmmfile(W.charmmff_config, 'toppar_all36_carb_glycolipid.str', 'str')
 
     W.newscript('init')
     if topo.to_psfgen(W, refic_idx=refic_idx) == -1:
@@ -791,8 +791,7 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
             na: NAMDScripter = C.tasks[0].scripters['namd']
             if extension == 'str':
                 # this is a stream file (combined topology/parameter file); charmm_topfile is ABSOLUTE, so we need to add its RELATIVE path to the list of parameter files
-                if not charmm_topfile in na.charmmff_config['standard'][extension]:
-                    na.charmmff_config['standard'][extension].append(charmm_topfile)
+                _add_charmmfile(na.charmmff_config, charmm_topfile, extension)
             if charmm_topfile.endswith('sphingo.str'):
                 needed = ['toppar_all36_carb_imlab.str',
                         'toppar_all36_lipid_lps.str']
@@ -809,10 +808,9 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
                         'toppar_all36_lipid_bacterial.str']
 
             for n in needed:
-                if n not in na.charmmff_config['standard']['str']:
-                    na.charmmff_config['standard']['str'].append(n)
+                _add_charmmfile(na.charmmff_config, n, 'str')
 
-            par = na.charmmff_config['standard']['prm'] + na.charmmff_config['standard']['str']
+            par = fileset.parameters(fileset.resolve(na.charmmff_config))
 
     result = C.do_tasks()
     for k, v in result.items():

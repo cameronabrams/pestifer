@@ -26,9 +26,10 @@
 
 title: Myristoylated HIV-1 matrix protein
 charmmff:
-  standard:
-    str:
-      - toppar_all36_lipid_sphingo.str
+  files:
+    # GLYM takes its C CTL2 CTL2 angle from the sphingolipid stream, which nothing else
+    # in this build has a reason to load.
+    - toppar_all36_lipid_sphingo.str
 tasks:
   - fetch:
       sourceID: 1uph

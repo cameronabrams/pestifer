@@ -25,6 +25,8 @@ from ..util.stringthings import my_logger, __pestifer_version__
 from ..scripters import PsfgenScripter, NAMDColvarInputScripter, VMDScripter, GenericScripter
 from ..scripters.namd import NAMDScripter
 
+from ..charmmff import fileset
+
 logger = logging.getLogger(__name__)
 
 MIN_CATDCD_VERSION = (5, 2)
@@ -129,6 +131,8 @@ class Config(Yclept):
             self['user']['namd']['processor-type'] = self.processor_type_override
         if self.seed_override is not None:
             self['user']['namd']['seed'] = int(self.seed_override)
+
+        fileset.fold_legacy_groups(self['user'].get('charmmff'))
 
         self.my_processor_info = self._set_processor_info()
         if not self.quiet:

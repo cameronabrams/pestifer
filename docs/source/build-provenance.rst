@@ -90,8 +90,8 @@ derivation you can check rather than a list to be taken on faith:
      - CHARMM36 lipids
    * - the ``psfgen`` task has non-empty ``mods.grafts``
      - CHARMM36 carbohydrates
-   * - ``solvate`` names a non-water solvent, or ``charmmff.user_custom`` supplies files
-     - CGenFF (plus both CGenFF-program papers in the ``user_custom`` case)
+   * - ``solvate`` names a non-water solvent, or ``charmmff.searchpath`` supplies files
+     - CGenFF (plus both CGenFF-program papers when you supply your own files)
    * - a ``pdb2pqr`` task
      - PDB2PQR; APBS; PROPKA
 

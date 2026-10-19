@@ -37,6 +37,8 @@ from ..util.psf import dedupe_psf_topology
 from ..util.progress import PsfgenProgress
 from ..util.stringthings import my_logger
 
+from ..charmmff import fileset
+
 logger = logging.getLogger(__name__)
 
 # Tolerance (angstrom) for deciding that a transformed atom lands back on itself.  Crystallographic
@@ -110,16 +112,14 @@ class PsfgenScripter(VMDScripter):
         list
             A list of topology files that have been copied to the local directory.
         """
+        # charmmff.files is one ordered list; `topologies` takes the .rtf/.top then the
+        # .str from it without reordering, because load order fixes terminal patches
+        # (psfgen applies the DEFA in force when a residue's definition is read).
         topology_local = []
-        # topologies are assumed correctly ordered in config file
-        for t in self.charmmff_config['standard']['rtf'] + self.charmmff_config['custom']['rtf'] + self.charmmff_config['standard']['str'] + self.charmmff_config['custom']['str']:
+        for t in fileset.topologies(fileset.resolve(self.charmmff_config)):
             if not t in topology_local:
                 self.charmmff.copy_charmmfile_local(t)
                 topology_local.append(t)
-        # the order of the topologies is imporant, and the top_all35_ethers.rtf should be last
-        if 'top_all35_ethers.rtf' in topology_local:
-            topology_local.remove('top_all35_ethers.rtf')
-            topology_local.append('top_all35_ethers.rtf')
         logger.debug(f'Local CHARMMFF topologies:')
         my_logger(topology_local, logger.debug)
         return topology_local

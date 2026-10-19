@@ -362,8 +362,15 @@ def _facts(config):
         f.namd_version = int(user.get('namd', {}).get('namd-version', 3))
     except Exception:
         pass
-    custom = (user.get('charmmff') or {}).get('user_custom') or {}
-    f.user_custom = any(custom.get(k) for k in ('searchpath', 'rtf', 'str', 'prm'))
+    # "the user brought their own force-field files", which is what pulls in the CGenFF
+    # citations.  A `searchpath` entry is the signal: naming an extra *release* stream in
+    # charmmff.files is not supplying your own parameters, and nothing in a basename
+    # distinguishes a release file from a CGenFF one.  The pre-2026-10-19
+    # charmmff.user_custom group is still honored for un-folded configs.
+    cff = user.get('charmmff') or {}
+    legacy = cff.get('user_custom') or {}
+    f.user_custom = bool(cff.get('searchpath')) or any(
+        legacy.get(k) for k in ('searchpath', 'rtf', 'str', 'prm'))
     return f
 
 

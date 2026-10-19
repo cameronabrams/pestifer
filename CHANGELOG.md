@@ -4,6 +4,82 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Changed
+
+- **One flat `charmmff.files` list replaces `standard` / `custom` / `user_custom`.** The three
+  groups named a file's *provenance* where what a user needs to express is *intent*. "Add one
+  more stream from the CHARMM release" had to go in `charmmff.standard`, whose own docs said it
+  was "not expected to be modified by the user" (example 29 does exactly that for
+  `toppar_all36_lipid_sphingo.str`); "replace the default set" was not expressible at all. There
+  is now one list whose order is the load order, plus `charmmff.replace_defaults`:
+
+  ```yaml
+  charmmff:
+    searchpath: [~/my-cgenff]
+    files:
+      - toppar_all36_lipid_sphingo.str   # from the CHARMM release
+      - myligand.str                     # from ~/my-cgenff
+  ```
+
+  Release files and user files share the list — pestifer resolves each basename against the
+  release tree and the `searchpath` directories alike, so nobody has to classify their own file.
+  `user_custom.searchpath` and `user_custom.segtypes` become `charmmff.searchpath` and
+  `charmmff.segtypes`. The old groups still parse; their entries are folded into `files` with a
+  warning, so existing configs keep working.
+
+  **Why the default list is written in load order rather than grouped by extension.**
+  `CharmmParamFile.merge` is last-wins. Merging the shipped set in its real order versus "all
+  .prm, then all .str" changes exactly one record out of 46,527 —
+  `('NG2O1','CG2R61','CG2R61','NG2S3')` n=2, `Kchi` 1.25 → 3.1 — which is
+  `toppar_pestifer_conflict_resolutions.prm` deliberately overriding
+  `toppar_all36_carb_imlab.str`, annotated in the file as *"CGenFF v5.0 value, chosen over
+  imlab's analogy value"*. Tidying the list by extension silently reverts that arbitration.
+  `tests/unit/test_charmmff/test_fileset.py::TestParameterOrderIsLoadBearing` pins it, and the
+  resolved topology and parameter lists are pinned byte-for-byte against what the three groups
+  produced, so this changes the keywords and not the force field.
+
+### Fixed
+
+- **`charmmff.user_custom.{rtf,str,prm}` loaded nothing.** The keys were declared in the schema,
+  documented, and read by `citations.py` to decide whether to print a custom-force-field
+  citation — but by **no scripter**. `scripters/psfgen.py` concatenated
+  `standard.rtf + custom.rtf + standard.str + custom.str` and `scripters/namd.py`
+  `standard.prm + standard.str` then `custom.prm + custom.str`; `user_custom` appeared in
+  neither. Naming your own stream there validated, built, and silently did not load it. If the
+  file happened to sit in a `searchpath` directory it was picked up anyway by residue name,
+  which hid the dead key; if it did not, psfgen stopped with `unknown residue` and nothing
+  pointed back at the config. Those entries now fold into `files` and load.
+  `TestTheScripterActuallyEmitsAUserFile` drives the real scripters end to end — reverting
+  either scripter's `fileset.resolve` call reddens it, while the pure-`fileset` tests above it
+  stay green.
+
+- **`constraints.consfile` did nothing, in seven places.** The schema declared `consfile` under
+  `md`, `membrane_equilibrate`, `density_equilibrate`, `ligate.steer`, `terminate.package.namd`
+  and both `make_membrane_system` relaxation protocols. `BaseTask.make_constraint_pdb` reads
+  **`consref`**, which the schema did not declare at all — so the documented knob had no effect
+  and the working one could not be set. Renamed to `consref` throughout. A config that set
+  `consfile` now fails validation instead of silently ignoring it.
+
+- **Removed `make_membrane_system.embed.q_tolerance`.** Declared with a default of `1e-4` and
+  described as "tolerance for net charge neutralization", it appeared in no Python and no Tcl.
+  Neutralization in `bilayer_embed.tcl` is `autoionize -neutralize`, which takes no tolerance.
+
+- **`tests/unit/test_core/test_no_dead_schema_keys.py` now sweeps for the whole class.** Every
+  leaf key in `base.yaml` must be named somewhere in `pestifer/*.py` or `pestifer/*.tcl`, with
+  an allowlist for the five `membrane_equilibrate.area_*` keys that `_params_for` composes at
+  run time as `f'{prefix}_{key}'`. Nothing else catches these: `yclept check-spec` checks that
+  declarations are well-formed, not that anything reads them; every example parses, because no
+  example uses the dead key; and the config reference generates a page for it either way.
+
+- **Generated solvent boxes and conformer collections silently omitted pestifer's own parameter
+  corrections.** `make_solvent_box` and `make_pdb_collection` built their parameter lists as
+  `standard.prm + standard.str`, which left out `toppar_pestifer_dihedral_fills.prm` and
+  `toppar_pestifer_conflict_resolutions.prm` — so the `parameters:` provenance recorded in each
+  `info.yaml` under-reported what NAMD had actually loaded, and the conformer sampler's own
+  energy evaluation ran without the corrections. Both now derive from the same
+  `fileset.parameters` the NAMD scripter uses.
+
+
 ## [3.28.1] - 2026-10-15
 
 ### Fixed

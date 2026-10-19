@@ -104,8 +104,8 @@ The recommended workflow once a mol2 file has been generated:
    the resulting ``.str``.
 #. Drop the ``.str`` into ``~/.pestifer/toppar/`` -- the per-user custom CHARMM
    cache.  Any pestifer build that subsequently encounters that residue will
-   resolve it automatically, without requiring ``charmmff.user_custom`` entries
+   resolve it automatically, without requiring ``charmmff.searchpath`` entries
    in the input YAML.
 
-See :ref:`config_ref charmmff user_custom` for details on the user-custom
+See :ref:`config_ref charmmff searchpath` for details on the user-custom
 search-path machinery.

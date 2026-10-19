@@ -415,6 +415,96 @@ set, so the two gates cannot drift apart.
 If you add a task to the schema, declare it `type: dict`, then prove a bad value in it is
 rejected. A passing parse is not evidence that anything was checked.
 
+## A schema key with no consumer passes every check pestifer has
+
+Found 2026-10-19, asking why "add one more CHARMM stream file" had no obvious keyword.
+`charmmff.user_custom.{rtf,str,prm}` had been declared in `base.yaml`, documented with a worked
+example in `usage.rst`, given generated pages under `docs/source/config_ref/`, and read by
+`util/citations.py` to decide whether to print the CGenFF-program citations. **No scripter ever
+read them.** `scripters/psfgen.py` concatenated `standard.rtf + custom.rtf + standard.str +
+custom.str`; `scripters/namd.py` concatenated `standard.prm + standard.str` then `custom.prm +
+custom.str`. `user_custom` was in neither, so
+
+```yaml
+charmmff:
+  user_custom:
+    str: [myligand.str]      # validates, builds, loads nothing
+```
+
+produced a build with the ligand's topology absent. The key even changed the *citations*
+without changing the force field.
+
+Nothing could catch it:
+
+- **`yclept check-spec` passes** -- it checks that declarations are well-formed, not that
+  anything consumes them.
+- **Every example parses**, because no example used the key.
+- **The docs build fine**, and generate a page describing behavior that does not exist.
+- **The feature appeared to work** for the common case: a file in a `searchpath` directory is
+  picked up automatically *by residue name* (`tasks/psfgen.py:732`), so the dead key was
+  bypassed by a live mechanism. It only failed for a file whose residues nothing in the input
+  names -- an extra stream loaded for its parameters -- which is the case nobody tried.
+
+This is `z_dist` again (see the membrane-test table) at a different scale: there, a key the Tcl
+arg loop silently dropped; here, a whole documented extension point. **A config key that the
+code ignores is worse than one it rejects**, and the only thing that finds one is a grep for
+the key outside the module that declares it:
+
+```bash
+grep -rn "user_custom" --include=*.py --include=*.tcl pestifer/ \
+  | grep -vE "charmmffcontent.py|resourcemanager.py|citations.py"
+```
+
+Run that against a *working* key as a positive control before believing a quiet result -- the
+same grep shape finds `['custom']`'s two real consumers. An empty result that you have not
+calibrated is the same success-shaped emptiness as `sha256sum` on a missing file.
+
+Fixed by replacing the three provenance-named groups (`standard` = in the CHARMM release,
+`custom` = shipped by pestifer, `user_custom` = yours) with one flat `charmmff.files` list plus
+`charmmff.replace_defaults`, since what a user needs to express is *intent*, not identity.
+`pestifer/charmmff/fileset.py` holds the list, the two derived views, and the legacy fold.
+
+**The list's order is the load order, and that is load-bearing twice.** Topology order fixes
+terminal patches (see the `DEFA` section below). Parameter order decides duplicates, because
+`CharmmParamFile.merge` is last-wins -- and that is not hypothetical: merging the shipped set in
+its real order versus "all .prm, then all .str" changes exactly **one** record out of 46,527,
+
+```
+('NG2O1','CG2R61','CG2R61','NG2S3') n=2    Kchi 1.25  ->  3.1
+```
+
+which is `toppar_pestifer_conflict_resolutions.prm` overriding `toppar_all36_carb_imlab.str`,
+annotated in the file as *"CGenFF v5.0 value, chosen over imlab's analogy value"*. Tidying the
+default list by extension silently reverts a deliberate arbitration. Do not reorder
+`fileset.DEFAULT_FILES` for readability.
+
+**And the test for this had to be written one level lower than felt natural.** Asserting that
+`fileset.topologies()` contains the user's file does not prove the *scripter* emits a `topology`
+line for it -- the same aim-one-level-off error as rows 4 and 5 of the table above.
+`TestTheScripterActuallyEmitsAUserFile` drives the real scripters from a config dict; reverting
+either scripter's `fileset.resolve` call reddens exactly those three tests and leaves the
+nineteen pure-`fileset` tests green.
+
+**The sweep is now a test, and it found eight more.**
+`tests/unit/test_core/test_no_dead_schema_keys.py` requires every leaf key in `base.yaml` to be
+named somewhere in `pestifer/*.py` or `pestifer/*.tcl`. Run against the tree on the day it was
+written it flagged two more live defects:
+
+- **`constraints.consfile`, in seven places** -- `md`, `membrane_equilibrate`,
+  `density_equilibrate`, `ligate.steer`, `terminate.package.namd`, and both
+  `make_membrane_system` relaxation protocols. `BaseTask.make_constraint_pdb` reads **`consref`**
+  (`specs.get('consref','')`), which the schema did not declare, so the documented key did
+  nothing *and* the working key could not be set. Renamed to `consref`.
+- **`make_membrane_system.embed.q_tolerance`** -- "tolerance for net charge neutralization",
+  default `1e-4`, in no Python and no Tcl. Neutralization is `autoionize -neutralize`, which has
+  no tolerance argument. Removed.
+
+It is a *name* search, so it proves a mention, not a read; and it is blind to a key composed at
+run time, which is what `DYNAMIC_KEYS` is for. That allowlist is the part that rots: five
+`membrane_equilibrate.area_*` keys are on it because `_params_for` does
+`specs.get(f'{prefix}_{key}')`, and a companion test asserts that f-string is still in the file,
+so an allowlist entry cannot outlive its reason and quietly turn the sweep into a rubber stamp.
+
 ## Validation tests must not be written against chain or segment letters
 
 Letters in a built system are assigned by pestifer, not inherited from the input. Each input

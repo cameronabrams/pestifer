@@ -19,6 +19,8 @@ from .. import resources
 from ..charmmff.charmmffcontent import CHARMMFFContent, charmmff_version_key
 from ..util.gitutil import get_git_origin_url
 
+from ..charmmff import fileset
+
 logger = logging.getLogger(__name__)
 
 
@@ -57,7 +59,9 @@ class ResourceManager:
             if not os.path.isdir(self.resource_path[r]):
                 raise PestiferError(f'Resource {r} not found at {self.resource_path[r]} -- your installation is likely incomplete')
 
-        self._charmmff_config = charmmff_config
+        # Fold any pre-2026-10-19 charmmff.{standard,custom,user_custom} groups onto the
+        # flat charmmff.files list.  Idempotent, so Config folding first costs nothing.
+        self._charmmff_config = fileset.fold_legacy_groups(charmmff_config)
         self._charmmff_content = None
         self._example_manager = None
         self._resname_index_cache = None
@@ -104,8 +108,7 @@ class ResourceManager:
         if self._charmmff_content is None:
             charmmff_path = self.charmmff_version_path(self._charmmff_config.get('release', ''))
             logger.info(f'Using CHARMMFF version: {charmmff_path.name}')
-            user_custom = self._charmmff_config.get('user_custom', {})
-            user_custom_directories = list(user_custom.get('searchpath', []))
+            user_custom_directories = fileset.searchpath(self._charmmff_config)
             if USER_TOPPAR_DIR.is_dir():
                 # Load the cache first so that project-local searchpath entries
                 # (listed in YAML) can override anything that lives there.
@@ -114,7 +117,7 @@ class ResourceManager:
             self._charmmff_content = CHARMMFFContent(
                 charmmff_path,
                 user_custom_directories=user_custom_directories,
-                user_custom_segtypes=user_custom.get('segtypes', {}),
+                user_custom_segtypes=self._charmmff_config.get('segtypes') or {},
                 # The schema key is `user_pdbcollections` (schema/base.yaml).  This read was
                 # `pdbrepository`, which the schema does not declare at all, so the documented
                 # feature did nothing: a user setting `user_pdbcollections` was never read, and

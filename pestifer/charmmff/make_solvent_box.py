@@ -20,6 +20,9 @@ import numpy as np
 
 from ..core.errors import PestiferBuildError
 
+from . import fileset
+from .fileset import add as _add_charmmfile
+
 logger = logging.getLogger(__name__)
 
 # Avogadro's number (1/mol); 1 cm^3 = 1e24 A^3
@@ -321,8 +324,7 @@ def make_solvent_box(resname, DB, RM=None, nmol: int = 216, density: float = 1.0
                                terminate=False)
 
     W: PsfgenScripter = C.tasks[0].scripters['psfgen']
-    if extension in ('rtf', 'str') and charmm_topfile not in W.charmmff_config['standard'][extension]:
-        W.charmmff_config['standard'][extension].append(charmm_topfile)
+    _add_charmmfile(W.charmmff_config, charmm_topfile, extension)
 
     # 1. single molecule: coordinates come from, in order of preference,
     #    (a) an existing PDB-repository entry (e.g. water/ions have no ICs to build from),
@@ -383,17 +385,16 @@ def make_solvent_box(resname, DB, RM=None, nmol: int = 216, density: float = 1.0
 
     # 5. minimize + NPT-equilibrate under PBC
     na: NAMDScripter = C.tasks[0].scripters['namd']
-    if extension in ('rtf', 'str') and charmm_topfile not in na.charmmff_config['standard'][extension]:
-        na.charmmff_config['standard'][extension].append(charmm_topfile)
+    _add_charmmfile(na.charmmff_config, charmm_topfile, extension)
     # Sub-problem A: a residue defined in a bare .rtf is topology only, so its bonded
     # parameters must be loaded separately for the NAMD equilibration (a .str carries its
     # own parameters). The standard rtf/prm pairs (prot, cgenff, ...) are already loaded;
     # this covers a residue whose defining .rtf is not one of them (e.g. a custom-added one).
     if extension == 'rtf':
         companion = _companion_parameter_file(charmm_topfile, DB)
-        if companion and companion not in na.charmmff_config['standard']['prm']:
+        if companion and companion not in (na.charmmff_config.get('files') or []):
             logger.info(f'{resname}: loading companion parameter file {companion} for {charmm_topfile}')
-            na.charmmff_config['standard']['prm'].append(companion)
+            _add_charmmfile(na.charmmff_config, companion, 'prm')
     # Sub-problem B (B2): if the equilibration dies because the force field lacks a parameter
     # for a term psfgen generated, surface it as an actionable error naming the exact atom-type
     # term -- instead of a cryptic NAMD fatal -- and do NOT fabricate a parameter. (A genuinely
@@ -440,7 +441,7 @@ def make_solvent_box(resname, DB, RM=None, nmol: int = 216, density: float = 1.0
         'kind': 'box', 'resname': resname, 'nmol': nmol,
         'box_edge': float(f'{final_edge:.4f}'), 'density': float(f'{final_density:.4f}'),
         'key_atom': key_atom, 'defined-in': charmm_topfile,
-        'parameters': sorted(set(na.charmmff_config['standard']['prm'] + na.charmmff_config['standard']['str'])),
+        'parameters': sorted(set(fileset.parameters(fileset.resolve(na.charmmff_config)))),
         'psf': f'{resname}-box.psf', 'pdb': f'{resname}-box.pdb',
     }
     with open('info.yaml', 'w') as f:

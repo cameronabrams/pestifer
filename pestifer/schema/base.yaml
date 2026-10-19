@@ -26,11 +26,18 @@ attributes:
     required: True
     docs:
       text: |
-        The ``charmff`` attribute informs pestifer which CHARMM force-field parameter and topology files are to be 
-        used for all psfgen/namd3 executions.  ``standard`` refers to files that are found in the official CHARMMFF 
-        release, and are referred to by their base filenames, regardless of whether they live in the topmost ``toppar`` 
-        directory or one of the stream subdirectories.  ``custom`` refers to files that are not part of the official 
-        CHARMMFF release.
+        The ``charmmff`` attribute tells pestifer which CHARMM force-field topology and parameter
+        files every psfgen/NAMD execution loads, and in what order.
+
+        Files are named by **base filename** only.  A basename is resolved against the official
+        CHARMM release -- wherever it lives in that tree, the topmost ``toppar`` directory or one
+        of the stream subdirectories -- and against every directory listed under ``searchpath``,
+        so a file from the release and a CGenFF stream of your own are named the same way and go
+        in the same list.  ``files`` is appended to pestifer's default set, or replaces it when
+        ``replace_defaults`` is true.
+
+        ``standard``, ``custom`` and ``user_custom`` are deprecated; see ``segtypes`` below for
+        what they map onto and why they were replaced.
     attributes:
       - name: release
         type: str
@@ -40,9 +47,79 @@ attributes:
         type: bool
         text: If true (default), when a build references a residue that is defined in the CHARMM force field but has no PDB-repository entry (e.g. a non-water solvent with no shipped box), pestifer generates the needed coordinates on the fly and caches them per-user under ~/.pestifer/pdbrepository/<release>/, reusing them on subsequent builds. Set false for reproducibility-strict or offline runs, in which case the missing entry hard-errors instead (the current behavior).
         default: True
+      - name: searchpath
+        type: list
+        text: Directories holding your own CHARMM-format files (.rtf, .top, .str, .prm). Every such file found is registered by basename and indexed by the RESI/PRES records it contains, so it can be named in ``files`` or resolved automatically by residue name. Entries may contain ``~/`` or ``$VAR``/``${VAR}``; both are expanded before the directory is probed.
+        default: []
+      - name: files
+        type: list
+        text: CHARMM force-field files to load, by basename, in load order. A basename from the official CHARMM release is found wherever it lives in the release tree; a basename in one of your ``searchpath`` directories is found there. These are appended to pestifer's default set, so they load last and win any duplicate parameter; set ``replace_defaults`` to make this list the whole set instead.
+        default: []
+      - name: replace_defaults
+        type: bool
+        text: If true, ``files`` IS the complete force-field file set and pestifer's default set is not loaded. Default false, meaning ``files`` is added to the defaults.
+        default: False
+      - name: segtypes
+        type: dict
+        text: Optional per-resname segtype overrides for residues defined in files found under ``searchpath``. Each key is a segtype (e.g. 'ligand', 'cofactor') and each value is a list of resnames to classify under that segtype. Resnames not listed here are classified as 'ligand' by default.
+        default: {}
+        docs:
+          text: |
+            How the file set is decided
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+            There is one list, ``files``, and its order is the order the files are loaded
+            in.  That matters twice over, and nothing downstream reports either:
+
+            * psfgen gives a residue the ``DEFA FIRS ... LAST ...`` in force when that
+              residue's *definition* is read, so topology order fixes terminal patches.
+            * Parameter merging is last-wins (CHARMM's ``READ PARAM APPEND``), so a term
+              defined in two files takes its value from the later one.
+
+            To **add** a file -- another stream from the CHARMM release, or your own
+            CGenFF stream for a ligand -- name it in ``files``:
+
+            .. code-block:: yaml
+
+              charmmff:
+                searchpath:
+                  - ~/my-cgenff
+                files:
+                  - toppar_all36_lipid_sphingo.str   # from the CHARMM release
+                  - myligand.str                     # from ~/my-cgenff
+
+            Release files and your own files go in the same list; pestifer resolves each
+            basename against the release tree and your ``searchpath`` directories alike.
+
+            To **replace** pestifer's default set entirely, set ``replace_defaults: true``
+            and list every file you want:
+
+            .. code-block:: yaml
+
+              charmmff:
+                replace_defaults: true
+                files:
+                  - top_all36_prot.rtf
+                  - par_all36m_prot.prm
+                  - toppar_water_ions.str
+
+            Added files load *after* the defaults, which includes pestifer's own
+            ``toppar_pestifer_conflict_resolutions.prm``.  A parameter you supply
+            therefore overrides one pestifer has deliberately arbitrated -- the right
+            reading of an explicit request, but worth knowing you have it.
+
+            Deprecated: ``standard``, ``custom`` and ``user_custom``
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+            These three groups named a file's *provenance* where what a user needed to
+            express was *intent*, and are retained only so existing configs keep working.
+            Entries in any of them are folded into ``files`` with a warning;
+            ``user_custom.searchpath`` and ``user_custom.segtypes`` become ``searchpath``
+            and ``segtypes``.
+
       - name: standard
         type: dict
-        text: CHARMM force-field files used by default in all system preparations
+        text: DEPRECATED (use charmmff.files) -- CHARMM force-field files used by default in all system preparations
         required: True
         docs:
           text: |
@@ -83,7 +160,7 @@ attributes:
               - par_all36_cgenff.prm
       - name: custom
         type: dict
-        text: Default custom charmmff-format files provided as part of pestifer that are NOT in the standard CHARMMFF release but are used in pestifer builds
+        text: DEPRECATED (use charmmff.files) -- custom charmmff-format files provided as part of pestifer that are NOT in the standard CHARMMFF release
         required: True
         attributes:
           - name: rtf
@@ -103,7 +180,7 @@ attributes:
               - toppar_pestifer_conflict_resolutions.prm
       - name: user_custom
         type: dict
-        text: User-defined custom charmmff files
+        text: DEPRECATED (use charmmff.files / charmmff.searchpath / charmmff.segtypes) -- user-defined custom charmmff files
         required: False
         attributes:
           - name: searchpath
@@ -880,8 +957,8 @@ attributes:
                   - name: k
                     text: Restraint spring constant in kcal/mol/A^2
                     type: float
-                  - name: consfile
-                    text: Name of constraints PDB file to generate (defaults to basename-constraints.pdb)
+                  - name: consref
+                    text: Name of the constraints PDB file to generate (defaults to <basename>-constraints.pdb)
                     type: str
           - name: connect
             text: Specifies parameters of the psfgen run that patches in the new backbone bonds
@@ -1694,8 +1771,8 @@ attributes:
                               - name: k
                                 text: Restraint spring constant in kcal/mol/A^2
                                 type: float
-                              - name: consfile
-                                text: Name of constraints PDB file to generate (defaults to basename-constraints.pdb)
+                              - name: consref
+                                text: Name of the constraints PDB file to generate (defaults to <basename>-constraints.pdb)
                                 type: str
                           - name: other_parameters
                             type: dict
@@ -1844,8 +1921,8 @@ attributes:
                               - name: k
                                 text: Restraint spring constant in kcal/mol/A^2
                                 type: float
-                              - name: consfile
-                                text: Name of constraints PDB file to generate (defaults to basename-constraints.pdb)
+                              - name: consref
+                                text: Name of the constraints PDB file to generate (defaults to <basename>-constraints.pdb)
                                 type: str
                           - name: other_parameters
                             type: dict
@@ -1867,10 +1944,6 @@ attributes:
                 text: if true, do not alter orientation of protein; z-axis of protein coordinate system is assumed to be membrane normal
                 type: bool
                 default: False
-              - name: q_tolerance
-                text: tolerance for net charge neutralization
-                type: float
-                default: 1.e-4
               - name: xydist
                 text: distance from perimeter of protein to box edge in x and y (Å)
                 type: float
@@ -1997,8 +2070,8 @@ attributes:
               - name: k
                 text: Restraint spring constant in kcal/mol/A^2
                 type: float
-              - name: consfile
-                text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+              - name: consref
+                text: Name of the constraints PDB file to generate (defaults to <basename>-constraints.pdb)
                 type: str
           - name: ssrestraints
             text: Secondary-structure restraints generated by the VMD ssrestraints plugin and applied via NAMD's extraBonds facility. Opt-in via the `enabled` attribute (off by default, since it only makes sense for protein/nucleic systems -- a bare membrane has no secondary structure to restrain)
@@ -2180,8 +2253,8 @@ attributes:
               - name: k
                 text: Restraint spring constant in kcal/mol/A^2
                 type: float
-              - name: consfile
-                text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+              - name: consref
+                text: Name of the constraints PDB file to generate (defaults to <basename>-constraints.pdb)
                 type: str
       - name: membrane_equilibrate
         text: >-
@@ -2362,8 +2435,8 @@ attributes:
               - name: k
                 text: Restraint spring constant in kcal/mol/A^2
                 type: float
-              - name: consfile
-                text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+              - name: consref
+                text: Name of the constraints PDB file to generate (defaults to <basename>-constraints.pdb)
                 type: str
       - name: manipulate
         text: Direct manipulation of atom positions
@@ -2490,8 +2563,8 @@ attributes:
                     - name: k
                       text: Restraint spring constant in kcal/mol/A^2
                       type: float
-                    - name: consfile
-                      text: Name of constraints PDB file (defaults to basename-constraints.pdb)
+                    - name: consref
+                      text: Name of the constraints PDB file to generate (defaults to <basename>-constraints.pdb)
                       type: str
       - name: validate
         text: Task enables VMD-based validation of PDB and PSF files

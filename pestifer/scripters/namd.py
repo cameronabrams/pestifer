@@ -16,6 +16,8 @@ from ..logparsers import NAMDLogParser, NAMDxstParser
 from ..psfutil.psfcontents import PSFContents
 from ..util.progress import NAMDProgress
 
+from ..charmmff import fileset
+
 logger = logging.getLogger(__name__)
 
 class NAMDScripter(TcLScripter):
@@ -63,13 +65,13 @@ class NAMDScripter(TcLScripter):
             A list of parameter files that have been copied to the local directory.
         """
         # logger.debug('Fetching standard CHARMMFF parameters')
+        # charmmff.files is one ordered list; `parameters` takes its .prm and .str in
+        # list order, because CharmmParamFile.merge is last-wins.  Grouping by extension
+        # instead changes one record out of 46,527 -- it reverts the deliberate override
+        # in toppar_pestifer_conflict_resolutions.prm.  See pestifer/charmmff/fileset.py.
         parameters_local = []
-        for t in self.charmmff_config['standard']['prm'] + self.charmmff_config['standard']['str']:
+        for t in fileset.parameters(fileset.resolve(self.charmmff_config)):
             if not t in parameters_local:
-                self.charmmff.copy_charmmfile_local(t)
-                parameters_local.append(t)
-        for t in self.charmmff_config['custom']['prm'] + self.charmmff_config['custom']['str']:
-            if t not in parameters_local:
                 self.charmmff.copy_charmmfile_local(t)
                 parameters_local.append(t)
         # logger.debug(f'local parameters: {parameters_local}')
