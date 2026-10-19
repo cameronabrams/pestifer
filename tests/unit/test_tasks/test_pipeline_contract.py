@@ -186,3 +186,40 @@ class TestUnminimizedDynamics(unittest.TestCase):
             with self.subTest(example=f.parent.parent.name):
                 specs = (yaml.safe_load(f.read_text()) or {}).get('tasks') or []
                 validate_pipeline(_build(specs, add_terminate=False))
+
+
+class TestAnUnconstrainedStageNeedsNoMinimize(unittest.TestCase):
+    """The rule is about CONSTRAINED dynamics.
+
+    A stage with `rigidbonds: none` has no constraints to fail, so a rotation may go straight
+    into one -- which is what a cold prologue is for.  Requiring a minimize there would require
+    the one stage nothing checks, and a minimizer relieving a large overlap can complete a
+    near-threading on the way down: measured on an example-17 patchB, one opening minimize
+    cleared 3 piercings and created 2.  An unchecked minimize is where a piercing is cemented.
+    """
+
+    SOFT = {'md': {'ensemble': 'NVT', 'temperature': 50,
+                   'other_parameters': {'timestep': 0.5, 'rigidbonds': 'none'}}}
+    HARD = {'md': {'ensemble': 'NVT', 'temperature': 410}}
+    RC = {'ring_check': {'segtypes': ['lipid']}}
+    START = {'continuation': {'psf': 'x.psf', 'pdb': 'x.pdb'}}
+
+    def test_ring_check_into_an_unconstrained_stage_is_allowed(self):
+        validate_pipeline(_build([self.START, self.RC, self.SOFT]))   # must not raise
+
+    def test_ring_check_into_a_constrained_stage_is_still_refused(self):
+        with self.assertRaises(PestiferBuildError) as cm:
+            validate_pipeline(_build([self.START, self.RC, self.HARD]))
+        self.assertIn('no minimization in between', str(cm.exception))
+
+    def test_a_soft_stage_does_not_excuse_a_later_constrained_one(self):
+        """NEGATIVE CONTROL: the exemption is for the stage that follows the mover, not a
+        blanket pass once any soft stage has run."""
+        validate_pipeline(_build([self.START, self.RC, self.SOFT, self.HARD]))
+
+    def test_the_default_is_constrained(self):
+        """`rigidbonds` is `all` for solvated systems, so a stage that says nothing is
+        constrained and must not be read as exempt."""
+        with self.assertRaises(PestiferBuildError):
+            validate_pipeline(_build([self.START, self.RC,
+                                      {'md': {'ensemble': 'NVT', 'other_parameters': {}}}]))

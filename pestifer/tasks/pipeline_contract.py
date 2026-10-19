@@ -191,6 +191,11 @@ def _check_unminimized_dynamics(tasks):
 
     A RATTLE failure costs the whole build and is reported by NAMD as an atom serial, hours in.
     This costs a second, before anything runs, and names the fix.
+
+    **Constrained dynamics only.**  An unconstrained stage has no constraints to fail, so a
+    rotation may go straight into one -- which is what a cold `rigidbonds none` prologue is
+    for.  Requiring a minimize there would require the one stage nothing checks, and an
+    unchecked minimize is where a near-threading gets completed and cemented.
     """
     problems = []
     moved_by = None
@@ -203,6 +208,17 @@ def _check_unminimized_dynamics(tasks):
             moved_by = None
             continue
         if _is_dynamics(task) and moved_by is not None:
+            # An UNCONSTRAINED stage cannot RATTLE-fail -- there are no constraints in it to
+            # fail -- so a rotation handed straight to one is fine, and that is exactly what
+            # the cold prologue is for.  Demanding a minimize there would demand the one stage
+            # nothing checks: a minimizer relieving a large overlap can complete a
+            # near-threading on the way down, so an unchecked minimize immediately before
+            # dynamics is where a piercing gets cemented.  The rule is therefore about
+            # CONSTRAINED dynamics, which is what the original failure was.
+            if str(((task.specs or {}).get('other_parameters') or {})
+                   .get('rigidbonds', 'all')).casefold() == 'none':
+                moved_by = None
+                continue
             problems.append(
                 f"task {task.index:02d} '{name}' integrates dynamics on coordinates that task "
                 f"{moved_by.index:02d} '{moved_by.taskname}' moved, with no minimization in "

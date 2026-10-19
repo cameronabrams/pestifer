@@ -73,17 +73,45 @@ class TestExample17ColdPrologue(unittest.TestCase):
         cls.tasks = _tasks(_EX17)
         cls.kinds = [_kind(t) for t in cls.tasks]
 
-    def test_a_minimize_follows_ring_check_before_anything_else(self):
-        """``ring_check`` MOVES atoms -- it rotates a pendant branch or a side chain to unthread
-        a piercing -- and whatever it moves is unminimized until something minimizes it."""
-        idx = [i for i, (k, _) in enumerate(self.kinds) if k == 'ring_check']
-        self.assertTrue(idx, 'example 17 no longer runs a top-level ring_check')
-        for i in idx:
-            nxt = self.kinds[i + 1]
-            self.assertEqual(nxt[0], 'md', f'task after ring_check at {i} is {nxt[0]}, not md')
-            self.assertEqual(str(nxt[1].get('ensemble', '')).casefold(), 'minimize',
-                             f'task after ring_check at {i} is {nxt[1].get("ensemble")}, '
-                             'not a minimize')
+    def _is_minimize(self, kind):
+        k, v = kind
+        return k == 'md' and str(v.get('ensemble', '')).casefold() == 'minimize'
+
+    def test_the_embed_is_checked_before_anything_minimizes(self):
+        """The embed is a direct manipulation; anything it threads is threaded immediately, and
+        a minimizer can only cement it.  So the check goes between them.
+
+        It should find nothing: a bond cannot thread a ring without coming ~1.6 A from a ring
+        atom, far inside the 2.89 A threshold at which `bilayer_embed` deletes an overlapping
+        lipid.  If it fires, the clash test is broken -- which is how a version deleting ZERO
+        of 465 overlapping lipids went unnoticed for three days."""
+        emb = next(i for i, (k, _) in enumerate(self.kinds) if k == 'make_membrane_system')
+        after = self.kinds[emb + 1:]
+        first_rc = next((n for n, (k, _) in enumerate(after) if k == 'ring_check'), None)
+        first_min = next((n for n, kind in enumerate(after) if self._is_minimize(kind)), None)
+        self.assertIsNotNone(first_rc, 'nothing checks the embedded system')
+        self.assertIsNotNone(first_min, 'the post-embed minimize is gone')
+        self.assertLess(first_rc, first_min,
+                        'the post-embed minimize runs before anything checks the embed')
+
+    def test_every_post_embed_minimize_is_bracketed_by_checks(self):
+        """Before, to clear what the embed made while it is still clearable; after, because a
+        minimize relieving a large overlap can complete a near-threading on the way down --
+        measured on an example-17 patchB, one cleared 3 piercings and created 2."""
+        emb = next(i for i, (k, _) in enumerate(self.kinds) if k == 'make_membrane_system')
+        for i in range(emb + 1, len(self.kinds)):
+            if self._is_minimize(self.kinds[i]):
+                self.assertEqual(self.kinds[i - 1][0], 'ring_check',
+                                 f'nothing checks before the minimize at task {i}')
+                self.assertEqual(self.kinds[i + 1][0], 'ring_check',
+                                 f'nothing checks after the minimize at task {i}')
+
+    def test_no_unchecked_minimize_follows_the_last_check(self):
+        """An unchecked minimize is exactly where a nascent piercing gets cemented."""
+        last_rc = max(i for i, (k, _) in enumerate(self.kinds) if k == 'ring_check')
+        for kind in self.kinds[last_rc + 1:]:
+            self.assertFalse(self._is_minimize(kind),
+                             'a minimize runs after the last ring_check')
 
     def test_the_hot_melt_is_not_the_first_dynamics_after_the_build(self):
         """The 410 K pass must be preceded by dynamics that is cold, short-stepped and

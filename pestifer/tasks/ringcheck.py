@@ -32,6 +32,11 @@ from ..util.util import cell_from_xsc
 
 logger=logging.getLogger(__name__)
 
+#: Rotation passes before giving up.  Clearing a piercing can create another, so one
+#: pass is not enough; a pass that fails to reduce the count will not do better the
+#: next time either, so the loop also stops on no net progress.
+_MAX_RESOLVE_CYCLES = 5
+
 # aromatic protein residues whose side-chain ring pivots freely on chi2/chi1 (proline is
 # NOT here: its ring is fused into the backbone, so a chi rotation cannot swing it clear)
 _AROMATIC = {'HIS', 'HSD', 'HSE', 'HSP', 'PHE', 'TYR', 'TRP'}
@@ -124,58 +129,42 @@ class RingCheckTask(BaseTask):
                               segtypes=segtypes, max_ring_size=max_ring_size)
 
         npiercings = run_check(state)
-        if not npiercings:
-            self.result = 0
-            return self.result
 
-        # First resolve everything that a rotation can fix (rings that can't be deleted):
-        # aromatic side-chain rings by rotating the ring, rigid rings (proline / glycan)
-        # speared by a glycan by rotating the glycan pendant.
-        rotatable = [p for p in npiercings if self._rotatable(p)]
-        if rotatable:
+        # ITERATE.  Clearing one piercing can create another -- a rotated tail has to go
+        # somewhere -- and a molecule can be threaded twice, which one rigid rotation about one
+        # hinge cannot undo.  So resolve, re-check, and repeat while progress is being made.
+        for _cycle in range(_MAX_RESOLVE_CYCLES):
+            rotatable = [p for p in npiercings if self._rotatable(p)]
+            if not rotatable:
+                break
             ess = 's' if len(rotatable) > 1 else ''
-            logger.info(f'{len(rotatable)} ring piercing{ess} to resolve by rotation:')
+            logger.info(f'{len(rotatable)} ring piercing{ess} to resolve by rotation '
+                        f'(pass {_cycle + 1}):')
             self._report(rotatable, logger.info)
-            fixed_pdb, failed = self._resolve_by_rotation(state, rotatable, cutoff, segtypes, max_ring_size)
-            if fixed_pdb is None and failed['piercee']['segtype'] == 'lipid':
-                # A lipid that no rotation clears is not fatal -- deletion is still available for
-                # it below, and losing one lipid is a far smaller harm than failing the build.
-                # Protein and glycan rings have no such fallback, which is why they still raise.
+            fixed_pdb, unresolved = self._resolve_by_rotation(state, rotatable, cutoff,
+                                                              segtypes, max_ring_size)
+            for failed in unresolved:
                 logger.info(f'  {self._fmt(failed["piercee"])}: no rotation cleared the piercing '
-                            f'by {self._fmt(failed["piercer"])}; falling through to the '
-                            f'`delete` setting')
-            elif fixed_pdb is None:
-                self._report([failed], logger.error)
-                raise PestiferBuildError(
-                    f'ring piercing of {self._fmt(failed["piercee"])} by a bond in '
-                    f'{self._fmt(failed["piercer"])} could not be cleared by rotation.  Suggested '
-                    f'fix: manually rotate the side-chain dihedral (aromatic ring) or the glycan '
-                    f'linkage (rigid ring) to un-thread it, or rebuild with more minimization.')
-            # Only when a pose was actually written.  `_resolve_by_rotation` returns
-            # `(None, failed)` on the first piercing it cannot clear, discarding the partial
-            # progress, and the lipid branch above deliberately continues from there -- so
-            # `fixed_pdb` is None exactly when nothing was written and the `delete` setting is
-            # about to decide what happens.  Copying it was `shutil.copy(None, ...)`:
-            #
-            #     TypeError: stat: path should be string, bytes, os.PathLike or integer,
-            #                not NoneType
-            #
-            # Latent since the lipid fallthrough was written, and unreachable until a rotation
-            # could fail: before the overlap-eligibility filter, the search accepted whatever
-            # pose cleared the ring however badly it clashed, so it effectively never failed.
-            # Tightening the filter made this path live on the first real build that used it.
-            if fixed_pdb is not None:
-                # a rotation changes coordinates only, not topology: keep the PSF, new PDB
-                self.next_basename('ring_check')
-                shutil.copy(fixed_pdb, f'{self.basename}.pdb')
-                # the winning pose is now the registered artifact; the per-candidate trial PDBs
-                # and VMD gen scripts/logs are scratch -- remove them so they don't litter the
-                # run directory (they are kept on the failure path above, for debugging)
-                self._cleanup_declash_scratch()
-                self.register(dict(psf=state.psf, pdb=PDBFileArtifact(self.basename),
-                                   xsc=state.xsc), key='state', artifact_type=StateArtifacts)
-                state = self.get_current_artifact('state')
-                npiercings = run_check(state)
+                            f'by {self._fmt(failed["piercer"])}')
+            if fixed_pdb is None:
+                break   # nothing moved, so another pass would do exactly the same thing
+            # a rotation changes coordinates only, not topology: keep the PSF, new PDB
+            self.next_basename('ring_check')
+            shutil.copy(fixed_pdb, f'{self.basename}.pdb')
+            # the winning poses are the registered artifact now; the per-candidate trial PDBs
+            # and VMD gen scripts/logs are scratch
+            self._cleanup_declash_scratch()
+            self.register(dict(psf=state.psf, pdb=PDBFileArtifact(self.basename),
+                               xsc=state.xsc), key='state', artifact_type=StateArtifacts)
+            state = self.get_current_artifact('state')
+            before = len(npiercings)
+            npiercings = run_check(state)
+            if not npiercings:
+                break
+            if len(npiercings) >= before:
+                logger.info(f'  {len(npiercings)} piercing(s) remain and that pass made no net '
+                            f'progress; stopping the rotation loop')
+                break
 
         if not npiercings:
             self.result = 0
@@ -183,17 +172,38 @@ class RingCheckTask(BaseTask):
 
         # Whatever remains was not rotation-resolvable.  Lipid rings can be deleted; protein
         # or glycan rings that no rotation cleared are fatal.
-        glycan_piercings = [p for p in npiercings if p['piercee']['segtype'] == 'glycan']
-        protein_piercings = [p for p in npiercings if p['piercee']['segtype'] == 'protein']
-        other_piercings = [p for p in npiercings if p['piercee']['segtype'] not in ('glycan', 'protein')]
+        # Anything involving the INSERTED system -- protein or glycan, on EITHER side -- is
+        # fatal, and the message says where it came from.  In a membrane build such a piercing
+        # can only have been made at the embed, and it cannot survive a working clash test:
+        # for a bond to thread a ring it must cross the ring plane inside it, which puts a bond
+        # atom 1.60 A from the nearest ring atom for a 6-ring (1.77 for a 7-ring), against the
+        # 2.89 A C...C deletion threshold.  Evading that needs a ring radius of 2.79 A, about
+        # seventeen atoms; `max_ring_size` is 7.  So the piercing is a report about the clash
+        # test, not a thing to resolve -- and resolving it quietly is exactly how a clash test
+        # that deleted ZERO of 465 overlapping lipids went unnoticed for three days.
+        #
+        # A pierced glycan ring additionally has no remedy at all: it cannot be deleted without
+        # breaking the glycan tree, which is why the embed clash selection must cover glycans
+        # (`noh` over the whole inserted molecule, NOT `protein and noh`).
+        def _involves_inserted(p):
+            return 'protein' in (p['piercee']['segtype'], p['piercer']['segtype']) \
+                or 'glycan' in (p['piercee']['segtype'], p['piercer']['segtype'])
 
-        if protein_piercings or glycan_piercings:
-            fatal = protein_piercings + glycan_piercings
+        fatal = [p for p in npiercings if _involves_inserted(p)]
+        other_piercings = [p for p in npiercings if not _involves_inserted(p)]
+
+        if fatal:
             self._report(fatal, logger.error)
+            named = '; '.join(f'{self._fmt(p["piercee"])} pierced by {self._fmt(p["piercer"])}'
+                              for p in fatal)
             raise PestiferBuildError(
-                f'{len(fatal)} protein/glycan ring piercing(s) could not be resolved by rotation; '
-                f'rebuild the system to resolve (e.g. a different random seed or more minimization '
-                f'before ring_check)')
+                f'{len(fatal)} ring piercing(s) involving protein or glycan: {named}.  A bond '
+                f'cannot thread a ring without coming ~1.6 A from a ring atom, far inside the '
+                f'embed clash threshold (2.89 A for C...C), so a working protein/glycan clash '
+                f'deletion makes this impossible -- check that `bilayer_embed` is actually '
+                f'deleting overlapping lipids and solvent (it reports a count), and that its '
+                f'heavy-atom selection covers glycans as well as protein.  Rotating this away '
+                f'would hide the defect that caused it.')
 
         if not other_piercings:
             self.result = 0
@@ -256,14 +266,23 @@ class RingCheckTask(BaseTask):
         """Clear each rotation-resolvable piercing, one at a time.  The topology is untouched
         (only coordinates move).  Candidates are scored in memory -- a candidate is accepted
         only if it un-threads the ring, and among those the one that introduces the fewest new
-        heavy-atom clashes is chosen.  Returns ``(fixed_pdb, None)`` if every piercing clears,
-        or ``(None, failed_piercing)`` for the first that does not."""
+        heavy-atom clashes is chosen.
+
+        **Keeps partial progress.**  It used to return on the FIRST piercing it could not
+        clear, discarding every rotation already applied: on an example-17 patchB that threw
+        away six resolved piercings because the seventh resisted, and reported "8 pierced-ring
+        configurations" when two were actually left.  Now it continues, so the caller is handed
+        the improved structure and an honest list of what remains.
+
+        Returns ``(fixed_pdb_or_None, unresolved)`` -- ``fixed_pdb`` is ``None`` only when
+        nothing at all was written, and ``unresolved`` is the piercings no rotation cleared."""
         psf = state.psf.name
         xsc = state.xsc.name if state.xsc else None
         box = cell_from_xsc(xsc)[0] if xsc else None
         working_pdb = state.pdb.name
         # topology (bond list, ring cycles) is constant across trial rotations -> parse once
         checker = RingChecker(psf, cutoff=cutoff, segtypes=segtypes, max_ring_size=max_ring_size)
+        unresolved, resolved_any = [], False
         for p in piercings:
             piercee, piercer = p['piercee'], p['piercer']
             seg, resid, resname = piercee['segname'], piercee['resid'], piercee.get('resname', '?')
@@ -322,9 +341,11 @@ class RingCheckTask(BaseTask):
                     cand = self._try_piercer_sidechain(checker, working_pdb, base, box, piercer,
                                                        target, self._fmt(piercee), out_prefix)
             if cand is None:
-                return None, p
+                unresolved.append(p)
+                continue
             working_pdb = cand
-        return working_pdb, None
+            resolved_any = True
+        return (working_pdb if resolved_any else None), unresolved
 
     def _try_sidechain(self, checker, psf, working_pdb, base, box, xsc, seg, resid, resname, target, out_prefix):
         """Rotate the residue's side chain (chi2 then chi1); among the rotations that clear

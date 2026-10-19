@@ -137,10 +137,14 @@ class _DoCase(unittest.TestCase):
         self.scripter = mock.Mock()
         t.get_scripter = mock.Mock(return_value=self.scripter)
 
+        # `_resolve_by_rotation` returns (fixed_pdb_or_None, UNRESOLVED_LIST).  It used to
+        # return the first failure alone and discard every rotation already applied; it now
+        # keeps partial progress, so the second element is a list.
         if rotation_fails is not None:
-            t._resolve_by_rotation = mock.Mock(return_value=(None, rotation_fails))
+            fails = rotation_fails if isinstance(rotation_fails, list) else [rotation_fails]
+            t._resolve_by_rotation = mock.Mock(return_value=(None, fails))
         else:
-            t._resolve_by_rotation = mock.Mock(return_value=('fixed.pdb', None))
+            t._resolve_by_rotation = mock.Mock(return_value=('fixed.pdb', []))
 
         # first call returns the initial list; a second (post-rotation) call returns whatever
         # the rotation left behind
@@ -218,7 +222,9 @@ class TestRotationPath(_DoCase):
         msg = str(cm.exception)
         self.assertIn('TYR A-42', msg)
         self.assertIn('? M-7', msg)
-        self.assertIn('rotate', msg, 'the error should suggest a fix')
+        # the remedy is no longer a manual rotation: such a piercing means the embed clash
+        # test did not delete what it should have, so the message names that instead
+        self.assertIn('bilayer_embed', msg, 'the error should name the cause')
 
     def test_scratch_is_kept_when_the_rotation_fails(self):
         """The trial PDBs are the evidence for debugging why nothing cleared it."""
@@ -252,7 +258,11 @@ class TestFatalPiercings(_DoCase):
         p = _piercing(_side('glycan'), _side('lipid'))
         with self.assertRaises(PestiferBuildError) as cm:
             self._run([p])
-        self.assertIn('rebuild', str(cm.exception))
+        msg = str(cm.exception)
+        # the remedy changed: such a piercing cannot survive a working embed clash test, so
+        # the message names that test rather than suggesting a rebuild or a manual rotation
+        self.assertIn('bilayer_embed', msg)
+        self.assertIn('glycans', msg)
 
 
 class TestLipidDeletion(_DoCase):
@@ -277,11 +287,17 @@ class TestLipidDeletion(_DoCase):
         self.assertEqual(sorted(self._delatom_lines()),
                          ['delatom MEMB 10', 'delatom MEMB 20'])
 
-    def test_both_never_deletes_a_non_lipid_piercer(self):
-        """A glycan or protein bond cannot be dropped without breaking the molecule."""
+    def test_a_lipid_ring_pierced_by_protein_is_fatal_not_deleted(self):
+        """It used to delete the lipid (and never the protein bond, which cannot be dropped).
+        A lipid ring threaded by a protein bond can only have been made at the embed, and
+        cannot survive a working clash test -- the threading puts a bond atom ~1.6 A from a
+        ring atom against a 2.89 A deletion threshold.  So it is a report about the clash test,
+        and deleting the lipid would hide it."""
         p = _piercing(_side('lipid', 'MEMB', 10), _side('protein', 'A', 5))
-        self._run([p], delete='both')
-        self.assertEqual(self._delatom_lines(), ['delatom MEMB 10'])
+        with self.assertRaises(PestiferBuildError) as cm:
+            self._run([p], delete='both')
+        self.assertIn('bilayer_embed', str(cm.exception))
+        self.assertEqual(self._delatom_lines(), [], 'a lipid was deleted instead of reporting')
 
     def test_delete_none_refuses_to_proceed(self):
         with self.assertRaises(PestiferBuildError) as cm:
@@ -656,7 +672,7 @@ class TestResolveByRotationStrategy(unittest.TestCase):
         tried, fixed, failed = self._resolve(p, wins='_try_sidechain')
         self.assertEqual(tried, ['_try_sidechain'])
         self.assertEqual(fixed, 'cand.pdb')
-        self.assertIsNone(failed)
+        self.assertEqual(failed, [], 'nothing should be left unresolved')
 
     def test_a_rigid_ring_speared_by_a_glycan_rotates_the_pendant(self):
         p = _piercing(_side('protein', resname='PRO'), _side('glycan', bond_serials=[1, 2]))
@@ -679,11 +695,13 @@ class TestResolveByRotationStrategy(unittest.TestCase):
         tried, _f, _x = self._resolve(p, wins='_try_pierced_glycan')
         self.assertEqual(tried, ['_try_pierced_glycan'])
 
-    def test_the_first_piercing_that_cannot_be_cleared_is_returned(self):
+    def test_a_piercing_that_cannot_be_cleared_is_reported_not_discarded(self):
+        """It used to return the first failure alone and throw away every rotation already
+        applied; it now keeps partial progress and hands back the list of what resisted."""
         p = _piercing(_side('protein', resname='TYR'), _side('lipid'))
         _tried, fixed, failed = self._resolve(p, wins=None)
-        self.assertIsNone(fixed)
-        self.assertIs(failed, p)
+        self.assertIsNone(fixed, 'nothing was written, so there is no pose to copy')
+        self.assertEqual(failed, [p])
 
 
 if __name__ == '__main__':

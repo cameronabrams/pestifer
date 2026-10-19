@@ -578,8 +578,20 @@ class MakeMembraneSystemTask(BaseTask):
             return protocol
         guarded = []
         for stage in protocol:
+            if _is_minimize_stage(stage):
+                # BEFORE: clear what placement made, while it is still clearable.  A minimizer
+                # relieving a large overlap can complete a near-threading on the way down --
+                # measured on an example-17 patchB, the opening minimize cleared 3 piercings
+                # and created 2 from a structure that already had 9.  Those 2 were primed by
+                # the grid placement; clearing the 9 first is what stops them.
+                guarded.append({'ring_check': dict(segtypes=['lipid', 'glycan', 'protein'],
+                                                   delete='none', cutoff=4.0)})
             guarded.append(stage)
             if _is_minimize_stage(stage):
+                # AFTER: and this is not a formality.  The same measurement says a minimize can
+                # still complete a near-threading the pass before did not see, so the check
+                # after it genuinely finds new ones -- it is the second half of a loop, not an
+                # assertion.  If it fires, something nascent survived the pass before it.
                 # cutoff 4.0 A: the piercing test accepts a bond only within ~3.5 A of the ring
                 # centre, so a slightly larger link-cell radius finds every piercing without the
                 # ~10x cost of the schema default (10.0).

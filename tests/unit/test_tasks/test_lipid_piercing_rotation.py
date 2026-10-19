@@ -87,37 +87,41 @@ class TestTheDispatchOrder(unittest.TestCase):
         self.assertIn('if cand is None', seg)
 
 
-class TestAnUnclearedLipidFallsThroughToTheDeleteSetting(unittest.TestCase):
-    """Deliberate asymmetry: a protein or glycan ring no rotation clears is still fatal, because
-    there is no fallback for it. A lipid has one -- whatever `delete` says."""
+class TestTheResolutionLoop(unittest.TestCase):
+    """Clearing a piercing can create another, and a molecule can be threaded twice -- which one
+    rigid rotation about one hinge cannot undo.  So resolution iterates.
+
+    These replace three source-text assertions that pinned the single-pass shape: that the lipid
+    branch did not raise, that a non-lipid one did, and that the copy was guarded.  The loop
+    moved all three, and the behaviour they were protecting is covered directly by
+    ``test_ringcheck_task.TestAnUnresolvableLipidFallsThroughInsteadOfCrashing`` and
+    ``TestFatalPiercings``.  What is left here is what only the source can show: that there IS a
+    bounded loop and that nothing is copied when nothing was written.
+    """
 
     def setUp(self):
         self.src = inspect.getsource(RingCheckTask.do)
 
-    def test_a_lipid_failure_does_not_raise_at_that_point(self):
-        """The message used to promise "it will be resolved by deletion", which became a lie
-        when `delete` gained the default `none`: the build then STOPS there instead, and
-        announcing a deletion that will not happen is worse than saying nothing.  What the
-        branch must do is decline to raise and let the `delete` setting decide, so that is what
-        this asserts -- behaviour, not the sentence."""
-        i = self.src.index("failed['piercee']['segtype'] == 'lipid'")
-        branch = self.src[i:self.src.index('elif fixed_pdb is None', i)]
-        # strip comments first: the branch's own comment contains the word "raise" (explaining
-        # that protein and glycan rings still do), and a bare substring test matched it
-        code = '\n'.join(ln.split('#', 1)[0] for ln in branch.splitlines())
-        self.assertNotIn('raise', code, 'the lipid branch raises instead of falling through')
-        self.assertIn('logger.info', code, 'the lipid branch says nothing about what happened')
+    def test_resolution_is_a_bounded_loop(self):
+        self.assertIn('_MAX_RESOLVE_CYCLES', self.src, 'resolution no longer iterates')
+        from pestifer.tasks.ringcheck import _MAX_RESOLVE_CYCLES
+        self.assertGreater(_MAX_RESOLVE_CYCLES, 1, 'one pass is not a loop')
+        self.assertLess(_MAX_RESOLVE_CYCLES, 20, 'an unbounded retry on a structure that cannot '
+                                                 'be fixed is a hang, not a resolution')
 
-    def test_the_copy_is_guarded_against_an_unwritten_pose(self):
-        """`_resolve_by_rotation` returns None when it clears nothing, and `shutil.copy(None,
-        ...)` raised `TypeError: stat: path should be string ... not NoneType`.  Latent until
-        the overlap filter made a rotation able to fail at all."""
+    def test_nothing_is_copied_when_no_pose_was_written(self):
+        """`_resolve_by_rotation` returns None for the pose when it clears nothing, and
+        `shutil.copy(None, ...)` raised `TypeError: stat: path should be string ... not
+        NoneType` on the first build that reached it."""
         i = self.src.index('shutil.copy(fixed_pdb')
-        self.assertIn('if fixed_pdb is not None', self.src[max(0, i - 1200):i])
+        before = self.src[:i]
+        self.assertIn('if fixed_pdb is None', before,
+                      'the copy is reachable with fixed_pdb None again')
 
-    def test_a_nonlipid_failure_still_raises(self):
-        i = self.src.index("failed['piercee']['segtype'] == 'lipid'")
-        self.assertIn('raise PestiferBuildError', self.src[i:i + 900])
+    def test_the_loop_stops_when_a_pass_makes_no_progress(self):
+        """Otherwise a structure whose piercings cannot be cleared burns every cycle doing the
+        same work."""
+        self.assertIn('no net', self.src, 'no no-progress exit')
 
 
 class TestTheSterolSpin(unittest.TestCase):

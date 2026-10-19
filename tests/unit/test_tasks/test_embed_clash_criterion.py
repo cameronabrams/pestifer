@@ -201,3 +201,33 @@ class TestTheIndexMappingAssumptionIsRecorded(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestTheClashSelectionCoversTheWholeInsertedSystem(unittest.TestCase):
+    """`noh`, never `protein and noh`.
+
+    The embed deletes lipids and solvent that overlap the inserted system, and that deletion is
+    what makes a piercing impossible: a bond cannot thread a ring without coming ~1.6 A from a
+    ring atom (1.77 for a 7-ring), far inside the 2.89 A C...C deletion threshold -- evading it
+    needs a ring radius of 2.79 A, about seventeen atoms, and `max_ring_size` is 7.
+
+    That guarantee only covers what the selection covers.  Written `protein and noh` -- which
+    reads more naturally and is what one would expect -- glycans would be invisible, and a
+    **pierced glycan ring has no remedy at all**: it cannot be rotated reliably and cannot be
+    deleted without breaking the glycan tree, so it is an unrecoverable build.  The selection is
+    inclusive today by good fortune rather than by test, which is what this fixes.
+    """
+
+    def test_neither_site_restricts_the_inserted_system_to_protein(self):
+        for ln in re.findall(r'atomselect \$\w+ "([^"]*)"', SRC):
+            if 'noh' in ln:
+                self.assertNotIn('protein', ln,
+                                 f'selection "{ln}" excludes glycans from the clash test')
+
+    def test_the_lipid_site_selects_all_heavy_atoms_of_the_inserted_molecule(self):
+        self.assertIn('set pro_heavy [atomselect $protein "noh"]', SRC)
+
+    def test_the_water_site_protects_everything_that_is_not_the_new_water(self):
+        """Same rule on the solvent pass: glycans are on the protected side, not the deleted
+        one, so a water overlapping a glycan goes and the glycan stays."""
+        self.assertRegex(SRC, r'set pro_heavy_w \[atomselect \$\w+ "not \(segname [^)]*\) and noh"\]')
