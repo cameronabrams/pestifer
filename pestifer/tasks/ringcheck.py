@@ -27,7 +27,7 @@ from ..scripters import PsfgenScripter
 from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
 from ..psfutil.psfring import ring_check, RingChecker
-from ..psfutil.ring_resolve import try_glycan_pendant, try_sterol_spin
+from ..psfutil.ring_resolve import HARD_OVERLAP, try_glycan_pendant, try_sterol_spin
 from ..util.util import cell_from_xsc
 
 logger=logging.getLogger(__name__)
@@ -142,8 +142,8 @@ class RingCheckTask(BaseTask):
                 # it below, and losing one lipid is a far smaller harm than failing the build.
                 # Protein and glycan rings have no such fallback, which is why they still raise.
                 logger.info(f'  {self._fmt(failed["piercee"])}: no rotation cleared the piercing '
-                            f'by {self._fmt(failed["piercer"])}; it will be resolved by deletion')
-                fixed_pdb = None
+                            f'by {self._fmt(failed["piercer"])}; falling through to the '
+                            f'`delete` setting')
             elif fixed_pdb is None:
                 self._report([failed], logger.error)
                 raise PestiferBuildError(
@@ -151,17 +151,31 @@ class RingCheckTask(BaseTask):
                     f'{self._fmt(failed["piercer"])} could not be cleared by rotation.  Suggested '
                     f'fix: manually rotate the side-chain dihedral (aromatic ring) or the glycan '
                     f'linkage (rigid ring) to un-thread it, or rebuild with more minimization.')
-            # a rotation changes coordinates only, not topology: keep the PSF, new PDB
-            self.next_basename('ring_check')
-            shutil.copy(fixed_pdb, f'{self.basename}.pdb')
-            # the winning pose is now the registered artifact; the per-candidate trial PDBs
-            # and VMD gen scripts/logs are scratch -- remove them so they don't litter the
-            # run directory (they are kept on the failure path above, for debugging)
-            self._cleanup_declash_scratch()
-            self.register(dict(psf=state.psf, pdb=PDBFileArtifact(self.basename), xsc=state.xsc),
-                          key='state', artifact_type=StateArtifacts)
-            state = self.get_current_artifact('state')
-            npiercings = run_check(state)
+            # Only when a pose was actually written.  `_resolve_by_rotation` returns
+            # `(None, failed)` on the first piercing it cannot clear, discarding the partial
+            # progress, and the lipid branch above deliberately continues from there -- so
+            # `fixed_pdb` is None exactly when nothing was written and the `delete` setting is
+            # about to decide what happens.  Copying it was `shutil.copy(None, ...)`:
+            #
+            #     TypeError: stat: path should be string, bytes, os.PathLike or integer,
+            #                not NoneType
+            #
+            # Latent since the lipid fallthrough was written, and unreachable until a rotation
+            # could fail: before the overlap-eligibility filter, the search accepted whatever
+            # pose cleared the ring however badly it clashed, so it effectively never failed.
+            # Tightening the filter made this path live on the first real build that used it.
+            if fixed_pdb is not None:
+                # a rotation changes coordinates only, not topology: keep the PSF, new PDB
+                self.next_basename('ring_check')
+                shutil.copy(fixed_pdb, f'{self.basename}.pdb')
+                # the winning pose is now the registered artifact; the per-candidate trial PDBs
+                # and VMD gen scripts/logs are scratch -- remove them so they don't litter the
+                # run directory (they are kept on the failure path above, for debugging)
+                self._cleanup_declash_scratch()
+                self.register(dict(psf=state.psf, pdb=PDBFileArtifact(self.basename),
+                                   xsc=state.xsc), key='state', artifact_type=StateArtifacts)
+                state = self.get_current_artifact('state')
+                npiercings = run_check(state)
 
         if not npiercings:
             self.result = 0
@@ -328,6 +342,10 @@ class RingCheckTask(BaseTask):
                 if checker.check_coords(coords, box, [target]):
                     continue  # still pierced
                 moved = np.where(np.abs(coords - base).max(axis=1) > 1e-3)[0]
+                # same eligibility rule as the two moves in `ring_resolve`: reject a rotamer
+                # that creates a steric overlap rather than ranking it as the least bad
+                if checker.clash_count(coords, moved, cutoff=HARD_OVERLAP, box=box):
+                    continue
                 clash = checker.clash_count(coords, moved, box=box)
                 if best is None or clash < best[0]:
                     best = (clash, cand, chi, deg)

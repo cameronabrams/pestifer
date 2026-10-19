@@ -25,8 +25,14 @@ import numpy as np
 from .psfring import ring_check, RingChecker
 from ..util.coord import rotate_points_about_axis, pdb_replace_coords
 from ..util.util import cell_from_xsc
+from ..util.contact_gate import DEFAULT_MIN_CONTACT as HARD_OVERLAP
 
 logger = logging.getLogger(__name__)
+
+#: Heavy-atom separation (A) a rotation may not CREATE.  Tied to the pre-flight steric
+#: gate's threshold: a pose inside it is refused before dynamics anyway, so accepting it
+#: only moves the failure later and loses the chance to try another hinge.  See
+#: `pestifer.util.contact_gate` for the measurements behind the number.
 
 # pendant rotations tried, in order, to pull a glycan piercing bond out of a rigid ring
 _PENDANT_DEGREES = [60, 120, 180, 240, 300, 90, 270]
@@ -88,6 +94,16 @@ def try_glycan_pendant(checker: RingChecker, working_pdb: str, base: np.ndarray,
                 scratch[prows] = rotate_points_about_axis(branch, pivot, axis, deg)
                 if checker.check_coords(scratch, box, [target]):
                     continue  # still pierced
+                # ELIGIBILITY BEFORE RANKING.  "Fewest clashes wins" is not the same as "few
+                # clashes": when every candidate is bad it keeps the least bad and hands it on.
+                # Measured on an example-17 patchB, the accepted poses scored 3, 3, 3, 4, 0, 2,
+                # 21 and 7 new contacts, and the structure went to dynamics with two heavy atoms
+                # 0.334 A apart.  A pose that puts a heavy-atom pair inside the steric-gate
+                # threshold is not a resolution -- the gate downstream refuses it anyway, so
+                # accepting it only moves the failure later and loses the chance to try another
+                # hinge.  Filter first, then rank the survivors by the softer count.
+                if checker.clash_count(scratch, prows, cutoff=HARD_OVERLAP, box=box):
+                    continue
                 clash = checker.clash_count(scratch, prows, box=box)
                 if best is None or clash < best[0]:
                     best = (clash, scratch.copy(), ax['i_ser'], ax['j_ser'], deg)
@@ -179,6 +195,10 @@ def try_sterol_spin(checker: RingChecker, working_pdb: str, base: np.ndarray, bo
         scratch[rows] = rotate_points_about_axis(pts, centroid, axis, deg)
         if checker.check_coords(scratch, box, [target]):
             continue  # still pierced
+        # same eligibility rule as `_search`: a spin that buries the sterol in a neighbour is
+        # not a resolution, and the steric gate refuses it downstream anyway
+        if checker.clash_count(scratch, rows, cutoff=HARD_OVERLAP, box=box):
+            continue
         clash = checker.clash_count(scratch, rows, box=box)
         if best is None or clash < best[0]:
             best = (clash, scratch.copy(), deg)

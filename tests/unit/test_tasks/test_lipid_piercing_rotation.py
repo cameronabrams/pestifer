@@ -87,17 +87,33 @@ class TestTheDispatchOrder(unittest.TestCase):
         self.assertIn('if cand is None', seg)
 
 
-class TestAnUnclearedLipidFallsBackToDeletion(unittest.TestCase):
+class TestAnUnclearedLipidFallsThroughToTheDeleteSetting(unittest.TestCase):
     """Deliberate asymmetry: a protein or glycan ring no rotation clears is still fatal, because
-    there is no fallback for it. A lipid has one, and losing a lipid beats failing the build --
-    so this change can only ever reduce deletions, never increase them."""
+    there is no fallback for it. A lipid has one -- whatever `delete` says."""
 
     def setUp(self):
         self.src = inspect.getsource(RingCheckTask.do)
 
-    def test_a_lipid_failure_is_not_fatal(self):
+    def test_a_lipid_failure_does_not_raise_at_that_point(self):
+        """The message used to promise "it will be resolved by deletion", which became a lie
+        when `delete` gained the default `none`: the build then STOPS there instead, and
+        announcing a deletion that will not happen is worse than saying nothing.  What the
+        branch must do is decline to raise and let the `delete` setting decide, so that is what
+        this asserts -- behaviour, not the sentence."""
         i = self.src.index("failed['piercee']['segtype'] == 'lipid'")
-        self.assertIn('resolved by deletion', self.src[i:i + 700])
+        branch = self.src[i:self.src.index('elif fixed_pdb is None', i)]
+        # strip comments first: the branch's own comment contains the word "raise" (explaining
+        # that protein and glycan rings still do), and a bare substring test matched it
+        code = '\n'.join(ln.split('#', 1)[0] for ln in branch.splitlines())
+        self.assertNotIn('raise', code, 'the lipid branch raises instead of falling through')
+        self.assertIn('logger.info', code, 'the lipid branch says nothing about what happened')
+
+    def test_the_copy_is_guarded_against_an_unwritten_pose(self):
+        """`_resolve_by_rotation` returns None when it clears nothing, and `shutil.copy(None,
+        ...)` raised `TypeError: stat: path should be string ... not NoneType`.  Latent until
+        the overlap filter made a rotation able to fail at all."""
+        i = self.src.index('shutil.copy(fixed_pdb')
+        self.assertIn('if fixed_pdb is not None', self.src[max(0, i - 1200):i])
 
     def test_a_nonlipid_failure_still_raises(self):
         i = self.src.index("failed['piercee']['segtype'] == 'lipid'")

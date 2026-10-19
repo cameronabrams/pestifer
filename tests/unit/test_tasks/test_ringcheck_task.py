@@ -343,10 +343,13 @@ class TestTrySidechain(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.addCleanup(os.chdir, self._cwd)
 
-    def _try(self, *, clears=(), clashes=None, written=None):
+    def _try(self, *, clears=(), clashes=None, written=None, overlaps=None):
         """``clears`` names the candidate files that un-thread the ring; ``clashes`` maps a
-        candidate to its new-clash count."""
+        candidate to its new-clash count at the RANKING cutoff (2.0 A); ``overlaps`` maps a
+        candidate to its count at the HARD cutoff (1.2 A), which is an eligibility filter --
+        anything with a hard contact is rejected outright rather than ranked."""
         clashes = clashes or {}
+        overlaps = overlaps or {}
         t = _task()
         self.written = []
 
@@ -370,10 +373,17 @@ class TestTrySidechain(unittest.TestCase):
         # check_coords returns truthy while still pierced
         checker.check_coords.side_effect = lambda coords, box, targets: (
             [] if self.loaded[-1] in clears else ['still pierced'])
-        # `box=` is keyword-only in practice but accepted positionally too; the stub takes
-        # **kw so a later signature change shows up as a real failure, not a TypeError here
-        checker.clash_count.side_effect = \
-            lambda coords, moved, **kw: clashes.get(self.loaded[-1], 0)
+        # CUTOFF-AWARE.  The resolver asks twice: once at the hard overlap threshold, as an
+        # eligibility filter, and once at the softer ranking cutoff.  A stub that answers both
+        # the same makes every candidate ineligible and the ranking tests fail for the wrong
+        # reason -- which is exactly what happened when the filter was added.
+        from pestifer.psfutil.ring_resolve import HARD_OVERLAP
+
+        def _clash(coords, moved, cutoff=2.0, **kw):
+            name = self.loaded[-1]
+            return overlaps.get(name, 0) if cutoff == HARD_OVERLAP else clashes.get(name, 0)
+
+        checker.clash_count.side_effect = _clash
 
         return t._try_sidechain(checker, 'in.psf', 'in.pdb', np.ones((3, 3)), None, None,
                                 'A', 42, 'TYR', ('A', 42), 'pfx')
@@ -400,6 +410,27 @@ class TestTrySidechain(unittest.TestCase):
                         clashes={'pfx-chi2_180.pdb': 5, 'pfx-chi2_120.pdb': 2,
                                  'pfx-chi2_240.pdb': 9})
         self.assertEqual(got, 'pfx-chi2_120.pdb')
+
+
+    def test_a_pose_that_creates_a_steric_overlap_is_rejected_not_ranked(self):
+        """"Fewest clashes wins" is not "few clashes": with no eligibility filter the resolver
+        kept the least bad pose and handed it on.  Measured on an example-17 patchB, accepted
+        rotations scored 3, 3, 3, 4, 0, 2, 21 and 7 new contacts and left two heavy atoms
+        0.334 A apart -- which the pre-flight steric gate then refused, after the chance to try
+        another hinge was gone."""
+        got = self._try(clears={'pfx-chi2_120.pdb', 'pfx-chi2_180.pdb'},
+                        clashes={'pfx-chi2_120.pdb': 2, 'pfx-chi2_180.pdb': 9},
+                        overlaps={'pfx-chi2_120.pdb': 1})
+        self.assertEqual(got, 'pfx-chi2_180.pdb',
+                         'the lower-ranked but overlap-free pose should win')
+
+    def test_all_poses_overlapping_means_no_resolution(self):
+        """Better to report that rotation could not clear it than to pass on a structure the
+        steric gate will refuse anyway."""
+        got = self._try(clears={'pfx-chi2_120.pdb'},
+                        clashes={'pfx-chi2_120.pdb': 0},
+                        overlaps={'pfx-chi2_120.pdb': 3})
+        self.assertIsNone(got)
 
     def test_the_search_continues_into_chi1_when_chi2_only_offers_clashy_poses(self):
         got = self._try(clears={'pfx-chi2_180.pdb', 'pfx-chi1_120.pdb'},
@@ -657,3 +688,46 @@ class TestResolveByRotationStrategy(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestAnUnresolvableLipidFallsThroughInsteadOfCrashing(_DoCase):
+    """`_resolve_by_rotation` returns `(None, failed)` on the first piercing it cannot clear,
+    discarding the partial progress, and the lipid branch deliberately continues from there to
+    let the `delete` setting decide.  The code then copied that `None`:
+
+        TypeError: stat: path should be string, bytes, os.PathLike or integer, not NoneType
+
+    Latent since the lipid fallthrough was written, and unreachable until a rotation could
+    actually fail.  Before the overlap-eligibility filter the search accepted whatever pose
+    cleared the ring however badly it clashed, so it effectively never failed; tightening the
+    filter made this path live and it killed the first real build that reached it -- patchB of
+    an example-17 run, `CHL1 L1-9` pierced by `SOPE L1-98`, seven of eight others resolved.
+    """
+
+    def _lipid(self):
+        return _piercing(_side('lipid', resname='CHL1', resid='9'),
+                         _side('lipid', resname='SOPE', resid='98'))
+
+    def test_delete_none_reports_and_stops_rather_than_crashing(self):
+        from pestifer.core.errors import PestiferBuildError
+        p = self._lipid()
+        with self.assertRaises(PestiferBuildError) as cm:
+            self._run([p], rotation_fails=p, delete='none')
+        msg = str(cm.exception)
+        self.assertIn('delete=none', msg)
+        self.assertNotIn('NoneType', msg, 'crashed instead of reporting')
+
+    def test_delete_piercee_reaches_the_deletion_path(self):
+        """The fallthrough the log message promises: with a delete setting, the lipid goes."""
+        self._run([self._lipid()], rotation_fails=self._lipid(), delete='piercee')
+        lines = [c.args[0] for c in self.scripter.addline.call_args_list]
+        self.assertTrue(any('delatom' in ln for ln in lines),
+                        f'no deletion was issued: {lines}')
+
+    def test_a_protein_piercing_that_no_rotation_clears_is_still_fatal(self):
+        """NEGATIVE CONTROL: the guard must not turn the protein/glycan raise into a
+        fallthrough -- those have no deletion remedy."""
+        from pestifer.core.errors import PestiferBuildError
+        p = _piercing(_side('protein', resname='PHE', resid='699'), _side('lipid'))
+        with self.assertRaises(PestiferBuildError):
+            self._run([p], rotation_fails=p, delete='piercee')
