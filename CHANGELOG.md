@@ -4,6 +4,64 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+3.29.0 made a ring piercing a build failure; this closes the three places that failure could
+still be reached without anything looking.  Found by auditing every shipped example for whether
+a `ring_check` sits between each unphysical displacement and the dynamics after it -- a question
+that is not the same as "would the new terminate gate refuse what we shipped before", which is
+what had been checked and which the audit's uniform zeros had made look sufficient.
+
+### Added
+
+- **`ligate` resolves the ring piercings a closed loop causes** (`ligate.check_piercings`,
+  default true). Closing a loop is an unphysical displacement: CCD drives backbone dihedrals to
+  meet a target and `steer` pulls termini together with a colvars bias, so both supply the energy
+  to cross a van der Waals barrier that free dynamics at a kT of about 0.6 cannot. And a
+  threading has no atomic clash, so the clash-filtered closure ensemble is blind to it -- the
+  same reason `psfgen` needs `resolve_tail_piercings` beside its declash.
+
+  Nine shipped examples (7-12, 14, 15, 18) run `ligate` and then `md` with nothing in between.
+  `LigateTask.resolve_loop_piercings` mirrors `PsfgenTask.resolve_tail_piercings`: same
+  `resolve_model_built_piercings` engine, same best-effort non-fatal contract. Put in the task
+  rather than in nine config files, so a tenth example using `ligate` gets it too; the pipeline
+  contract already requires a minimize after `ligate`, so the rotation is relaxed before any
+  dynamics. Serials are re-derived from the **post-connect** state, because `connect` patches
+  each junction through psfgen and rewrites the fileset.
+
+  This closes a mechanism rather than fixing an observed failure: the packages those nine
+  examples produced in the 3.22.1 sweep carry zero piercings, and since a piercing is
+  topological and survives every later stage, that is real evidence about those runs.
+
+  `cleave` and `merge` are deliberately not covered.
+
+### Fixed
+
+- **Example 16 had no `ring_check` anywhere, and it embeds a protein.**
+  `make_membrane_system._guard_piercings` has exactly one call site -- the relaxation protocol --
+  which runs *before* `embed_protein()`, so after the embed ex16's ladder was
+  `validate -> md: minimize -> md: NVT`: a minimize on a freshly embedded structure with nothing
+  on either side, which is the shape 3.29.0 is about. The only thing that would have noticed is
+  the terminate gate, hours later, with no indication of where the piercing was and nothing left
+  that could fix it. Example 17 has carried the post-embed ladder since 3.29.0; 16 now matches it.
+
+- **The pipeline contract rejected the very ladder the loop produces.** `_MOVES_ATOMS` treated
+  every `ring_check` as displacing atoms, but one with `resolve: false` only looks -- and a
+  verify-only pass is exactly what belongs immediately before dynamics. Example 16 hit this the
+  moment it got the post-embed ladder: unlike 17 it has no cold `rigidbonds none` prologue to
+  fall through the unconstrained-dynamics exemption, so the corrected build was refused before
+  execution. `_moves_atoms()` now makes membership in `_MOVES_ATOMS` necessary but not
+  sufficient, and a test asserts both shipped membrane examples validate.
+
+  The contract was right to fire and wrong about the reason; it caught the bad pipeline in 39 log
+  lines instead of seven hours.
+
+### Verified
+
+- **Example 16 built through its embed on this code**: `bilayer_embed` deleted 458 overlapping
+  lipids and 613 waters, and all three post-embed checks came back clean -- which is what a
+  working clash deletion predicts, since a bond cannot thread a ring without coming ~1.6 A from a
+  ring atom, far inside the 2.89 A deletion threshold. That count was **0 of 465** on example 17
+  before the index-space fix in 3.29.0.
+
 ## [3.29.0] - 2026-10-20
 
 A ring piercing -- a bond threaded through a ring -- is a topologically wrong molecule. Neither
