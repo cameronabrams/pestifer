@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.29.0] - 2026-10-20
+
 A ring piercing -- a bond threaded through a ring -- is a topologically wrong molecule. Neither
 minimization nor any amount of further dynamics puts the bond back on the right side, so the
 defect propagates through however many microseconds of production follow, whether or not the
