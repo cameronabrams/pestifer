@@ -71,12 +71,41 @@ tasks:
             measure: residue_count
             relation: '>='
             value: 1
+  # The embed is an unphysical displacement -- the protein is inserted into a relaxed
+  # bilayer -- so it is where a ring piercing is made, and the minimize below is where one
+  # gets cemented.  `make_membrane_system` guards its own relaxation protocols, but that
+  # runs BEFORE `embed_protein`; nothing inside the task looks afterwards.  Example 17
+  # carries the same ladder for the same reason.
+  #
+  # Embedding should not be able to produce a piercing at all: a bond cannot thread a ring
+  # without coming ~1.6 A from a ring atom, far inside the 2.89 A C...C threshold at which
+  # `bilayer_embed` deletes an overlapping lipid.  So if the first check here fires, it is a
+  # report about the clash deletion, not a thing to rotate away -- which is why a protein or
+  # glycan piercing at this point is fatal rather than resolved.
+  - ring_check:
+      segtypes: [lipid, glycan, protein]
   - md:
       ensemble: minimize
       minimize: 1000
       constraints:
         k: 10
         atoms: protein and name CA
+  - ring_check:
+      segtypes: [lipid, glycan, protein]
+  # A check that ROTATED owes a minimize: the pose is chosen for the fewest new heavy-atom
+  # clashes, which is not the same as few, and dynamics does not get to relax them gently --
+  # the first step sees them at full force.  Then that minimize owes a check, and the loop
+  # ends with a pass that may not itself move anything (`resolve: false`), because a rotation
+  # there would be exactly the unrelaxed rigid move this exists to prevent.
+  - md:
+      ensemble: minimize
+      minimize: 1000
+      constraints:
+        k: 10
+        atoms: protein and name CA
+  - ring_check:
+      segtypes: [lipid, glycan, protein]
+      resolve: false
   # --- post-embed equilibration ---
   # A brief warm pass fluidizes the lipids around the freshly-embedded protein; a
   # self-terminating membrane_equilibrate task then condenses out the embedding
