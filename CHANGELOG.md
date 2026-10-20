@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.29.1] - 2026-10-20
+
 3.29.0 made a ring piercing a build failure; this closes the three places that failure could
 still be reached without anything looking.  Found by auditing every shipped example for whether
 a `ring_check` sits between each unphysical displacement and the dynamics after it -- a question
