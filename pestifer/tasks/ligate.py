@@ -9,6 +9,7 @@ The resulting structure is then saved as a PSF/PDB files.
 Usage is described in the :ref:`subs_buildtasks_ligate` documentation.
 """
 import logging
+import shutil
 
 from pathlib import Path
 
@@ -79,10 +80,82 @@ class LigateTask(MDTask):
         logger.debug('Connecting loop C-termini to their partner N-termini')
         connect_specs = self.specs.get('connect', {})
         self.result = self.connect(connect_specs)
+        if self.result != 0:
+            return self.result
+        if self.specs.get('check_piercings', True):
+            self.resolve_loop_piercings()
         # Relaxation is intentionally left to an explicit downstream `minimize`/`md` task
-        # (the standard pattern is to follow `ligate` with one). The clash-filtered ensemble
+        # (the standard pattern is to follow `ligate` with one, and `pipeline_contract`
+        # REQUIRES one because `ligate` is in `_MOVES_ATOMS`). The clash-filtered ensemble
         # already hands off a closed, clash-free structure ready for that minimization.
         return self.result
+
+    def resolve_loop_piercings(self):
+        """Detect and clear any ring piercing caused by a model-built loop, by rotating the
+        offending loop sub-branch out of the ring.
+
+        Closing a loop is an **unphysical displacement**: CCD drives backbone dihedrals to meet
+        a target, and the `steer` method pulls termini together with a colvars bias.  Both put
+        in the energy needed to cross a van der Waals barrier, which free dynamics at a kT of
+        about 0.6 cannot -- so both can thread a bond through a ring, exactly as a minimizer or
+        a grid placement can.  The clash-filtered ensemble cannot see one: a threading has no
+        atomic clash, which is the whole difficulty.
+
+        Nothing looked before this.  Nine shipped examples (7-12, 14, 15, 18) run `ligate` and
+        then `md` with no check in between, and until the terminate gate landed nothing checked
+        the final structure either.  Scanning the packages those nine produced in the 3.22.1
+        sweep found zero piercings, so this is a mechanism being closed rather than an observed
+        failure being fixed -- but a piercing is topological and survives every later stage, so
+        a clean final structure is real evidence only about those runs.
+
+        Mirrors :meth:`PsfgenTask.resolve_tail_piercings`: same engine
+        (:func:`~pestifer.psfutil.ring_resolve.resolve_model_built_piercings`), same
+        best-effort, non-fatal contract, toggled with ``ligate.check_piercings``.  A piercing
+        no rotation clears is reported and left to a downstream ``ring_check``.
+
+        Serials are re-derived from the **post-connect** state, not from the pre-closure PDB:
+        ``connect`` patches each junction through psfgen, which rewrites the fileset, so a
+        serial captured earlier may name a different atom.  ``loop_atoms_from_pdb`` looks the
+        loop up by segname and resid, so it is stable across that rewrite.
+        """
+        from ..psfutil.loop_ccd import loop_atoms_from_pdb
+        from ..psfutil.ring_resolve import resolve_model_built_piercings
+
+        gaps = self.base_molecule.protein_loop_gaps()
+        if not gaps:
+            return
+        state: StateArtifacts = self.get_current_artifact('state')
+        loop_serials = set()
+        for gap in gaps:
+            try:
+                _o, _c, ser = loop_atoms_from_pdb(state.pdb.name, gap['loop_resids'],
+                                                  segname=gap['segname'])
+            except Exception as e:
+                logger.debug(f'ligate: could not locate loop {gap["segname"]} '
+                             f'{gap["loop_resids"][0]}-{gap["loop_resids"][-1]} in the '
+                             f'post-connect structure ({type(e).__name__}: {e})')
+                continue
+            loop_serials.update(ser)
+        if not loop_serials:
+            return
+        xsc = state.xsc.name if getattr(state, 'xsc', None) else None
+        self.next_basename('loop-piercing-check')
+        fixed_pdb, unresolved = resolve_model_built_piercings(
+            state.psf.name, state.pdb.name, xsc, self.basename, sorted(loop_serials),
+            segtypes=['protein', 'glycan'], mover_kind='loop')
+        if fixed_pdb is not None:
+            shutil.copy(fixed_pdb, f'{self.basename}.pdb')
+            self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf,
+                               xsc=getattr(state, 'xsc', None)),
+                          key='state', artifact_type=StateArtifacts)
+            logger.info(f'ligate: resolved loop ring-piercing(s) -> {self.basename}.pdb')
+        if unresolved:
+            logger.warning(f'{len(unresolved)} loop ring-piercing(s) could not be cleared by '
+                           f'rotation; add a ring_check task or re-close with a different seed:')
+            for p in unresolved:
+                ee, er = p['piercee'], p['piercer']
+                logger.warning(f'  ring of {ee.get("resname", "?")} {ee["segname"]}-{ee["resid"]} '
+                               f'pierced by a bond in loop {er["segname"]}-{er["resid"]}')
 
     def close_loops_ccd(self, ccd_specs: dict) -> int:
         """

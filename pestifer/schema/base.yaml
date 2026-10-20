@@ -896,6 +896,18 @@ attributes:
           text: |
             During a psfgen task, pestifer can be configured to "cap" the ends of interior gaps in protein backbones, or it can model-in the missing residues by growing them in from the C-terminus of the resolved protein before the gap.  Ligation refers to forming the bond between the C-terminus of the modeled-in residues and the first resolved residue after the gap.  By default this is done by cyclic coordinate descent (CCD), which adjusts the modeled loop's backbone dihedrals to close it onto the downstream anchor residue before the bond is patched in using the CHARMMFF LINK patch.  Steered MD ("steer") remains available as a legacy option.
         attributes:
+          - name: check_piercings
+            text: >-
+              if true (the default), scan for ring piercings caused by the closed loop and clear
+              each by rotating the offending loop sub-branch out of the ring.  Closing a loop is
+              an unphysical displacement -- CCD drives backbone dihedrals to meet a target, and
+              `steer` pulls termini together with a colvars bias -- so both put in the energy
+              needed to cross a van der Waals barrier, which free dynamics at a kT of ~0.6
+              cannot.  A threading has no atomic clash, so the clash-filtered closure ensemble
+              cannot see one.  Best-effort and non-fatal: a piercing no rotation clears is
+              reported, leaving a downstream `ring_check` to try again.
+            type: bool
+            default: True
           - name: steer
             text: Specifies parameters for steered MD to bring C-termini close to their connection points
             type: dict
