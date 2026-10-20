@@ -4,6 +4,86 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+A ring piercing -- a bond threaded through a ring -- is a topologically wrong molecule. Neither
+minimization nor any amount of further dynamics puts the bond back on the right side, so the
+defect propagates through however many microseconds of production follow, whether or not the
+integrator ever complains. This release treats one as a build failure rather than a crash risk,
+and closes the path by which example 17 was creating them: a clash test at embed that deleted
+nothing, and a rotation resolver that scored its own work wrongly and then left it unrelaxed.
+
+### Added
+
+- **`ring_check` looks at protein rings.** `segtypes` now defaults to
+  `[lipid, glycan, protein]`. Measured 2026-10-16: every replica of an example-17 arm carried
+  2-6 protein-lipid ring piercings at its post-embed hand-off -- CHL1 rings threaded by MPER
+  side chains, PHE rings threaded by acyl tails -- and `[lipid, glycan]`, which every shipped
+  example asked for, found **zero** of them.
+
+  The default carries `list_defaults: replace`, which is load-bearing: ycleptic *appends* a list
+  default to what the user wrote unless told otherwise, so without it `segtypes: [lipid]` would
+  resolve to `['lipid','glycan','protein','lipid']` and silently check three for someone who
+  asked for one. An explicitly empty list is now a hard error rather than a warning that
+  returned success.
+
+- **`TerminateTask` refuses to package a structure containing a piercing,** and names every one.
+  Nothing checked the final structure before this: three builds in that arm completed and were
+  packaged carrying piercings no stage had ever looked for.
+
+- **`ring_check.resolve`** (default true). False detects and reports only, and any piercing is
+  fatal. It is the terminator of the rotate-then-minimize loop -- see the first entry under
+  **Fixed** for why the last pass before dynamics must not be able to move anything.
+
+- **`charmmff.files`, `charmmff.replace_defaults`, `charmmff.searchpath` and
+  `charmmff.segtypes`** -- see the first entry under **Changed**.
+
+### Changed
+
+- **One flat `charmmff.files` list replaces `standard` / `custom` / `user_custom`.** The three
+  groups named a file's *provenance* where what a user needs to express is *intent*. "Add one
+  more stream from the CHARMM release" had to go in `charmmff.standard`, whose own docs said it
+  was "not expected to be modified by the user" (example 29 does exactly that for
+  `toppar_all36_lipid_sphingo.str`); "replace the default set" was not expressible at all. There
+  is now one list whose order is the load order, plus `charmmff.replace_defaults`:
+
+  ```yaml
+  charmmff:
+    searchpath: [~/my-cgenff]
+    files:
+      - toppar_all36_lipid_sphingo.str   # from the CHARMM release
+      - myligand.str                     # from ~/my-cgenff
+  ```
+
+  Release files and user files share the list — pestifer resolves each basename against the
+  release tree and the `searchpath` directories alike, so nobody has to classify their own file.
+  `user_custom.searchpath` and `user_custom.segtypes` become `charmmff.searchpath` and
+  `charmmff.segtypes`. The old groups still parse; their entries are folded into `files` with a
+  warning, so existing configs keep working.
+
+  **Why the default list is written in load order rather than grouped by extension.**
+  `CharmmParamFile.merge` is last-wins. Merging the shipped set in its real order versus "all
+  .prm, then all .str" changes exactly one record out of 46,527 —
+  `('NG2O1','CG2R61','CG2R61','NG2S3')` n=2, `Kchi` 1.25 → 3.1 — which is
+  `toppar_pestifer_conflict_resolutions.prm` deliberately overriding
+  `toppar_all36_carb_imlab.str`, annotated in the file as *"CGenFF v5.0 value, chosen over
+  imlab's analogy value"*. Tidying the list by extension silently reverts that arbitration.
+  `tests/unit/test_charmmff/test_fileset.py::TestParameterOrderIsLoadBearing` pins it, and the
+  resolved topology and parameter lists are pinned byte-for-byte against what the three groups
+  produced, so this changes the keywords and not the force field.
+
+- **`ring_check`'s `delete` default is now `none`, not `piercee`.** Deleting a lipid does remove
+  the piercing, but it silently changes the composition of the membrane being built -- the sterol
+  depletion of earlier arms. A build that cannot resolve a piercing should say so.
+
+- **Piercing checks are spliced after minimizations, not before dynamics stages.** A piercing is
+  made by an unphysical displacement -- initial placement, or a direct manipulation like an embed
+  or a dihedral rotation -- never by dynamics, which cannot push an atom through a ring against
+  tens of kcal/mol at a kT of about 0.6. A minimizer *can*: it has no kinetic energy to respect a
+  barrier with, and relieving a large overlap can complete a near-threading on the way down,
+  because the barrier is paid for out of the clash being relieved. Measured on an example-17
+  patchB, comparing the piercing *sets* rather than the counts (which say 9 -> 8 and hide both
+  halves): the opening minimize **cleared 3 and created 2**. Checking before each dynamics stage
+  bought nothing and paid a whole-system scan each time (ex17 patch 3 checks -> 1; quilt 4 -> 1).
+
 ### Fixed
 
 - **A ring_check that rotated handed its result straight to dynamics, unminimized.** Clearing a
@@ -44,41 +124,72 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   Costs one extra minimize per minimization stage: ~50 s for a patch, ~1 min for the quilt,
   against multi-hour builds.
 
-### Changed
+- **The protein/lipid clash test at embed was measuring the wrong atoms, and deleted nothing.**
+  `measure contacts R selA selB` returns two index lists, each in **its own molecule's** index
+  space. `overlapping_indices` read both from one molecule's coordinate arrays, so the vdW
+  refinement compared a bilayer atom against whatever bilayer atom happened to sit at the protein
+  atom's index. On a real example-17 embed:
 
-- **One flat `charmmff.files` list replaces `standard` / `custom` / `user_custom`.** The three
-  groups named a file's *provenance* where what a user needs to express is *intent*. "Add one
-  more stream from the CHARMM release" had to go in `charmmff.standard`, whose own docs said it
-  was "not expected to be modified by the user" (example 29 does exactly that for
-  `toppar_all36_lipid_sphingo.str`); "replace the default set" was not expressible at all. There
-  is now one list whose order is the load order, plus `charmmff.replace_defaults`:
-
-  ```yaml
-  charmmff:
-    searchpath: [~/my-cgenff]
-    files:
-      - toppar_all36_lipid_sphingo.str   # from the CHARMM release
-      - myligand.str                     # from ~/my-cgenff
+  ```
+  contact pairs within 3.6 A                      7963
+  lipids deleted, criterion computed correctly     465
+  lipids deleted, as shipped                         0
   ```
 
-  Release files and user files share the list — pestifer resolves each basename against the
-  release tree and the `searchpath` directories alike, so nobody has to classify their own file.
-  `user_custom.searchpath` and `user_custom.segtypes` become `charmmff.searchpath` and
-  `charmmff.segtypes`. The old groups still parse; their entries are folded into `files` with a
-  warning, so existing configs keep working.
+  The first pair is a lipid C218 and a protein OT2 **3.497 A** apart, computed as **62.873 A**
+  because index 1807 in the bilayer is a hydrogen 60 A away. It could not error: the protein's
+  2712 atoms index safely inside the bilayer's 119461, so every lookup succeeded and returned a
+  wrong number -- and the existing positive control checked only that the two *selections* were
+  non-empty, which they were. **This is where the ring piercings came from**: the protein was
+  inserted through 465 lipids it overlapped. `overlapping_indices` now takes both molids
+  explicitly, and its control is on the arithmetic rather than the inputs -- every pair `measure
+  contacts R` returns is within R by construction, so a computed distance above R means we are
+  not measuring the pair VMD gave us.
 
-  **Why the default list is written in load order rather than grouped by extension.**
-  `CharmmParamFile.merge` is last-wins. Merging the shipped set in its real order versus "all
-  .prm, then all .str" changes exactly one record out of 46,527 —
-  `('NG2O1','CG2R61','CG2R61','NG2S3')` n=2, `Kchi` 1.25 → 3.1 — which is
-  `toppar_pestifer_conflict_resolutions.prm` deliberately overriding
-  `toppar_all36_carb_imlab.str`, annotated in the file as *"CGenFF v5.0 value, chosen over
-  imlab's analogy value"*. Tidying the list by extension silently reverts that arbitration.
-  `tests/unit/test_charmmff/test_fileset.py::TestParameterOrderIsLoadBearing` pins it, and the
-  resolved topology and parameter lists are pinned byte-for-byte against what the three groups
-  produced, so this changes the keywords and not the force field.
+- **The rotation scorer was blind across periodic boundaries.** `RingChecker.clash_count` built
+  its KD-tree with no `boxsize`, so a rotation that swung a tail into a neighbor across a cell
+  face scored zero clashes while putting two heavy atoms on top of each other -- and the resolver
+  picked it. Measured on an example-17 patchB: a pair reported as "0 new heavy-atom clash(es)"
+  was **0.451 A** apart, 65.7 A in raw coordinates, which is what the scorer saw. All three call
+  sites now pass the cell, and `clash_count` accepts the 3x3 matrix every caller actually holds
+  (the first version of the fix passed it straight to `cKDTree` and died on `(15189,3)` against
+  `(3,3)`; the test that should have caught that used a bare 3-vector, a shape no caller uses).
 
-### Fixed
+- **The rotation search accepted "fewest new clashes" where it needed "few".** When every
+  candidate was bad it took the least bad: on that same patchB the accepted poses scored 3, 3, 3,
+  4, 0, 2, 21 and 7 new contacts and left two heavy atoms 0.334 A apart, which the pre-flight
+  steric gate then refused -- after the chance to try another hinge was gone. All three
+  acceptance sites (tail rotation, sterol spin, side-chain rotamer) now reject a pose that
+  creates a contact inside the gate's own threshold, imported from `contact_gate` so the two
+  cannot drift, and rank only the survivors.
+
+- **...and then rotation could genuinely fail, for the first time, onto `shutil.copy(None, ...)`.**
+  Latent since the lipid fall-through was written and unreachable while the search accepted
+  anything, it killed the first build that reached it.
+
+- **`ring_check` discarded every rotation it had already applied when one piercing resisted.**
+  `_resolve_by_rotation` returned on the first failure: on that patchB it threw away six resolved
+  piercings because the seventh would not clear, and reported "8 pierced-ring configurations"
+  when two were left. It now keeps partial progress, and `do()` iterates -- clearing one piercing
+  can create another, and a molecule can be threaded twice, which one rigid rotation about one
+  hinge cannot undo.
+
+- **A lipid ring pierced by a protein bond matched none of `_rotatable`'s cases,** so it fell
+  through to the lipid deletion path and `delete: piercee` removed the **cholesterol** while
+  leaving the side chain doing the threading exactly where it was. It now spins the sterol first
+  and disturbs the protein only if that fails -- move the model-built partner before the
+  deposited one.
+
+- **A protein or glycan piercing after an embed is now fatal, and says so.** For a bond to thread
+  a ring it must come ~1.6 A from a ring atom, far inside the 2.89 A C...C embed clash threshold,
+  so a working clash deletion makes one impossible. Rotating it away would hide the defect that
+  caused it.
+
+- **The terminate piercing gate raised the error class it was written to absorb.**
+  `get_current_artifact` reaches through `self.pipeline`, which a partially-constructed task does
+  not have; moving it inside the `try` then exposed the handler reporting with `self.taskname`,
+  which that task does not have either. The task name is now resolved once with `getattr` before
+  the try.
 
 - **`charmmff.user_custom.{rtf,str,prm}` loaded nothing.** The keys were declared in the schema,
   documented, and read by `citations.py` to decide whether to print a custom-force-field
@@ -104,13 +215,6 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   described as "tolerance for net charge neutralization", it appeared in no Python and no Tcl.
   Neutralization in `bilayer_embed.tcl` is `autoionize -neutralize`, which takes no tolerance.
 
-- **`tests/unit/test_core/test_no_dead_schema_keys.py` now sweeps for the whole class.** Every
-  leaf key in `base.yaml` must be named somewhere in `pestifer/*.py` or `pestifer/*.tcl`, with
-  an allowlist for the five `membrane_equilibrate.area_*` keys that `_params_for` composes at
-  run time as `f'{prefix}_{key}'`. Nothing else catches these: `yclept check-spec` checks that
-  declarations are well-formed, not that anything reads them; every example parses, because no
-  example uses the dead key; and the config reference generates a page for it either way.
-
 - **Generated solvent boxes and conformer collections silently omitted pestifer's own parameter
   corrections.** `make_solvent_box` and `make_pdb_collection` built their parameter lists as
   `standard.prm + standard.str`, which left out `toppar_pestifer_dihedral_fills.prm` and
@@ -119,6 +223,12 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   energy evaluation ran without the corrections. Both now derive from the same
   `fileset.parameters` the NAMD scripter uses.
 
+- **`tests/unit/test_core/test_no_dead_schema_keys.py` now sweeps for the whole class.** Every
+  leaf key in `base.yaml` must be named somewhere in `pestifer/*.py` or `pestifer/*.tcl`, with
+  an allowlist for the five `membrane_equilibrate.area_*` keys that `_params_for` composes at
+  run time as `f'{prefix}_{key}'`. Nothing else catches these: `yclept check-spec` checks that
+  declarations are well-formed, not that anything reads them; every example parses, because no
+  example uses the dead key; and the config reference generates a page for it either way.
 
 ## [3.28.1] - 2026-10-15
 
