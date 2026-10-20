@@ -163,6 +163,25 @@ def validate_pipeline(tasks):
 _MOVES_ATOMS = frozenset({'ring_check', 'cleave', 'ligate'})
 
 
+def _moves_atoms(task):
+    """True if *task* can displace atoms without integrating equations of motion.
+
+    Membership in :data:`_MOVES_ATOMS` is necessary but not sufficient: a ``ring_check`` with
+    ``resolve: false`` only looks.  That distinction matters because a verify-only pass is
+    exactly what belongs immediately before dynamics -- it is the terminator of the
+    rotate-then-minimize loop, and treating it as a mover makes the contract reject the one
+    arrangement the loop exists to produce.  Example 16 hit this: it has no cold
+    ``rigidbonds none`` prologue to fall through the exemption below, so its correct ladder
+    was refused before execution.
+    """
+    name = getattr(task, 'taskname', '')
+    if name not in _MOVES_ATOMS:
+        return False
+    if name == 'ring_check' and (task.specs or {}).get('resolve') is False:
+        return False
+    return True
+
+
 def _is_dynamics(task):
     """True for a task that integrates equations of motion (not a minimization)."""
     name = getattr(task, 'taskname', '')
@@ -201,7 +220,7 @@ def _check_unminimized_dynamics(tasks):
     moved_by = None
     for task in tasks:
         name = getattr(task, 'taskname', '')
-        if name in _MOVES_ATOMS:
+        if _moves_atoms(task):
             moved_by = task
             continue
         if _is_minimize(task):

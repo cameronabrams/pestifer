@@ -165,6 +165,42 @@ class TestUnminimizedDynamics(unittest.TestCase):
                 {'ring_check': {'segtypes': ['lipid']}},
                 {'membrane_equilibrate': {}}]))
 
+    def test_a_verify_only_ring_check_is_not_a_mover(self):
+        """`resolve: false` only looks, and a verify-only pass is exactly what belongs
+        immediately before dynamics -- it is the terminator of the rotate-then-minimize loop.
+        Treating every `ring_check` as a mover made the contract reject the one arrangement
+        the loop exists to produce: example 16's corrected post-embed ladder was refused
+        before execution, because unlike 17 it has no cold `rigidbonds none` prologue to fall
+        through the exemption."""
+        validate_pipeline(self._tasks([
+            {'continuation': {'psf': 'x.psf', 'pdb': 'x.pdb'}},
+            {'ring_check': {'segtypes': ['lipid']}},
+            {'md': {'ensemble': 'minimize'}},
+            {'ring_check': {'segtypes': ['lipid'], 'resolve': False}},
+            {'md': {'ensemble': 'NVT'}}]))
+
+    def test_a_resolving_ring_check_in_the_same_slot_is_still_rejected(self):
+        """The negative control for the test above: flip only `resolve` and the identical
+        ladder must go back to being refused, or that test proves nothing."""
+        with self.assertRaises(PestiferBuildError):
+            validate_pipeline(self._tasks([
+                {'continuation': {'psf': 'x.psf', 'pdb': 'x.pdb'}},
+                {'ring_check': {'segtypes': ['lipid']}},
+                {'md': {'ensemble': 'minimize'}},
+                {'ring_check': {'segtypes': ['lipid'], 'resolve': True}},
+                {'md': {'ensemble': 'NVT'}}]))
+
+    def test_the_shipped_membrane_examples_validate(self):
+        """Both membrane examples carry the post-embed loop; neither may be refused by the
+        contract that is meant to enforce it.  Example 16 was, which is how this was found."""
+        import glob, os, yaml, pestifer
+        root = os.path.join(os.path.dirname(pestifer.__file__), 'resources', 'examples')
+        for ex in ('16', '17'):
+            f = glob.glob(os.path.join(root, ex, 'inputs', '*.yaml'))[0]
+            tasks = (yaml.safe_load(open(f)) or {}).get('tasks', [])
+            with self.subTest(example=ex):
+                validate_pipeline(self._tasks(tasks))
+
     def test_each_mover_is_reported_once_not_once_per_following_stage(self):
         with self.assertRaises(PestiferBuildError) as cm:
             validate_pipeline(self._tasks([
