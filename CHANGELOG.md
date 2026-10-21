@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.29.3] - 2026-10-21
+
 ### Fixed
 
 - **The piercing marker was a regex character class, so a plain `grep` matched almost every
