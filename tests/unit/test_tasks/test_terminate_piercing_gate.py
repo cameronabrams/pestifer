@@ -134,9 +134,37 @@ class TestEveryRefusalCarriesTheMarker(unittest.TestCase):
     readout.  A check that cannot match is a check that silently did not run.
     """
 
-    def test_the_marker_is_distinctive(self):
+    def test_the_marker_is_regex_safe(self):
+        """The property, not the spelling.
+
+        The first marker was `[RING-PIERCING]`, which is a character CLASS matching any one of
+        `R I N G - P E C`.  On a real 94-line build log a plain `grep` for it matched **88
+        lines** -- the banner, the author's email address, nearly everything; only `grep -F`
+        was correct.  That is the exact mirror of the failure the marker was introduced to fix:
+        the old patterns could only return zero, and this one could only return non-zero.
+        Neither can fail.
+
+        A marker whose correctness depends on the consumer remembering a flag is not a marker.
+        """
+        import re
         from pestifer.psfutil.psfring import PIERCING_MARKER
-        self.assertEqual(PIERCING_MARKER, '[RING-PIERCING]')
+        self.assertEqual(re.escape(PIERCING_MARKER), PIERCING_MARKER,
+                         f'{PIERCING_MARKER!r} contains regex metacharacters, so a plain grep '
+                         f'or re.search for it does not mean what a reader will assume')
+
+    def test_the_marker_discriminates_on_real_message_text(self):
+        """Positive AND negative control, under plain-regex semantics: it must match a refusal
+        and must NOT match the clean-structure line or an ordinary log line."""
+        import re
+        from pestifer.psfutil.psfring import PIERCING_MARKER
+        refusal = (f'terminate: {PIERCING_MARKER} refusing to package a structure with '
+                   f'1 pierced ring(s):')
+        clean = 'terminate: final structure carries no pierced rings (lipid, glycan and protein all checked)'
+        banner = '      Pestifer v. 3.29.2        Cameron F. Abrams <cfa22@drexel.edu>'
+        self.assertRegex(refusal, PIERCING_MARKER)
+        for line in (clean, banner):
+            self.assertIsNone(re.search(PIERCING_MARKER, line),
+                              f'the marker matches a line that reports NO piercing: {line[:60]!r}')
 
     def test_every_fatal_piercing_message_carries_it(self):
         """Source-level, because these are four `raise` sites in two modules and the failure

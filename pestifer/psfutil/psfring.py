@@ -35,7 +35,19 @@ logger=logging.getLogger(__name__)
 #:
 #: Grep for this, not for prose.  It is deliberately ugly so it cannot occur by accident and
 #: cannot be reworded by someone improving a sentence.
-PIERCING_MARKER = '[RING-PIERCING]' 
+#:
+#: **And it contains no regex metacharacters, which is the second half of the lesson.**  The
+#: first version was ``[RING-PIERCING]``.  That is a character CLASS matching any one of
+#: ``R I N G - P E C``, so on a real build log a plain ``grep`` matched **88 of 94 lines** --
+#: the banner, the author's email address, nearly everything.  Only ``grep -F`` was correct.
+#:
+#: That is the exact mirror of the failure it was introduced to fix: the old patterns could
+#: only return zero, and the marker that replaced them could only return non-zero.  Neither
+#: can fail, and a check that cannot fail is not a check.  A marker whose correctness depends
+#: on the consumer remembering a flag is not a marker, so this one works under plain ``grep``,
+#: ``grep -E``, ``grep -F``, ``awk`` and :mod:`re` alike.  ``test_the_marker_is_regex_safe``
+#: pins that property rather than the spelling.
+PIERCING_MARKER = 'RING_PIERCING_FOUND' 
 
 
 class PSFRing(PSFTopoElement):
