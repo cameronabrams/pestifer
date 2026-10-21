@@ -238,7 +238,22 @@ class LigateTask(MDTask):
         # a downstream minimize resolves whatever mutual (non-threaded) clashes result. The one
         # thing minimize cannot undo is one loop's backbone threaded through another's, so a
         # post-pass detects loops whose backbones interpenetrate and RE-CLOSES those sequentially
-        # (each avoiding the ones before it). Deterministic: per-loop seed = base + index.
+        # (each avoiding the ones before it).
+        #
+        # **Per-loop seed = base + index, so this is deterministic GIVEN ITS INPUT -- which is
+        # not the same as a reproducible build, and the difference matters.** `ligate` is
+        # preceded by a minimize, and parallel NAMD is not bitwise reproducible: measured
+        # 2026-10-21, the same `.namd` on byte-identical input at +p24 twice gave two different
+        # `.coor` files. So CCD gets a different starting geometry every run and closes the
+        # loops differently, while the seed controls nothing a user can see.
+        #
+        # That is how example 11 came to pierce a ring in sweep replica 3 and not in 1 or 2:
+        # the three replicas differ only in `--seed`, which sets `namd.seed` and never reaches
+        # `ccd.seed` at all, so all three closed from the identical seed and still diverged.
+        # "Replica-specific" there is a draw, not a property of the seed.
+        #
+        # Do not read the word "deterministic" here as "rerunning reproduces the closure". It
+        # does not, and a rerun that comes back clean is evidence of nothing.
         n = len(gaps)
         results = [None] * n
         nworkers = max(1, min(n, (os.cpu_count() or 2)))

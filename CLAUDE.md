@@ -77,6 +77,7 @@ most of them self-inflicted (two more added since):
 | "0 unset coordinates" on a sugar, grepping the psfgen log for `AGALNA` | nothing. psfgen logs coordinate warnings under the residue's *PDB* name (`A2G`); the grep could not match, so the control without the fix also read 0. (2026-09-14) |
 | VMD selecting the right number of lipid atoms after regenerating `macros.tcl` | VMD's *built-in* `lipid` keyword. One hyphenated name made VMD reject pestifer's whole macro and fall back silently; the count was identical. Read the macro back with `atomselect macro lipid`. (2026-09-14) |
 | `sha256sum` on the artifacts a release should have written, diffed against a reference | nothing. The files did not exist, so `sha256sum` wrote its complaint to *stderr* and nothing to stdout -- the comparison was `"" = ""`, and it printed MATCH for three missing files in a row. (2026-10-01) |
+| a same-seed rerun of example 11 coming back with no ring piercing, "confirming" a fix | nothing. `ligate`'s CCD closure sits downstream of a minimize, and parallel NAMD is not bitwise reproducible: same `.namd`, byte-identical input, `+p24` twice gives two different `.coor` (measured 2026-10-21; `+p1` twice is identical). The rerun drew a different loop conformation that happened not to pierce. A controlled probe on the one structure was needed instead. (2026-10-21) |
 | `uv run --extra test pytest tests/unit -q` reporting "2353 passed, 0 failed", about twenty times in a week spent on the membrane builder | the 2367 tests that are **not** the membrane builds. Those five are `slow`, so they need `--runslow`; the clean-export gate that would otherwise run them hides VMD and NAMD on purpose. Two filters whose intersection is empty, and four real defects sat inside it. (2026-10-14) |
 
 **A hash is not evidence that anything was hashed.** The last row has a sibling worth knowing
@@ -462,6 +463,44 @@ move atoms, with a negative control that the default *does* reach the rotation p
 control was initially written as `assertRaises(Exception)` and passed against an
 `AttributeError` from an incomplete stub -- this file's own lesson, caught by the fact that the
 spy never fired.
+
+## "Deterministic" in a comment can be true of the algorithm and false of the build
+
+Found 2026-10-21, chasing why example 11 pierced a ring in sweep replica 3 and not in 1 or 2.
+`close_loops_ccd` carried the note *"Deterministic: per-loop seed = base + index."* That is
+true: `close_one_loop` seeds `np.random.default_rng(seed + i)` and is reproducible **given its
+input**. The build is not, because its input is not:
+
+| stage | across two runs of the same command |
+| :--- | :--- |
+| `00-01-000_psfgen-build.pdb` | identical |
+| `00-03-000_md-minimize.coor` -- the minimize feeding `ligate` | **differs** |
+
+Confirmed directly rather than inferred: the same `.namd` on byte-identical input, same binary,
+`+p24` twice gives two different `.coor`; `+p1` twice gives identical ones. So a single-threaded
+run is the only reproducible one, and that is the escape hatch if a loop-closure bug ever has to
+be bisected.
+
+Two things follow, and the second is the expensive one:
+
+- **`--seed` does not reach the loop closure at all.** It sets `namd.seed`; `ligate.ccd.seed` is
+  a separate key with its own default. All three sweep replicas of example 11 closed loops from
+  the identical seed and still diverged, so "replica-specific" there is a draw, not a property
+  of the seed. Anything reasoning about replicas as seed variants is wrong about this stage.
+
+- **A rerun is not a control here.** Having fixed the resolver, I reran example 11 at the same
+  seed, got a clean structure, and nearly reported it as proof. It was a different loop
+  conformation that happened not to pierce. What settled it was a controlled probe on the ONE
+  structure -- same geometry, same mover set, the resolver run on each side of `connect`:
+
+      PRE-connect  (loop still a pendant)   movers=332  CLEARED=True   unresolved=0
+      POST-connect (joined at both ends)    movers=331  CLEARED=False  unresolved=1
+
+  When the pipeline between you and the thing you changed is not reproducible, an end-to-end
+  rerun cannot be the evidence. Isolate the step.
+
+Do not read "deterministic" in this repository as "rerunning reproduces it" without checking
+what feeds the step.
 
 ## A schema key with no consumer passes every check pestifer has
 
