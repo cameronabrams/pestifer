@@ -1,4 +1,5 @@
 import unittest
+from unittest import mock
 from pathlib import Path
 
 import numpy as np
@@ -101,6 +102,105 @@ class TestLigateCCD(unittest.TestCase):
         placement = _loop_rmsd_to_native(built, native, loop=loop,
                                          anchors=[20, 21, 22, 23, 29, 30, 31, 32])
         self.assertLess(placement, 8.0, f"loop landed far outside the gap region: {placement:.2f} A")
+
+
+
+class TestLoopPiercingResolution(unittest.TestCase):
+    """Closing a loop is an unphysical displacement, so it owes a piercing check.
+
+    CCD drives backbone dihedrals to meet a target and `steer` pulls termini together with a
+    colvars bias; both supply the energy to cross a van der Waals barrier that free dynamics at
+    a kT of about 0.6 cannot.  And a threading has no atomic clash, so the clash-filtered
+    closure ensemble is blind to it -- the same reason psfgen needs `resolve_tail_piercings`
+    beside its declash.  Nine shipped examples run `ligate` and then `md` with nothing between.
+    """
+
+    def _task(self, **specs):
+        from pestifer.tasks.ligate import LigateTask
+        t = LigateTask.__new__(LigateTask)
+        t.taskname, t.basename, t.specs, t.outcome = 'ligate', 'test', dict(specs), {}
+        t.next_basename = mock.Mock()
+        t.register = mock.Mock()
+        state = mock.Mock()
+        state.psf.name, state.pdb.name = 'in.psf', 'in.pdb'
+        state.xsc = None
+        t.get_current_artifact = lambda k: state
+        t.base_molecule = mock.Mock()
+        t.base_molecule.protein_loop_gaps.return_value = [
+            {'segname': 'A', 'loop_resids': ['10', '11', '12']}]
+        t.get_current_artifact_data = lambda k: t.base_molecule
+        t.log_message = mock.Mock()
+        return t
+
+    def test_the_loop_serials_reach_the_engine(self):
+        t = self._task()
+        with mock.patch('pestifer.psfutil.loop_ccd.loop_atoms_from_pdb',
+                        return_value=(None, None, [7, 8, 9])), \
+             mock.patch('pestifer.psfutil.ring_resolve.resolve_model_built_piercings',
+                        return_value=(None, [])) as engine:
+            t.resolve_loop_piercings()
+        engine.assert_called_once()
+        self.assertEqual(engine.call_args.args[4], [7, 8, 9],
+                         'the closed loop was not handed to the resolver as the mover set')
+        self.assertEqual(engine.call_args.kwargs['mover_kind'], 'loop')
+
+    def test_serials_come_from_the_current_state_pdb(self):
+        t = self._task()
+        with mock.patch('pestifer.psfutil.loop_ccd.loop_atoms_from_pdb',
+                        return_value=(None, None, [1])) as lookup, \
+             mock.patch('pestifer.psfutil.ring_resolve.resolve_model_built_piercings',
+                        return_value=(None, [])):
+            t.resolve_loop_piercings()
+        self.assertEqual(lookup.call_args.args[0], 'in.pdb')
+
+    def test_check_piercings_false_skips_it(self):
+        from pestifer.tasks.ligate import LigateTask
+        t = self._task(check_piercings=False)
+        with mock.patch.object(LigateTask, 'resolve_loop_piercings') as r, \
+             mock.patch.object(LigateTask, 'connect', return_value=0), \
+             mock.patch.object(LigateTask, 'close_loops_ccd', return_value=0):
+            t.base_molecule.has_protein_loops = True
+            LigateTask.do(t)
+        r.assert_not_called()
+
+    def test_the_default_runs_it(self):
+        """Negative control for the test above, aimed at the CALL SITE: without this, a
+        `resolve_loop_piercings` never invoked from do() would satisfy it."""
+        from pestifer.tasks.ligate import LigateTask
+        t = self._task()
+        with mock.patch.object(LigateTask, 'resolve_loop_piercings') as r, \
+             mock.patch.object(LigateTask, 'connect', return_value=0), \
+             mock.patch.object(LigateTask, 'close_loops_ccd', return_value=0):
+            t.base_molecule.has_protein_loops = True
+            LigateTask.do(t)
+        r.assert_called_once()
+
+    def test_the_resolution_runs_BEFORE_connect(self):
+        """Ordering is the whole feature.
+
+        While the loop is unpatched its C-terminus is free, so the branch carrying a threading
+        bond is a small pendant on a backbone bridge -- rotatable.  `connect` joins the loop at
+        BOTH ends, and from then on a hinge inside it would swing the entire rest of the chain,
+        so `RingChecker.pendant_axes` skips every axis (`max_pendant` is 180 atoms).
+
+        Measured on example 11 seed 27021974 with the call placed after `connect` (as 3.29.1
+        shipped it): the resolver found `HSD D-53 <- ALA D-50`, logged "no rotatable loop hinge
+        found for ALA D-50", warned, and the build ran ~30 more minutes before `terminate`
+        refused to package it.  A resolver that cannot succeed is worse than none -- it reports
+        the problem in a voice that sounds like it handled it.
+        """
+        from pestifer.tasks.ligate import LigateTask
+        t = self._task()
+        calls = []
+        with mock.patch.object(LigateTask, 'resolve_loop_piercings',
+                               side_effect=lambda: calls.append('resolve')), \
+             mock.patch.object(LigateTask, 'connect',
+                               side_effect=lambda *a, **k: (calls.append('connect'), 0)[1]), \
+             mock.patch.object(LigateTask, 'close_loops_ccd', return_value=0):
+            t.base_molecule.has_protein_loops = True
+            LigateTask.do(t)
+        self.assertEqual(calls, ['resolve', 'connect'],
+                         'the piercing resolution must run while the loop is still a pendant')
 
 
 if __name__ == '__main__':

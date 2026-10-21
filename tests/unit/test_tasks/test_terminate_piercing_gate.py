@@ -123,3 +123,40 @@ class TestTheGateIsActuallyWiredIntoDo(unittest.TestCase):
             if later in src:
                 self.assertLess(gate, src.index(later),
                                 f'the gate runs after {later}')
+
+
+class TestEveryRefusalCarriesTheMarker(unittest.TestCase):
+    """One token, so a log consumer greps ONE string instead of knowing four phrasings.
+
+    The 3.29.1 sweep nearly lost its only real finding to this: the classifier was given two
+    of the message shapes, matched neither, and reported **0 piercing findings across 96
+    builds**.  The one real piercing surfaced only through a looser fallback grep in the same
+    readout.  A check that cannot match is a check that silently did not run.
+    """
+
+    def test_the_marker_is_distinctive(self):
+        from pestifer.psfutil.psfring import PIERCING_MARKER
+        self.assertEqual(PIERCING_MARKER, '[RING-PIERCING]')
+
+    def test_every_fatal_piercing_message_carries_it(self):
+        """Source-level, because these are four `raise` sites in two modules and the failure
+        mode is someone rewording one of them.  Matched on the f-string, not on prose."""
+        import re
+        from pathlib import Path
+        import pestifer
+        root = Path(pestifer.__file__).parent
+        sites = []
+        for rel in ('tasks/terminate.py', 'tasks/ringcheck.py'):
+            text = (root / rel).read_text()
+            # every PestiferBuildError whose message mentions a piercing
+            for m in re.finditer(r'raise PestiferBuildError\((.*?)\)\n', text, re.S):
+                body = m.group(1)
+                if re.search(r'pierc', body, re.I):
+                    sites.append((rel, body))
+        self.assertGreaterEqual(len(sites), 4,
+                                f'expected >=4 piercing raise sites, found {len(sites)} -- '
+                                f'this test has stopped finding them')
+        missing = [rel for rel, body in sites if 'PIERCING_MARKER' not in body]
+        self.assertEqual(missing, [],
+                         f'{len(missing)} piercing failure message(s) do not carry '
+                         f'PIERCING_MARKER, so a log scraper cannot find them: {missing}')

@@ -26,7 +26,7 @@ from .basetask import BaseTask
 from ..scripters import PsfgenScripter
 from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
-from ..psfutil.psfring import ring_check, RingChecker
+from ..psfutil.psfring import ring_check, RingChecker, PIERCING_MARKER
 from ..psfutil.ring_resolve import HARD_OVERLAP, try_glycan_pendant, try_sterol_spin
 from ..util.util import cell_from_xsc
 
@@ -149,7 +149,8 @@ class RingCheckTask(BaseTask):
             named = '; '.join(f'{self._fmt(p["piercee"])} pierced by {self._fmt(p["piercer"])}'
                               for p in npiercings)
             raise PestiferBuildError(
-                f'{len(npiercings)} ring piercing(s) survived the rotate-and-minimize loop: '
+                f'{PIERCING_MARKER} {len(npiercings)} ring piercing(s) survived the '
+                f'rotate-and-minimize loop: '
                 f'{named}.  This is the verification pass that runs with `resolve: false` after '
                 f'the loop, so these were not cleared by two rounds of rotation followed by a '
                 f'minimize.  A doubly-threaded molecule is the usual cause -- one rigid rotation '
@@ -231,7 +232,8 @@ class RingCheckTask(BaseTask):
             named = '; '.join(f'{self._fmt(p["piercee"])} pierced by {self._fmt(p["piercer"])}'
                               for p in fatal)
             raise PestiferBuildError(
-                f'{len(fatal)} ring piercing(s) involving protein or glycan: {named}.  A bond '
+                f'{PIERCING_MARKER} {len(fatal)} ring piercing(s) involving protein or glycan: '
+                f'{named}.  A bond '
                 f'cannot thread a ring without coming ~1.6 A from a ring atom, far inside the '
                 f'embed clash threshold (2.89 A for C...C), so a working protein/glycan clash '
                 f'deletion makes this impossible -- check that `bilayer_embed` is actually '
@@ -247,7 +249,7 @@ class RingCheckTask(BaseTask):
         if delete_these == "none":
             self._report(other_piercings, logger.error)
             raise PestiferBuildError(
-                f'{len(other_piercings)} pierced-ring configuration{ess} found; '
+                f'{PIERCING_MARKER} {len(other_piercings)} pierced-ring configuration{ess} found; '
                 f'ring_check is configured with delete=none — resolve these manually or change the delete setting'
             )
         # Collect the residues to delete.  A lipid tail threaded through a sterol ring

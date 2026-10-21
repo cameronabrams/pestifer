@@ -23,6 +23,20 @@ from ..util.util import countTime, cell_from_xsc
 
 logger=logging.getLogger(__name__)
 
+#: A single token carried by EVERY message that reports a ring piercing as a build failure.
+#:
+#: There are five distinct phrasings -- terminate's refusal, the ``delete: none`` stop, the
+#: verify-pass survival, the protein/glycan-after-embed case -- and a consumer scraping build
+#: logs had to know all of them.  On the 3.29.1 sweep it knew two: the classifier matched
+#: nothing, a `grep` for findings reported **0 across 96 builds**, and the one real piercing
+#: surfaced only through a looser fallback grep in the same readout.  A check that cannot
+#: match is a check that silently did not run, which is this repository's recurring failure
+#: wearing an operational costume.
+#:
+#: Grep for this, not for prose.  It is deliberately ugly so it cannot occur by accident and
+#: cannot be reworded by someone improving a sentence.
+PIERCING_MARKER = '[RING-PIERCING]' 
+
 
 class PSFRing(PSFTopoElement):
     """

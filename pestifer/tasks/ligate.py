@@ -77,13 +77,23 @@ class LigateTask(MDTask):
             self.result = self.close_loops_ccd(self.specs.get('ccd', {}))
         if self.result != 0:
             return self.result
+        # BEFORE `connect`, and that ordering is the whole thing.  While the loop is still
+        # unpatched its C-terminus is free, so the branch carrying a threading bond is a small
+        # pendant hanging off a backbone bridge -- rotatable.  `connect` joins the loop at BOTH
+        # ends, and from then on any hinge inside it would swing the entire rest of the chain,
+        # so `pendant_axes` skips every axis (`max_pendant` is 180 atoms) and reports "no
+        # rotatable loop hinge found".  Measured on example 11 seed 27021974: with the call
+        # placed after `connect` the resolver detected `HSD D-53 <- ALA D-50`, could not clear
+        # it, warned, and the build ran ~30 more minutes before `terminate` refused to package
+        # it.  A resolver that cannot succeed is worse than none: it reports the problem in a
+        # voice that sounds like it handled it.
+        if self.specs.get('check_piercings', True):
+            self.resolve_loop_piercings()
         logger.debug('Connecting loop C-termini to their partner N-termini')
         connect_specs = self.specs.get('connect', {})
         self.result = self.connect(connect_specs)
         if self.result != 0:
             return self.result
-        if self.specs.get('check_piercings', True):
-            self.resolve_loop_piercings()
         # Relaxation is intentionally left to an explicit downstream `minimize`/`md` task
         # (the standard pattern is to follow `ligate` with one, and `pipeline_contract`
         # REQUIRES one because `ligate` is in `_MOVES_ATOMS`). The clash-filtered ensemble
@@ -113,10 +123,16 @@ class LigateTask(MDTask):
         best-effort, non-fatal contract, toggled with ``ligate.check_piercings``.  A piercing
         no rotation clears is reported and left to a downstream ``ring_check``.
 
-        Serials are re-derived from the **post-connect** state, not from the pre-closure PDB:
-        ``connect`` patches each junction through psfgen, which rewrites the fileset, so a
-        serial captured earlier may name a different atom.  ``loop_atoms_from_pdb`` looks the
-        loop up by segname and resid, so it is stable across that rewrite.
+        **Runs before ``connect``, while the loop is still a pendant.**  An unpatched modeled
+        loop has a free C-terminus, so the branch carrying a threading bond hangs off a
+        backbone bridge and can be swung out.  Once ``connect`` patches the loop to its
+        downstream anchor the loop is joined at both ends, and a hinge inside it would carry
+        the whole rest of the chain -- :meth:`RingChecker.pendant_axes` skips any branch over
+        ``max_pendant`` (180) atoms, so every axis is rejected and nothing can be resolved.
+
+        Serials are read from the current state PDB rather than captured earlier, because the
+        closure itself rewrites coordinates; ``loop_atoms_from_pdb`` looks the loop up by
+        segname and resid, so it does not depend on serial numbering being stable.
         """
         from ..psfutil.loop_ccd import loop_atoms_from_pdb
         from ..psfutil.ring_resolve import resolve_model_built_piercings

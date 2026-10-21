@@ -120,7 +120,7 @@ class TerminateTask(MDTask):
         is logged and the package proceeds.  This gate exists to stop wrong chemistry shipping,
         not to become a new way for a finished build to be thrown away.
         """
-        from ..psfutil.psfring import ring_check
+        from ..psfutil.psfring import ring_check, PIERCING_MARKER
         # Resolved up front, and defensively: a partially-constructed task has no `taskname`
         # either, so reaching for one INSIDE the handler makes the handler raise the same class
         # of error it was written to absorb.  That is what happened on the first attempt -- the
@@ -154,7 +154,7 @@ class TerminateTask(MDTask):
             lines.append(f"  {pe.get('segname')} {pe.get('resname')} {pe.get('resid')} ring "
                          f"<- {pr.get('segname')} {pr.get('resname')} {pr.get('resid')} bond")
         raise PestiferBuildError(
-            f'{who}: refusing to package a structure with '
+            f'{who}: {PIERCING_MARKER} refusing to package a structure with '
             f'{len(piercings)} pierced ring(s):\n' + '\n'.join(lines) +
             '\nA threaded ring is a topologically wrong molecule that no further dynamics can '
             'undo, so this system would carry the defect through the whole production run. '
