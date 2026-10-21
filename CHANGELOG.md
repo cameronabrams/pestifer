@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.29.2] - 2026-10-21
+
 3.29.1's `ligate` piercing resolver ran on the wrong side of `connect`, where it can essentially
 never succeed. The 3.29.1 sweep found it on its first outing.
 
