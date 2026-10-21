@@ -4,6 +4,57 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+3.29.1's `ligate` piercing resolver ran on the wrong side of `connect`, where it can essentially
+never succeed. The 3.29.1 sweep found it on its first outing.
+
+### Fixed
+
+- **`ligate` resolved loop piercings after `connect`, where no hinge exists.**
+  `RingChecker.pendant_axes` rotates about a graph *bridge* and skips any moving branch over
+  `max_pendant` (180) atoms. While a modeled loop is unpatched its C-terminus is free, so the
+  branch carrying a threading bond is a small pendant -- rotatable. `connect` joins the loop at
+  **both** ends, and from then on a hinge inside it would swing the entire rest of the chain, so
+  every axis is rejected and the resolver reports `no rotatable loop hinge found`.
+
+  Controlled, on the one structure, same mover set, only the side of `connect` differing:
+
+  ```
+  PRE-connect  (loop still a pendant)   movers=332  CLEARED=True   unresolved=0
+  POST-connect (joined at both ends)    movers=331  CLEARED=False  unresolved=1
+  ```
+
+  This was worse than having no resolver: on example 11 it detected the piercing, warned, and
+  the build ran ~30 more minutes of MD before `terminate` refused the package. Found by the
+  3.29.1 sweep (ex11/rep-03, `D HSD 53 ring <- D ALA 50 bond`), and reproduced locally.
+
+- **The `ligate` tests, which 3.29.1 shipped without.** A `git checkout tests/unit/test_tasks/`
+  run to discard generated fixture churn reverted the new test class in that directory, and the
+  commit went out without it. Restored, plus `test_the_resolution_runs_BEFORE_connect`, which
+  fails against exactly the arrangement 3.29.1 shipped.
+
+### Added
+
+- **One greppable marker on every piercing refusal.** `PIERCING_MARKER` (`[RING-PIERCING]`)
+  now appears in all four fatal piercing messages. There are four distinct phrasings; a log
+  consumer given two of them matched nothing and reported **0 piercing findings across 96
+  builds** on the 3.29.1 sweep, and the one real piercing surfaced only through a looser
+  fallback grep. A check that cannot match is a check that silently did not run. Grep for the
+  marker, not for prose; a test fails if a message is reworded without it.
+
+### Changed
+
+- **`close_loops_ccd`'s "Deterministic" note now says what it does and does not promise.** The
+  per-loop seed makes CCD reproducible *given its input*, but `ligate` follows a minimize and
+  parallel NAMD is not bitwise reproducible: measured 2026-10-21, the same `.namd` on
+  byte-identical input at `+p24` twice gives two different `.coor`, while `+p1` twice gives
+  identical ones. So the loop closes differently every run and the seed controls nothing a user
+  can see.
+
+  Two consequences worth knowing: `--seed` sets `namd.seed` and **never reaches
+  `ligate.ccd.seed`**, so sweep replicas close loops from the identical seed and diverge anyway
+  -- "replica-specific" at this stage is a draw, not a seed property. And a same-seed rerun is
+  not a control for anything upstream of a parallel minimize; isolate the step instead.
+
 ## [3.29.1] - 2026-10-20
 
 3.29.0 made a ring piercing a build failure; this closes the three places that failure could
