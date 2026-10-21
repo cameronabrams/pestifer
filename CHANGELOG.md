@@ -4,6 +4,26 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Fixed
+
+- **The piercing marker was a regex character class, so a plain `grep` matched almost every
+  line.** `[RING-PIERCING]` matches any one of `R I N G - P E C`. On a real 94-line build log a
+  plain `grep` for it matched **88 lines** -- the banner, the author's email address, nearly
+  everything; only `grep -F` was correct.
+
+  That is the exact mirror of the failure the marker was introduced to fix two releases ago. The
+  3.29.1 sweep's classifier used patterns that could only return zero; the marker that replaced
+  them could only return non-zero. Neither can fail, and a check that cannot fail is not a check.
+
+  The marker is now `RING_PIERCING_FOUND` -- word characters only, so plain `grep`, `grep -E`,
+  `grep -F` and `awk` all agree. A marker whose correctness depends on the consumer remembering
+  a flag is not a marker, so the test pins the *property*, `re.escape(M) == M`, rather than the
+  spelling, with a negative control requiring it not to match the "carries no pierced rings"
+  line.
+
+  **Anything scraping 3.29.1 or 3.29.2 build logs for piercings must use `grep -F`.** From
+  3.29.3 the flag no longer matters.
+
 ## [3.29.2] - 2026-10-21
 
 3.29.1's `ligate` piercing resolver ran on the wrong side of `connect`, where it can essentially
