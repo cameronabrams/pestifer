@@ -109,7 +109,7 @@ attributes:
             reading of an explicit request, but worth knowing you have it.
 
             Deprecated: ``standard``, ``custom`` and ``user_custom``
-            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
             These three groups named a file's *provenance* where what a user needed to
             express was *intent*, and are retained only so existing configs keep working.

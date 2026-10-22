@@ -1,0 +1,7144 @@
+{
+"source": "pestifer 3.29.3 sweep, example 17 replica 1, Controller 01 Task 06 minimize output (the state the failing ring_check read); \"after\" is the 3.29.5 resolver result, confirmed un-threaded by an independent segment-plane / ray-cast test.",
+"atoms": [
+{
+"serial": 20665,
+"resid": 196,
+"resname": "SOPS",
+"name": "N",
+"heavy": true,
+"before": [
+106.824,
+81.912,
+25.511
+],
+"after": [
+106.824,
+81.912,
+25.511
+]
+},
+{
+"serial": 20666,
+"resid": 196,
+"resname": "SOPS",
+"name": "HN1",
+"heavy": false,
+"before": [
+105.853,
+81.891,
+25.883
+],
+"after": [
+105.853,
+81.891,
+25.883
+]
+},
+{
+"serial": 20667,
+"resid": 196,
+"resname": "SOPS",
+"name": "HN2",
+"heavy": false,
+"before": [
+106.871,
+82.508,
+24.661
+],
+"after": [
+106.871,
+82.508,
+24.661
+]
+},
+{
+"serial": 20668,
+"resid": 196,
+"resname": "SOPS",
+"name": "HN3",
+"heavy": false,
+"before": [
+107.171,
+80.959,
+25.281
+],
+"after": [
+107.171,
+80.959,
+25.281
+]
+},
+{
+"serial": 20669,
+"resid": 196,
+"resname": "SOPS",
+"name": "C12",
+"heavy": true,
+"before": [
+107.713,
+82.557,
+26.529
+],
+"after": [
+107.713,
+82.557,
+26.529
+]
+},
+{
+"serial": 20670,
+"resid": 196,
+"resname": "SOPS",
+"name": "H12A",
+"heavy": false,
+"before": [
+107.732,
+81.92,
+27.401
+],
+"after": [
+107.732,
+81.92,
+27.401
+]
+},
+{
+"serial": 20671,
+"resid": 196,
+"resname": "SOPS",
+"name": "C13",
+"heavy": true,
+"before": [
+109.167,
+82.739,
+26.051
+],
+"after": [
+109.167,
+82.739,
+26.051
+]
+},
+{
+"serial": 20672,
+"resid": 196,
+"resname": "SOPS",
+"name": "O13A",
+"heavy": true,
+"before": [
+109.494,
+82.261,
+24.932
+],
+"after": [
+109.494,
+82.261,
+24.932
+]
+},
+{
+"serial": 20673,
+"resid": 196,
+"resname": "SOPS",
+"name": "O13B",
+"heavy": true,
+"before": [
+109.965,
+83.358,
+26.803
+],
+"after": [
+109.965,
+83.358,
+26.803
+]
+},
+{
+"serial": 20674,
+"resid": 196,
+"resname": "SOPS",
+"name": "C11",
+"heavy": true,
+"before": [
+107.121,
+83.937,
+26.919
+],
+"after": [
+107.121,
+83.937,
+26.919
+]
+},
+{
+"serial": 20675,
+"resid": 196,
+"resname": "SOPS",
+"name": "H11A",
+"heavy": false,
+"before": [
+107.31,
+84.665,
+26.102
+],
+"after": [
+107.31,
+84.665,
+26.102
+]
+},
+{
+"serial": 20676,
+"resid": 196,
+"resname": "SOPS",
+"name": "H11B",
+"heavy": false,
+"before": [
+107.668,
+84.31,
+27.812
+],
+"after": [
+107.668,
+84.31,
+27.812
+]
+},
+{
+"serial": 20677,
+"resid": 196,
+"resname": "SOPS",
+"name": "P",
+"heavy": true,
+"before": [
+104.572,
+84.466,
+26.409
+],
+"after": [
+104.572,
+84.466,
+26.409
+]
+},
+{
+"serial": 20678,
+"resid": 196,
+"resname": "SOPS",
+"name": "O13",
+"heavy": true,
+"before": [
+103.628,
+83.366,
+26.104
+],
+"after": [
+103.628,
+83.366,
+26.104
+]
+},
+{
+"serial": 20679,
+"resid": 196,
+"resname": "SOPS",
+"name": "O14",
+"heavy": true,
+"before": [
+105.153,
+85.141,
+25.229
+],
+"after": [
+105.153,
+85.141,
+25.229
+]
+},
+{
+"serial": 20680,
+"resid": 196,
+"resname": "SOPS",
+"name": "O12",
+"heavy": true,
+"before": [
+105.742,
+83.81,
+27.248
+],
+"after": [
+105.742,
+83.81,
+27.248
+]
+},
+{
+"serial": 20681,
+"resid": 196,
+"resname": "SOPS",
+"name": "O11",
+"heavy": true,
+"before": [
+104.045,
+85.537,
+27.471
+],
+"after": [
+104.045,
+85.537,
+27.471
+]
+},
+{
+"serial": 20682,
+"resid": 196,
+"resname": "SOPS",
+"name": "C1",
+"heavy": true,
+"before": [
+104.908,
+86.576,
+27.973
+],
+"after": [
+104.908,
+86.576,
+27.973
+]
+},
+{
+"serial": 20683,
+"resid": 196,
+"resname": "SOPS",
+"name": "HA",
+"heavy": false,
+"before": [
+104.541,
+87.547,
+27.579
+],
+"after": [
+104.541,
+87.547,
+27.579
+]
+},
+{
+"serial": 20684,
+"resid": 196,
+"resname": "SOPS",
+"name": "HB",
+"heavy": false,
+"before": [
+105.963,
+86.449,
+27.648
+],
+"after": [
+105.963,
+86.449,
+27.648
+]
+},
+{
+"serial": 20685,
+"resid": 196,
+"resname": "SOPS",
+"name": "C2",
+"heavy": true,
+"before": [
+104.946,
+86.69,
+29.533
+],
+"after": [
+104.946,
+86.69,
+29.533
+]
+},
+{
+"serial": 20686,
+"resid": 196,
+"resname": "SOPS",
+"name": "HS",
+"heavy": false,
+"before": [
+103.922,
+86.912,
+29.903
+],
+"after": [
+103.922,
+86.912,
+29.903
+]
+},
+{
+"serial": 20687,
+"resid": 196,
+"resname": "SOPS",
+"name": "O21",
+"heavy": true,
+"before": [
+105.875,
+87.702,
+29.953
+],
+"after": [
+105.875,
+87.702,
+29.953
+]
+},
+{
+"serial": 20688,
+"resid": 196,
+"resname": "SOPS",
+"name": "C21",
+"heavy": true,
+"before": [
+105.431,
+88.94,
+29.951
+],
+"after": [
+105.431,
+88.94,
+29.951
+]
+},
+{
+"serial": 20689,
+"resid": 196,
+"resname": "SOPS",
+"name": "O22",
+"heavy": true,
+"before": [
+104.349,
+89.323,
+29.546
+],
+"after": [
+104.349,
+89.323,
+29.546
+]
+},
+{
+"serial": 20690,
+"resid": 196,
+"resname": "SOPS",
+"name": "C22",
+"heavy": true,
+"before": [
+106.541,
+89.854,
+30.49
+],
+"after": [
+106.541,
+89.854,
+30.49
+]
+},
+{
+"serial": 20691,
+"resid": 196,
+"resname": "SOPS",
+"name": "H2R",
+"heavy": false,
+"before": [
+106.565,
+90.732,
+29.809
+],
+"after": [
+106.565,
+90.732,
+29.809
+]
+},
+{
+"serial": 20692,
+"resid": 196,
+"resname": "SOPS",
+"name": "H2S",
+"heavy": false,
+"before": [
+107.517,
+89.328,
+30.411
+],
+"after": [
+107.517,
+89.328,
+30.411
+]
+},
+{
+"serial": 20693,
+"resid": 196,
+"resname": "SOPS",
+"name": "C3",
+"heavy": true,
+"before": [
+105.423,
+85.404,
+30.233
+],
+"after": [
+105.423,
+85.404,
+30.233
+]
+},
+{
+"serial": 20694,
+"resid": 196,
+"resname": "SOPS",
+"name": "HX",
+"heavy": false,
+"before": [
+106.531,
+85.356,
+30.163
+],
+"after": [
+106.531,
+85.356,
+30.163
+]
+},
+{
+"serial": 20695,
+"resid": 196,
+"resname": "SOPS",
+"name": "HY",
+"heavy": false,
+"before": [
+105.041,
+84.515,
+29.686
+],
+"after": [
+105.041,
+84.515,
+29.686
+]
+},
+{
+"serial": 20696,
+"resid": 196,
+"resname": "SOPS",
+"name": "O31",
+"heavy": true,
+"before": [
+104.98,
+85.435,
+31.609
+],
+"after": [
+104.98,
+85.435,
+31.609
+]
+},
+{
+"serial": 20697,
+"resid": 196,
+"resname": "SOPS",
+"name": "C31",
+"heavy": true,
+"before": [
+105.483,
+84.464,
+32.333
+],
+"after": [
+105.483,
+84.464,
+32.333
+]
+},
+{
+"serial": 20698,
+"resid": 196,
+"resname": "SOPS",
+"name": "O32",
+"heavy": true,
+"before": [
+106.102,
+83.503,
+31.913
+],
+"after": [
+106.102,
+83.503,
+31.913
+]
+},
+{
+"serial": 20699,
+"resid": 196,
+"resname": "SOPS",
+"name": "C32",
+"heavy": true,
+"before": [
+105.153,
+84.702,
+33.79
+],
+"after": [
+105.153,
+84.702,
+33.79
+]
+},
+{
+"serial": 20700,
+"resid": 196,
+"resname": "SOPS",
+"name": "H2X",
+"heavy": false,
+"before": [
+104.046,
+84.682,
+33.884
+],
+"after": [
+104.046,
+84.682,
+33.884
+]
+},
+{
+"serial": 20701,
+"resid": 196,
+"resname": "SOPS",
+"name": "H2Y",
+"heavy": false,
+"before": [
+105.429,
+85.744,
+34.059
+],
+"after": [
+105.429,
+85.744,
+34.059
+]
+},
+{
+"serial": 20702,
+"resid": 196,
+"resname": "SOPS",
+"name": "C23",
+"heavy": true,
+"before": [
+106.3,
+90.342,
+31.943
+],
+"after": [
+106.3,
+90.342,
+31.943
+]
+},
+{
+"serial": 20703,
+"resid": 196,
+"resname": "SOPS",
+"name": "H3R",
+"heavy": false,
+"before": [
+105.223,
+90.563,
+32.104
+],
+"after": [
+105.223,
+90.563,
+32.104
+]
+},
+{
+"serial": 20704,
+"resid": 196,
+"resname": "SOPS",
+"name": "H3S",
+"heavy": false,
+"before": [
+106.875,
+91.28,
+32.099
+],
+"after": [
+106.875,
+91.28,
+32.099
+]
+},
+{
+"serial": 20705,
+"resid": 196,
+"resname": "SOPS",
+"name": "C24",
+"heavy": true,
+"before": [
+106.789,
+89.33,
+32.982
+],
+"after": [
+106.789,
+89.33,
+32.982
+]
+},
+{
+"serial": 20706,
+"resid": 196,
+"resname": "SOPS",
+"name": "H4R",
+"heavy": false,
+"before": [
+106.271,
+88.366,
+32.789
+],
+"after": [
+106.271,
+88.366,
+32.789
+]
+},
+{
+"serial": 20707,
+"resid": 196,
+"resname": "SOPS",
+"name": "H4S",
+"heavy": false,
+"before": [
+107.871,
+89.161,
+32.793
+],
+"after": [
+107.871,
+89.161,
+32.793
+]
+},
+{
+"serial": 20708,
+"resid": 196,
+"resname": "SOPS",
+"name": "C25",
+"heavy": true,
+"before": [
+106.596,
+89.735,
+34.466
+],
+"after": [
+106.596,
+89.735,
+34.466
+]
+},
+{
+"serial": 20709,
+"resid": 196,
+"resname": "SOPS",
+"name": "H5R",
+"heavy": false,
+"before": [
+106.137,
+90.744,
+34.542
+],
+"after": [
+106.137,
+90.744,
+34.542
+]
+},
+{
+"serial": 20710,
+"resid": 196,
+"resname": "SOPS",
+"name": "H5S",
+"heavy": false,
+"before": [
+105.894,
+88.997,
+34.909
+],
+"after": [
+105.894,
+88.997,
+34.909
+]
+},
+{
+"serial": 20711,
+"resid": 196,
+"resname": "SOPS",
+"name": "C26",
+"heavy": true,
+"before": [
+107.931,
+89.681,
+35.228
+],
+"after": [
+107.931,
+89.681,
+35.228
+]
+},
+{
+"serial": 20712,
+"resid": 196,
+"resname": "SOPS",
+"name": "H6R",
+"heavy": false,
+"before": [
+108.284,
+88.665,
+34.947
+],
+"after": [
+108.284,
+88.665,
+34.947
+]
+},
+{
+"serial": 20713,
+"resid": 196,
+"resname": "SOPS",
+"name": "H6S",
+"heavy": false,
+"before": [
+108.676,
+90.389,
+34.806
+],
+"after": [
+108.676,
+90.389,
+34.806
+]
+},
+{
+"serial": 20714,
+"resid": 196,
+"resname": "SOPS",
+"name": "C27",
+"heavy": true,
+"before": [
+107.983,
+89.674,
+36.774
+],
+"after": [
+107.983,
+89.674,
+36.774
+]
+},
+{
+"serial": 20715,
+"resid": 196,
+"resname": "SOPS",
+"name": "H7R",
+"heavy": false,
+"before": [
+107.995,
+90.72,
+37.151
+],
+"after": [
+107.995,
+90.72,
+37.151
+]
+},
+{
+"serial": 20716,
+"resid": 196,
+"resname": "SOPS",
+"name": "H7S",
+"heavy": false,
+"before": [
+107.074,
+89.19,
+37.192
+],
+"after": [
+107.074,
+89.19,
+37.192
+]
+},
+{
+"serial": 20717,
+"resid": 196,
+"resname": "SOPS",
+"name": "C28",
+"heavy": true,
+"before": [
+109.271,
+88.9,
+37.194
+],
+"after": [
+109.271,
+88.9,
+37.194
+]
+},
+{
+"serial": 20718,
+"resid": 196,
+"resname": "SOPS",
+"name": "H8R",
+"heavy": false,
+"before": [
+109.43,
+88.027,
+36.525
+],
+"after": [
+109.43,
+88.027,
+36.525
+]
+},
+{
+"serial": 20719,
+"resid": 196,
+"resname": "SOPS",
+"name": "H8S",
+"heavy": false,
+"before": [
+110.117,
+89.533,
+36.85
+],
+"after": [
+110.117,
+89.533,
+36.85
+]
+},
+{
+"serial": 20720,
+"resid": 196,
+"resname": "SOPS",
+"name": "C29",
+"heavy": true,
+"before": [
+109.745,
+88.5,
+38.551
+],
+"after": [
+109.745,
+88.5,
+38.551
+]
+},
+{
+"serial": 20721,
+"resid": 196,
+"resname": "SOPS",
+"name": "H91",
+"heavy": false,
+"before": [
+110.714,
+87.983,
+38.491
+],
+"after": [
+109.025,
+88.807,
+39.324
+]
+},
+{
+"serial": 20722,
+"resid": 196,
+"resname": "SOPS",
+"name": "C210",
+"heavy": true,
+"before": [
+109.297,
+88.814,
+39.781
+],
+"after": [
+110.76,
+87.708,
+38.944
+]
+},
+{
+"serial": 20723,
+"resid": 196,
+"resname": "SOPS",
+"name": "H101",
+"heavy": false,
+"before": [
+108.409,
+89.449,
+39.921
+],
+"after": [
+111.441,
+87.247,
+38.213
+]
+},
+{
+"serial": 20724,
+"resid": 196,
+"resname": "SOPS",
+"name": "C211",
+"heavy": true,
+"before": [
+110.305,
+88.679,
+40.875
+],
+"after": [
+110.611,
+87.118,
+40.308
+]
+},
+{
+"serial": 20725,
+"resid": 196,
+"resname": "SOPS",
+"name": "H11R",
+"heavy": false,
+"before": [
+110.831,
+89.657,
+40.928
+],
+"after": [
+110.055,
+86.165,
+40.17
+]
+},
+{
+"serial": 20726,
+"resid": 196,
+"resname": "SOPS",
+"name": "H11S",
+"heavy": false,
+"before": [
+111.126,
+88.056,
+40.46
+],
+"after": [
+109.822,
+87.714,
+40.815
+]
+},
+{
+"serial": 20727,
+"resid": 196,
+"resname": "SOPS",
+"name": "C212",
+"heavy": true,
+"before": [
+110.093,
+88.374,
+42.363
+],
+"after": [
+111.692,
+86.69,
+41.308
+]
+},
+{
+"serial": 20728,
+"resid": 196,
+"resname": "SOPS",
+"name": "H12R",
+"heavy": false,
+"before": [
+109.718,
+87.345,
+42.549
+],
+"after": [
+112.274,
+87.544,
+41.715
+]
+},
+{
+"serial": 20729,
+"resid": 196,
+"resname": "SOPS",
+"name": "H12S",
+"heavy": false,
+"before": [
+109.351,
+89.072,
+42.806
+],
+"after": [
+112.421,
+86.002,
+40.829
+]
+},
+{
+"serial": 20730,
+"resid": 196,
+"resname": "SOPS",
+"name": "C213",
+"heavy": true,
+"before": [
+111.465,
+88.561,
+43.041
+],
+"after": [
+110.956,
+85.965,
+42.453
+]
+},
+{
+"serial": 20731,
+"resid": 196,
+"resname": "SOPS",
+"name": "H13R",
+"heavy": false,
+"before": [
+111.362,
+89.252,
+43.904
+],
+"after": [
+111.42,
+84.97,
+42.622
+]
+},
+{
+"serial": 20732,
+"resid": 196,
+"resname": "SOPS",
+"name": "H13S",
+"heavy": false,
+"before": [
+112.179,
+89.049,
+42.344
+],
+"after": [
+109.901,
+85.766,
+42.172
+]
+},
+{
+"serial": 20733,
+"resid": 196,
+"resname": "SOPS",
+"name": "C214",
+"heavy": true,
+"before": [
+112.068,
+87.206,
+43.469
+],
+"after": [
+110.953,
+86.814,
+43.743
+]
+},
+{
+"serial": 20734,
+"resid": 196,
+"resname": "SOPS",
+"name": "H14R",
+"heavy": false,
+"before": [
+111.263,
+86.794,
+44.115
+],
+"after": [
+112.039,
+86.989,
+43.901
+]
+},
+{
+"serial": 20735,
+"resid": 196,
+"resname": "SOPS",
+"name": "H14S",
+"heavy": false,
+"before": [
+112.889,
+87.486,
+44.162
+],
+"after": [
+110.651,
+86.096,
+44.534
+]
+},
+{
+"serial": 20736,
+"resid": 196,
+"resname": "SOPS",
+"name": "C215",
+"heavy": true,
+"before": [
+112.621,
+86.397,
+42.221
+],
+"after": [
+109.929,
+88.021,
+43.64
+]
+},
+{
+"serial": 20737,
+"resid": 196,
+"resname": "SOPS",
+"name": "H15R",
+"heavy": false,
+"before": [
+113.599,
+86.819,
+42.539
+],
+"after": [
+109.26,
+87.338,
+44.208
+]
+},
+{
+"serial": 20738,
+"resid": 196,
+"resname": "SOPS",
+"name": "H15S",
+"heavy": false,
+"before": [
+112.157,
+87.002,
+41.413
+],
+"after": [
+109.729,
+87.976,
+42.548
+]
+},
+{
+"serial": 20739,
+"resid": 196,
+"resname": "SOPS",
+"name": "C216",
+"heavy": true,
+"before": [
+113.071,
+83.702,
+41.371
+],
+"after": [
+109.537,
+90.667,
+44.658
+]
+},
+{
+"serial": 20740,
+"resid": 196,
+"resname": "SOPS",
+"name": "H16R",
+"heavy": false,
+"before": [
+112.217,
+83.244,
+40.827
+],
+"after": [
+109.983,
+91.469,
+44.032
+]
+},
+{
+"serial": 20741,
+"resid": 196,
+"resname": "SOPS",
+"name": "H16S",
+"heavy": false,
+"before": [
+112.995,
+82.962,
+42.197
+],
+"after": [
+110.201,
+90.91,
+45.516
+]
+},
+{
+"serial": 20742,
+"resid": 196,
+"resname": "SOPS",
+"name": "C217",
+"heavy": true,
+"before": [
+114.257,
+82.947,
+40.643
+],
+"after": [
+108.299,
+91.466,
+45.235
+]
+},
+{
+"serial": 20743,
+"resid": 196,
+"resname": "SOPS",
+"name": "H17R",
+"heavy": false,
+"before": [
+115.268,
+83.287,
+40.953
+],
+"after": [
+107.613,
+90.851,
+45.857
+]
+},
+{
+"serial": 20744,
+"resid": 196,
+"resname": "SOPS",
+"name": "H17S",
+"heavy": false,
+"before": [
+114.332,
+82.012,
+41.237
+],
+"after": [
+108.741,
+91.964,
+46.123
+]
+},
+{
+"serial": 20745,
+"resid": 196,
+"resname": "SOPS",
+"name": "C218",
+"heavy": true,
+"before": [
+114.405,
+82.429,
+39.198
+],
+"after": [
+107.434,
+92.589,
+44.628
+]
+},
+{
+"serial": 20746,
+"resid": 196,
+"resname": "SOPS",
+"name": "H18R",
+"heavy": false,
+"before": [
+115.278,
+82.88,
+38.68
+],
+"after": [
+106.361,
+92.307,
+44.574
+]
+},
+{
+"serial": 20747,
+"resid": 196,
+"resname": "SOPS",
+"name": "H18S",
+"heavy": false,
+"before": [
+113.505,
+82.539,
+38.556
+],
+"after": [
+107.762,
+92.961,
+43.634
+]
+},
+{
+"serial": 20748,
+"resid": 196,
+"resname": "SOPS",
+"name": "H18T",
+"heavy": false,
+"before": [
+114.723,
+81.365,
+39.163
+],
+"after": [
+107.341,
+93.463,
+45.308
+]
+},
+{
+"serial": 20749,
+"resid": 196,
+"resname": "SOPS",
+"name": "C33",
+"heavy": true,
+"before": [
+105.868,
+83.613,
+34.647
+],
+"after": [
+105.868,
+83.613,
+34.647
+]
+},
+{
+"serial": 20750,
+"resid": 196,
+"resname": "SOPS",
+"name": "H3X",
+"heavy": false,
+"before": [
+106.974,
+83.591,
+34.551
+],
+"after": [
+106.974,
+83.591,
+34.551
+]
+},
+{
+"serial": 20751,
+"resid": 196,
+"resname": "SOPS",
+"name": "H3Y",
+"heavy": false,
+"before": [
+105.626,
+82.628,
+34.192
+],
+"after": [
+105.626,
+82.628,
+34.192
+]
+},
+{
+"serial": 20752,
+"resid": 196,
+"resname": "SOPS",
+"name": "C34",
+"heavy": true,
+"before": [
+105.427,
+83.577,
+36.117
+],
+"after": [
+105.427,
+83.577,
+36.117
+]
+},
+{
+"serial": 20753,
+"resid": 196,
+"resname": "SOPS",
+"name": "H4X",
+"heavy": false,
+"before": [
+105.018,
+82.551,
+36.242
+],
+"after": [
+105.018,
+82.551,
+36.242
+]
+},
+{
+"serial": 20754,
+"resid": 196,
+"resname": "SOPS",
+"name": "H4Y",
+"heavy": false,
+"before": [
+104.636,
+84.335,
+36.304
+],
+"after": [
+104.636,
+84.335,
+36.304
+]
+},
+{
+"serial": 20755,
+"resid": 196,
+"resname": "SOPS",
+"name": "C35",
+"heavy": true,
+"before": [
+106.414,
+83.657,
+37.204
+],
+"after": [
+106.414,
+83.657,
+37.204
+]
+},
+{
+"serial": 20756,
+"resid": 196,
+"resname": "SOPS",
+"name": "H5X",
+"heavy": false,
+"before": [
+106.033,
+84.246,
+38.065
+],
+"after": [
+106.033,
+84.246,
+38.065
+]
+},
+{
+"serial": 20757,
+"resid": 196,
+"resname": "SOPS",
+"name": "H5Y",
+"heavy": false,
+"before": [
+107.212,
+84.187,
+36.642
+],
+"after": [
+107.212,
+84.187,
+36.642
+]
+},
+{
+"serial": 20758,
+"resid": 196,
+"resname": "SOPS",
+"name": "C36",
+"heavy": true,
+"before": [
+107.092,
+82.376,
+37.6
+],
+"after": [
+107.092,
+82.376,
+37.6
+]
+},
+{
+"serial": 20759,
+"resid": 196,
+"resname": "SOPS",
+"name": "H6X",
+"heavy": false,
+"before": [
+106.915,
+81.649,
+36.78
+],
+"after": [
+106.915,
+81.649,
+36.78
+]
+},
+{
+"serial": 20760,
+"resid": 196,
+"resname": "SOPS",
+"name": "H6Y",
+"heavy": false,
+"before": [
+106.682,
+81.958,
+38.544
+],
+"after": [
+106.682,
+81.958,
+38.544
+]
+},
+{
+"serial": 20761,
+"resid": 196,
+"resname": "SOPS",
+"name": "C37",
+"heavy": true,
+"before": [
+108.571,
+82.705,
+37.741
+],
+"after": [
+108.571,
+82.705,
+37.741
+]
+},
+{
+"serial": 20762,
+"resid": 196,
+"resname": "SOPS",
+"name": "H7X",
+"heavy": false,
+"before": [
+108.937,
+83.358,
+36.921
+],
+"after": [
+108.937,
+83.358,
+36.921
+]
+},
+{
+"serial": 20763,
+"resid": 196,
+"resname": "SOPS",
+"name": "H7Y",
+"heavy": false,
+"before": [
+109.194,
+81.786,
+37.719
+],
+"after": [
+109.194,
+81.786,
+37.719
+]
+},
+{
+"serial": 20764,
+"resid": 196,
+"resname": "SOPS",
+"name": "C38",
+"heavy": true,
+"before": [
+108.698,
+83.401,
+39.057
+],
+"after": [
+108.698,
+83.401,
+39.057
+]
+},
+{
+"serial": 20765,
+"resid": 196,
+"resname": "SOPS",
+"name": "H8X",
+"heavy": false,
+"before": [
+107.692,
+83.826,
+39.263
+],
+"after": [
+107.692,
+83.826,
+39.263
+]
+},
+{
+"serial": 20766,
+"resid": 196,
+"resname": "SOPS",
+"name": "H8Y",
+"heavy": false,
+"before": [
+109.368,
+84.287,
+39.072
+],
+"after": [
+109.368,
+84.287,
+39.072
+]
+},
+{
+"serial": 20767,
+"resid": 196,
+"resname": "SOPS",
+"name": "C39",
+"heavy": true,
+"before": [
+108.962,
+82.424,
+40.165
+],
+"after": [
+108.962,
+82.424,
+40.165
+]
+},
+{
+"serial": 20768,
+"resid": 196,
+"resname": "SOPS",
+"name": "H9X",
+"heavy": false,
+"before": [
+110.051,
+82.265,
+40.316
+],
+"after": [
+110.051,
+82.265,
+40.316
+]
+},
+{
+"serial": 20769,
+"resid": 196,
+"resname": "SOPS",
+"name": "H9Y",
+"heavy": false,
+"before": [
+108.504,
+81.439,
+39.936
+],
+"after": [
+108.504,
+81.439,
+39.936
+]
+},
+{
+"serial": 20770,
+"resid": 196,
+"resname": "SOPS",
+"name": "C310",
+"heavy": true,
+"before": [
+108.33,
+82.999,
+41.4
+],
+"after": [
+108.33,
+82.999,
+41.4
+]
+},
+{
+"serial": 20771,
+"resid": 196,
+"resname": "SOPS",
+"name": "H10X",
+"heavy": false,
+"before": [
+107.257,
+83.244,
+41.25
+],
+"after": [
+107.257,
+83.244,
+41.25
+]
+},
+{
+"serial": 20772,
+"resid": 196,
+"resname": "SOPS",
+"name": "H10Y",
+"heavy": false,
+"before": [
+108.822,
+83.957,
+41.671
+],
+"after": [
+108.822,
+83.957,
+41.671
+]
+},
+{
+"serial": 20773,
+"resid": 196,
+"resname": "SOPS",
+"name": "C311",
+"heavy": true,
+"before": [
+108.473,
+82.049,
+42.529
+],
+"after": [
+108.473,
+82.049,
+42.529
+]
+},
+{
+"serial": 20774,
+"resid": 196,
+"resname": "SOPS",
+"name": "H11X",
+"heavy": false,
+"before": [
+109.339,
+81.367,
+42.389
+],
+"after": [
+109.339,
+81.367,
+42.389
+]
+},
+{
+"serial": 20775,
+"resid": 196,
+"resname": "SOPS",
+"name": "H11Y",
+"heavy": false,
+"before": [
+107.549,
+81.433,
+42.559
+],
+"after": [
+107.549,
+81.433,
+42.559
+]
+},
+{
+"serial": 20776,
+"resid": 196,
+"resname": "SOPS",
+"name": "C312",
+"heavy": true,
+"before": [
+108.667,
+82.866,
+43.779
+],
+"after": [
+108.667,
+82.866,
+43.779
+]
+},
+{
+"serial": 20777,
+"resid": 196,
+"resname": "SOPS",
+"name": "H12X",
+"heavy": false,
+"before": [
+108.548,
+83.964,
+43.652
+],
+"after": [
+108.548,
+83.964,
+43.652
+]
+},
+{
+"serial": 20778,
+"resid": 196,
+"resname": "SOPS",
+"name": "H12Y",
+"heavy": false,
+"before": [
+109.703,
+82.675,
+44.13
+],
+"after": [
+109.703,
+82.675,
+44.13
+]
+},
+{
+"serial": 20779,
+"resid": 196,
+"resname": "SOPS",
+"name": "C313",
+"heavy": true,
+"before": [
+107.647,
+82.408,
+44.776
+],
+"after": [
+107.647,
+82.408,
+44.776
+]
+},
+{
+"serial": 20780,
+"resid": 196,
+"resname": "SOPS",
+"name": "H13X",
+"heavy": false,
+"before": [
+107.65,
+81.303,
+44.658
+],
+"after": [
+107.65,
+81.303,
+44.658
+]
+},
+{
+"serial": 20781,
+"resid": 196,
+"resname": "SOPS",
+"name": "H13Y",
+"heavy": false,
+"before": [
+106.617,
+82.766,
+44.567
+],
+"after": [
+106.617,
+82.766,
+44.567
+]
+},
+{
+"serial": 20782,
+"resid": 196,
+"resname": "SOPS",
+"name": "C314",
+"heavy": true,
+"before": [
+108.137,
+82.777,
+46.139
+],
+"after": [
+108.137,
+82.777,
+46.139
+]
+},
+{
+"serial": 20783,
+"resid": 196,
+"resname": "SOPS",
+"name": "H14X",
+"heavy": false,
+"before": [
+107.669,
+83.728,
+46.472
+],
+"after": [
+107.669,
+83.728,
+46.472
+]
+},
+{
+"serial": 20784,
+"resid": 196,
+"resname": "SOPS",
+"name": "H14Y",
+"heavy": false,
+"before": [
+109.235,
+82.935,
+46.068
+],
+"after": [
+109.235,
+82.935,
+46.068
+]
+},
+{
+"serial": 20785,
+"resid": 196,
+"resname": "SOPS",
+"name": "C315",
+"heavy": true,
+"before": [
+107.934,
+81.665,
+47.13
+],
+"after": [
+107.934,
+81.665,
+47.13
+]
+},
+{
+"serial": 20786,
+"resid": 196,
+"resname": "SOPS",
+"name": "H15X",
+"heavy": false,
+"before": [
+108.927,
+81.216,
+47.347
+],
+"after": [
+108.927,
+81.216,
+47.347
+]
+},
+{
+"serial": 20787,
+"resid": 196,
+"resname": "SOPS",
+"name": "H15Y",
+"heavy": false,
+"before": [
+107.317,
+80.846,
+46.704
+],
+"after": [
+107.317,
+80.846,
+46.704
+]
+},
+{
+"serial": 20788,
+"resid": 196,
+"resname": "SOPS",
+"name": "C316",
+"heavy": true,
+"before": [
+107.218,
+82.131,
+48.366
+],
+"after": [
+107.218,
+82.131,
+48.366
+]
+},
+{
+"serial": 20789,
+"resid": 196,
+"resname": "SOPS",
+"name": "H16X",
+"heavy": false,
+"before": [
+106.179,
+82.433,
+48.114
+],
+"after": [
+106.179,
+82.433,
+48.114
+]
+},
+{
+"serial": 20790,
+"resid": 196,
+"resname": "SOPS",
+"name": "H16Y",
+"heavy": false,
+"before": [
+107.722,
+83.018,
+48.804
+],
+"after": [
+107.722,
+83.018,
+48.804
+]
+},
+{
+"serial": 20791,
+"resid": 196,
+"resname": "SOPS",
+"name": "C317",
+"heavy": true,
+"before": [
+107.241,
+81.026,
+49.381
+],
+"after": [
+107.241,
+81.026,
+49.381
+]
+},
+{
+"serial": 20792,
+"resid": 196,
+"resname": "SOPS",
+"name": "H17X",
+"heavy": false,
+"before": [
+108.209,
+80.488,
+49.301
+],
+"after": [
+108.209,
+80.488,
+49.301
+]
+},
+{
+"serial": 20793,
+"resid": 196,
+"resname": "SOPS",
+"name": "H17Y",
+"heavy": false,
+"before": [
+106.581,
+80.206,
+49.026
+],
+"after": [
+106.581,
+80.206,
+49.026
+]
+},
+{
+"serial": 20794,
+"resid": 196,
+"resname": "SOPS",
+"name": "C318",
+"heavy": true,
+"before": [
+106.965,
+81.558,
+50.785
+],
+"after": [
+106.965,
+81.558,
+50.785
+]
+},
+{
+"serial": 20795,
+"resid": 196,
+"resname": "SOPS",
+"name": "H18X",
+"heavy": false,
+"before": [
+107.017,
+80.751,
+51.547
+],
+"after": [
+107.017,
+80.751,
+51.547
+]
+},
+{
+"serial": 20796,
+"resid": 196,
+"resname": "SOPS",
+"name": "H18Y",
+"heavy": false,
+"before": [
+105.975,
+82.06,
+50.835
+],
+"after": [
+105.975,
+82.06,
+50.835
+]
+},
+{
+"serial": 20797,
+"resid": 196,
+"resname": "SOPS",
+"name": "H18Z",
+"heavy": false,
+"before": [
+107.694,
+82.357,
+51.044
+],
+"after": [
+107.694,
+82.357,
+51.044
+]
+},
+{
+"serial": 20798,
+"resid": 197,
+"resname": "CHL1",
+"name": "C3",
+"heavy": true,
+"before": [
+114.351,
+83.47,
+33.039
+],
+"after": [
+112.707,
+83.009,
+31.998
+]
+},
+{
+"serial": 20799,
+"resid": 197,
+"resname": "CHL1",
+"name": "H3",
+"heavy": false,
+"before": [
+114.252,
+82.364,
+33.082
+],
+"after": [
+112.608,
+81.903,
+32.041
+]
+},
+{
+"serial": 20800,
+"resid": 197,
+"resname": "CHL1",
+"name": "O3",
+"heavy": true,
+"before": [
+114.302,
+83.85,
+31.681
+],
+"after": [
+112.658,
+83.389,
+30.64
+]
+},
+{
+"serial": 20801,
+"resid": 197,
+"resname": "CHL1",
+"name": "H3'",
+"heavy": false,
+"before": [
+114.255,
+84.809,
+31.694
+],
+"after": [
+112.611,
+84.348,
+30.653
+]
+},
+{
+"serial": 20802,
+"resid": 197,
+"resname": "CHL1",
+"name": "C4",
+"heavy": true,
+"before": [
+112.594,
+84.027,
+33.924
+],
+"after": [
+110.95,
+83.566,
+32.883
+]
+},
+{
+"serial": 20803,
+"resid": 197,
+"resname": "CHL1",
+"name": "H4A",
+"heavy": false,
+"before": [
+112.093,
+84.601,
+33.116
+],
+"after": [
+110.449,
+84.14,
+32.075
+]
+},
+{
+"serial": 20804,
+"resid": 197,
+"resname": "CHL1",
+"name": "H4B",
+"heavy": false,
+"before": [
+112.058,
+83.054,
+33.895
+],
+"after": [
+110.414,
+82.593,
+32.854
+]
+},
+{
+"serial": 20805,
+"resid": 197,
+"resname": "CHL1",
+"name": "C5",
+"heavy": true,
+"before": [
+112.492,
+84.914,
+35.552
+],
+"after": [
+110.848,
+84.453,
+34.511
+]
+},
+{
+"serial": 20806,
+"resid": 197,
+"resname": "CHL1",
+"name": "C6",
+"heavy": true,
+"before": [
+111.436,
+84.767,
+36.337
+],
+"after": [
+109.792,
+84.306,
+35.296
+]
+},
+{
+"serial": 20807,
+"resid": 197,
+"resname": "CHL1",
+"name": "H6",
+"heavy": false,
+"before": [
+110.582,
+84.207,
+35.929
+],
+"after": [
+108.938,
+83.746,
+34.888
+]
+},
+{
+"serial": 20808,
+"resid": 197,
+"resname": "CHL1",
+"name": "C7",
+"heavy": true,
+"before": [
+111.36,
+85.219,
+37.773
+],
+"after": [
+109.716,
+84.758,
+36.732
+]
+},
+{
+"serial": 20809,
+"resid": 197,
+"resname": "CHL1",
+"name": "H7A",
+"heavy": false,
+"before": [
+110.46,
+85.85,
+37.936
+],
+"after": [
+108.816,
+85.389,
+36.895
+]
+},
+{
+"serial": 20810,
+"resid": 197,
+"resname": "CHL1",
+"name": "H7B",
+"heavy": false,
+"before": [
+111.152,
+84.242,
+38.259
+],
+"after": [
+109.508,
+83.781,
+37.218
+]
+},
+{
+"serial": 20811,
+"resid": 197,
+"resname": "CHL1",
+"name": "C8",
+"heavy": true,
+"before": [
+112.579,
+85.894,
+38.55
+],
+"after": [
+110.935,
+85.433,
+37.509
+]
+},
+{
+"serial": 20812,
+"resid": 197,
+"resname": "CHL1",
+"name": "H8",
+"heavy": false,
+"before": [
+112.469,
+86.999,
+38.53
+],
+"after": [
+110.825,
+86.538,
+37.489
+]
+},
+{
+"serial": 20813,
+"resid": 197,
+"resname": "CHL1",
+"name": "C14",
+"heavy": true,
+"before": [
+112.566,
+85.475,
+40.018
+],
+"after": [
+110.922,
+85.014,
+38.977
+]
+},
+{
+"serial": 20814,
+"resid": 197,
+"resname": "CHL1",
+"name": "H14",
+"heavy": false,
+"before": [
+112.575,
+84.502,
+39.482
+],
+"after": [
+110.931,
+84.041,
+38.441
+]
+},
+{
+"serial": 20815,
+"resid": 197,
+"resname": "CHL1",
+"name": "C15",
+"heavy": true,
+"before": [
+111.061,
+84.986,
+41.249
+],
+"after": [
+109.417,
+84.525,
+40.208
+]
+},
+{
+"serial": 20816,
+"resid": 197,
+"resname": "CHL1",
+"name": "H15A",
+"heavy": false,
+"before": [
+110.418,
+85.89,
+41.303
+],
+"after": [
+108.774,
+85.429,
+40.262
+]
+},
+{
+"serial": 20817,
+"resid": 197,
+"resname": "CHL1",
+"name": "H15B",
+"heavy": false,
+"before": [
+110.55,
+84.158,
+40.713
+],
+"after": [
+108.906,
+83.697,
+39.672
+]
+},
+{
+"serial": 20818,
+"resid": 197,
+"resname": "CHL1",
+"name": "C16",
+"heavy": true,
+"before": [
+111.718,
+84.475,
+43.079
+],
+"after": [
+110.074,
+84.014,
+42.038
+]
+},
+{
+"serial": 20819,
+"resid": 197,
+"resname": "CHL1",
+"name": "H16A",
+"heavy": false,
+"before": [
+111.114,
+84.986,
+43.859
+],
+"after": [
+109.47,
+84.525,
+42.818
+]
+},
+{
+"serial": 20820,
+"resid": 197,
+"resname": "CHL1",
+"name": "H16B",
+"heavy": false,
+"before": [
+111.508,
+83.392,
+43.211
+],
+"after": [
+109.864,
+82.931,
+42.17
+]
+},
+{
+"serial": 20821,
+"resid": 197,
+"resname": "CHL1",
+"name": "C17",
+"heavy": true,
+"before": [
+113.879,
+84.815,
+43.134
+],
+"after": [
+112.235,
+84.354,
+42.093
+]
+},
+{
+"serial": 20822,
+"resid": 197,
+"resname": "CHL1",
+"name": "H17",
+"heavy": false,
+"before": [
+113.969,
+83.76,
+43.468
+],
+"after": [
+112.325,
+83.299,
+42.427
+]
+},
+{
+"serial": 20823,
+"resid": 197,
+"resname": "CHL1",
+"name": "C13",
+"heavy": true,
+"before": [
+114.307,
+85.568,
+40.947
+],
+"after": [
+112.663,
+85.107,
+39.906
+]
+},
+{
+"serial": 20824,
+"resid": 197,
+"resname": "CHL1",
+"name": "C18",
+"heavy": true,
+"before": [
+114.338,
+87.076,
+40.441
+],
+"after": [
+112.694,
+86.615,
+39.4
+]
+},
+{
+"serial": 20825,
+"resid": 197,
+"resname": "CHL1",
+"name": "H18A",
+"heavy": false,
+"before": [
+113.38,
+87.581,
+40.191
+],
+"after": [
+111.736,
+87.12,
+39.15
+]
+},
+{
+"serial": 20826,
+"resid": 197,
+"resname": "CHL1",
+"name": "H18B",
+"heavy": false,
+"before": [
+114.7,
+87.65,
+41.321
+],
+"after": [
+113.056,
+87.189,
+40.28
+]
+},
+{
+"serial": 20827,
+"resid": 197,
+"resname": "CHL1",
+"name": "H18C",
+"heavy": false,
+"before": [
+114.867,
+87.351,
+39.504
+],
+"after": [
+113.223,
+86.89,
+38.463
+]
+},
+{
+"serial": 20828,
+"resid": 197,
+"resname": "CHL1",
+"name": "C12",
+"heavy": true,
+"before": [
+115.571,
+85.358,
+40.044
+],
+"after": [
+113.927,
+84.897,
+39.003
+]
+},
+{
+"serial": 20829,
+"resid": 197,
+"resname": "CHL1",
+"name": "H12A",
+"heavy": false,
+"before": [
+116.325,
+86.161,
+40.193
+],
+"after": [
+114.681,
+85.7,
+39.152
+]
+},
+{
+"serial": 20830,
+"resid": 197,
+"resname": "CHL1",
+"name": "H12B",
+"heavy": false,
+"before": [
+116.293,
+84.523,
+40.171
+],
+"after": [
+114.649,
+84.062,
+39.13
+]
+},
+{
+"serial": 20831,
+"resid": 197,
+"resname": "CHL1",
+"name": "C11",
+"heavy": true,
+"before": [
+115.313,
+85.344,
+38.533
+],
+"after": [
+113.669,
+84.883,
+37.492
+]
+},
+{
+"serial": 20832,
+"resid": 197,
+"resname": "CHL1",
+"name": "H11A",
+"heavy": false,
+"before": [
+115.767,
+86.189,
+37.972
+],
+"after": [
+114.123,
+85.728,
+36.931
+]
+},
+{
+"serial": 20833,
+"resid": 197,
+"resname": "CHL1",
+"name": "H11B",
+"heavy": false,
+"before": [
+115.949,
+84.514,
+38.156
+],
+"after": [
+114.305,
+84.053,
+37.115
+]
+},
+{
+"serial": 20834,
+"resid": 197,
+"resname": "CHL1",
+"name": "C9",
+"heavy": true,
+"before": [
+113.921,
+85.34,
+37.897
+],
+"after": [
+112.277,
+84.879,
+36.856
+]
+},
+{
+"serial": 20835,
+"resid": 197,
+"resname": "CHL1",
+"name": "H9",
+"heavy": false,
+"before": [
+113.597,
+84.277,
+37.887
+],
+"after": [
+111.953,
+83.816,
+36.846
+]
+},
+{
+"serial": 20836,
+"resid": 197,
+"resname": "CHL1",
+"name": "C10",
+"heavy": true,
+"before": [
+114.196,
+85.62,
+36.449
+],
+"after": [
+112.552,
+85.159,
+35.408
+]
+},
+{
+"serial": 20837,
+"resid": 197,
+"resname": "CHL1",
+"name": "C19",
+"heavy": true,
+"before": [
+113.685,
+87.103,
+36.424
+],
+"after": [
+112.041,
+86.642,
+35.383
+]
+},
+{
+"serial": 20838,
+"resid": 197,
+"resname": "CHL1",
+"name": "H19A",
+"heavy": false,
+"before": [
+114.257,
+87.747,
+37.126
+],
+"after": [
+112.613,
+87.286,
+36.085
+]
+},
+{
+"serial": 20839,
+"resid": 197,
+"resname": "CHL1",
+"name": "H19B",
+"heavy": false,
+"before": [
+113.653,
+87.559,
+35.412
+],
+"after": [
+112.009,
+87.098,
+34.371
+]
+},
+{
+"serial": 20840,
+"resid": 197,
+"resname": "CHL1",
+"name": "H19C",
+"heavy": false,
+"before": [
+112.601,
+87.24,
+36.624
+],
+"after": [
+110.957,
+86.779,
+35.583
+]
+},
+{
+"serial": 20841,
+"resid": 197,
+"resname": "CHL1",
+"name": "C1",
+"heavy": true,
+"before": [
+116.185,
+84.959,
+35.695
+],
+"after": [
+114.541,
+84.498,
+34.654
+]
+},
+{
+"serial": 20842,
+"resid": 197,
+"resname": "CHL1",
+"name": "H1A",
+"heavy": false,
+"before": [
+116.745,
+84.37,
+36.453
+],
+"after": [
+115.101,
+83.909,
+35.412
+]
+},
+{
+"serial": 20843,
+"resid": 197,
+"resname": "CHL1",
+"name": "H1B",
+"heavy": false,
+"before": [
+116.925,
+85.577,
+35.143
+],
+"after": [
+115.281,
+85.116,
+34.102
+]
+},
+{
+"serial": 20844,
+"resid": 197,
+"resname": "CHL1",
+"name": "C2",
+"heavy": true,
+"before": [
+116.177,
+83.924,
+33.85
+],
+"after": [
+114.533,
+83.463,
+32.809
+]
+},
+{
+"serial": 20845,
+"resid": 197,
+"resname": "CHL1",
+"name": "H2A",
+"heavy": false,
+"before": [
+116.867,
+83.059,
+33.756
+],
+"after": [
+115.223,
+82.598,
+32.715
+]
+},
+{
+"serial": 20846,
+"resid": 197,
+"resname": "CHL1",
+"name": "H2B",
+"heavy": false,
+"before": [
+116.477,
+84.657,
+33.072
+],
+"after": [
+114.833,
+84.196,
+32.031
+]
+},
+{
+"serial": 20847,
+"resid": 197,
+"resname": "CHL1",
+"name": "C20",
+"heavy": true,
+"before": [
+114.521,
+85.327,
+44.476
+],
+"after": [
+112.877,
+84.866,
+43.435
+]
+},
+{
+"serial": 20848,
+"resid": 197,
+"resname": "CHL1",
+"name": "H20",
+"heavy": false,
+"before": [
+114.803,
+86.397,
+44.372
+],
+"after": [
+113.159,
+85.936,
+43.331
+]
+},
+{
+"serial": 20849,
+"resid": 197,
+"resname": "CHL1",
+"name": "C21",
+"heavy": true,
+"before": [
+115.651,
+84.584,
+45.331
+],
+"after": [
+114.007,
+84.123,
+44.29
+]
+},
+{
+"serial": 20850,
+"resid": 197,
+"resname": "CHL1",
+"name": "H21A",
+"heavy": false,
+"before": [
+116.631,
+84.244,
+44.931
+],
+"after": [
+114.987,
+83.783,
+43.89
+]
+},
+{
+"serial": 20851,
+"resid": 197,
+"resname": "CHL1",
+"name": "H21B",
+"heavy": false,
+"before": [
+115.312,
+83.637,
+45.804
+],
+"after": [
+113.668,
+83.176,
+44.763
+]
+},
+{
+"serial": 20852,
+"resid": 197,
+"resname": "CHL1",
+"name": "H21C",
+"heavy": false,
+"before": [
+116.109,
+85.235,
+46.106
+],
+"after": [
+114.465,
+84.774,
+45.065
+]
+},
+{
+"serial": 20853,
+"resid": 197,
+"resname": "CHL1",
+"name": "C22",
+"heavy": true,
+"before": [
+113.449,
+85.132,
+45.529
+],
+"after": [
+111.805,
+84.671,
+44.488
+]
+},
+{
+"serial": 20854,
+"resid": 197,
+"resname": "CHL1",
+"name": "H22A",
+"heavy": false,
+"before": [
+112.408,
+85.433,
+45.287
+],
+"after": [
+110.764,
+84.972,
+44.246
+]
+},
+{
+"serial": 20855,
+"resid": 197,
+"resname": "CHL1",
+"name": "H22B",
+"heavy": false,
+"before": [
+113.376,
+84.033,
+45.67
+],
+"after": [
+111.732,
+83.572,
+44.629
+]
+},
+{
+"serial": 20856,
+"resid": 197,
+"resname": "CHL1",
+"name": "C23",
+"heavy": true,
+"before": [
+113.856,
+85.809,
+46.816
+],
+"after": [
+112.212,
+85.348,
+45.775
+]
+},
+{
+"serial": 20857,
+"resid": 197,
+"resname": "CHL1",
+"name": "H23A",
+"heavy": false,
+"before": [
+114.795,
+86.401,
+46.778
+],
+"after": [
+113.151,
+85.94,
+45.737
+]
+},
+{
+"serial": 20858,
+"resid": 197,
+"resname": "CHL1",
+"name": "H23B",
+"heavy": false,
+"before": [
+113.085,
+86.567,
+47.072
+],
+"after": [
+111.441,
+86.106,
+46.031
+]
+},
+{
+"serial": 20859,
+"resid": 197,
+"resname": "CHL1",
+"name": "C24",
+"heavy": true,
+"before": [
+113.943,
+84.694,
+47.83
+],
+"after": [
+112.299,
+84.233,
+46.789
+]
+},
+{
+"serial": 20860,
+"resid": 197,
+"resname": "CHL1",
+"name": "H24A",
+"heavy": false,
+"before": [
+112.865,
+84.518,
+48.034
+],
+"after": [
+111.221,
+84.057,
+46.993
+]
+},
+{
+"serial": 20861,
+"resid": 197,
+"resname": "CHL1",
+"name": "H24B",
+"heavy": false,
+"before": [
+114.338,
+83.711,
+47.497
+],
+"after": [
+112.694,
+83.25,
+46.456
+]
+},
+{
+"serial": 20862,
+"resid": 197,
+"resname": "CHL1",
+"name": "C25",
+"heavy": true,
+"before": [
+114.709,
+85.062,
+49.049
+],
+"after": [
+113.065,
+84.601,
+48.008
+]
+},
+{
+"serial": 20863,
+"resid": 197,
+"resname": "CHL1",
+"name": "H25",
+"heavy": false,
+"before": [
+114.694,
+86.171,
+49.1
+],
+"after": [
+113.05,
+85.71,
+48.059
+]
+},
+{
+"serial": 20864,
+"resid": 197,
+"resname": "CHL1",
+"name": "C26",
+"heavy": true,
+"before": [
+113.992,
+84.407,
+50.183
+],
+"after": [
+112.348,
+83.946,
+49.142
+]
+},
+{
+"serial": 20865,
+"resid": 197,
+"resname": "CHL1",
+"name": "H26A",
+"heavy": false,
+"before": [
+114.415,
+84.702,
+51.168
+],
+"after": [
+112.771,
+84.241,
+50.127
+]
+},
+{
+"serial": 20866,
+"resid": 197,
+"resname": "CHL1",
+"name": "H26B",
+"heavy": false,
+"before": [
+112.944,
+84.773,
+50.151
+],
+"after": [
+111.3,
+84.312,
+49.11
+]
+},
+{
+"serial": 20867,
+"resid": 197,
+"resname": "CHL1",
+"name": "H26C",
+"heavy": false,
+"before": [
+114.035,
+83.301,
+50.099
+],
+"after": [
+112.391,
+82.84,
+49.058
+]
+},
+{
+"serial": 20868,
+"resid": 197,
+"resname": "CHL1",
+"name": "C27",
+"heavy": true,
+"before": [
+116.126,
+84.555,
+49.11
+],
+"after": [
+114.482,
+84.094,
+48.069
+]
+},
+{
+"serial": 20869,
+"resid": 197,
+"resname": "CHL1",
+"name": "H27A",
+"heavy": false,
+"before": [
+116.558,
+84.85,
+50.09
+],
+"after": [
+114.914,
+84.389,
+49.049
+]
+},
+{
+"serial": 20870,
+"resid": 197,
+"resname": "CHL1",
+"name": "H27B",
+"heavy": false,
+"before": [
+116.137,
+83.445,
+49.079
+],
+"after": [
+114.493,
+82.984,
+48.038
+]
+},
+{
+"serial": 20871,
+"resid": 197,
+"resname": "CHL1",
+"name": "H27C",
+"heavy": false,
+"before": [
+116.732,
+84.964,
+48.274
+],
+"after": [
+115.088,
+84.503,
+47.233
+]
+},
+{
+"serial": 20872,
+"resid": 198,
+"resname": "SOPE",
+"name": "N",
+"heavy": true,
+"before": [
+121.809,
+82.974,
+25.651
+],
+"after": [
+121.809,
+82.974,
+25.651
+]
+},
+{
+"serial": 20873,
+"resid": 198,
+"resname": "SOPE",
+"name": "HN1",
+"heavy": false,
+"before": [
+121.75,
+83.977,
+25.384
+],
+"after": [
+121.75,
+83.977,
+25.384
+]
+},
+{
+"serial": 20874,
+"resid": 198,
+"resname": "SOPE",
+"name": "HN2",
+"heavy": false,
+"before": [
+122.788,
+82.705,
+25.874
+],
+"after": [
+122.788,
+82.705,
+25.874
+]
+},
+{
+"serial": 20875,
+"resid": 198,
+"resname": "SOPE",
+"name": "HN3",
+"heavy": false,
+"before": [
+121.5,
+82.375,
+24.859
+],
+"after": [
+121.5,
+82.375,
+24.859
+]
+},
+{
+"serial": 20876,
+"resid": 198,
+"resname": "SOPE",
+"name": "C12",
+"heavy": true,
+"before": [
+120.954,
+82.651,
+26.847
+],
+"after": [
+120.954,
+82.651,
+26.847
+]
+},
+{
+"serial": 20877,
+"resid": 198,
+"resname": "SOPE",
+"name": "H12A",
+"heavy": false,
+"before": [
+119.899,
+82.892,
+26.596
+],
+"after": [
+119.899,
+82.892,
+26.596
+]
+},
+{
+"serial": 20878,
+"resid": 198,
+"resname": "SOPE",
+"name": "H12B",
+"heavy": false,
+"before": [
+121.278,
+83.293,
+27.694
+],
+"after": [
+121.278,
+83.293,
+27.694
+]
+},
+{
+"serial": 20879,
+"resid": 198,
+"resname": "SOPE",
+"name": "C11",
+"heavy": true,
+"before": [
+121.11,
+81.169,
+27.219
+],
+"after": [
+121.11,
+81.169,
+27.219
+]
+},
+{
+"serial": 20880,
+"resid": 198,
+"resname": "SOPE",
+"name": "H11A",
+"heavy": false,
+"before": [
+120.847,
+80.512,
+26.363
+],
+"after": [
+120.847,
+80.512,
+26.363
+]
+},
+{
+"serial": 20881,
+"resid": 198,
+"resname": "SOPE",
+"name": "H11B",
+"heavy": false,
+"before": [
+120.376,
+80.943,
+28.022
+],
+"after": [
+120.376,
+80.943,
+28.022
+]
+},
+{
+"serial": 20882,
+"resid": 198,
+"resname": "SOPE",
+"name": "P",
+"heavy": true,
+"before": [
+123.577,
+80.261,
+26.938
+],
+"after": [
+123.577,
+80.261,
+26.938
+]
+},
+{
+"serial": 20883,
+"resid": 198,
+"resname": "SOPE",
+"name": "O13",
+"heavy": true,
+"before": [
+124.801,
+80.982,
+27.325
+],
+"after": [
+124.801,
+80.982,
+27.325
+]
+},
+{
+"serial": 20884,
+"resid": 198,
+"resname": "SOPE",
+"name": "O14",
+"heavy": true,
+"before": [
+123.236,
+80.299,
+25.499
+],
+"after": [
+123.236,
+80.299,
+25.499
+]
+},
+{
+"serial": 20885,
+"resid": 198,
+"resname": "SOPE",
+"name": "O12",
+"heavy": true,
+"before": [
+122.406,
+80.916,
+27.743
+],
+"after": [
+122.406,
+80.916,
+27.743
+]
+},
+{
+"serial": 20886,
+"resid": 198,
+"resname": "SOPE",
+"name": "O11",
+"heavy": true,
+"before": [
+123.678,
+78.79,
+27.476
+],
+"after": [
+123.678,
+78.79,
+27.476
+]
+},
+{
+"serial": 20887,
+"resid": 198,
+"resname": "SOPE",
+"name": "C1",
+"heavy": true,
+"before": [
+122.617,
+78.107,
+28.136
+],
+"after": [
+122.617,
+78.107,
+28.136
+]
+},
+{
+"serial": 20888,
+"resid": 198,
+"resname": "SOPE",
+"name": "HA",
+"heavy": false,
+"before": [
+122.557,
+77.095,
+27.681
+],
+"after": [
+122.557,
+77.095,
+27.681
+]
+},
+{
+"serial": 20889,
+"resid": 198,
+"resname": "SOPE",
+"name": "HB",
+"heavy": false,
+"before": [
+121.623,
+78.576,
+27.978
+],
+"after": [
+121.623,
+78.576,
+27.978
+]
+},
+{
+"serial": 20890,
+"resid": 198,
+"resname": "SOPE",
+"name": "C2",
+"heavy": true,
+"before": [
+122.875,
+78.009,
+29.67
+],
+"after": [
+122.875,
+78.009,
+29.67
+]
+},
+{
+"serial": 20891,
+"resid": 198,
+"resname": "SOPE",
+"name": "HS",
+"heavy": false,
+"before": [
+123.836,
+77.476,
+29.833
+],
+"after": [
+123.836,
+77.476,
+29.833
+]
+},
+{
+"serial": 20892,
+"resid": 198,
+"resname": "SOPE",
+"name": "O21",
+"heavy": true,
+"before": [
+121.8,
+77.307,
+30.304
+],
+"after": [
+121.8,
+77.307,
+30.304
+]
+},
+{
+"serial": 20893,
+"resid": 198,
+"resname": "SOPE",
+"name": "C21",
+"heavy": true,
+"before": [
+121.593,
+76.063,
+29.912
+],
+"after": [
+121.593,
+76.063,
+29.912
+]
+},
+{
+"serial": 20894,
+"resid": 198,
+"resname": "SOPE",
+"name": "O22",
+"heavy": true,
+"before": [
+122.318,
+75.377,
+29.213
+],
+"after": [
+122.318,
+75.377,
+29.213
+]
+},
+{
+"serial": 20895,
+"resid": 198,
+"resname": "SOPE",
+"name": "C22",
+"heavy": true,
+"before": [
+120.261,
+75.614,
+30.464
+],
+"after": [
+120.261,
+75.614,
+30.464
+]
+},
+{
+"serial": 20896,
+"resid": 198,
+"resname": "SOPE",
+"name": "H2R",
+"heavy": false,
+"before": [
+119.994,
+74.654,
+29.973
+],
+"after": [
+119.994,
+74.654,
+29.973
+]
+},
+{
+"serial": 20897,
+"resid": 198,
+"resname": "SOPE",
+"name": "H2S",
+"heavy": false,
+"before": [
+119.486,
+76.363,
+30.194
+],
+"after": [
+119.486,
+76.363,
+30.194
+]
+},
+{
+"serial": 20898,
+"resid": 198,
+"resname": "SOPE",
+"name": "C3",
+"heavy": true,
+"before": [
+122.986,
+79.436,
+30.305
+],
+"after": [
+122.986,
+79.436,
+30.305
+]
+},
+{
+"serial": 20899,
+"resid": 198,
+"resname": "SOPE",
+"name": "HX",
+"heavy": false,
+"before": [
+122.027,
+79.921,
+30.024
+],
+"after": [
+122.027,
+79.921,
+30.024
+]
+},
+{
+"serial": 20900,
+"resid": 198,
+"resname": "SOPE",
+"name": "HY",
+"heavy": false,
+"before": [
+123.818,
+79.966,
+29.793
+],
+"after": [
+123.818,
+79.966,
+29.793
+]
+},
+{
+"serial": 20901,
+"resid": 198,
+"resname": "SOPE",
+"name": "O31",
+"heavy": true,
+"before": [
+123.223,
+79.49,
+31.742
+],
+"after": [
+123.223,
+79.49,
+31.742
+]
+},
+{
+"serial": 20902,
+"resid": 198,
+"resname": "SOPE",
+"name": "C31",
+"heavy": true,
+"before": [
+122.946,
+80.732,
+32.205
+],
+"after": [
+122.946,
+80.732,
+32.205
+]
+},
+{
+"serial": 20903,
+"resid": 198,
+"resname": "SOPE",
+"name": "O32",
+"heavy": true,
+"before": [
+122.431,
+81.613,
+31.551
+],
+"after": [
+122.431,
+81.613,
+31.551
+]
+},
+{
+"serial": 20904,
+"resid": 198,
+"resname": "SOPE",
+"name": "C32",
+"heavy": true,
+"before": [
+123.323,
+80.908,
+33.676
+],
+"after": [
+123.323,
+80.908,
+33.676
+]
+},
+{
+"serial": 20905,
+"resid": 198,
+"resname": "SOPE",
+"name": "H2X",
+"heavy": false,
+"before": [
+123.51,
+81.994,
+33.815
+],
+"after": [
+123.51,
+81.994,
+33.815
+]
+},
+{
+"serial": 20906,
+"resid": 198,
+"resname": "SOPE",
+"name": "H2Y",
+"heavy": false,
+"before": [
+124.274,
+80.381,
+33.902
+],
+"after": [
+124.274,
+80.381,
+33.902
+]
+},
+{
+"serial": 20907,
+"resid": 198,
+"resname": "SOPE",
+"name": "C23",
+"heavy": true,
+"before": [
+120.381,
+75.392,
+31.98
+],
+"after": [
+120.381,
+75.392,
+31.98
+]
+},
+{
+"serial": 20908,
+"resid": 198,
+"resname": "SOPE",
+"name": "H3R",
+"heavy": false,
+"before": [
+121.367,
+74.951,
+32.241
+],
+"after": [
+121.367,
+74.951,
+32.241
+]
+},
+{
+"serial": 20909,
+"resid": 198,
+"resname": "SOPE",
+"name": "H3S",
+"heavy": false,
+"before": [
+119.635,
+74.605,
+32.222
+],
+"after": [
+119.635,
+74.605,
+32.222
+]
+},
+{
+"serial": 20910,
+"resid": 198,
+"resname": "SOPE",
+"name": "C24",
+"heavy": true,
+"before": [
+120.121,
+76.645,
+32.836
+],
+"after": [
+120.121,
+76.645,
+32.836
+]
+},
+{
+"serial": 20911,
+"resid": 198,
+"resname": "SOPE",
+"name": "H4R",
+"heavy": false,
+"before": [
+120.093,
+76.326,
+33.9
+],
+"after": [
+120.093,
+76.326,
+33.9
+]
+},
+{
+"serial": 20912,
+"resid": 198,
+"resname": "SOPE",
+"name": "H4S",
+"heavy": false,
+"before": [
+120.96,
+77.366,
+32.737
+],
+"after": [
+120.96,
+77.366,
+32.737
+]
+},
+{
+"serial": 20913,
+"resid": 198,
+"resname": "SOPE",
+"name": "C25",
+"heavy": true,
+"before": [
+118.813,
+77.359,
+32.481
+],
+"after": [
+118.813,
+77.359,
+32.481
+]
+},
+{
+"serial": 20914,
+"resid": 198,
+"resname": "SOPE",
+"name": "H5R",
+"heavy": false,
+"before": [
+119.063,
+78.316,
+31.974
+],
+"after": [
+119.063,
+78.316,
+31.974
+]
+},
+{
+"serial": 20915,
+"resid": 198,
+"resname": "SOPE",
+"name": "H5S",
+"heavy": false,
+"before": [
+118.199,
+76.73,
+31.8
+],
+"after": [
+118.199,
+76.73,
+31.8
+]
+},
+{
+"serial": 20916,
+"resid": 198,
+"resname": "SOPE",
+"name": "C26",
+"heavy": true,
+"before": [
+117.95,
+77.666,
+33.69
+],
+"after": [
+117.95,
+77.666,
+33.69
+]
+},
+{
+"serial": 20917,
+"resid": 198,
+"resname": "SOPE",
+"name": "H6R",
+"heavy": false,
+"before": [
+117.972,
+76.838,
+34.431
+],
+"after": [
+117.972,
+76.838,
+34.431
+]
+},
+{
+"serial": 20918,
+"resid": 198,
+"resname": "SOPE",
+"name": "H6S",
+"heavy": false,
+"before": [
+118.385,
+78.574,
+34.159
+],
+"after": [
+118.385,
+78.574,
+34.159
+]
+},
+{
+"serial": 20919,
+"resid": 198,
+"resname": "SOPE",
+"name": "C27",
+"heavy": true,
+"before": [
+116.474,
+77.8,
+33.389
+],
+"after": [
+116.474,
+77.8,
+33.389
+]
+},
+{
+"serial": 20920,
+"resid": 198,
+"resname": "SOPE",
+"name": "H7R",
+"heavy": false,
+"before": [
+116.251,
+78.171,
+32.366
+],
+"after": [
+116.251,
+78.171,
+32.366
+]
+},
+{
+"serial": 20921,
+"resid": 198,
+"resname": "SOPE",
+"name": "H7S",
+"heavy": false,
+"before": [
+115.977,
+76.808,
+33.441
+],
+"after": [
+115.977,
+76.808,
+33.441
+]
+},
+{
+"serial": 20922,
+"resid": 198,
+"resname": "SOPE",
+"name": "C28",
+"heavy": true,
+"before": [
+115.786,
+78.749,
+34.345
+],
+"after": [
+115.786,
+78.749,
+34.345
+]
+},
+{
+"serial": 20923,
+"resid": 198,
+"resname": "SOPE",
+"name": "H8R",
+"heavy": false,
+"before": [
+114.816,
+78.954,
+33.844
+],
+"after": [
+114.816,
+78.954,
+33.844
+]
+},
+{
+"serial": 20924,
+"resid": 198,
+"resname": "SOPE",
+"name": "H8S",
+"heavy": false,
+"before": [
+115.561,
+78.15,
+35.254
+],
+"after": [
+115.561,
+78.15,
+35.254
+]
+},
+{
+"serial": 20925,
+"resid": 198,
+"resname": "SOPE",
+"name": "C29",
+"heavy": true,
+"before": [
+116.394,
+80.024,
+34.857
+],
+"after": [
+116.394,
+80.024,
+34.857
+]
+},
+{
+"serial": 20926,
+"resid": 198,
+"resname": "SOPE",
+"name": "H91",
+"heavy": false,
+"before": [
+117.486,
+80.148,
+34.896
+],
+"after": [
+117.486,
+80.148,
+34.896
+]
+},
+{
+"serial": 20927,
+"resid": 198,
+"resname": "SOPE",
+"name": "C210",
+"heavy": true,
+"before": [
+115.591,
+81.055,
+35.057
+],
+"after": [
+115.591,
+81.055,
+35.057
+]
+},
+{
+"serial": 20928,
+"resid": 198,
+"resname": "SOPE",
+"name": "H101",
+"heavy": false,
+"before": [
+114.674,
+81.071,
+34.45
+],
+"after": [
+114.674,
+81.071,
+34.45
+]
+},
+{
+"serial": 20929,
+"resid": 198,
+"resname": "SOPE",
+"name": "C211",
+"heavy": true,
+"before": [
+115.69,
+82.307,
+35.793
+],
+"after": [
+115.69,
+82.307,
+35.793
+]
+},
+{
+"serial": 20930,
+"resid": 198,
+"resname": "SOPE",
+"name": "H11R",
+"heavy": false,
+"before": [
+116.758,
+82.6,
+35.706
+],
+"after": [
+116.758,
+82.6,
+35.706
+]
+},
+{
+"serial": 20931,
+"resid": 198,
+"resname": "SOPE",
+"name": "H11S",
+"heavy": false,
+"before": [
+115.654,
+82.054,
+36.874
+],
+"after": [
+115.654,
+82.054,
+36.874
+]
+},
+{
+"serial": 20932,
+"resid": 198,
+"resname": "SOPE",
+"name": "C212",
+"heavy": true,
+"before": [
+114.49,
+83.402,
+35.41
+],
+"after": [
+114.49,
+83.402,
+35.41
+]
+},
+{
+"serial": 20933,
+"resid": 198,
+"resname": "SOPE",
+"name": "H12R",
+"heavy": false,
+"before": [
+114.497,
+83.55,
+36.511
+],
+"after": [
+114.497,
+83.55,
+36.511
+]
+},
+{
+"serial": 20934,
+"resid": 198,
+"resname": "SOPE",
+"name": "H12S",
+"heavy": false,
+"before": [
+113.613,
+82.727,
+35.313
+],
+"after": [
+113.613,
+82.727,
+35.313
+]
+},
+{
+"serial": 20935,
+"resid": 198,
+"resname": "SOPE",
+"name": "C213",
+"heavy": true,
+"before": [
+114.518,
+85.572,
+34.114
+],
+"after": [
+114.518,
+85.572,
+34.114
+]
+},
+{
+"serial": 20936,
+"resid": 198,
+"resname": "SOPE",
+"name": "H13R",
+"heavy": false,
+"before": [
+113.541,
+86.067,
+33.929
+],
+"after": [
+113.541,
+86.067,
+33.929
+]
+},
+{
+"serial": 20937,
+"resid": 198,
+"resname": "SOPE",
+"name": "H13S",
+"heavy": false,
+"before": [
+114.379,
+84.662,
+34.736
+],
+"after": [
+114.379,
+84.662,
+34.736
+]
+},
+{
+"serial": 20938,
+"resid": 198,
+"resname": "SOPE",
+"name": "C214",
+"heavy": true,
+"before": [
+115.501,
+86.915,
+34.125
+],
+"after": [
+115.501,
+86.915,
+34.125
+]
+},
+{
+"serial": 20939,
+"resid": 198,
+"resname": "SOPE",
+"name": "H14R",
+"heavy": false,
+"before": [
+115.135,
+87.667,
+33.394
+],
+"after": [
+115.135,
+87.667,
+33.394
+]
+},
+{
+"serial": 20940,
+"resid": 198,
+"resname": "SOPE",
+"name": "H14S",
+"heavy": false,
+"before": [
+116.402,
+86.479,
+33.645
+],
+"after": [
+116.402,
+86.479,
+33.645
+]
+},
+{
+"serial": 20941,
+"resid": 198,
+"resname": "SOPE",
+"name": "C215",
+"heavy": true,
+"before": [
+116.142,
+87.796,
+35.354
+],
+"after": [
+116.142,
+87.796,
+35.354
+]
+},
+{
+"serial": 20942,
+"resid": 198,
+"resname": "SOPE",
+"name": "H15R",
+"heavy": false,
+"before": [
+116.186,
+87.31,
+36.352
+],
+"after": [
+116.186,
+87.31,
+36.352
+]
+},
+{
+"serial": 20943,
+"resid": 198,
+"resname": "SOPE",
+"name": "H15S",
+"heavy": false,
+"before": [
+115.29,
+88.51,
+35.362
+],
+"after": [
+115.29,
+88.51,
+35.362
+]
+},
+{
+"serial": 20944,
+"resid": 198,
+"resname": "SOPE",
+"name": "C216",
+"heavy": true,
+"before": [
+117.18,
+88.982,
+35.358
+],
+"after": [
+117.18,
+88.982,
+35.358
+]
+},
+{
+"serial": 20945,
+"resid": 198,
+"resname": "SOPE",
+"name": "H16R",
+"heavy": false,
+"before": [
+116.71,
+89.589,
+36.161
+],
+"after": [
+116.71,
+89.589,
+36.161
+]
+},
+{
+"serial": 20946,
+"resid": 198,
+"resname": "SOPE",
+"name": "H16S",
+"heavy": false,
+"before": [
+117.141,
+89.384,
+34.323
+],
+"after": [
+117.141,
+89.384,
+34.323
+]
+},
+{
+"serial": 20947,
+"resid": 198,
+"resname": "SOPE",
+"name": "C217",
+"heavy": true,
+"before": [
+118.636,
+89.363,
+35.723
+],
+"after": [
+118.636,
+89.363,
+35.723
+]
+},
+{
+"serial": 20948,
+"resid": 198,
+"resname": "SOPE",
+"name": "H17R",
+"heavy": false,
+"before": [
+119.086,
+89.741,
+34.779
+],
+"after": [
+119.086,
+89.741,
+34.779
+]
+},
+{
+"serial": 20949,
+"resid": 198,
+"resname": "SOPE",
+"name": "H17S",
+"heavy": false,
+"before": [
+119.364,
+88.603,
+36.078
+],
+"after": [
+119.364,
+88.603,
+36.078
+]
+},
+{
+"serial": 20950,
+"resid": 198,
+"resname": "SOPE",
+"name": "C218",
+"heavy": true,
+"before": [
+118.714,
+90.488,
+36.704
+],
+"after": [
+118.714,
+90.488,
+36.704
+]
+},
+{
+"serial": 20951,
+"resid": 198,
+"resname": "SOPE",
+"name": "H18R",
+"heavy": false,
+"before": [
+119.42,
+90.225,
+37.521
+],
+"after": [
+119.42,
+90.225,
+37.521
+]
+},
+{
+"serial": 20952,
+"resid": 198,
+"resname": "SOPE",
+"name": "H18S",
+"heavy": false,
+"before": [
+117.789,
+90.59,
+37.311
+],
+"after": [
+117.789,
+90.59,
+37.311
+]
+},
+{
+"serial": 20953,
+"resid": 198,
+"resname": "SOPE",
+"name": "H18T",
+"heavy": false,
+"before": [
+118.937,
+91.477,
+36.249
+],
+"after": [
+118.937,
+91.477,
+36.249
+]
+},
+{
+"serial": 20954,
+"resid": 198,
+"resname": "SOPE",
+"name": "C33",
+"heavy": true,
+"before": [
+122.188,
+80.464,
+34.623
+],
+"after": [
+122.188,
+80.464,
+34.623
+]
+},
+{
+"serial": 20955,
+"resid": 198,
+"resname": "SOPE",
+"name": "H3X",
+"heavy": false,
+"before": [
+122.433,
+79.482,
+35.08
+],
+"after": [
+122.433,
+79.482,
+35.08
+]
+},
+{
+"serial": 20956,
+"resid": 198,
+"resname": "SOPE",
+"name": "H3Y",
+"heavy": false,
+"before": [
+121.251,
+80.302,
+34.048
+],
+"after": [
+121.251,
+80.302,
+34.048
+]
+},
+{
+"serial": 20957,
+"resid": 198,
+"resname": "SOPE",
+"name": "C34",
+"heavy": true,
+"before": [
+121.902,
+81.462,
+35.752
+],
+"after": [
+121.902,
+81.462,
+35.752
+]
+},
+{
+"serial": 20958,
+"resid": 198,
+"resname": "SOPE",
+"name": "H4X",
+"heavy": false,
+"before": [
+120.851,
+81.289,
+36.066
+],
+"after": [
+120.851,
+81.289,
+36.066
+]
+},
+{
+"serial": 20959,
+"resid": 198,
+"resname": "SOPE",
+"name": "H4Y",
+"heavy": false,
+"before": [
+121.949,
+82.501,
+35.362
+],
+"after": [
+121.949,
+82.501,
+35.362
+]
+},
+{
+"serial": 20960,
+"resid": 198,
+"resname": "SOPE",
+"name": "C35",
+"heavy": true,
+"before": [
+122.8,
+81.289,
+36.99
+],
+"after": [
+122.8,
+81.289,
+36.99
+]
+},
+{
+"serial": 20961,
+"resid": 198,
+"resname": "SOPE",
+"name": "H5X",
+"heavy": false,
+"before": [
+123.763,
+81.812,
+36.812
+],
+"after": [
+123.763,
+81.812,
+36.812
+]
+},
+{
+"serial": 20962,
+"resid": 198,
+"resname": "SOPE",
+"name": "H5Y",
+"heavy": false,
+"before": [
+123.017,
+80.205,
+37.107
+],
+"after": [
+123.017,
+80.205,
+37.107
+]
+},
+{
+"serial": 20963,
+"resid": 198,
+"resname": "SOPE",
+"name": "C36",
+"heavy": true,
+"before": [
+122.173,
+81.785,
+38.308
+],
+"after": [
+122.173,
+81.785,
+38.308
+]
+},
+{
+"serial": 20964,
+"resid": 198,
+"resname": "SOPE",
+"name": "H6X",
+"heavy": false,
+"before": [
+121.654,
+82.748,
+38.117
+],
+"after": [
+121.654,
+82.748,
+38.117
+]
+},
+{
+"serial": 20965,
+"resid": 198,
+"resname": "SOPE",
+"name": "H6Y",
+"heavy": false,
+"before": [
+122.97,
+81.96,
+39.062
+],
+"after": [
+122.97,
+81.96,
+39.062
+]
+},
+{
+"serial": 20966,
+"resid": 198,
+"resname": "SOPE",
+"name": "C37",
+"heavy": true,
+"before": [
+121.207,
+80.762,
+38.903
+],
+"after": [
+121.207,
+80.762,
+38.903
+]
+},
+{
+"serial": 20967,
+"resid": 198,
+"resname": "SOPE",
+"name": "H7X",
+"heavy": false,
+"before": [
+121.733,
+79.845,
+39.245
+],
+"after": [
+121.733,
+79.845,
+39.245
+]
+},
+{
+"serial": 20968,
+"resid": 198,
+"resname": "SOPE",
+"name": "H7Y",
+"heavy": false,
+"before": [
+120.554,
+80.423,
+38.07
+],
+"after": [
+120.554,
+80.423,
+38.07
+]
+},
+{
+"serial": 20969,
+"resid": 198,
+"resname": "SOPE",
+"name": "C38",
+"heavy": true,
+"before": [
+120.325,
+81.258,
+40.043
+],
+"after": [
+120.325,
+81.258,
+40.043
+]
+},
+{
+"serial": 20970,
+"resid": 198,
+"resname": "SOPE",
+"name": "H8X",
+"heavy": false,
+"before": [
+120.303,
+82.368,
+40.083
+],
+"after": [
+120.303,
+82.368,
+40.083
+]
+},
+{
+"serial": 20971,
+"resid": 198,
+"resname": "SOPE",
+"name": "H8Y",
+"heavy": false,
+"before": [
+120.775,
+80.897,
+40.992
+],
+"after": [
+120.775,
+80.897,
+40.992
+]
+},
+{
+"serial": 20972,
+"resid": 198,
+"resname": "SOPE",
+"name": "C39",
+"heavy": true,
+"before": [
+118.894,
+80.742,
+39.897
+],
+"after": [
+118.894,
+80.742,
+39.897
+]
+},
+{
+"serial": 20973,
+"resid": 198,
+"resname": "SOPE",
+"name": "H9X",
+"heavy": false,
+"before": [
+118.787,
+79.977,
+39.099
+],
+"after": [
+118.787,
+79.977,
+39.099
+]
+},
+{
+"serial": 20974,
+"resid": 198,
+"resname": "SOPE",
+"name": "H9Y",
+"heavy": false,
+"before": [
+118.207,
+81.572,
+39.624
+],
+"after": [
+118.207,
+81.572,
+39.624
+]
+},
+{
+"serial": 20975,
+"resid": 198,
+"resname": "SOPE",
+"name": "C310",
+"heavy": true,
+"before": [
+118.36,
+80.101,
+41.149
+],
+"after": [
+118.36,
+80.101,
+41.149
+]
+},
+{
+"serial": 20976,
+"resid": 198,
+"resname": "SOPE",
+"name": "H10X",
+"heavy": false,
+"before": [
+118.616,
+79.032,
+41.313
+],
+"after": [
+118.616,
+79.032,
+41.313
+]
+},
+{
+"serial": 20977,
+"resid": 198,
+"resname": "SOPE",
+"name": "H10Y",
+"heavy": false,
+"before": [
+117.284,
+80.001,
+40.893
+],
+"after": [
+117.284,
+80.001,
+40.893
+]
+},
+{
+"serial": 20978,
+"resid": 198,
+"resname": "SOPE",
+"name": "C311",
+"heavy": true,
+"before": [
+118.619,
+80.931,
+42.408
+],
+"after": [
+118.619,
+80.931,
+42.408
+]
+},
+{
+"serial": 20979,
+"resid": 198,
+"resname": "SOPE",
+"name": "H11X",
+"heavy": false,
+"before": [
+118.701,
+82.007,
+42.143
+],
+"after": [
+118.701,
+82.007,
+42.143
+]
+},
+{
+"serial": 20980,
+"resid": 198,
+"resname": "SOPE",
+"name": "H11Y",
+"heavy": false,
+"before": [
+119.522,
+80.649,
+42.991
+],
+"after": [
+119.522,
+80.649,
+42.991
+]
+},
+{
+"serial": 20981,
+"resid": 198,
+"resname": "SOPE",
+"name": "C312",
+"heavy": true,
+"before": [
+117.417,
+80.742,
+43.254
+],
+"after": [
+117.417,
+80.742,
+43.254
+]
+},
+{
+"serial": 20982,
+"resid": 198,
+"resname": "SOPE",
+"name": "H12X",
+"heavy": false,
+"before": [
+117.518,
+81.117,
+44.295
+],
+"after": [
+117.518,
+81.117,
+44.295
+]
+},
+{
+"serial": 20983,
+"resid": 198,
+"resname": "SOPE",
+"name": "H12Y",
+"heavy": false,
+"before": [
+117.176,
+79.658,
+43.305
+],
+"after": [
+117.176,
+79.658,
+43.305
+]
+},
+{
+"serial": 20984,
+"resid": 198,
+"resname": "SOPE",
+"name": "C313",
+"heavy": true,
+"before": [
+116.404,
+81.508,
+42.481
+],
+"after": [
+116.404,
+81.508,
+42.481
+]
+},
+{
+"serial": 20985,
+"resid": 198,
+"resname": "SOPE",
+"name": "H13X",
+"heavy": false,
+"before": [
+115.427,
+80.987,
+42.576
+],
+"after": [
+115.427,
+80.987,
+42.576
+]
+},
+{
+"serial": 20986,
+"resid": 198,
+"resname": "SOPE",
+"name": "H13Y",
+"heavy": false,
+"before": [
+116.565,
+81.705,
+41.4
+],
+"after": [
+116.565,
+81.705,
+41.4
+]
+},
+{
+"serial": 20987,
+"resid": 198,
+"resname": "SOPE",
+"name": "C314",
+"heavy": true,
+"before": [
+116.387,
+82.845,
+43.114
+],
+"after": [
+116.387,
+82.845,
+43.114
+]
+},
+{
+"serial": 20988,
+"resid": 198,
+"resname": "SOPE",
+"name": "H14X",
+"heavy": false,
+"before": [
+116.254,
+82.626,
+44.195
+],
+"after": [
+116.254,
+82.626,
+44.195
+]
+},
+{
+"serial": 20989,
+"resid": 198,
+"resname": "SOPE",
+"name": "H14Y",
+"heavy": false,
+"before": [
+115.343,
+82.977,
+42.761
+],
+"after": [
+115.343,
+82.977,
+42.761
+]
+},
+{
+"serial": 20990,
+"resid": 198,
+"resname": "SOPE",
+"name": "C315",
+"heavy": true,
+"before": [
+117.092,
+84.1,
+42.505
+],
+"after": [
+117.092,
+84.1,
+42.505
+]
+},
+{
+"serial": 20991,
+"resid": 198,
+"resname": "SOPE",
+"name": "H15X",
+"heavy": false,
+"before": [
+116.192,
+84.694,
+42.238
+],
+"after": [
+116.192,
+84.694,
+42.238
+]
+},
+{
+"serial": 20992,
+"resid": 198,
+"resname": "SOPE",
+"name": "H15Y",
+"heavy": false,
+"before": [
+117.62,
+83.848,
+41.561
+],
+"after": [
+117.62,
+83.848,
+41.561
+]
+},
+{
+"serial": 20993,
+"resid": 198,
+"resname": "SOPE",
+"name": "C316",
+"heavy": true,
+"before": [
+117.836,
+85.245,
+43.234
+],
+"after": [
+117.836,
+85.245,
+43.234
+]
+},
+{
+"serial": 20994,
+"resid": 198,
+"resname": "SOPE",
+"name": "H16X",
+"heavy": false,
+"before": [
+118.888,
+85.003,
+43.495
+],
+"after": [
+118.888,
+85.003,
+43.495
+]
+},
+{
+"serial": 20995,
+"resid": 198,
+"resname": "SOPE",
+"name": "H16Y",
+"heavy": false,
+"before": [
+117.367,
+85.669,
+44.147
+],
+"after": [
+117.367,
+85.669,
+44.147
+]
+},
+{
+"serial": 20996,
+"resid": 198,
+"resname": "SOPE",
+"name": "C317",
+"heavy": true,
+"before": [
+117.718,
+86.539,
+42.464
+],
+"after": [
+117.718,
+86.539,
+42.464
+]
+},
+{
+"serial": 20997,
+"resid": 198,
+"resname": "SOPE",
+"name": "H17X",
+"heavy": false,
+"before": [
+117.661,
+87.346,
+43.226
+],
+"after": [
+117.661,
+87.346,
+43.226
+]
+},
+{
+"serial": 20998,
+"resid": 198,
+"resname": "SOPE",
+"name": "H17Y",
+"heavy": false,
+"before": [
+116.722,
+86.649,
+41.985
+],
+"after": [
+116.722,
+86.649,
+41.985
+]
+},
+{
+"serial": 20999,
+"resid": 198,
+"resname": "SOPE",
+"name": "C318",
+"heavy": true,
+"before": [
+118.89,
+86.722,
+41.539
+],
+"after": [
+118.89,
+86.722,
+41.539
+]
+},
+{
+"serial": 21000,
+"resid": 198,
+"resname": "SOPE",
+"name": "H18X",
+"heavy": false,
+"before": [
+118.757,
+87.612,
+40.887
+],
+"after": [
+118.757,
+87.612,
+40.887
+]
+},
+{
+"serial": 21001,
+"resid": 198,
+"resname": "SOPE",
+"name": "H18Y",
+"heavy": false,
+"before": [
+118.992,
+85.827,
+40.889
+],
+"after": [
+118.992,
+85.827,
+40.889
+]
+},
+{
+"serial": 21002,
+"resid": 198,
+"resname": "SOPE",
+"name": "H18Z",
+"heavy": false,
+"before": [
+119.813,
+86.856,
+42.144
+],
+"after": [
+119.813,
+86.856,
+42.144
+]
+}
+],
+"bonds": [
+[
+20665,
+20666
+],
+[
+20665,
+20667
+],
+[
+20665,
+20668
+],
+[
+20665,
+20669
+],
+[
+20669,
+20670
+],
+[
+20669,
+20671
+],
+[
+20669,
+20674
+],
+[
+20671,
+20672
+],
+[
+20671,
+20673
+],
+[
+20674,
+20675
+],
+[
+20674,
+20676
+],
+[
+20674,
+20680
+],
+[
+20677,
+20678
+],
+[
+20677,
+20679
+],
+[
+20677,
+20680
+],
+[
+20677,
+20681
+],
+[
+20681,
+20682
+],
+[
+20682,
+20683
+],
+[
+20682,
+20684
+],
+[
+20682,
+20685
+],
+[
+20685,
+20686
+],
+[
+20685,
+20687
+],
+[
+20685,
+20693
+],
+[
+20687,
+20688
+],
+[
+20688,
+20689
+],
+[
+20688,
+20690
+],
+[
+20690,
+20691
+],
+[
+20690,
+20692
+],
+[
+20690,
+20702
+],
+[
+20693,
+20694
+],
+[
+20693,
+20695
+],
+[
+20693,
+20696
+],
+[
+20696,
+20697
+],
+[
+20697,
+20698
+],
+[
+20697,
+20699
+],
+[
+20699,
+20700
+],
+[
+20699,
+20701
+],
+[
+20699,
+20749
+],
+[
+20702,
+20703
+],
+[
+20702,
+20704
+],
+[
+20702,
+20705
+],
+[
+20705,
+20706
+],
+[
+20705,
+20707
+],
+[
+20705,
+20708
+],
+[
+20708,
+20709
+],
+[
+20708,
+20710
+],
+[
+20708,
+20711
+],
+[
+20711,
+20712
+],
+[
+20711,
+20713
+],
+[
+20711,
+20714
+],
+[
+20714,
+20715
+],
+[
+20714,
+20716
+],
+[
+20714,
+20717
+],
+[
+20717,
+20718
+],
+[
+20717,
+20719
+],
+[
+20717,
+20720
+],
+[
+20720,
+20721
+],
+[
+20720,
+20722
+],
+[
+20722,
+20723
+],
+[
+20722,
+20724
+],
+[
+20724,
+20725
+],
+[
+20724,
+20726
+],
+[
+20724,
+20727
+],
+[
+20727,
+20728
+],
+[
+20727,
+20729
+],
+[
+20727,
+20730
+],
+[
+20730,
+20731
+],
+[
+20730,
+20732
+],
+[
+20730,
+20733
+],
+[
+20733,
+20734
+],
+[
+20733,
+20735
+],
+[
+20733,
+20736
+],
+[
+20736,
+20737
+],
+[
+20736,
+20738
+],
+[
+20736,
+20739
+],
+[
+20739,
+20740
+],
+[
+20739,
+20741
+],
+[
+20739,
+20742
+],
+[
+20742,
+20743
+],
+[
+20742,
+20744
+],
+[
+20742,
+20745
+],
+[
+20745,
+20746
+],
+[
+20745,
+20747
+],
+[
+20745,
+20748
+],
+[
+20749,
+20750
+],
+[
+20749,
+20751
+],
+[
+20749,
+20752
+],
+[
+20752,
+20753
+],
+[
+20752,
+20754
+],
+[
+20752,
+20755
+],
+[
+20755,
+20756
+],
+[
+20755,
+20757
+],
+[
+20755,
+20758
+],
+[
+20758,
+20759
+],
+[
+20758,
+20760
+],
+[
+20758,
+20761
+],
+[
+20761,
+20762
+],
+[
+20761,
+20763
+],
+[
+20761,
+20764
+],
+[
+20764,
+20765
+],
+[
+20764,
+20766
+],
+[
+20764,
+20767
+],
+[
+20767,
+20768
+],
+[
+20767,
+20769
+],
+[
+20767,
+20770
+],
+[
+20770,
+20771
+],
+[
+20770,
+20772
+],
+[
+20770,
+20773
+],
+[
+20773,
+20774
+],
+[
+20773,
+20775
+],
+[
+20773,
+20776
+],
+[
+20776,
+20777
+],
+[
+20776,
+20778
+],
+[
+20776,
+20779
+],
+[
+20779,
+20780
+],
+[
+20779,
+20781
+],
+[
+20779,
+20782
+],
+[
+20782,
+20783
+],
+[
+20782,
+20784
+],
+[
+20782,
+20785
+],
+[
+20785,
+20786
+],
+[
+20785,
+20787
+],
+[
+20785,
+20788
+],
+[
+20788,
+20789
+],
+[
+20788,
+20790
+],
+[
+20788,
+20791
+],
+[
+20791,
+20792
+],
+[
+20791,
+20793
+],
+[
+20791,
+20794
+],
+[
+20794,
+20795
+],
+[
+20794,
+20796
+],
+[
+20794,
+20797
+],
+[
+20798,
+20799
+],
+[
+20798,
+20800
+],
+[
+20798,
+20802
+],
+[
+20798,
+20844
+],
+[
+20800,
+20801
+],
+[
+20802,
+20803
+],
+[
+20802,
+20804
+],
+[
+20802,
+20805
+],
+[
+20805,
+20806
+],
+[
+20805,
+20836
+],
+[
+20806,
+20807
+],
+[
+20806,
+20808
+],
+[
+20808,
+20809
+],
+[
+20808,
+20810
+],
+[
+20808,
+20811
+],
+[
+20811,
+20812
+],
+[
+20811,
+20813
+],
+[
+20811,
+20834
+],
+[
+20813,
+20814
+],
+[
+20813,
+20815
+],
+[
+20813,
+20823
+],
+[
+20815,
+20816
+],
+[
+20815,
+20817
+],
+[
+20815,
+20818
+],
+[
+20818,
+20819
+],
+[
+20818,
+20820
+],
+[
+20818,
+20821
+],
+[
+20821,
+20822
+],
+[
+20821,
+20823
+],
+[
+20821,
+20847
+],
+[
+20823,
+20824
+],
+[
+20823,
+20828
+],
+[
+20824,
+20825
+],
+[
+20824,
+20826
+],
+[
+20824,
+20827
+],
+[
+20828,
+20829
+],
+[
+20828,
+20830
+],
+[
+20828,
+20831
+],
+[
+20831,
+20832
+],
+[
+20831,
+20833
+],
+[
+20831,
+20834
+],
+[
+20834,
+20835
+],
+[
+20834,
+20836
+],
+[
+20836,
+20837
+],
+[
+20836,
+20841
+],
+[
+20837,
+20838
+],
+[
+20837,
+20839
+],
+[
+20837,
+20840
+],
+[
+20841,
+20842
+],
+[
+20841,
+20843
+],
+[
+20841,
+20844
+],
+[
+20844,
+20845
+],
+[
+20844,
+20846
+],
+[
+20847,
+20848
+],
+[
+20847,
+20849
+],
+[
+20847,
+20853
+],
+[
+20849,
+20850
+],
+[
+20849,
+20851
+],
+[
+20849,
+20852
+],
+[
+20853,
+20854
+],
+[
+20853,
+20855
+],
+[
+20853,
+20856
+],
+[
+20856,
+20857
+],
+[
+20856,
+20858
+],
+[
+20856,
+20859
+],
+[
+20859,
+20860
+],
+[
+20859,
+20861
+],
+[
+20859,
+20862
+],
+[
+20862,
+20863
+],
+[
+20862,
+20864
+],
+[
+20862,
+20868
+],
+[
+20864,
+20865
+],
+[
+20864,
+20866
+],
+[
+20864,
+20867
+],
+[
+20868,
+20869
+],
+[
+20868,
+20870
+],
+[
+20868,
+20871
+],
+[
+20872,
+20873
+],
+[
+20872,
+20874
+],
+[
+20872,
+20875
+],
+[
+20872,
+20876
+],
+[
+20876,
+20877
+],
+[
+20876,
+20878
+],
+[
+20876,
+20879
+],
+[
+20879,
+20880
+],
+[
+20879,
+20881
+],
+[
+20879,
+20885
+],
+[
+20882,
+20883
+],
+[
+20882,
+20884
+],
+[
+20882,
+20885
+],
+[
+20882,
+20886
+],
+[
+20886,
+20887
+],
+[
+20887,
+20888
+],
+[
+20887,
+20889
+],
+[
+20887,
+20890
+],
+[
+20890,
+20891
+],
+[
+20890,
+20892
+],
+[
+20890,
+20898
+],
+[
+20892,
+20893
+],
+[
+20893,
+20894
+],
+[
+20893,
+20895
+],
+[
+20895,
+20896
+],
+[
+20895,
+20897
+],
+[
+20895,
+20907
+],
+[
+20898,
+20899
+],
+[
+20898,
+20900
+],
+[
+20898,
+20901
+],
+[
+20901,
+20902
+],
+[
+20902,
+20903
+],
+[
+20902,
+20904
+],
+[
+20904,
+20905
+],
+[
+20904,
+20906
+],
+[
+20904,
+20954
+],
+[
+20907,
+20908
+],
+[
+20907,
+20909
+],
+[
+20907,
+20910
+],
+[
+20910,
+20911
+],
+[
+20910,
+20912
+],
+[
+20910,
+20913
+],
+[
+20913,
+20914
+],
+[
+20913,
+20915
+],
+[
+20913,
+20916
+],
+[
+20916,
+20917
+],
+[
+20916,
+20918
+],
+[
+20916,
+20919
+],
+[
+20919,
+20920
+],
+[
+20919,
+20921
+],
+[
+20919,
+20922
+],
+[
+20922,
+20923
+],
+[
+20922,
+20924
+],
+[
+20922,
+20925
+],
+[
+20925,
+20926
+],
+[
+20925,
+20927
+],
+[
+20927,
+20928
+],
+[
+20927,
+20929
+],
+[
+20929,
+20930
+],
+[
+20929,
+20931
+],
+[
+20929,
+20932
+],
+[
+20932,
+20933
+],
+[
+20932,
+20934
+],
+[
+20932,
+20935
+],
+[
+20935,
+20936
+],
+[
+20935,
+20937
+],
+[
+20935,
+20938
+],
+[
+20938,
+20939
+],
+[
+20938,
+20940
+],
+[
+20938,
+20941
+],
+[
+20941,
+20942
+],
+[
+20941,
+20943
+],
+[
+20941,
+20944
+],
+[
+20944,
+20945
+],
+[
+20944,
+20946
+],
+[
+20944,
+20947
+],
+[
+20947,
+20948
+],
+[
+20947,
+20949
+],
+[
+20947,
+20950
+],
+[
+20950,
+20951
+],
+[
+20950,
+20952
+],
+[
+20950,
+20953
+],
+[
+20954,
+20955
+],
+[
+20954,
+20956
+],
+[
+20954,
+20957
+],
+[
+20957,
+20958
+],
+[
+20957,
+20959
+],
+[
+20957,
+20960
+],
+[
+20960,
+20961
+],
+[
+20960,
+20962
+],
+[
+20960,
+20963
+],
+[
+20963,
+20964
+],
+[
+20963,
+20965
+],
+[
+20963,
+20966
+],
+[
+20966,
+20967
+],
+[
+20966,
+20968
+],
+[
+20966,
+20969
+],
+[
+20969,
+20970
+],
+[
+20969,
+20971
+],
+[
+20969,
+20972
+],
+[
+20972,
+20973
+],
+[
+20972,
+20974
+],
+[
+20972,
+20975
+],
+[
+20975,
+20976
+],
+[
+20975,
+20977
+],
+[
+20975,
+20978
+],
+[
+20978,
+20979
+],
+[
+20978,
+20980
+],
+[
+20978,
+20981
+],
+[
+20981,
+20982
+],
+[
+20981,
+20983
+],
+[
+20981,
+20984
+],
+[
+20984,
+20985
+],
+[
+20984,
+20986
+],
+[
+20984,
+20987
+],
+[
+20987,
+20988
+],
+[
+20987,
+20989
+],
+[
+20987,
+20990
+],
+[
+20990,
+20991
+],
+[
+20990,
+20992
+],
+[
+20990,
+20993
+],
+[
+20993,
+20994
+],
+[
+20993,
+20995
+],
+[
+20993,
+20996
+],
+[
+20996,
+20997
+],
+[
+20996,
+20998
+],
+[
+20996,
+20999
+],
+[
+20999,
+21000
+],
+[
+20999,
+21001
+],
+[
+20999,
+21002
+]
+],
+"rings": {
+"A": [
+"C3",
+"C4",
+"C5",
+"C10",
+"C1",
+"C2"
+],
+"D": [
+"C13",
+"C14",
+"C15",
+"C16",
+"C17"
+]
+},
+"piercings": [
+{
+"ring": "A",
+"piercer_resid": 198,
+"bond": [
+"C212",
+"C213"
+]
+},
+{
+"ring": "D",
+"piercer_resid": 196,
+"bond": [
+"C215",
+"C216"
+]
+}
+]
+}

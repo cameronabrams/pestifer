@@ -16,5 +16,6 @@ pages are about how the pieces fit together for a particular job.
    build-provenance
    importing-systems
    post-translational-modifications
+   pierced-rings
    charmmff-customizations
    agent-driven-builds
