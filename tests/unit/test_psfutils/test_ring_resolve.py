@@ -166,3 +166,109 @@ class TestResolveModelBuiltPiercings(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestPierceeTranslate(unittest.TestCase):
+    """Sliding the pierced molecule -- the move that is not a rotation.
+
+    Both existing remedies rotate: `try_glycan_pendant` bends the piercing tail,
+    `try_sterol_spin` turns the speared ring.  Neither can free a molecule skewered at two
+    points.  Example 17's CHL1 L1-197 was threaded through its A-ring (6-membered, the 3-OH
+    end) by one acyl chain and its D-ring (5-membered, the tail end) by another, each crossing
+    within 0.2 A of the ring centre; all 903 and 917 candidate tail rotations left it threaded,
+    and a sterol's long axis runs near both ring centres so no spin moves them.  Of 1022 rigid
+    translations, 636 un-threaded it and 25 did so with no hard overlap.
+    """
+
+    def _checker(self, n_atoms=8, outside_bonds=False):
+        """A stand-in RingChecker: `n_atoms` atoms of residue L1/197, optionally with a bond
+        leaving the residue."""
+        import networkx as nx
+        import numpy as np
+        serials = list(range(1, n_atoms + 1))
+        atoms = []
+        for s in serials:
+            a = mock.Mock()
+            a.serial = s
+            a.segname = 'L1'
+            a.resid.resid = 197
+            atoms.append(a)
+        G = nx.Graph()
+        G.add_nodes_from(serials)
+        G.add_edges_from(zip(serials, serials[1:]))
+        if outside_bonds:
+            G.add_edge(serials[-1], 999)      # a bond to another residue
+        ck = mock.Mock()
+        ck._atoms = atoms
+        ck._row_of_serial = {s: i for i, s in enumerate(serials)}
+        ck.topol.G = G
+        return ck
+
+    def test_a_residue_bonded_outside_itself_is_refused(self):
+        """The guard that makes this safe: translating one residue of a covalent chain would
+        stretch the bonds either side of it into nonsense.  A lipid is its own molecule and
+        passes; a protein or glycan residue must not."""
+        ck = self._checker(outside_bonds=True)
+        out = ring_resolve.try_piercee_translate(
+            ck, 'in.pdb', mock.Mock(), None,
+            {'segname': 'L1', 'resid': 197, 'resname': 'CHL1'}, ('L1', 197), 'out.pdb')
+        self.assertIsNone(out)
+        ck.check_coords.assert_not_called()      # refused before any geometry was tried
+
+    def test_a_free_molecule_is_translated(self):
+        import numpy as np
+        ck = self._checker()
+        ck.check_coords.return_value = False     # every pose un-threads
+        ck.clash_count.return_value = 0          # and is clean
+        base = np.zeros((8, 3))
+        with mock.patch.object(ring_resolve, 'pdb_replace_coords') as wr:
+            out = ring_resolve.try_piercee_translate(
+                ck, 'in.pdb', base, None,
+                {'segname': 'L1', 'resid': 197, 'resname': 'CHL1'}, ('L1', 197), 'out.pdb')
+        self.assertEqual(out, 'out.pdb')
+        wr.assert_called_once()
+
+    def test_the_smallest_displacement_that_works_wins(self):
+        """A piercing is cleared by the least motion that clears it: the search must stop at
+        the first magnitude that yields an eligible pose, not sweep them all and rank."""
+        import numpy as np
+        ck = self._checker()
+        base = np.zeros((8, 3))
+        seen = []
+
+        def check_coords(scratch, box, targets):
+            seen.append(float(np.linalg.norm(scratch[0])))
+            return False                          # everything un-threads
+        ck.check_coords.side_effect = check_coords
+        ck.clash_count.return_value = 0
+        with mock.patch.object(ring_resolve, 'pdb_replace_coords'):
+            ring_resolve.try_piercee_translate(
+                ck, 'in.pdb', base, None,
+                {'segname': 'L1', 'resid': 197, 'resname': 'CHL1'}, ('L1', 197), 'out.pdb')
+        self.assertTrue(seen)
+        self.assertAlmostEqual(max(seen), ring_resolve._TRANSLATE_MAGNITUDES[0], places=6,
+                               msg='the search went past the first magnitude that worked')
+
+    def test_a_pose_inside_the_steric_gate_is_rejected(self):
+        """Same eligibility rule as the rotations: burying the molecule in a neighbour is not
+        a resolution, and the gate downstream refuses it anyway."""
+        import numpy as np
+        ck = self._checker()
+        ck.check_coords.return_value = False
+        ck.clash_count.side_effect = lambda *a, **k: 1 if k.get('cutoff') else 0
+        base = np.zeros((8, 3))
+        with mock.patch.object(ring_resolve, 'pdb_replace_coords') as wr:
+            out = ring_resolve.try_piercee_translate(
+                ck, 'in.pdb', base, None,
+                {'segname': 'L1', 'resid': 197, 'resname': 'CHL1'}, ('L1', 197), 'out.pdb')
+        self.assertIsNone(out)
+        wr.assert_not_called()
+
+    def test_the_direction_set_is_deterministic(self):
+        """Not an RNG draw.  A resolver that gives a different answer on a rerun cannot be
+        debugged, and this repository has already paid for that once in ligate's loop closure."""
+        import numpy as np
+        a, b = ring_resolve._unit_sphere(98), ring_resolve._unit_sphere(98)
+        self.assertTrue(np.array_equal(a, b))
+        self.assertEqual(a.shape, (98, 3))
+        self.assertTrue(np.allclose(np.linalg.norm(a, axis=1), 1.0))

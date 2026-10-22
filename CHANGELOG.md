@@ -4,6 +4,49 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Added
+
+- **`ring_check` can slide a pierced molecule, not only rotate things.** Both existing remedies
+  are rotations -- `try_glycan_pendant` bends the piercing tail, `try_sterol_spin` turns the
+  speared ring -- and neither can free a molecule skewered at two points.
+
+  Found by the 3.29.3 sweep: ex17/rep-01 stopped with three piercings nothing could clear.
+  Measuring the geometry on the state the failing `ring_check` read, CHL1 L1-197 is threaded
+  through **two different rings at opposite ends**:
+
+  | ring | pierced by | crossing | ring radius |
+  | :--- | :--- | :--- | :--- |
+  | A-ring (C1-C2-C3-C4-C5-C10), the 3-OH end | SOPE 198 `C212-C213` | 0.17 Å from centre | 2.05 Å |
+  | D-ring (C13-C14-C15-C16-C17), the tail end | SOPS 196 `C215-C216` | 0.18 Å from centre | 1.79 Å |
+
+  A sterol's long axis runs near both ring centres, so no spin moves them, and bending either
+  acyl chain leaves the other one holding the ring: all 903 and 917 candidate tail rotations
+  left it threaded. Of 1022 rigid translations, 636 un-thread it and **25 do so with no hard
+  overlap**, the best at 1.5 Å for 5 new soft contacts.
+
+  `try_piercee_translate` searches smallest-displacement-first over a deterministic direction
+  set (a Fibonacci lattice, not an RNG draw -- a resolver that answers differently on a rerun
+  cannot be debugged), with the same eligibility rule as the rotations. It is tried last,
+  because it displaces a whole molecule where the rotations bend a branch.
+
+  **It only ever moves a free molecule.** Translating one residue of a covalent chain would
+  stretch the bonds either side of it into nonsense, so it refuses unless the residue has no
+  bonds leaving it. In a bilayer a lipid passes; a protein or glycan ring refuses and the
+  piercing is reported, which is right -- a glycan threaded onto a protein is a report about the
+  stage that built it, not something to shove sideways.
+
+  On ex17/rep-01's own failing state the full resolver now goes **6 piercings to 0 in one
+  pass**, confirmed by a whole-system re-scan. Three sterols slide by 1.5, 1.0 and 0.5 Å; the
+  second half of the double-threading then clears by an ordinary tail rotation at one new
+  contact, because the first slide freed it.
+
+### Fixed
+
+- **`try_sterol_spin`'s docstring claimed a lateral displacement "would trade one piercing for a
+  clash".** That was the stated reason there was no translation move, and it is false by
+  measurement -- 25 of 1022 translations are clean on the structure that motivated it. A claim
+  in a comment that justifies *not* doing something is the kind to re-derive.
+
 ## [3.29.3] - 2026-10-21
 
 ### Fixed

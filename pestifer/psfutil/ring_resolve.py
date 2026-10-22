@@ -172,7 +172,14 @@ def try_sterol_spin(checker: RingChecker, working_pdb: str, base: np.ndarray, bo
     Honest about what this can and cannot do: a fused ring system is roughly coaxial with its own
     long axis, so spinning it moves the ring ATOMS much more than it moves the HOLE. It clears a
     piercing whose bond passes near the rim, and will not clear one threaded through the centre.
-    The caller gets ``None`` for the latter and falls through to the next remedy.
+    The caller gets ``None`` for the latter and falls through to :func:`try_piercee_translate`.
+
+    An earlier version of this docstring added that "a sterol displaced laterally would trade one
+    piercing for a clash", and used that to justify having no translation move at all.  Measured
+    2026-10-22 on example 17's stuck CHL1 L1-197: of 1022 rigid translations, 636 un-thread the
+    ring and **25 do so with no hard overlap**, the best at 1.5 A for 5 soft contacts.  The claim
+    was wrong, and it was load-bearing -- it is why a sterol skewered through two rings had no
+    remedy but deletion.
 
     Returns ``out_pdb`` on success or ``None`` if no spin clears the piercing.
     """
@@ -218,6 +225,102 @@ def _piercer_within(p: dict, mover_serials: set) -> bool:
     a model-built branch (loop/tail) we are free to rotate."""
     bs = p['piercer'].get('bond_serials')
     return bool(bs) and set(int(s) for s in bs) <= mover_serials
+
+
+#: Rigid-translation search for :func:`try_piercee_translate`, smallest first.  A piercing is
+#: cleared by the least displacement that works, so these are tried in order and the search stops
+#: at the first magnitude that yields any eligible pose.
+_TRANSLATE_MAGNITUDES = (0.5, 1.0, 1.5, 2.0, 2.5, 3.0)
+
+#: Number of directions sampled on the unit sphere.  A deterministic Fibonacci lattice, not an
+#: RNG draw: a resolver that gives a different answer on a rerun cannot be debugged, and this
+#: repository has already paid for that lesson once in `ligate`'s loop closure.
+_TRANSLATE_DIRECTIONS = 98
+
+
+def _unit_sphere(n: int) -> np.ndarray:
+    """``n`` roughly-uniform directions on the unit sphere (Fibonacci lattice, deterministic)."""
+    k = np.arange(n) + 0.5
+    phi = np.arccos(1.0 - 2.0 * k / n)
+    theta = np.pi * (1.0 + 5.0 ** 0.5) * k
+    return np.stack([np.cos(theta) * np.sin(phi),
+                     np.sin(theta) * np.sin(phi),
+                     np.cos(phi)], axis=1)
+
+
+def try_piercee_translate(checker: RingChecker, working_pdb: str, base: np.ndarray, box,
+                          piercee: dict, target: tuple, out_pdb: str, piercer_label: str = '',
+                          magnitudes=None):
+    """Slide the whole pierced molecule rigidly until the threading bond is outside its ring.
+
+    The last remedy, after :func:`try_glycan_pendant` (bend the piercing tail) and
+    :func:`try_sterol_spin` (turn the speared ring).  Both of those are ROTATIONS, and a
+    rotation cannot free a molecule that is skewered at two points: example 17's CHL1 L1-197 was
+    threaded through its A-ring (6-membered, the 3-OH end) by one acyl chain and through its
+    D-ring (5-membered, the tail end) by another, each crossing within 0.2 A of the ring centre.
+    A sterol's long axis runs near both ring centres, so no spin moves them, and bending either
+    chain leaves the other one holding it.  Every one of 903 and 917 candidate tail rotations
+    left the ring threaded.  A translation moves both rings away from both bonds at once: 1.5 A
+    cleared it for 5 soft contacts.
+
+    **Only a molecule may be translated, never a residue inside one.**  Moving one residue of a
+    covalent chain would stretch the bonds either side of it into nonsense, so this refuses
+    unless the residue's atoms have no bonds leaving the residue.  In a bilayer a lipid is its
+    own molecule and the guard passes; for a protein or glycan ring it refuses and the caller
+    reports the piercing instead, which is correct -- a glycan threaded onto a protein is a
+    report about the stage that built it, not something to shove sideways.
+
+    Searched smallest-displacement-first over a deterministic direction set, with the same
+    eligibility rule as the rotations: a pose that puts a heavy-atom pair inside the steric gate
+    is not a resolution.  Among the eligible poses at the first magnitude that yields any, the
+    fewest new soft contacts wins.
+
+    Returns ``out_pdb`` on success or ``None``.
+    """
+    if magnitudes is None:
+        magnitudes = _TRANSLATE_MAGNITUDES
+    seg, resid = piercee['segname'], str(piercee['resid'])
+    serials = [a.serial for a in checker._atoms
+               if a.segname == seg and str(a.resid.resid) == resid]
+    if not serials:
+        logger.debug(f'  {_fmt(piercee)}: no atoms found to translate')
+        return None
+
+    # the molecule guard -- see the docstring.  A residue bonded to anything outside itself is
+    # part of a larger covalent structure and must not be moved on its own.
+    own = set(serials)
+    G = checker.topol.G
+    outside = {nb for s in serials if s in G for nb in G.neighbors(s)} - own
+    if outside:
+        logger.debug(f'  {_fmt(piercee)}: not a free molecule ({len(outside)} bond(s) leave the '
+                     f'residue), so a rigid translation would break covalent geometry; refusing')
+        return None
+
+    rows = np.array([checker._row_of_serial[s] for s in serials], dtype=int)
+    pts = base[rows]
+    dirs = _unit_sphere(_TRANSLATE_DIRECTIONS)
+    scratch = base.copy()
+    for mag in magnitudes:
+        best = None
+        for d in dirs:
+            scratch[rows] = pts + mag * d
+            if checker.check_coords(scratch, box, [target]):
+                continue  # still pierced
+            if checker.clash_count(scratch, rows, cutoff=HARD_OVERLAP, box=box):
+                continue  # buries it in a neighbour; the steric gate refuses this downstream
+            clash = checker.clash_count(scratch, rows, box=box)
+            if best is None or clash < best[0]:
+                best = (clash, scratch.copy(), d.copy())
+        if best is not None:
+            clash, coords, d = best
+            pdb_replace_coords(working_pdb, out_pdb, coords, checker._row_of_serial)
+            logger.info(f'  {_fmt(piercee)}: sliding it {mag:.1f} A '
+                        f'({d[0]:+.2f} {d[1]:+.2f} {d[2]:+.2f}) clears the piercing by '
+                        f'{piercer_label or "its partner"} ({clash} new heavy-atom clash(es))')
+            return out_pdb
+    scratch[rows] = pts
+    logger.debug(f'  {_fmt(piercee)}: no rigid translation up to {magnitudes[-1]} A clears it')
+    return None
 
 
 def resolve_model_built_piercings(psf: str, pdb: str, xsc: str, out_prefix: str, mover_serials,

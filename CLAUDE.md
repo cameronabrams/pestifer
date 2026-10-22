@@ -464,6 +464,53 @@ control was initially written as `assertRaises(Exception)` and passed against an
 `AttributeError` from an incomplete stub -- this file's own lesson, caught by the fact that the
 spy never fired.
 
+## A move set is a hypothesis about what can go wrong, and it was wrong here
+
+Found 2026-10-22 from the 3.29.3 sweep, which stopped ex17/rep-01 with three piercings the
+resolver could not clear. Both of its remedies are ROTATIONS -- bend the piercing tail
+(`try_glycan_pendant`), turn the speared ring (`try_sterol_spin`) -- and that encodes an
+assumption nobody had stated: that a piercing is a molecule caught at one point.
+
+CHL1 L1-197 was caught at two. Measured on the state the failing check read:
+
+| ring | pierced by | crossing | ring radius |
+| :--- | :--- | :--- | :--- |
+| A-ring (6-membered, the 3-OH end) | SOPE 198 `C212-C213` | 0.17 A from centre | 2.05 A |
+| D-ring (5-membered, the tail end) | SOPS 196 `C215-C216` | 0.18 A from centre | 1.79 A |
+
+A sterol's long axis runs near both ring centres, so a spin moves neither hole; bending either
+acyl chain leaves the other holding the ring. **903 and 917 candidate rotations, not one of
+which un-threaded it.** A rigid translation does: 636 of 1022 clear it, 25 with no hard overlap,
+the best at 1.5 A for 5 soft contacts.
+
+Three things worth keeping:
+
+- **The docstring said not to.** `try_sterol_spin` asserted that "a sterol displaced laterally
+  would trade one piercing for a clash", and that sentence is why no translation move existed.
+  It was never measured. This is the third claim-in-a-comment in a month to be load-bearing and
+  false (see the ex17 phase comment and the CCD determinism note), and the pattern is specific:
+  a comment that justifies NOT doing something is never exercised by any test, so nothing can
+  contradict it.
+
+- **"No rotation cleared it" and "nothing can clear it" are different statements**, and the log
+  said the first while everyone read the second -- including me, until I enumerated the poses.
+  Before concluding a structure is unresolvable, enumerate what was actually tried.
+
+- **A second failure mode hid behind the first.** CHL1 L1-162 was reported identically and was
+  not trapped at all: it had two clearing poses against the pristine structure and lost them to
+  the rotations applied before it, because each accepted pose may leave soft clashes. Run first
+  it clears; run in detection order it has nothing left. The translation fallback happens to fix
+  that too, which is why it was preferred over reordering the search -- but the greedy-allocation
+  weakness is still there for anything the fallback cannot reach.
+
+`tests/unit/test_psfutils/test_ring_resolve.py::TestPierceeTranslate` pins the move (including
+that it refuses any residue with a bond leaving it -- a rigid translation of one residue inside a
+covalent chain would be nonsense), and
+`tests/unit/test_tasks/test_lipid_piercing_rotation.py::TestTheSlideIsTheLastResort` pins the
+dispatch **behaviourally** rather than by source text, because this file's other dispatch tests
+read `inspect.getsource` and a pattern matching a word inside a comment is already on the list
+above.
+
 ## "Deterministic" in a comment can be true of the algorithm and false of the build
 
 Found 2026-10-21, chasing why example 11 pierced a ring in sweep replica 3 and not in 1 or 2.

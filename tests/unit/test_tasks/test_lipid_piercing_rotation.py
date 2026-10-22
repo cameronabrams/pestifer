@@ -25,6 +25,9 @@ Two moves are wired, cheapest-first by how much they disturb:
 Deletion remains, as the last resort, and now says rotation was tried.
 """
 import inspect
+from pestifer.tasks import ringcheck as ringcheck_mod
+import types
+from unittest import mock
 import unittest
 
 import numpy as np
@@ -85,6 +88,80 @@ class TestTheDispatchOrder(unittest.TestCase):
     def test_the_spin_only_runs_if_the_tail_move_failed(self):
         seg = self.src[self.src.index("mover_kind='lipid tail'"):self.src.index('try_sterol_spin')]
         self.assertIn('if cand is None', seg)
+
+
+class TestTheSlideIsTheLastResort(unittest.TestCase):
+    """Rotation, then spin, then slide -- and the slide only if both rotations failed.
+
+    Behavioural, not source-text: this file's other dispatch tests read
+    `inspect.getsource`, and a pattern that matches a word inside a comment is a failure this
+    repository keeps a list of.  Driving the real method and watching which moves are called
+    cannot pass that way.
+
+    Why the slide is last: the rotations bend a branch or turn a molecule in place, while a
+    translation displaces a whole molecule and so pays the most collateral motion.  Why it
+    exists at all: example 17's CHL1 L1-197 was skewered through two different rings at
+    opposite ends by two different acyl chains, each crossing within 0.2 A of a ring centre.
+    No rotation frees that -- 903 and 917 candidate tail rotations all left it threaded -- and
+    a 1.5 A slide cleared it for 5 soft contacts.
+    """
+
+    PIERCING = {'piercee': {'segname': 'L1', 'resid': 197, 'resname': 'CHL1',
+                            'segtype': 'lipid', 'ring_serials': [1, 2, 3, 4, 5, 6]},
+                'piercer': {'segname': 'L1', 'resid': 198, 'resname': 'SOPE',
+                            'segtype': 'lipid', 'bond_serials': [10, 11]}}
+
+    def _run(self, tail, spin, slide):
+        """Drive the real _resolve_by_rotation with the three moves stubbed; return the call
+        order and what it reported unresolved."""
+        calls = []
+        state = mock.Mock()
+        state.psf.name, state.pdb.name, state.xsc = 'x.psf', 'x.pdb', None
+        task = types.SimpleNamespace(taskname='t')
+        task._fmt = RingCheckTask._fmt
+        for m in ('_try_sidechain', '_try_glycan_pendant', '_try_pierced_glycan',
+                  '_try_piercer_sidechain'):
+            setattr(task, m, lambda *a, **k: None)
+
+        def mk(name, result):
+            def f(*a, **k):
+                calls.append(name)
+                return result
+            return f
+
+        with mock.patch.object(ringcheck_mod, 'RingChecker'), \
+             mock.patch.object(ringcheck_mod, 'cell_from_xsc', return_value=(None, None)), \
+             mock.patch.object(ringcheck_mod, 'try_glycan_pendant', mk('tail', tail)), \
+             mock.patch.object(ringcheck_mod, 'try_sterol_spin', mk('spin', spin)), \
+             mock.patch.object(ringcheck_mod, 'try_piercee_translate', mk('slide', slide)):
+            fixed, un = RingCheckTask._resolve_by_rotation(
+                task, state, [self.PIERCING], 4.0, ['lipid'], 7)
+        return calls, fixed, un
+
+    def test_the_slide_is_not_reached_when_the_tail_rotation_works(self):
+        calls, fixed, un = self._run(tail='a.pdb', spin=None, slide='c.pdb')
+        self.assertEqual(calls, ['tail'])
+        self.assertEqual(fixed, 'a.pdb')
+        self.assertEqual(un, [])
+
+    def test_the_slide_is_not_reached_when_the_spin_works(self):
+        calls, fixed, un = self._run(tail=None, spin='b.pdb', slide='c.pdb')
+        self.assertEqual(calls, ['tail', 'spin'])
+        self.assertEqual(fixed, 'b.pdb')
+
+    def test_the_slide_runs_when_both_rotations_fail(self):
+        calls, fixed, un = self._run(tail=None, spin=None, slide='c.pdb')
+        self.assertEqual(calls, ['tail', 'spin', 'slide'])
+        self.assertEqual(fixed, 'c.pdb')
+        self.assertEqual(un, [], 'the slide cleared it but it was still reported unresolved')
+
+    def test_all_three_failing_leaves_it_unresolved(self):
+        """The negative control: without it, a resolver that never reports failure would
+        satisfy the three tests above."""
+        calls, fixed, un = self._run(tail=None, spin=None, slide=None)
+        self.assertEqual(calls, ['tail', 'spin', 'slide'])
+        self.assertIsNone(fixed)
+        self.assertEqual(len(un), 1)
 
 
 class TestTheResolutionLoop(unittest.TestCase):

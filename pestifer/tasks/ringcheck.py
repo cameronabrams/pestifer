@@ -27,7 +27,8 @@ from ..scripters import PsfgenScripter
 from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
 from ..psfutil.psfring import ring_check, RingChecker, PIERCING_MARKER
-from ..psfutil.ring_resolve import HARD_OVERLAP, try_glycan_pendant, try_sterol_spin
+from ..psfutil.ring_resolve import (HARD_OVERLAP, try_glycan_pendant, try_sterol_spin,
+                                    try_piercee_translate)
 from ..util.util import cell_from_xsc
 
 logger=logging.getLogger(__name__)
@@ -361,6 +362,16 @@ class RingCheckTask(BaseTask):
                 if cand is None:
                     cand = try_sterol_spin(checker, working_pdb, base, box, piercee, target,
                                            f'{out_prefix}-spin.pdb', self._fmt(piercer))
+                # Both moves above are ROTATIONS, and a rotation cannot free a molecule skewered
+                # at two points.  Example 17's CHL1 L1-197 was threaded through its A-ring by one
+                # acyl chain and its D-ring by another, each within 0.2 A of the ring centre: all
+                # 903 and 917 candidate tail rotations left it threaded, and the spin cannot move
+                # a hole that sits on the spin axis.  Sliding the sterol moves both rings off both
+                # bonds at once.  Last, because it displaces a whole molecule where the rotations
+                # bend a branch.
+                if cand is None:
+                    cand = try_piercee_translate(checker, working_pdb, base, box, piercee, target,
+                                                 f'{out_prefix}-slide.pdb', self._fmt(piercer))
             # 5. lipid ring speared by a PROTEIN bond -- a sterol threaded by a side chain of an
             #    embedded protein.  Spin the sterol first and disturb the protein only if that
             #    fails, which is case 3's rule applied here: move the model-built partner before
@@ -376,6 +387,9 @@ class RingCheckTask(BaseTask):
                 if cand is None:
                     cand = self._try_piercer_sidechain(checker, working_pdb, base, box, piercer,
                                                        target, self._fmt(piercee), out_prefix)
+                if cand is None:
+                    cand = try_piercee_translate(checker, working_pdb, base, box, piercee, target,
+                                                 f'{out_prefix}-slide.pdb', self._fmt(piercer))
             if cand is None:
                 unresolved.append(p)
                 continue
