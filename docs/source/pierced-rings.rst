@@ -20,10 +20,6 @@ This page explains where piercings come from, how pestifer detects them, the mov
 undo them, where in a build those checks run, and what happens when a piercing cannot be
 resolved. The task-level reference is :ref:`subs_buildtasks_ring_check`.
 
-.. contents:: On this page
-   :local:
-   :depth: 1
-
 Where piercings come from
 -------------------------
 
