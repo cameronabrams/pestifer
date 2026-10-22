@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.29.5] - 2026-10-22
+
 **Supersedes 3.29.4, which has been yanked from PyPI.** 3.29.4's piercing detector could not see
 a threading that crossed a ring off-center, and its new slide move produced exactly that, so it
 could report a still-threaded sterol as resolved, and so could its terminate gate.
