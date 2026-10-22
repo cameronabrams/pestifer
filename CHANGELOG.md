@@ -4,6 +4,47 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+**Supersedes 3.29.4, which has been yanked from PyPI.** 3.29.4's piercing detector could not see
+a threading that crossed a ring off-center, and its new slide move produced exactly that, so it
+could report a still-threaded sterol as resolved, and so could its terminate gate.
+
+### Fixed
+
+- **The piercing detector missed every off-center threading.** `PSFRing.pierced_by` rejected
+  any bond whose midpoint lay more than *half a bond length* from the ring COM, under a reason
+  string claiming the test was "both atoms on same side of ring plane". It was a distance gate,
+  not a side test. A bond crossing a hexagon 1 Å off-center, well inside it, was reported clear.
+
+  It went unnoticed because threadings that come out of a build are roughly centered. On example
+  17's replica-1 quilt the detector and a gate-free test agreed at 6 of 6, and the minimizer had
+  stretched the threaded C-C bonds to 2.5-2.9 Å, which widened the gate. It bit as soon as the
+  resolver made small moves. The 3.29.4 resolver reported 6 of 6 cleared on that quilt, and **3
+  were still threaded**, each bond still straddling its ring plane with a winding of exactly 2π
+  but crossing 1-2 Å off-center. Two had been "cleared" by the new slide, one by the sterol spin
+  that has shipped since 3.28. The resolver judges its own candidate poses with this function,
+  so it certified its own non-fixes, and the terminate gate shared the blind spot.
+
+  The gate is replaced by what its reason string described: the two bond atoms must lie on
+  opposite sides of the ring's mean plane (Newell normal, robust for puckered rings). With the
+  winding test, that means the bond *segment* crosses the plane *inside* the ring, wherever
+  inside.
+
+  On the same quilt the corrected resolver clears 6 of 6, and this time an independent check
+  agrees: segment-plane intersection plus an even-odd ray cast, sharing no code with the
+  detector, finds 6 threaded before and 0 after. The slides now need 2.0 and 1.5 Å rather than
+  the 1.5 and 1.0 Å that only looked sufficient.
+
+  `tests/unit/test_psfutils/test_pierced_by_geometry.py` pins it on synthetic geometry. Against
+  the old detector, exactly its four off-center cases fail, and its four other cases (centered,
+  outside the ring, wholly to one side, lying flat) pass either way.
+
+  **Scope of the exposure.** Across all 96 builds of the 3.29.3 sweep, the sterol spin fired
+  exactly once, in a build that failed and was never packaged, and no build slid anything. So
+  the resolver-induced false clears did not reach any shipped 3.29.3 package. What this does not
+  rule out is a build-geometry threading that sat off-center on its own, since every "clean"
+  count on record came from the old detector. Re-scanning the shipped packages with the
+  corrected one is the way to close that.
+
 ## [3.29.4] - 2026-10-22
 
 ### Added
@@ -18,10 +59,10 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
   | ring | pierced by | crossing | ring radius |
   | :--- | :--- | :--- | :--- |
-  | A-ring (C1-C2-C3-C4-C5-C10), the 3-OH end | SOPE 198 `C212-C213` | 0.17 Å from centre | 2.05 Å |
-  | D-ring (C13-C14-C15-C16-C17), the tail end | SOPS 196 `C215-C216` | 0.18 Å from centre | 1.79 Å |
+  | A-ring (C1-C2-C3-C4-C5-C10), the 3-OH end | SOPE 198 `C212-C213` | 0.17 Å from center | 2.05 Å |
+  | D-ring (C13-C14-C15-C16-C17), the tail end | SOPS 196 `C215-C216` | 0.18 Å from center | 1.79 Å |
 
-  A sterol's long axis runs near both ring centres, so no spin moves them, and bending either
+  A sterol's long axis runs near both ring centers, so no spin moves them, and bending either
   acyl chain leaves the other one holding the ring: all 903 and 917 candidate tail rotations
   left it threaded. Of 1022 rigid translations, 636 un-thread it and **25 do so with no hard
   overlap**, the best at 1.5 Å for 5 new soft contacts.
@@ -925,7 +966,7 @@ nothing, and a rotation resolver that scored its own work wrongly and then left 
 
 - **The schema is now gated on ycleptic's structure check** (`ycleptic>=2.4.4`, up from 2.3.0).
   `yclept check-spec` used to validate vocabulary only, and passed on a `base.yaml` where an
-  attribute indented one level too deep had been swallowed into its neighbour's `default:` list
+  attribute indented one level too deep had been swallowed into its neighbor's `default:` list
   -- which silently deleted `charmmff.custom.prm`, taking a conflict-resolution parameter file out
   of every build. Reported from this repo; fixed in ycleptic 2.4.3 (nested lists) and 2.4.4 (the
   root list). Running the check was a manual step in `contributing.rst`; it is now a test, with a
@@ -1317,7 +1358,7 @@ nothing, and a rotation resolver that scored its own work wrongly and then left 
   different segtype.
 
 - fix: **346 standalone molecules in protein and nucleic-acid streams were classified as chain
-  residues.** A residue from those files that bonds to no neighbouring residue (no `+`/`-` atom in
+  residues.** A residue from those files that bonds to no neighboring residue (no `+`/`-` atom in
   its topology) cannot be part of a chain. Examples are CO, O2 and CO2 for heme, dipeptide and
   pyridine models, coenzymes, and free nucleotides. All 346 are now `ligand` -- coenzymes and free
   nucleotides included (`AMP`, `GTP`, `DHF`), consistent with the curated `ADP` and `ATP`. Chain residues are

@@ -464,6 +464,38 @@ control was initially written as `assertRaises(Exception)` and passed against an
 `AttributeError` from an incomplete stub -- this file's own lesson, caught by the fact that the
 spy never fired.
 
+## A resolver must not be judged only by the detector it is trying to satisfy
+
+Found 2026-10-22, one release after the slide move above, while drawing a docs figure of the
+"resolved" ring -- the figure showed the bond still going through it. `PSFRing.pierced_by`
+rejected any bond whose midpoint lay more than **half a bond length** from the ring COM, with
+the reason string "both atoms on same side of ring plane". It was a distance gate wearing a
+side-test's name, and it hid every off-center threading.
+
+On example 17's replica-1 quilt the 3.29.4 resolver reported 6 of 6 piercings cleared; a
+gate-free test found **3 still threaded**, each bond straddling its ring with winding exactly
+2π, crossing 1-2 Å off-center. The resolver's move search asks `check_coords` "is it still
+pierced?" -- the same detector -- so it searched for, and found, poses the detector could not
+see. A small slide or spin is precisely the move that pushes a centered crossing off-center.
+3.29.4 was yanked.
+
+The repo-wide lesson is the one this file keeps relearning, in its sharpest form: **an optimizer
+will find the blind spots of its own objective.** A search that accepts the first pose the
+checker passes is a search for the checker's false negatives. The defense is a second,
+independent check -- different algorithm, no shared code -- before believing a resolution. Here
+that was a segment-plane intersection with an even-odd ray cast, and it is what confirmed the
+corrected 6-to-0 rather than the detector confirming itself.
+
+Also worth knowing: the gate stayed hidden for months because build-produced threadings sit
+near the ring center, and the minimizer stretches the threaded bond (2.5-2.9 Å measured, against
+1.53 Å), which widens a half-bond-length gate. The detector and a gate-free test agree on
+pristine build output. They diverge only after something moves.
+
+`tests/unit/test_psfutils/test_pierced_by_geometry.py` pins the geometry. Note
+`test_a_bond_wholly_on_one_side_is_not_pierced`: simply deleting the gate would have been wrong
+too -- a bond pointing at the hole from above has a line that threads the ring and a segment
+that does not, and only a real straddle test tells them apart.
+
 ## A move set is a hypothesis about what can go wrong, and it was wrong here
 
 Found 2026-10-22 from the 3.29.3 sweep, which stopped ex17/rep-01 with three piercings the
@@ -475,10 +507,10 @@ CHL1 L1-197 was caught at two. Measured on the state the failing check read:
 
 | ring | pierced by | crossing | ring radius |
 | :--- | :--- | :--- | :--- |
-| A-ring (6-membered, the 3-OH end) | SOPE 198 `C212-C213` | 0.17 A from centre | 2.05 A |
-| D-ring (5-membered, the tail end) | SOPS 196 `C215-C216` | 0.18 A from centre | 1.79 A |
+| A-ring (6-membered, the 3-OH end) | SOPE 198 `C212-C213` | 0.17 A from center | 2.05 A |
+| D-ring (5-membered, the tail end) | SOPS 196 `C215-C216` | 0.18 A from center | 1.79 A |
 
-A sterol's long axis runs near both ring centres, so a spin moves neither hole; bending either
+A sterol's long axis runs near both ring centers, so a spin moves neither hole; bending either
 acyl chain leaves the other holding the ring. **903 and 917 candidate rotations, not one of
 which un-threaded it.** A rigid translation does: 636 of 1022 clear it, 25 with no hard overlap,
 the best at 1.5 A for 5 soft contacts.
@@ -507,7 +539,7 @@ Three things worth keeping:
 that it refuses any residue with a bond leaving it -- a rigid translation of one residue inside a
 covalent chain would be nonsense), and
 `tests/unit/test_tasks/test_lipid_piercing_rotation.py::TestTheSlideIsTheLastResort` pins the
-dispatch **behaviourally** rather than by source text, because this file's other dispatch tests
+dispatch **behaviorally** rather than by source text, because this file's other dispatch tests
 read `inspect.getsource` and a pattern matching a word inside a comment is already on the list
 above.
 

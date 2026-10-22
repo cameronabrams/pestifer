@@ -171,7 +171,7 @@ def try_sterol_spin(checker: RingChecker, working_pdb: str, base: np.ndarray, bo
 
     Honest about what this can and cannot do: a fused ring system is roughly coaxial with its own
     long axis, so spinning it moves the ring ATOMS much more than it moves the HOLE. It clears a
-    piercing whose bond passes near the rim, and will not clear one threaded through the centre.
+    piercing whose bond passes near the rim, and will not clear one threaded through the center.
     The caller gets ``None`` for the latter and falls through to :func:`try_piercee_translate`.
 
     An earlier version of this docstring added that "a sterol displaced laterally would trade one
@@ -202,7 +202,7 @@ def try_sterol_spin(checker: RingChecker, working_pdb: str, base: np.ndarray, bo
         scratch[rows] = rotate_points_about_axis(pts, centroid, axis, deg)
         if checker.check_coords(scratch, box, [target]):
             continue  # still pierced
-        # same eligibility rule as `_search`: a spin that buries the sterol in a neighbour is
+        # same eligibility rule as `_search`: a spin that buries the sterol in a neighbor is
         # not a resolution, and the steric gate refuses it downstream anyway
         if checker.clash_count(scratch, rows, cutoff=HARD_OVERLAP, box=box):
             continue
@@ -257,8 +257,8 @@ def try_piercee_translate(checker: RingChecker, working_pdb: str, base: np.ndarr
     :func:`try_sterol_spin` (turn the speared ring).  Both of those are ROTATIONS, and a
     rotation cannot free a molecule that is skewered at two points: example 17's CHL1 L1-197 was
     threaded through its A-ring (6-membered, the 3-OH end) by one acyl chain and through its
-    D-ring (5-membered, the tail end) by another, each crossing within 0.2 A of the ring centre.
-    A sterol's long axis runs near both ring centres, so no spin moves them, and bending either
+    D-ring (5-membered, the tail end) by another, each crossing within 0.2 A of the ring center.
+    A sterol's long axis runs near both ring centers, so no spin moves them, and bending either
     chain leaves the other one holding it.  Every one of 903 and 917 candidate tail rotations
     left the ring threaded.  A translation moves both rings away from both bonds at once: 1.5 A
     cleared it for 5 soft contacts.
@@ -307,7 +307,7 @@ def try_piercee_translate(checker: RingChecker, working_pdb: str, base: np.ndarr
             if checker.check_coords(scratch, box, [target]):
                 continue  # still pierced
             if checker.clash_count(scratch, rows, cutoff=HARD_OVERLAP, box=box):
-                continue  # buries it in a neighbour; the steric gate refuses this downstream
+                continue  # buries it in a neighbor; the steric gate refuses this downstream
             clash = checker.clash_count(scratch, rows, box=box)
             if best is None or clash < best[0]:
                 best = (clash, scratch.copy(), d.copy())

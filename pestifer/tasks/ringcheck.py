@@ -364,7 +364,7 @@ class RingCheckTask(BaseTask):
                                            f'{out_prefix}-spin.pdb', self._fmt(piercer))
                 # Both moves above are ROTATIONS, and a rotation cannot free a molecule skewered
                 # at two points.  Example 17's CHL1 L1-197 was threaded through its A-ring by one
-                # acyl chain and its D-ring by another, each within 0.2 A of the ring centre: all
+                # acyl chain and its D-ring by another, each within 0.2 A of the ring center: all
                 # 903 and 917 candidate tail rotations left it threaded, and the spin cannot move
                 # a hole that sits on the spin axis.  Sliding the sterol moves both rings off both
                 # bonds at once.  Last, because it displaces a whole molecule where the rotations
@@ -377,7 +377,7 @@ class RingCheckTask(BaseTask):
             #    fails, which is case 3's rule applied here: move the model-built partner before
             #    the deposited one, and in a membrane build the lipid is the grid-placed one.
             #    `try_sterol_spin` is honest about its own limit -- it clears a bond passing near
-            #    the ring rim and returns None for one threaded through the centre -- so the
+            #    the ring rim and returns None for one threaded through the center -- so the
             #    fall-through costs a single attempt and the side-chain rotation is the move that
             #    actually pulls the piercing bond out of the ring.
             if (cand is None and piercee['segtype'] == 'lipid'

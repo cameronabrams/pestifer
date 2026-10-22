@@ -101,7 +101,7 @@ class TestTheSlideIsTheLastResort(unittest.TestCase):
     Why the slide is last: the rotations bend a branch or turn a molecule in place, while a
     translation displaces a whole molecule and so pays the most collateral motion.  Why it
     exists at all: example 17's CHL1 L1-197 was skewered through two different rings at
-    opposite ends by two different acyl chains, each crossing within 0.2 A of a ring centre.
+    opposite ends by two different acyl chains, each crossing within 0.2 A of a ring center.
     No rotation frees that -- 903 and 917 candidate tail rotations all left it threaded -- and
     a 1.5 A slide cleared it for 5 soft contacts.
     """
@@ -170,7 +170,7 @@ class TestTheResolutionLoop(unittest.TestCase):
 
     These replace three source-text assertions that pinned the single-pass shape: that the lipid
     branch did not raise, that a non-lipid one did, and that the copy was guarded.  The loop
-    moved all three, and the behaviour they were protecting is covered directly by
+    moved all three, and the behavior they were protecting is covered directly by
     ``test_ringcheck_task.TestAnUnresolvableLipidFallsThroughInsteadOfCrashing`` and
     ``TestFatalPiercings``.  What is left here is what only the source can show: that there IS a
     bounded loop and that nothing is copied when nothing was written.
@@ -319,7 +319,7 @@ class TestTheProteinPiercerDispatchOrder(unittest.TestCase):
     grid-placed one.
 
     ``try_sterol_spin`` is honest about its own limit (it clears a bond near the ring rim and
-    returns ``None`` for one through the centre), so the fall-through costs one attempt and the
+    returns ``None`` for one through the center), so the fall-through costs one attempt and the
     side-chain rotation is the move that actually pulls the bond out of the ring.
     """
 

@@ -102,8 +102,22 @@ class PSFRing(PSFTopoElement):
         A bond is considered to pierce the ring if:
 
         - The center of mass (COM) of the bond is within a specified cutoff distance from the COM of the ring.
-        - The COM of the bond is not more than half the distance between the two endpoints of the bond.
+        - The two bond atoms lie on opposite sides of the ring's mean plane (the bond straddles it).
         - The ring's points, when projected onto a plane perpendicular to the bond at the bond's midpoint, form a closed loop (i.e., the sum of angles around the COM is approximately 2π).
+
+        The second condition used to be a DISTANCE gate -- reject unless the bond midpoint lay
+        within half a bond length of the ring COM -- under a reason string claiming it tested
+        "both atoms on same side of ring plane".  It did not.  It rejected every threading that
+        crossed the ring off-center, which is exactly what a small displacement of a pierced ring
+        produces.  Measured 2026-10-22 on example 17's replica-1 quilt: the 3.29.4 resolver
+        reported 6 piercings cleared, and 3 of them were still threaded -- each bond still
+        straddling its ring plane with a winding of exactly 2π, but now crossing 1-2 A off-center,
+        past a gate of 1.26 A.  Two had been "cleared" by sliding the sterol, one by spinning it.
+        The resolver judges its own candidate poses with this function, so the gate let it
+        certify its own non-fixes, and the terminate gate inherited the same blind spot.
+
+        The straddle test is what the old reason string described.  Together with the winding
+        test it means what it should: the bond SEGMENT crosses the ring plane INSIDE the ring.
 
         Parameters
         ----------
@@ -128,15 +142,23 @@ class PSFRing(PSFTopoElement):
             - `reason`: str
                 A reason for why the bond does not pierce the ring, if applicable.
         """
-        # - reject if bond COM and ring COM are more than the cutoff from each other
-        # - reject if both bond endpoints are on the same side of the plane
         dist=np.linalg.norm(bond.COM-self.COM)
-        # logger.debug(f'{self.COM} {bond.COM} {dist:.3f} {cutoff} {0.5*bond.b[0,1]}')
         if dist>cutoff:
             return dict(pierced=False,reason='cutoff')
-        elif dist>0.5*bond.b[0,1]:
+        # straddle: the two bond atoms must sit on opposite sides of the ring's mean plane.
+        # Newell's normal (sum of cross products of consecutive ring radii) is robust for the
+        # puckered rings this sees -- sugar chairs, sterol A/B rings -- and costs no SVD.
+        R=self.P-self.COM
+        normal=np.sum(np.cross(R,np.roll(R,-1,axis=0)),axis=0)
+        nn=np.linalg.norm(normal)
+        if nn==0.0:
+            return dict(pierced=False,reason='degenerate ring')
+        normal=normal/nn
+        hA=float(np.dot(bond.P[0]-self.COM,normal))
+        hB=float(np.dot(bond.P[1]-self.COM,normal))
+        if hA*hB>=0.0:
             return dict(pierced=False,reason='both atoms on same side of ring plane')
- 
+
         # project all ring points into plane perpendicular to bond at bond midpoint
         lbv,rbv=bond.radii[0],bond.radii[1]
         projected_ring=np.array([p+np.dot(lbv,bond.COM-p)*lbv for p in self.P])
@@ -338,7 +360,7 @@ class RingChecker:
         (lower is better).
 
         **Pass ``box``.**  Without it the scan is non-periodic, and a rotation that swings a
-        tail into a neighbour ACROSS a cell face scores zero clashes while putting two heavy
+        tail into a neighbor ACROSS a cell face scores zero clashes while putting two heavy
         atoms on top of each other.  Measured 2026-10-16 on an example-17 patchB: a rotation
         reported as "0 new heavy-atom clash(es)" left ``SOPE 18 C29`` and ``SOPE 98 C26``
         **0.451 A** apart under the minimum image -- 65.7 A apart in raw coordinates, which is

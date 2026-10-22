@@ -175,8 +175,8 @@ class TestPierceeTranslate(unittest.TestCase):
     `try_sterol_spin` turns the speared ring.  Neither can free a molecule skewered at two
     points.  Example 17's CHL1 L1-197 was threaded through its A-ring (6-membered, the 3-OH
     end) by one acyl chain and its D-ring (5-membered, the tail end) by another, each crossing
-    within 0.2 A of the ring centre; all 903 and 917 candidate tail rotations left it threaded,
-    and a sterol's long axis runs near both ring centres so no spin moves them.  Of 1022 rigid
+    within 0.2 A of the ring center; all 903 and 917 candidate tail rotations left it threaded,
+    and a sterol's long axis runs near both ring centers so no spin moves them.  Of 1022 rigid
     translations, 636 un-threaded it and 25 did so with no hard overlap.
     """
 
@@ -250,7 +250,7 @@ class TestPierceeTranslate(unittest.TestCase):
                                msg='the search went past the first magnitude that worked')
 
     def test_a_pose_inside_the_steric_gate_is_rejected(self):
-        """Same eligibility rule as the rotations: burying the molecule in a neighbour is not
+        """Same eligibility rule as the rotations: burying the molecule in a neighbor is not
         a resolution, and the gate downstream refuses it anyway."""
         import numpy as np
         ck = self._checker()
