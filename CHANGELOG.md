@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.29.4] - 2026-10-22
+
 ### Added
 
 - **`ring_check` can slide a pierced molecule, not only rotate things.** Both existing remedies
