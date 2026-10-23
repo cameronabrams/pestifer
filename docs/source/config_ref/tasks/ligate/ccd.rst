@@ -7,7 +7,7 @@ Parameters for the CCD loop closer (used when method is 'ccd')
 
 Single-valued attributes:
 
-  * ``seed``: RNG seed; a fixed default keeps builds reproducible (default: 27021972)
+  * ``seed``: RNG seed for the loop-closure ensemble.  Unset (the default), it is the build's namd.seed, so replicas run with different --seed values close their loops differently; set it to pin the closure independently of --seed.
 
   * ``max_iters``: maximum CCD sweeps per loop (default: 2000)
 

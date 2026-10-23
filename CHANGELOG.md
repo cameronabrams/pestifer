@@ -4,6 +4,29 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Changed
+
+- **Replicas now start from different lipid placements and close loops differently.** `--seed`
+  used to set `namd.seed` and nothing else. Lipid placement (`make_membrane_system.bilayer.seed`)
+  and loop closure (`ligate.ccd.seed`) had fixed seeds it never reached, and examples 16 and 17
+  pinned `bilayer.seed: 270272` on top. So every replica of a membrane example started from the
+  same lipid placement, and differed only in water and velocities. Replicas that share a starting
+  structure are correlated, so their spread understates the real uncertainty, and a placement
+  defect repeats in every one of them instead of appearing at its real rate. That is what made
+  example 17's doubly threaded cholesterol stop all three replicas on 3.29.5.
+
+  Both seeds now derive from `namd.seed` unless set explicitly (`BaseTask.derived_seed`), and the
+  pinned seed is gone from examples 16 and 17. Each replica is still reproducible from its own
+  seed, since placement runs before NAMD. Each build records the seeds it used, as
+  `placement_seed_<patch>` and `ccd_seed` in `run-record.json`.
+
+  A build without `--seed` is unchanged everywhere except examples 16 and 17: `namd.seed`
+  defaults to the same 27021972 the fixed seeds used, but those two examples had pinned 270272, so
+  their default build now starts from a different placement.
+
+  Not covered: glycan grafting and terminal-tail modeling in `psfgen` still use a fixed internal
+  seed.
+
 ### Fixed
 
 - **Example 17 could not be built on 3.29.5: every replica stopped at its calibration patch.**

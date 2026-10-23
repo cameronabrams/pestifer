@@ -995,9 +995,11 @@ attributes:
             type: dict
             attributes:
               - name: seed
-                text: RNG seed; a fixed default keeps builds reproducible
+                text: >-
+                  RNG seed for the loop-closure ensemble.  Unset (the default), it is the build's
+                  namd.seed, so replicas run with different --seed values close their loops
+                  differently; set it to pin the closure independently of --seed.
                 type: int
-                default: 27021972
               - name: max_iters
                 text: maximum CCD sweeps per loop
                 type: int
@@ -1588,7 +1590,11 @@ attributes:
                     text: area per lipid of the lower leaflet, in square Angstroms
                     type: float
               - name: seed
-                text: RNG seed (optional)
+                text: >-
+                  RNG seed for lipid placement (grid jitter and conformer choice) in every patch
+                  and the full membrane.  Unset (the default), it is the build's namd.seed, so
+                  replicas run with different --seed values start from different placements; set
+                  it to pin the placement independently of --seed.
                 type: int
               - name: relaxation_protocols
                 text: relaxation protocols for the patch and the quilt

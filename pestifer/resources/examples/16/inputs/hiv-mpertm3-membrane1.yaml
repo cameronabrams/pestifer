@@ -37,7 +37,10 @@ tasks:
           upper_leaflet:
             - name: DMPC
               frac: 1.00
-        seed: 270272
+        # No `seed:` here on purpose.  Unset, lipid placement takes the build's --seed, so
+        # replicas start from different placements; a fixed seed here would give every replica
+        # the same one (until 3.29.6 this file pinned 270272, and every ex17 replica stopped on
+        # the same doubly threaded cholesterol in its calibration patch).
         relaxation_protocols:
           # Strategy (2026-07-30, after the minimize-only trial was rejected): pre-equilibrate the
           # pristine gridded membrane (density + lateral area, tensionless NPgT) BEFORE embedding.

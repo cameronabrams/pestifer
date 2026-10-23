@@ -601,10 +601,14 @@ be bisected.
 
 Two things follow, and the second is the expensive one:
 
-- **`--seed` does not reach the loop closure at all.** It sets `namd.seed`; `ligate.ccd.seed` is
-  a separate key with its own default. All three sweep replicas of example 11 closed loops from
-  the identical seed and still diverged, so "replica-specific" there is a draw, not a property
-  of the seed. Anything reasoning about replicas as seed variants is wrong about this stage.
+- **Until 3.29.6, `--seed` did not reach the loop closure, or lipid placement, at all.** It set
+  `namd.seed` only; `ligate.ccd.seed` and `make_membrane_system.bilayer.seed` had fixed defaults,
+  and examples 16 and 17 pinned `bilayer.seed: 270272` on top. All three sweep replicas of example
+  11 closed loops from the identical seed and still diverged (the draw was the minimize), and all
+  three of example 17 started from the identical lipid placement. Both seeds now derive from
+  `namd.seed` unless set explicitly (`BaseTask.derived_seed`). **Before reasoning about replicas
+  as seed variants, check that the seed reaches the step in question** -- and check the example
+  configs, which can pin a seed the code would otherwise derive.
 
 - **A rerun is not a control here.** Having fixed the resolver, I reran example 11 at the same
   seed, got a clean structure, and nearly reported it as proof. It was a different loop

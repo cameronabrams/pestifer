@@ -61,7 +61,10 @@ tasks:
               frac: 0.17
             - name: CHL1
               frac: 0.47
-        seed: 270272
+        # No `seed:` here on purpose.  Unset, lipid placement takes the build's --seed, so
+        # replicas start from different placements; a fixed seed here would give every replica
+        # the same one (until 3.29.6 this file pinned 270272, and every ex17 replica stopped on
+        # the same doubly threaded cholesterol in its calibration patch).
         relaxation_protocols:
           # asymmetric grid: the patch protocol relaxes the two symmetric calibration patches (one per
           # leaflet composition), the quilt protocol relaxes the gridded membrane. The barostatted

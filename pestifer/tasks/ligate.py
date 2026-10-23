@@ -209,7 +209,12 @@ class LigateTask(MDTask):
             logger.warning('ligate method=ccd: has_protein_loops is set but no interior gaps '
                            'were enumerated; nothing to close')
             return 0
-        seed = int(ccd_specs.get('seed', 27021972))
+        # `ligate.ccd.seed` if set, else the build's namd.seed (BaseTask.derived_seed).  It used to
+        # default to a constant `--seed` never reached, so every replica closed its loops from the
+        # same seed -- and since the closure's input is a non-reproducible minimize, replicas
+        # diverged anyway, without the seed meaning anything.
+        seed = self.derived_seed(ccd_specs.get('seed'))
+        self.record_outcome(ccd_seed=seed)
         max_iters = int(ccd_specs.get('max_iters', 2000))
         tol = float(ccd_specs.get('tol', 0.1))
         ensemble = max(1, int(ccd_specs.get('ensemble', 10)))
@@ -247,10 +252,10 @@ class LigateTask(MDTask):
         # `.coor` files. So CCD gets a different starting geometry every run and closes the
         # loops differently, while the seed controls nothing a user can see.
         #
-        # That is how example 11 came to pierce a ring in sweep replica 3 and not in 1 or 2:
-        # the three replicas differ only in `--seed`, which sets `namd.seed` and never reaches
-        # `ccd.seed` at all, so all three closed from the identical seed and still diverged.
-        # "Replica-specific" there is a draw, not a property of the seed.
+        # That is how example 11 came to pierce a ring in sweep replica 3 and not in 1 or 2: until
+        # 3.29.6 `--seed` never reached `ccd.seed`, so all three closed from the identical seed and
+        # still diverged.  The seed now derives from `--seed`, but the input still varies run to
+        # run, so even a fixed seed does not reproduce a closure.
         #
         # Do not read the word "deterministic" here as "rerunning reproduces the closure". It
         # does not, and a rerun that comes back clean is evidence of nothing.

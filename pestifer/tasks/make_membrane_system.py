@@ -530,7 +530,6 @@ class MakeMembraneSystemTask(BaseTask):
         rotation_pm: float = self.bilayer_specs.get('rotation_pm',10.)
         half_mid_zgap: float = self.bilayer_specs.get('half_mid_zgap',1.0)
         SAPL: float = self.bilayer_specs.get('SAPL',75.0)
-        seed: int = self.bilayer_specs.get('seed',27021972)
         xy_aspect_ratio: float = self.bilayer_specs.get('xy_aspect_ratio',1.0)
         relaxation_protocols: dict = self.bilayer_specs.get('relaxation_protocols',{})
         relaxation_protocol: dict = relaxation_protocols.get('patch',{})
@@ -545,8 +544,7 @@ class MakeMembraneSystemTask(BaseTask):
             patch.spec_out(SAPL=SAPL, xy_aspect_ratio=xy_aspect_ratio,
                             rotation_pm=rotation_pm, solution_gcc=solution_gcc,
                             half_mid_zgap=half_mid_zgap)
-            self.grid_patch(patch, patch_name=f'patch{specbyte}', seed=seed,
-                            half_mid_zgap=half_mid_zgap)
+            self.grid_patch(patch, patch_name=f'patch{specbyte}', half_mid_zgap=half_mid_zgap)
             self.do_psfgen(patch, bilayer_name=f'patch{specbyte}')
             # deepcopy per patch: equilibrate_bilayer/the MD task mutate the stage dicts in place
             # (e.g. inject ensemble=NPgT during a membrane_equilibrate stage's do()), so a shared
@@ -691,8 +689,7 @@ class MakeMembraneSystemTask(BaseTask):
         self.quilt = membrane
         for spdb in membrane.register_species_pdbs:
             self.register(spdb, key='species_pdb_for_packmol', artifact_type=PDBFileArtifact)
-        self.grid_patch(membrane, patch_name='quilt', seed=bs.get('seed', 27021972),
-                        half_mid_zgap=half_mid_zgap)
+        self.grid_patch(membrane, patch_name='quilt', half_mid_zgap=half_mid_zgap)
         self.do_psfgen(membrane, bilayer_name='quilt')
         # the gridded membrane starts loose and condenses; stage the relaxation so the cell
         # never shrinks past NAMD's startup patch grid in a single run
@@ -1208,7 +1205,7 @@ class MakeMembraneSystemTask(BaseTask):
             return _MIN_GRID_HALF_MID_ZGAP
         return configured
 
-    def grid_patch(self, patch: Bilayer, patch_name: str = None, seed=None, half_mid_zgap=1.0):
+    def grid_patch(self, patch: Bilayer, patch_name: str = None, half_mid_zgap=1.0):
         """Build a bilayer patch by deterministic grid placement.
 
         Places lipids on a per-leaflet 2D lattice (oriented, tails toward the midplane) and
@@ -1218,6 +1215,11 @@ class MakeMembraneSystemTask(BaseTask):
         """
         self.next_basename(f'grid-{patch_name}')
         output_pdb = f'{self.basename}.pdb'
+        # The seed is decided HERE, not passed in: every placement goes through this function, so
+        # no caller can hand it a stale constant.  `bilayer.seed` if set, else the build's
+        # namd.seed -- see BaseTask.derived_seed for why replicas must not share a placement.
+        seed = self.derived_seed(self.bilayer_specs.get('seed'))
+        self.record_outcome(**{f'placement_seed_{patch_name}': seed})
         # place lipids only; the chambers are filled by a VMD solvate step in equilibrate_bilayer
         # (true-liquid water packing, no lattice voids to distort the bilayer during relaxation)
         patch.write_grid_pdb(output_pdb, half_mid_zgap=half_mid_zgap, seed=seed, place_solvent=False)

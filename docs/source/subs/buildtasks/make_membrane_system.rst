@@ -202,7 +202,6 @@ An example ``make_membrane_system`` task is specified below:
               frac: 0.17
             - name: CHL1
               frac: 0.47
-        seed: 270272
         relaxation_protocols:
           patch:
             - md:

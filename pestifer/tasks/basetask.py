@@ -168,6 +168,32 @@ class BaseTask(ABC):
         self.controller_index: int = self.provisions.get('controller_index', 0)
         self.pipeline: PipelineContext = self.provisions.get('pipeline', None)
 
+    #: The seed a derived RNG falls back to when neither the step nor the build names one.
+    #: Equal to ``namd.seed``'s schema default, so a build run without ``--seed`` is unchanged.
+    _LEGACY_SEED = 27021972
+
+    def derived_seed(self, explicit=None) -> int:
+        """RNG seed for a build step that is not NAMD -- lipid placement, loop closure.
+
+        ``explicit`` (the step's own ``seed`` key) wins when it is set.  Otherwise the step takes
+        the build-wide ``namd.seed``, which is what ``--seed`` sets -- so replicas run with
+        different ``--seed`` values start from different structures, not just different
+        velocities.
+
+        Until 3.29.6 these steps had fixed seeds that ``--seed`` never reached.  Every replica of
+        a membrane example started from the same lipid placement: on example 17 that meant the
+        same 31 threadings in the lower-leaflet calibration patch, and the same doubly threaded
+        cholesterol stopping all three replicas.  Replicas that share a starting structure are
+        correlated, so their spread understates the real uncertainty, and a placement defect
+        repeats in every one of them instead of showing up at its real rate.  The seed is still
+        fixed per replica, so any one of them reproduces exactly.
+        """
+        if explicit is not None:
+            return int(explicit)
+        ngc = (getattr(self, 'provisions', None) or {}).get('namd_global_config') or {}
+        seed = ngc.get('seed')
+        return int(seed) if seed is not None else self._LEGACY_SEED
+
     def build_stamp(self) -> str:
         """The provenance mark this task writes into the files and figures it authors.
 
