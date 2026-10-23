@@ -705,7 +705,10 @@ class TestResolveByRotationStrategy(unittest.TestCase):
         p = _piercing(_side('protein', resname='TYR'), _side('lipid'))
         _tried, fixed, failed = self._resolve(p, wins=None)
         self.assertIsNone(fixed, 'nothing was written, so there is no pose to copy')
-        self.assertEqual(failed, [p])
+        self.assertEqual(len(failed), 1)
+        # the same piercing, plus what was attempted on it so the report can say so
+        self.assertEqual({k: v for k, v in failed[0].items() if k != 'tried'}, p)
+        self.assertEqual(failed[0]['tried'], ('side-chain rotation',))
 
 
 if __name__ == '__main__':
@@ -753,3 +756,65 @@ class TestAnUnresolvableLipidFallsThroughInsteadOfCrashing(_DoCase):
         p = _piercing(_side('protein', resname='PHE', resid='699'), _side('lipid'))
         with self.assertRaises(PestiferBuildError):
             self._run([p], rotation_fails=p, delete='piercee')
+
+
+class TestOnUnresolved(_DoCase):
+    """`on_unresolved: continue` hands a lipid piercing no move clears to the next stage.
+
+    make_membrane_system sets it on the check before the FIRST minimize of a grid-placed
+    structure, because that minimize untangles most of what placement threads.  On example 17's
+    patchB, with the corrected detector: 31 threadings as placed, 20 after that check, 3 after the
+    minimize, which turned CHL1 L1-199's double threading -- beyond every rigid move -- into a
+    single one that the next check cleared by rotation.
+    Making it fatal stopped every ex17 replica on 3.29.5 over a piercing the minimize clears.
+    """
+
+    LIPID = _piercing(_side('lipid', 'MEMB', 10, 'CHL1'), _side('lipid', 'MEMB', 20, 'SOPE'))
+
+    def test_continue_passes_an_unresolved_lipid_piercing_on(self):
+        self._run([self.LIPID], delete='none', on_unresolved='continue')
+        self.assertEqual(self.result, 0)
+        self.assertEqual(self.task.outcome.get('deferred'), 1)
+        self.assertEqual(self._delatom_lines(), [], 'deferring must not delete anything')
+
+    def test_stop_is_the_default_and_still_stops(self):
+        """The negative control for the test above."""
+        with self.assertRaises(PestiferBuildError) as cm:
+            self._run([self.LIPID], delete='none')
+        self.assertIn('RING_PIERCING_FOUND', str(cm.exception))
+
+    def test_a_protein_piercing_stays_fatal_under_continue(self):
+        """The deferral is for grid-placed lipids only.  A remaining piercing involving protein or
+        glycan is a report about the stage that made it, and stays fatal."""
+        p = _piercing(_side('lipid', 'MEMB', 10, 'CHL1'), _side('protein', 'A', 702, 'LEU'))
+        with self.assertRaises(PestiferBuildError):
+            self._run([p], delete='none', on_unresolved='continue')
+
+    def test_continue_with_resolve_false_is_refused(self):
+        """A detect-only pass that does not stop would check nothing."""
+        with self.assertRaises(PestiferBuildError) as cm:
+            self._run([self.LIPID], delete='none', on_unresolved='continue', resolve=False)
+        self.assertIn('resolve: false', str(cm.exception))
+
+    def test_continue_with_a_delete_setting_is_refused(self):
+        """Both say what to do with a lipid ring no move clears; refuse rather than pick one."""
+        with self.assertRaises(PestiferBuildError) as cm:
+            self._run([self.LIPID], delete='piercee', on_unresolved='continue')
+        self.assertIn('conflicts with delete', str(cm.exception))
+
+
+class TestTheFailureLineNamesWhatWasTried(_DoCase):
+    """It used to read "no rotation cleared the piercing" whatever had run, and failed spins and
+    slides logged only at DEBUG -- so on 3.29.5 a reader concluded the slide had never been tried on
+    CHL1 L1-199, when it had been tried four times."""
+
+    def test_the_moves_are_named(self):
+        p = _piercing(_side('lipid', 'MEMB', 199, 'CHL1', ring_serials=[1, 2, 3, 4, 5, 6]),
+                      _side('lipid', 'MEMB', 109, 'SOPE', bond_serials=[10, 11]))
+        failed = dict(p, tried=('tail rotation', 'spin', 'slide'))
+        with self.assertLogs('pestifer.tasks.ringcheck', level='INFO') as cm:
+            with self.assertRaises(PestiferBuildError):
+                self._run([p], rotation_fails=failed, delete='none')
+        line = next(l for l in cm.output if 'nothing cleared' in l)
+        self.assertIn('tried: tail rotation, spin, slide', line)
+        self.assertNotIn('no rotation cleared', '\n'.join(cm.output))

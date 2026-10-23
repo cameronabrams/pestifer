@@ -602,6 +602,7 @@ class MakeMembraneSystemTask(BaseTask):
         if not isinstance(protocol, list):
             return protocol
         guarded = []
+        first_minimize = True
         for stage in protocol:
             if _is_minimize_stage(stage):
                 # BEFORE: clear what placement made, while it is still clearable.  A minimizer
@@ -609,7 +610,19 @@ class MakeMembraneSystemTask(BaseTask):
                 # measured on an example-17 patchB, the opening minimize cleared 3 piercings
                 # and created 2 from a structure that already had 9.  Those 2 were primed by
                 # the grid placement; clearing the 9 first is what stops them.
-                guarded.append(self._ring_check_stage())
+                #
+                # Before the FIRST minimize, though, whatever no move can clear is passed on
+                # rather than fatal.  That minimize starts from a raw grid placement so far from
+                # physical that its early steps pull bonds back OUT of rings as readily as they
+                # push them in.  Measured on the same patchB with the corrected detector: 31
+                # threadings as placed, 20 left after this check, 3 after the minimize -- one of
+                # the 17 it removed was the last threading of CHL1 L1-199, which had been beyond every rigid move
+                # up to 5 A.  Making that fatal stopped every replica of example 17 on 3.29.5
+                # over a piercing the minimize and the check after it do clear.  Later minimizes act on
+                # relaxed structures, so their checks stay fatal.
+                guarded.append(self._ring_check_stage(
+                    on_unresolved='continue' if first_minimize else 'stop'))
+                first_minimize = False
             guarded.append(stage)
             if _is_minimize_stage(stage):
                 # AFTER: and this is not a formality.  The same measurement says a minimize can
@@ -617,7 +630,7 @@ class MakeMembraneSystemTask(BaseTask):
                 # after it genuinely finds new ones -- it is the second half of a loop, not an
                 # assertion.  If it fires, something nascent survived the pass before it.
                 # cutoff 4.0 A: the piercing test accepts a bond only within ~3.5 A of the ring
-                # centre, so a slightly larger link-cell radius finds every piercing without the
+                # center, so a slightly larger link-cell radius finds every piercing without the
                 # ~10x cost of the schema default (10.0).
                 guarded.append(self._ring_check_stage())
                 # RELAX: that check may have rotated, and a rotation leaves new heavy-atom
@@ -631,7 +644,7 @@ class MakeMembraneSystemTask(BaseTask):
         return guarded
 
     @staticmethod
-    def _ring_check_stage(resolve: bool = True) -> dict:
+    def _ring_check_stage(resolve: bool = True, on_unresolved: str = 'stop') -> dict:
         """One spliced ``ring_check`` stage.
 
         Written once rather than at each splice point: three call sites carrying the same four
@@ -639,7 +652,8 @@ class MakeMembraneSystemTask(BaseTask):
         nobody notices.
         """
         return {'ring_check': dict(segtypes=['lipid', 'glycan', 'protein'],
-                                   delete='none', cutoff=4.0, resolve=resolve)}
+                                   delete='none', cutoff=4.0, resolve=resolve,
+                                   on_unresolved=on_unresolved)}
 
     def _grid_membrane(self, leaflet_nlipids, box_SAPL, aspect=None):
         """Grid, build, and relax a full-size membrane with the given per-leaflet counts.

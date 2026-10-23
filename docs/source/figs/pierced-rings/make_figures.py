@@ -308,7 +308,7 @@ def fig_loop():
         if i:
             ax.add_patch(FancyArrowPatch((xs[i - 1] + w + 0.03, h / 2), (x - 0.03, h / 2),
                                          arrowstyle='-|>', mutation_scale=12, color='k'))
-    notes = {0: 'placement, embed,\ngraft, loop closure', 1: 'clear what the\ndisplacement made', 3: 'did the minimize\ncomplete a\nnear-threading?',
+    notes = {0: 'placement, embed,\ngraft, loop closure', 1: 'clear what it can;\nbefore a first minimize,\nthe rest is passed on', 3: 'did the minimize\ncomplete a\nnear-threading?',
              4: 'relax whatever that\ncheck moved', 5: 'detect only:\nanything left is fatal'}
     for i, txt in notes.items():
         ax.text(xs[i] + w / 2, -0.12, txt, ha='center', va='top', fontsize=7.5, color='#444444')

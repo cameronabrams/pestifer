@@ -212,6 +212,10 @@ def try_sterol_spin(checker: RingChecker, working_pdb: str, base: np.ndarray, bo
         if clash == 0:
             break
     if best is None:
+        # Say so.  This returned silently -- not even at DEBUG -- so a failed spin left no trace
+        # anywhere, and on 3.29.5 its absence read as "the spin was never tried".
+        logger.debug(f'  {_fmt(piercee)}: no spin about its long axis clears the piercing by '
+                     f'{piercer_label or "a bond"}')
         return None
     clash, coords, deg = best
     pdb_replace_coords(working_pdb, out_pdb, coords, checker._row_of_serial)

@@ -229,6 +229,20 @@ class TestGuardPiercings(unittest.TestCase):
         self.assertEqual(len(verify), 1, 'there is no detect-only pass before dynamics')
         self.assertIs(verify[0]['resolve'], False)
 
+    def test_only_the_check_before_the_FIRST_minimize_defers(self):
+        """That minimize starts from a raw grid placement and untangles most of what placement
+        threads (example 17's patchB: 20 threadings in, 3 out), so the check before it passes on
+        what it cannot clear.  Every later check acts on a relaxed structure and stays fatal --
+        including the final detect-only pass, which is what keeps threaded structures out of
+        dynamics."""
+        got = _task()._guard_piercings([self.MINIMIZE, self.NPT, self.MINIMIZE, self.NVT])
+        checks = [st['ring_check'] for st in got if 'ring_check' in st]
+        self.assertEqual(checks[0].get('on_unresolved'), 'continue')
+        self.assertTrue(all(c.get('on_unresolved') == 'stop' for c in checks[1:]),
+                        [c.get('on_unresolved') for c in checks])
+        self.assertTrue(any(c.get('resolve') is False for c in checks),
+                        'there must still be a fatal detect-only pass')
+
     def test_dynamics_stages_get_no_check_of_their_own(self):
         """They cannot create a piercing, so a scan before each one is pure cost."""
         got = _task()._guard_piercings([self.MINIMIZE, self.NPT, self.NVT, self.MEMEQ])

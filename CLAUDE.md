@@ -464,6 +464,45 @@ control was initially written as `assertRaises(Exception)` and passed against an
 `AttributeError` from an incomplete stub -- this file's own lesson, caught by the fact that the
 spy never fired.
 
+## A raw grid placement is not yet topology -- the first minimize rearranges it
+
+Found 2026-10-23, when 3.29.5 stopped every example-17 replica at its lower-leaflet calibration
+patch. The premise behind 3.29.x had been: piercings come from unphysical displacements, a
+minimizer can only complete or cement one, so clear every one before any minimization and treat
+leftovers as fatal. Measured on that patch with the corrected detector:
+
+    raw grid placement             31 threadings
+    after the first ring_check     20
+    after the first minimize        3     <- 17 removed, including CHL1 L1-199
+    after the second ring_check     0
+
+From a placement that far from physical, the minimizer's early steps pull bonds back out of rings
+as readily as they push them in. CHL1 199 -- threaded twice as placed, beyond 903 and 917 tail rotations, 11
+spins and every slide up to 5 Å -- had one threading removed by the old first check in that
+build, and the minimize removed the other, confirmed by an independent segment-plane / ray-cast
+test.  Rebuilt locally on the fix, the minimize removed one of the two and left the other, which
+the next resolving check cleared by an ordinary rotation.  **No run has yet shown a minimize
+free a double threading outright** -- I claimed it did, from the first trace, and it had not:
+entering that minimize CHL1 199 was threaded once.  What the data supports is narrower and
+enough: the minimize turns an unfixable double into a fixable single. So the premise holds after an embed or a graft into a
+relaxed structure, and fails for a fresh placement. `on_unresolved: continue` on the first check
+only is the narrowest fix that respects both.
+
+How it was found is worth keeping, because the obvious reading was wrong twice:
+
+- **"Deterministic, so the same every replica" was right, and the reason was specific.** Lipid
+  placement is seeded and runs before NAMD; only the water differs between replicas (the
+  coordinates diverge exactly at the first TIP3 atom). Check which atoms differ before reasoning
+  about why a failure repeats.
+- **A log that is silent about a step is not evidence the step was skipped.** pestifer-sweep
+  concluded from build.log that the slide was never tried on CHL1 199. It was tried four times;
+  its failure logged only at DEBUG, the INFO line said "no rotation cleared" after all three
+  moves had failed, and a failed spin logged nothing anywhere. Both are fixed, but the habit is
+  the point: read pestifer_diagnostics.log before concluding a move did not run.
+- **The greedy-cascade explanation was tested, not assumed, and it was wrong here.** Classifying
+  every candidate move for CHL1 199 against the untouched patch and against the state production
+  met gave the same answer. The cause was the placement, not the order.
+
 ## A resolver must not be judged only by the detector it is trying to satisfy
 
 Found 2026-10-22, one release after the slide move above, while drawing a docs figure of the

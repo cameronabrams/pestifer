@@ -1301,6 +1301,20 @@ attributes:
             type: str
             default: none
             choices: ['piercee','piercer','both','none']
+          - name: on_unresolved
+            text: >-
+              what to do when a resolving pass is left with a lipid-ring piercing no move clears:
+              'stop' (the default) ends the build, naming every remaining piercing; 'continue'
+              logs them and hands them to the next stage.  Meant only for a check that runs before
+              the FIRST minimization of a freshly placed structure -- make_membrane_system sets it
+              there itself -- because that minimization untangles most of what placement threads
+              (on example 17's calibration patch, 20 threadings went in and 3 came out).  Requires
+              resolve: true and delete: none, and never applies to protein or glycan rings, which
+              stay fatal.  The checks after the minimization still resolve and still stop the
+              build, so nothing threaded reaches dynamics.
+            type: str
+            default: stop
+            choices: ['stop', 'continue']
           - name: resolve
             text: >-
               whether this pass may MOVE anything.  True (the default) resolves what it finds, by

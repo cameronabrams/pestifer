@@ -272,3 +272,25 @@ class TestPierceeTranslate(unittest.TestCase):
         self.assertTrue(np.array_equal(a, b))
         self.assertEqual(a.shape, (98, 3))
         self.assertTrue(np.allclose(np.linalg.norm(a, axis=1), 1.0))
+
+
+class TestAFailedSpinSaysSo(unittest.TestCase):
+    """`try_sterol_spin` used to return None without a word at any level, so a failed spin left
+    no trace -- on 3.29.5 its absence read as "the spin was never tried"."""
+
+    def test_failure_is_logged(self):
+        import numpy as np
+        ck = mock.Mock()
+        atoms = []
+        for s in range(1, 9):
+            a = mock.Mock(); a.serial = s; a.segname = 'L1'; a.resid.resid = 199; atoms.append(a)
+        ck._atoms = atoms
+        ck._row_of_serial = {s: s - 1 for s in range(1, 9)}
+        ck.check_coords.return_value = True            # every angle leaves it pierced
+        base = np.random.default_rng(0).normal(size=(8, 3))
+        with self.assertLogs('pestifer.psfutil.ring_resolve', level='DEBUG') as cm:
+            out = ring_resolve.try_sterol_spin(ck, 'in.pdb', base, None,
+                                               {'segname': 'L1', 'resid': 199, 'resname': 'CHL1'},
+                                               ('L1', 199), 'out.pdb', 'SOPE L1-109')
+        self.assertIsNone(out)
+        self.assertTrue(any('no spin' in l for l in cm.output), cm.output)

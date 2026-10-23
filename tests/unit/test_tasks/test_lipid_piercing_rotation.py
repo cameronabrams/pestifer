@@ -162,6 +162,8 @@ class TestTheSlideIsTheLastResort(unittest.TestCase):
         self.assertEqual(calls, ['tail', 'spin', 'slide'])
         self.assertIsNone(fixed)
         self.assertEqual(len(un), 1)
+        self.assertEqual(un[0]['tried'], ('tail rotation', 'spin', 'slide'),
+                         'a failure must carry what was attempted, so the report can name it')
 
 
 class TestTheResolutionLoop(unittest.TestCase):

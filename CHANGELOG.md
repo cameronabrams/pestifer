@@ -4,6 +4,48 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Fixed
+
+- **Example 17 could not be built on 3.29.5: every replica stopped at its calibration patch.**
+  The lower-leaflet patch's grid placement starts with **31 threadings**, identical in every
+  replica because lipid placement is seeded and runs before NAMD. The pre-3.29.5 detector saw 9
+  of them. The corrected one sees all 31; the resolver clears 29; and one cholesterol, CHL1
+  L1-199, threaded twice, defeats every move it has -- 903 and 917 tail rotations, 11 spins and
+  every slide up to 5 Å either leave it threaded or bury it in a neighbor, because the patch is so
+  tangled around it that most exits land on another chain. The first check was fatal, so the
+  build stopped there.
+
+  The stages that follow free it. Tracing the same patch through an older build with the
+  corrected detector: 31 threadings as placed, 20 after the first check, **3 after the first
+  minimization**. In that build the old check had already removed one of CHL1 199's two
+  threadings, and the minimization removed the other -- confirmed independently with a
+  segment-plane / ray-cast test that shares no code with the detector. On this release, building
+  ex17 locally, the minimization removed SOPS 189's threading and left SOPE 109's, and the
+  resolving check after it cleared that single threading with an ordinary tail rotation; the
+  final detect-only check was clean. Either way the minimization turns a threading no move can
+  undo into one a move can. It is not reproducible, so a run in which it frees neither would
+  still stop -- at the post-minimization check, without shipping anything threaded. From a raw grid placement
+  the minimizer's early steps pull bonds out of rings as readily as they push them in. That is
+  why 3.29.3's builds of the same patch were clean before equilibration.
+
+  New `ring_check.on_unresolved` (`stop` by default, or `continue`). `make_membrane_system` sets
+  `continue` on the check before the **first** minimization of each fresh placement only: what
+  no move clears is logged and handed to that minimization. Every later check stays fatal; so
+  does any piercing involving protein or glycan; and the final `resolve: false` check still keeps
+  anything threaded out of dynamics. `continue` is refused alongside `resolve: false` (a
+  detect-only pass that does not stop checks nothing) or a `delete` setting (both would decide the
+  same thing).
+
+  This corrects a premise behind 3.29.x -- that every piercing must be cleared before any
+  minimization, because a minimizer can only cement one. That holds after an embed or a graft
+  into a relaxed structure, and does not hold for a raw grid placement.
+
+- **A failed resolution said "no rotation cleared" whatever had been tried, and a failed spin
+  logged nothing at all.** On 3.29.5 that read, to a careful reader, as the slide never having
+  been tried on CHL1 199; it had been tried four times, at DEBUG. The line now reads "nothing
+  cleared the piercing by X (tried: tail rotation, spin, slide)", built from what the dispatch
+  actually attempted, and a failed spin logs like a failed slide.
+
 ## [3.29.5] - 2026-10-22
 
 **Supersedes 3.29.4, which has been yanked from PyPI.** 3.29.4's piercing detector could not see

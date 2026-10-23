@@ -35,11 +35,19 @@ would have to cross to enter a ring. In pestifer those are:
 
 **Dynamics cannot create a piercing.** Pushing an atom through a ring costs tens of kcal/mol
 against a thermal energy of about 0.6 kcal/mol at membrane temperatures. **A minimizer can
-finish one.** It has no kinetic energy to respect a barrier with, and when it relieves a large
+go either way.** It has no kinetic energy to respect a barrier with, so when it relieves a large
 overlap it can complete a near-threading on the way down. On an example-17 calibration patch,
 comparing the piercing *sets* rather than counts, one minimization cleared three piercings and
 created two. That is why pestifer checks on both sides of a minimization (see
 :ref:`pierced_rings_where`).
+
+From a raw grid placement, though, the first minimization removes far more than it makes. The
+starting structure is so far from physical that the minimizer's early steps pull bonds back out
+of rings as readily as they push them in. On the same patch, with the current detector: 31
+threadings as placed, 20 after the first check had cleared what it could, and 3 after the first
+minimization. One of the 17 it removed was the remaining threading of a cholesterol that no
+rigid move could free while it was threaded twice. Threadings in a fresh grid placement are not yet fixed topology; threadings after an embed
+or a graft into a relaxed structure are.
 
 Detection
 ---------
@@ -244,6 +252,16 @@ sequence after embedding:
    minimization. A final check with ``resolve: false`` only looks; anything it finds stops the
    build.
 
+Before the **first** minimization of a freshly placed patch or membrane, the check runs with
+``on_unresolved: continue``: whatever no move can clear is logged and handed to that
+minimization instead of stopping the build, because that minimization removes most of them (see
+`Where piercings come from`_). Every later check is fatal. So is any piercing involving protein
+or glycan, whatever this setting says. The final detect-only check still guarantees that nothing
+threaded reaches dynamics. Before version 3.29.6 the first check was fatal too, and on the
+corrected detector that stopped every replica of example 17 on a sterol that the
+following minimization and check do free: the minimization removes one of its two threadings, and
+the next check clears the other with an ordinary rotation.
+
 The final check cannot move anything because it is the last word before dynamics. Every move
 leaves a few soft contacts that need a minimization. A check allowed to move atoms right before
 dynamics would hand the integrator exactly the unrelaxed geometry this sequence exists to avoid.
@@ -328,6 +346,11 @@ Configuration summary
    * - ``ring_check.resolve``
      - ``true``
      - ``false`` detects only, and any piercing found stops the build.
+   * - ``ring_check.on_unresolved``
+     - ``stop``
+     - ``continue`` passes a lipid piercing no move clears on to the next stage. Set
+       automatically on the check before a fresh placement's first minimization. Requires
+       ``resolve: true`` and ``delete: none``.
    * - ``ring_check.delete``
      - ``none``
      - What to delete for an unresolvable *lipid* ring: ``piercee``, ``piercer``, ``both`` or

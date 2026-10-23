@@ -112,6 +112,19 @@ class RingCheckTask(BaseTask):
         delete_these: str = self.specs.get('delete', 'piercee')
         max_ring_size: int = self.specs.get('max_ring_size', 7)
         resolve: bool = bool(self.specs.get('resolve', True))
+        on_unresolved: str = str(self.specs.get('on_unresolved', 'stop'))
+        # `continue` defers what this pass cannot clear to the next stage.  It only makes sense on
+        # a pass that resolves, and only when nothing would be deleted instead -- a detect-only
+        # pass that does not stop checks nothing, and `delete` already says what to do with a
+        # lipid ring no move clears.  Refuse the combinations rather than silently pick one.
+        if on_unresolved == 'continue' and not resolve:
+            raise PestiferBuildError(
+                'ring_check: on_unresolved: continue with resolve: false would look and then ignore '
+                'whatever it found.  A detect-only pass exists to stop the build; drop one setting.')
+        if on_unresolved == 'continue' and delete_these != 'none':
+            raise PestiferBuildError(
+                f'ring_check: on_unresolved: continue conflicts with delete: {delete_these} -- both say '
+                f'what to do with a lipid ring no move clears.  Use one.')
         if not segtypes:
             # Was a warning that returned 0 -- a `ring_check` task that checked nothing and
             # reported success, which is the silent-no-op shape this repository keeps a list of.
@@ -174,8 +187,9 @@ class RingCheckTask(BaseTask):
                                                               segtypes, max_ring_size)
             n_rotations += len(rotatable) - len(unresolved)
             for failed in unresolved:
-                logger.info(f'  {self._fmt(failed["piercee"])}: no rotation cleared the piercing '
-                            f'by {self._fmt(failed["piercer"])}')
+                moves = ', '.join(failed.get('tried', ())) or 'no applicable move'
+                logger.info(f'  {self._fmt(failed["piercee"])}: nothing cleared the piercing by '
+                            f'{self._fmt(failed["piercer"])} (tried: {moves})')
             if fixed_pdb is None:
                 break   # nothing moved, so another pass would do exactly the same thing
             # a rotation changes coordinates only, not topology: keep the PSF, new PDB
@@ -247,6 +261,24 @@ class RingCheckTask(BaseTask):
             return self.result
 
         ess = 's' if len(other_piercings) > 1 else ''
+        if delete_these == "none" and on_unresolved == 'continue':
+            # Deferred to the next stage, deliberately.  `make_membrane_system` sets this only on
+            # the check before the FIRST minimize of a freshly grid-placed structure, because that
+            # minimize untangles most of what placement threads: on example 17's patchB, 20
+            # threadings went in and 3 came out, including a sterol (CHL1 L1-199) skewered so
+            # deep that no rotation, spin or slide up to 5 A could free it.  Stopping here stopped
+            # every replica of ex17 on 3.29.5 over a piercing the next stages remove: the minimize
+            # took one of CHL1 199's two threadings, the following check rotated out the other.
+            # The checks after that minimize still resolve, and the final one still stops the
+            # build, so nothing threaded reaches dynamics.  Not a failure, so no marker.
+            self._report(other_piercings, logger.warning)
+            logger.warning(f'ring_check: {len(other_piercings)} pierced-ring configuration{ess} '
+                           f'not cleared by any move; on_unresolved: continue passes '
+                           f'{"them" if ess else "it"} to the next stage, whose checks must clear '
+                           f'{"them" if ess else "it"}')
+            self.record_outcome(deferred=len(other_piercings))
+            self.result = 0
+            return self.result
         if delete_these == "none":
             self._report(other_piercings, logger.error)
             raise PestiferBuildError(
@@ -327,12 +359,15 @@ class RingCheckTask(BaseTask):
             base = checker.load_coords(working_pdb)
             out_prefix = f'{self.taskname}-declash-{seg}-{resid}'
             cand = None
+            tried = []   # what was attempted, so a failure can say so (see the note at the end)
             # 1. aromatic ring: rotate the side chain itself
             if piercee['segtype'] == 'protein' and resname in _AROMATIC:
+                tried.append('side-chain rotation')
                 cand = self._try_sidechain(checker, psf, working_pdb, base, box, xsc,
                                            seg, resid, resname, target, out_prefix)
             # 2. rigid ring (proline / glycan) speared by a glycan: rotate the glycan pendant
             if cand is None and piercer['segtype'] == 'glycan' and piercer.get('bond_serials'):
+                tried.append('glycan-branch rotation')
                 cand = self._try_glycan_pendant(checker, working_pdb, base, box, piercer,
                                                 target, self._fmt(piercee), out_prefix)
             # 3. glycan ring speared by a protein side chain.  Move the glycan first -- it is the
@@ -341,9 +376,11 @@ class RingCheckTask(BaseTask):
             #    disturb the protein, rotating the piercing side chain instead.
             if (cand is None and piercee['segtype'] == 'glycan'
                     and piercer['segtype'] == 'protein'):
+                tried.append('pierced-glycan rotation')
                 cand = self._try_pierced_glycan(checker, working_pdb, base, box, piercee,
                                                 target, out_prefix)
                 if cand is None:
+                    tried.append('side-chain rotation')
                     cand = self._try_piercer_sidechain(checker, working_pdb, base, box, piercer,
                                                        target, self._fmt(piercee), out_prefix)
             # 4. lipid ring speared by a lipid bond (a sterol threaded by an acyl tail).
@@ -356,10 +393,12 @@ class RingCheckTask(BaseTask):
             if (cand is None and piercee['segtype'] == 'lipid'
                     and piercer['segtype'] == 'lipid'):
                 if piercer.get('bond_serials'):
+                    tried.append('tail rotation')
                     cand = try_glycan_pendant(checker, working_pdb, base, box, piercer, target,
                                               f'{out_prefix}-lipidtail.pdb', self._fmt(piercee),
                                               mover_kind='lipid tail')
                 if cand is None:
+                    tried.append('spin')
                     cand = try_sterol_spin(checker, working_pdb, base, box, piercee, target,
                                            f'{out_prefix}-spin.pdb', self._fmt(piercer))
                 # Both moves above are ROTATIONS, and a rotation cannot free a molecule skewered
@@ -370,6 +409,7 @@ class RingCheckTask(BaseTask):
                 # bonds at once.  Last, because it displaces a whole molecule where the rotations
                 # bend a branch.
                 if cand is None:
+                    tried.append('slide')
                     cand = try_piercee_translate(checker, working_pdb, base, box, piercee, target,
                                                  f'{out_prefix}-slide.pdb', self._fmt(piercer))
             # 5. lipid ring speared by a PROTEIN bond -- a sterol threaded by a side chain of an
@@ -382,16 +422,23 @@ class RingCheckTask(BaseTask):
             #    actually pulls the piercing bond out of the ring.
             if (cand is None and piercee['segtype'] == 'lipid'
                     and piercer['segtype'] == 'protein'):
+                tried.append('spin')
                 cand = try_sterol_spin(checker, working_pdb, base, box, piercee, target,
                                        f'{out_prefix}-spin.pdb', self._fmt(piercer))
                 if cand is None:
+                    tried.append('side-chain rotation')
                     cand = self._try_piercer_sidechain(checker, working_pdb, base, box, piercer,
                                                        target, self._fmt(piercee), out_prefix)
                 if cand is None:
+                    tried.append('slide')
                     cand = try_piercee_translate(checker, working_pdb, base, box, piercee, target,
                                                  f'{out_prefix}-slide.pdb', self._fmt(piercer))
             if cand is None:
-                unresolved.append(p)
+                # carry what was tried, so the report can name it.  The line used to read "no
+                # rotation cleared the piercing" whatever had run, and failed spins and slides
+                # log only at DEBUG -- so on 3.29.5 a reader concluded the slide had never been
+                # tried on example 17's CHL1 L1-199, when it had been tried four times.
+                unresolved.append(dict(p, tried=tuple(tried)))
                 continue
             working_pdb = cand
             resolved_any = True
