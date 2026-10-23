@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.29.6] - 2026-10-23
+
 ### Changed
 
 - **Replicas now start from different lipid placements and close loops differently.** `--seed`
