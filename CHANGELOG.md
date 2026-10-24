@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.29.7] - 2026-10-24
+
 ### Changed
 
 - **`--seed` now reaches psfgen's tail modeling and loop and glycan declashing.** These three
