@@ -4,6 +4,19 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Changed
+
+- **`--seed` now reaches psfgen's tail modeling and loop and glycan declashing.** These three
+  steps drew from one fixed seed (`PsfgenTask._DECLASH_SEED = 90125`), so every replica got the
+  same modeled terminal tails, loop declash and glycan poses -- the parts of the structure the
+  deposit does not determine, and so where replicas most need to differ. 3.29.6 noted this as
+  not covered. The seed is now offset from `namd.seed` (`PsfgenTask.declash_seed`) and recorded
+  as `declash_seed` in `run-record.json`.
+
+  A build run without `--seed` is unchanged: at `namd.seed`'s default the offset is zero and the
+  seed is still 90125. The replica note in the build-provenance docs, which still said the
+  model-building seeds were not varied, is corrected.
+
 ## [3.29.6] - 2026-10-23
 
 ### Changed

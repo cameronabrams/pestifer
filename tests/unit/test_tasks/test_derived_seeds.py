@@ -16,11 +16,13 @@ import pathlib
 import unittest
 from unittest import mock
 
+import numpy as np
 import yaml
 
 from pestifer.tasks.basetask import BaseTask
 from pestifer.tasks.ligate import LigateTask
 from pestifer.tasks.make_membrane_system import MakeMembraneSystemTask
+from pestifer.tasks.psfgen import PsfgenTask
 
 
 def _provisions(seed):
@@ -123,6 +125,113 @@ class TestLoopClosureSeed(unittest.TestCase):
 
     def test_an_explicit_ccd_seed_pins_the_closure(self):
         self.assertEqual(self._first_seed(27021974, ccd_seed=3)[0], 3)
+
+
+class TestDeclashSeed(unittest.TestCase):
+    """Tail modeling and the loop and pendant declashers draw from `PsfgenTask.declash_seed`.
+
+    Each test drives a real call site and captures what reaches the modeler or the declasher, so
+    a site that went back to the class constant would fail here even with `declash_seed` intact.
+    """
+
+    class _Stop(Exception):
+        pass
+
+    def _task(self, namd_seed):
+        t = PsfgenTask.__new__(PsfgenTask)
+        t.provisions = _provisions(namd_seed)
+        t.outcome = {}
+        t.basename = 'b'
+        t.next_basename = mock.Mock()
+        return t
+
+    class _CM:
+        def __init__(self, *a):
+            self.coords = np.zeros((2, 3))
+            self._mass = np.array([12.0, 12.0])
+            self._names = np.array(['CA', 'CB'])
+            self.atoms = mock.Mock(data=[mock.Mock(segname='A', resid='1')] * 2)
+
+        def _residue_index(self):
+            return np.zeros(2, dtype=int)
+
+        def residue_of_segname(self, *a):
+            return 0
+
+        def write_pdb(self, *a):
+            pass
+
+    def _first_draw(self, rng):
+        return int(rng.integers(1 << 30))
+
+    def _pendant_rng(self, namd_seed):
+        seen = {}
+
+        def declash_pendant(*args):
+            seen['rng'] = args[-1]
+        state = mock.Mock()
+        with mock.patch('pestifer.molecule.coordmanip.CoordManipulator', self._CM), \
+             mock.patch('pestifer.psfutil.declash.declash_pendant', side_effect=declash_pendant):
+            self._task(namd_seed)._run_pendant_declash(state, [(np.array([0]), [], [])], 1, 2.0)
+        return self._first_draw(seen['rng'])
+
+    def _loop_rng(self, namd_seed):
+        seen = {}
+
+        def declash_loop(*args):
+            seen['rng'] = args[-1]
+        state = mock.Mock()
+        with mock.patch('pestifer.molecule.coordmanip.CoordManipulator', self._CM), \
+             mock.patch('pestifer.psfutil.declash.declash_loop', side_effect=declash_loop):
+            self._task(namd_seed)._run_loop_declash(state, [('A', ['1'])], 1)
+        return self._first_draw(seen['rng'])
+
+    def _tail_seed(self, namd_seed):
+        t = self._task(namd_seed)
+        t.specs = {'source': {'sequence': {'loops': {'declash': {}}}}}
+        t.base_molecule = mock.Mock()
+        t.base_molecule.protein_terminal_tails.return_value = [
+            {'segname': 'A', 'tail_resids': [1, 2], 'anchor_resid': 3, 'end': 'N'}]
+        t.base_molecule.protein_loop_gaps.return_value = []
+        t._crotation_targeted_resids = lambda: {}
+        state = mock.Mock()
+        state.pdb.name = 'in.pdb'
+        t.get_current_artifact = lambda k: state
+        seen = {}
+
+        def model_one_tail(*a, **kw):
+            seen['seed'] = kw['seed']
+            raise self._Stop()
+        with mock.patch('pestifer.psfutil.loop_ccd.loop_atoms_from_pdb', return_value=([], [], [])), \
+             mock.patch('pestifer.psfutil.tail_model.model_one_tail', side_effect=model_one_tail):
+            with self.assertRaises(self._Stop):
+                t.model_terminal_tails()
+        return seen['seed'], t.outcome
+
+    def test_a_build_without_seed_keeps_the_old_seed(self):
+        """Default builds must be unchanged: namd.seed at its default gives exactly 90125."""
+        legacy = BaseTask._LEGACY_SEED
+        self.assertEqual(self._task(legacy).declash_seed(), 90125)
+        self.assertEqual(self._task(None).declash_seed(), 90125)
+
+    def test_namd_seed_zero_does_not_go_negative(self):
+        self.assertGreaterEqual(self._task(0).declash_seed(), 0)
+
+    def test_the_tail_modeler_takes_the_build_seed(self):
+        seed, outcome = self._tail_seed(27021973)
+        self.assertEqual(seed, 90126, 'the first tail must model from the declash seed + 0')
+        self.assertEqual(outcome.get('declash_seed'), 90126)
+        self.assertEqual(self._tail_seed(27021972)[0], 90125)
+
+    def test_the_pendant_declasher_takes_the_build_seed(self):
+        expect = self._first_draw(np.random.default_rng(90126))
+        self.assertEqual(self._pendant_rng(27021973), expect)
+        self.assertNotEqual(self._pendant_rng(27021973), self._pendant_rng(27021974))
+
+    def test_the_loop_declasher_takes_the_build_seed(self):
+        expect = self._first_draw(np.random.default_rng(90126))
+        self.assertEqual(self._loop_rng(27021973), expect)
+        self.assertNotEqual(self._loop_rng(27021973), self._loop_rng(27021974))
 
 
 if __name__ == '__main__':

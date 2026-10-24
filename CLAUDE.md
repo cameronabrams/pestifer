@@ -606,7 +606,9 @@ Two things follow, and the second is the expensive one:
   and examples 16 and 17 pinned `bilayer.seed: 270272` on top. All three sweep replicas of example
   11 closed loops from the identical seed and still diverged (the draw was the minimize), and all
   three of example 17 started from the identical lipid placement. Both seeds now derive from
-  `namd.seed` unless set explicitly (`BaseTask.derived_seed`). **Before reasoning about replicas
+  `namd.seed` unless set explicitly (`BaseTask.derived_seed`). psfgen's tail-model and declash
+  seed, missed in 3.29.6, follows in 3.29.7 (`PsfgenTask.declash_seed`), offset so a default build
+  keeps 90125. **Before reasoning about replicas
   as seed variants, check that the seed reaches the step in question** -- and check the example
   configs, which can pin a seed the code would otherwise derive.
 

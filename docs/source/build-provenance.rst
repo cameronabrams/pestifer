@@ -285,11 +285,11 @@ Two runs of one config now draw the same seed:
    full trajectory that separation grows to macroscopic.
 
    What the seed buys is real and worth stating precisely: the *specification* is complete, the
-   *psfgen-built macromolecule* is bit-identical across replicas, and the *stochastic inputs* are
-   pinned — which is what makes a replica set well-defined and re-derivable rather than accidental.
-   Note the narrowness of the middle claim: it is psfgen's output specifically, not "the build" and
-   not "model building" as that term is used below (which also covers loop closure and lipid
-   packing).  Anything downstream of the first NAMD stage — solvation included, where the box is
+   *psfgen-built macromolecule* is bit-identical across reruns of one seed, and the *stochastic
+   inputs* are pinned — which is what makes a replica set well-defined and re-derivable rather than
+   accidental.  Note the narrowness of the middle claim: it is psfgen's output specifically, not
+   "the build", and it is per seed — replicas with different seeds differ in whatever psfgen
+   models (see the note below).  Anything downstream of the first NAMD stage — solvation included, where the box is
    set after dynamics — inherits the non-reproducibility described above.  Replicate simulations are
    scientifically meaningful precisely **because** trajectories are not reproducible; the seed
    makes each replica labeled instead of anonymous.
@@ -313,11 +313,17 @@ replicas of every example, replica *r* using ``SEED_BASE+r-1``, each in its own
 
 .. note::
 
-   Replicas produced this way **vary** their MD random-number streams — velocity assignment and
-   the Langevin thermostat.  Model building has its own seeds (``ligate.ccd.seed`` for loop
-   closure and ``make_membrane_system.bilayer.seed`` for lipid packing) which are *not* varied.
-   If you want independent *builds* as well — a different loop closure, a different lipid
-   arrangement — vary those seeds in the YAML too.
+   Replicas produced this way vary their MD random-number streams — velocity assignment and the
+   Langevin thermostat — **and their model building**: lipid placement
+   (``make_membrane_system.bilayer.seed``), loop closure (``ligate.ccd.seed``), and psfgen's
+   terminal-tail modeling and loop and glycan declashing all take their seeds from ``--seed``.
+   Each records the seed it used in ``run-record.json`` (``placement_seed_<patch>``,
+   ``ccd_seed``, ``declash_seed``).  Setting ``bilayer.seed`` or ``ccd.seed`` explicitly pins that
+   step across replicas.  A build run without ``--seed`` uses the same seeds as before.
+
+   Until 3.29.6 none of the model-building seeds followed ``--seed``, and psfgen's did not until
+   3.29.7, so replicas built by earlier versions share their placement, loop closure and modeled
+   geometry.
 
 .. _replica-reproducibility:
 
@@ -330,12 +336,14 @@ replicas of every example, replica *r* using ``SEED_BASE+r-1``, each in its own
    any stage downstream of the first one diverges between replicas.  Measured over a 27-example
    triplicate sweep:
 
-   * psfgen output *is* bit-identical across replicas — 27 of 27 examples.
+   * psfgen output *is* bit-identical across replicas — 27 of 27 examples.  (Measured before
+     3.29.7, when psfgen's seed ignored ``--seed``; replicas now differ wherever psfgen models
+     tails or declashes loops and glycans.)
    * Solvated starting structures differ across replicas in 24 of the 25 examples that solvate.
    * Where the solvation box is fixed *after* dynamics, the atom count differs too — 11 of 27
      examples, spanning 0.76–4.19%.
 
-   So the built macromolecule is reproducible; composition is reproducible only for the 16
+   So the built macromolecule is reproducible per seed; composition is reproducible only for the 16
    examples whose box is set before any dynamics runs; nothing downstream of the first NAMD stage
    is reproducible bit-for-bit.  Read this before quoting any number from a sweep.
 

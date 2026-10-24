@@ -593,7 +593,7 @@ class PsfgenTask(VMDTask):
             extra_env = np.vstack(placed_tails) if placed_tails else None
             res = model_one_tail(src_pdb, t['segname'], t['tail_resids'], t['anchor_resid'],
                                  t['end'], all_modeled_serials,
-                                 seed=self._DECLASH_SEED + k, ensemble=ensemble, extra_env=extra_env)
+                                 seed=self.declash_seed() + k, ensemble=ensemble, extra_env=extra_env)
             placed_tails.append(res['heavy'])
             rep = res['rep']
             tag = (f"{t['segname']}:{t['tail_resids'][0]}-{t['tail_resids'][-1]} "
@@ -1017,7 +1017,7 @@ class PsfgenTask(VMDTask):
         ridx = cm._residue_index()
         names = cm._names
         seg = np.array([a.segname for a in cm.atoms.data])
-        rng = np.random.default_rng(self._DECLASH_SEED)
+        rng = np.random.default_rng(self.declash_seed())
         not_nhn = ~np.isin(names, ['N', 'HN'])
         for segname, resids in loops:
             seg_mask = seg == segname
@@ -1180,7 +1180,7 @@ class PsfgenTask(VMDTask):
         for indices, _bonds, _movers in pendants:
             batch[indices] = True
         env_heavy = np.nonzero(heavy & ~batch)[0]
-        rng = np.random.default_rng(self._DECLASH_SEED)
+        rng = np.random.default_rng(self.declash_seed())
         for indices, bonds, movers in pendants:
             pend = np.zeros(len(coords), dtype=bool)
             pend[indices] = True
@@ -1189,8 +1189,22 @@ class PsfgenTask(VMDTask):
         cm.coords = coords
         cm.write_pdb(f'{self.basename}.pdb')
 
-    #: fixed RNG seed so declashed builds are reproducible (VMD's rand() was unseeded)
+    #: declash/tail-model seed of a build run without ``--seed`` (VMD's rand() was unseeded)
     _DECLASH_SEED = 90125
+
+    def declash_seed(self) -> int:
+        """RNG seed for tail modeling and the loop and pendant declashers.
+
+        Offset from the build seed so that ``--seed`` reaches these steps, as it does lipid
+        placement and loop closure (``BaseTask.derived_seed``): until 3.29.7 it did not, and
+        every replica got the same modeled tails, loop declash and glycan poses -- the parts of
+        the structure the deposit does not determine.  The offset keeps a build run without
+        ``--seed`` (``namd.seed`` at its default, ``_LEGACY_SEED``) on 90125, so default builds
+        are unchanged.  Modulo 2**32 because ``namd.seed: 0`` would otherwise go negative.
+        """
+        seed = (self._DECLASH_SEED + self.derived_seed() - self._LEGACY_SEED) % 2**32
+        self.record_outcome(declash_seed=seed)
+        return seed
 
     def ingest_molecules(self):
         """
