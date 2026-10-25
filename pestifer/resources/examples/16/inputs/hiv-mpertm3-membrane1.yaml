@@ -83,8 +83,9 @@ tasks:
   # Embedding should not be able to produce a piercing at all: a bond cannot thread a ring
   # without coming ~1.6 A from a ring atom, far inside the 2.89 A C...C threshold at which
   # `bilayer_embed` deletes an overlapping lipid.  So if the first check here fires, it is a
-  # report about the clash deletion, not a thing to rotate away -- which is why a protein or
-  # glycan piercing at this point is fatal rather than resolved.
+  # report about the clash deletion.  A side chain or a lipid tail through an aromatic or
+  # sterol ring is still rotated first; what no move clears involving protein or glycan is
+  # fatal, and the message points at the embed's clash deletion.
   - ring_check:
       segtypes: [lipid, glycan, protein]
   - md:

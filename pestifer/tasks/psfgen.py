@@ -682,7 +682,9 @@ class PsfgenTask(VMDTask):
             logger.info(f'Resolved terminal-tail ring-piercing(s) -> {self.basename}.pdb')
         if unresolved:
             logger.warning(f'{len(unresolved)} terminal-tail ring-piercing(s) could not be cleared '
-                           f'by rotation; add a ring_check task or rebuild:')
+                           f'by rotation.  Unless a later ring_check clears it, terminate will '
+                           f'refuse to package the result -- after all the MD.  Rebuilding with a '
+                           f'different --seed models the tail differently:')
             for p in unresolved:
                 ee, er = p['piercee'], p['piercer']
                 logger.warning(f'  ring of {ee.get("resname", "?")} {ee["segname"]}-{ee["resid"]} '
@@ -719,8 +721,10 @@ class PsfgenTask(VMDTask):
             logger.info(f'Resolved glycan ring-piercing(s) at graft time -> {self.basename}.pdb')
         if unresolved:
             logger.warning(f'{len(unresolved)} ring-piercing(s) could not be cleared by glycan '
-                           f'rotation at graft time; add a ring_check task to attempt further '
-                           f'resolution (e.g. aromatic side-chain rotation) or rebuild:')
+                           f'rotation at graft time.  Unless a later ring_check clears it (it can '
+                           f'also rotate aromatic side chains), terminate will refuse to package '
+                           f'the result -- after all the MD.  Rebuilding with a different --seed '
+                           f'draws different glycan poses:')
             for p in unresolved:
                 ee, er = p['piercee'], p['piercer']
                 logger.warning(f'  ring of {ee.get("resname","?")} {ee["segname"]}-{ee["resid"]} '

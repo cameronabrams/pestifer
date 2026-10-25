@@ -270,6 +270,14 @@ class MDTask(VMDTask):
 
         if dcdfreq:
             params['dcdfreq'] = dcdfreq
+        # Only `terminate.package.namd` declares this; until 3.29.8 nothing read it, so a packaged
+        # production run got namd.generic's 100 whatever the package asked for.  Drop any other
+        # spelling first: NAMD keys are case-insensitive, and two lines would leave the winner to
+        # whichever NAMD reads last.
+        if specs.get('outputenergies'):
+            for k in [k for k in params if k.casefold() == 'outputenergies']:
+                del params[k]
+            params['outputenergies'] = int(specs['outputenergies'])
         if 'restartfreq' in specs:
             params['restartfreq'] = specs['restartfreq']
         if constraints:

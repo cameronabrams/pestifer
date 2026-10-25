@@ -40,8 +40,7 @@ tasks:
   - md:
       ensemble: minimize
   - ligate:
-      steer:
-        nsteps: 4000
+      method: ccd
   - validate:
       tests:
         - connection_test:

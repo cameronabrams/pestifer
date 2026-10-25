@@ -152,6 +152,18 @@ class TestPackagedConfigIsSelfContained(unittest.TestCase):
     """
 
     def test_every_file_named_in_the_config_is_packaged(self):
+        packaged, cfgname, cfg = self._package()
+        self._check_files(packaged, cfgname, cfg)
+
+    def test_the_package_outputenergies_reaches_the_config(self):
+        """`terminate.package.namd.outputenergies` was declared, documented and set by examples
+        16 and 17, and read by nothing: the packaged config carried namd.generic's 100."""
+        _packaged, _cfgname, cfg = self._package(outputenergies=1000)
+        lines = [l.split() for l in cfg.splitlines()
+                 if l.split() and l.split()[0].casefold() == 'outputenergies']
+        self.assertEqual(lines, [['outputenergies', '1000']])
+
+    def _package(self, **namd_extra):
         config = Config().configure_new()
         base, pkg = 'mysys', 'prod_mysys'
         with tempfile.TemporaryDirectory() as tmp:
@@ -168,7 +180,7 @@ class TestPackagedConfigIsSelfContained(unittest.TestCase):
                                package=dict(basename=pkg,
                                             namd=dict(ensemble='minimize', temperature=310,
                                                       nsteps=0, dcdfreq=0, xstfreq=0,
-                                                      minimize=100))),
+                                                      minimize=100, **namd_extra))),
                     taskname='terminate', index=0)
                 task.provision(dict(controller_index=0, pipeline=PipelineContext(),
                                     resource_manager=config.RM, scripters=config.scripters,
@@ -190,7 +202,10 @@ class TestPackagedConfigIsSelfContained(unittest.TestCase):
                     cfg = tf.extractfile(cfgname).read().decode()
             finally:
                 os.chdir(cwd)
+        return packaged, cfgname, cfg
 
+    def _check_files(self, packaged, cfgname, cfg):
+        base, pkg = 'mysys', 'prod_mysys'
         self.assertEqual(os.path.basename(cfgname), f'{pkg}.namd')
         self.assertIn(f'{base}_minimal.prm', packaged)
         referenced = {}

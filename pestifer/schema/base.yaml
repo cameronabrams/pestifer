@@ -2009,13 +2009,12 @@ attributes:
                 type: float
                 default: 15
               - name: zdist
-                text: distance from perimeter of protein to box edge in z (Å)
+                text: >-
+                  distance from the protein's z-extremal atoms to the box's z boundaries (Å).
+                  Until 3.29.8 this key was not passed to the embed script, which always used
+                  10, so the default is 10 and builds that did not set it are unchanged.
                 type: float
-                default: 20
-              - name: margin
-                text: distance from any protein atom in which no lipid atoms are permitted when embedding (Å)
-                type: float
-                default: 2.4
+                default: 10
               - name: z_head_group
                 text: VMD atomselect string defining head-group of z-axis
                 type: str

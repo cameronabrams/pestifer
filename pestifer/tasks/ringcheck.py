@@ -249,15 +249,27 @@ class RingCheckTask(BaseTask):
             self._report(fatal, logger.error)
             named = '; '.join(f'{self._fmt(p["piercee"])} pierced by {self._fmt(p["piercer"])}'
                               for p in fatal)
+            # Where it came from decides the remedy.  With a lipid on one side it can only have
+            # been made at a membrane embed.  With none, it came from model building -- a
+            # grafted glycan, a rebuilt loop or a modeled tail -- and there is no embed to blame:
+            # the message used to say "check bilayer_embed" on glycoproteins with no membrane.
+            at_embed = any('lipid' in (p['piercee']['segtype'], p['piercer']['segtype'])
+                           for p in fatal)
+            if at_embed:
+                why = (f'A bond cannot thread a ring without coming ~1.6 A from a ring atom, far '
+                       f'inside the embed clash threshold (2.89 A for C...C), so a working '
+                       f'protein/glycan clash deletion makes this impossible -- check that '
+                       f'`bilayer_embed` is actually deleting overlapping lipids and solvent (it '
+                       f'reports a count), and that its heavy-atom selection covers glycans as '
+                       f'well as protein.  Rotating this away would hide the defect that caused it.')
+            else:
+                why = (f'No lipid is involved, so this came from model building -- a grafted '
+                       f'glycan, a rebuilt loop or a modeled terminal tail -- and no rotation '
+                       f'cleared it.  Rebuild with a different --seed: glycan and tail poses and '
+                       f'loop closure all draw from it.')
             raise PestiferBuildError(
                 f'{PIERCING_MARKER} {len(fatal)} ring piercing(s) involving protein or glycan: '
-                f'{named}.  A bond '
-                f'cannot thread a ring without coming ~1.6 A from a ring atom, far inside the '
-                f'embed clash threshold (2.89 A for C...C), so a working protein/glycan clash '
-                f'deletion makes this impossible -- check that `bilayer_embed` is actually '
-                f'deleting overlapping lipids and solvent (it reports a count), and that its '
-                f'heavy-atom selection covers glycans as well as protein.  Rotating this away '
-                f'would hide the defect that caused it.')
+                f'{named}.  {why}')
 
         if not other_piercings:
             self.result = 0

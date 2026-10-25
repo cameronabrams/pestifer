@@ -833,3 +833,23 @@ class TestTheFailureLineNamesWhatWasTried(_DoCase):
         line = next(l for l in cm.output if 'nothing cleared' in l)
         self.assertIn('tried: tail rotation, spin, slide', line)
         self.assertNotIn('no rotation cleared', '\n'.join(cm.output))
+
+
+class TestTheFatalMessageNamesItsRealSource(_DoCase):
+    """A protein/glycan piercing with no lipid on either side was blamed on `bilayer_embed` --
+    on glycoproteins that have no membrane.  It comes from model building, whose remedy is a
+    different --seed."""
+
+    def test_a_glycan_through_a_protein_ring_is_not_blamed_on_the_embed(self):
+        p = _piercing(_side('protein', resname='PRO'), _side('glycan'))
+        with self.assertRaises(PestiferBuildError) as cm:
+            self._run([p])
+        msg = str(cm.exception)
+        self.assertNotIn('bilayer_embed', msg)
+        self.assertIn('--seed', msg)
+
+    def test_a_lipid_partner_still_points_at_the_embed(self):
+        p = _piercing(_side('glycan'), _side('lipid'))
+        with self.assertRaises(PestiferBuildError) as cm:
+            self._run([p])
+        self.assertIn('bilayer_embed', str(cm.exception))

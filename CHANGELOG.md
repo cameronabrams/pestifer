@@ -6,6 +6,50 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Fixed
 
+- **Atom serials past 99,999 were misread, so coordinate write-backs put atoms on other atoms'
+  coordinates in any system that large.** VMD and psfgen write serials above 99999 in hex
+  (100000 is `186a0`), and `*****` past 1,048,575. Five readers parsed the field as decimal. An
+  all-digit hex serial (atom 100096 is written `18700`) became a different atom, and one with a
+  letter raised. Every resolver rotation, spin and slide, terminal-tail model and CCD loop write
+  goes through `pdb_replace_coords`. On a 138,488-atom example-17 package, an identity rewrite
+  moved 3,300 atoms by up to 142 Å; it is now byte-identical. New `PDBSerialDecoder`, used by all
+  five readers. Found by an audit before this release's sweep.
+
+- **`namd.contact_gate` could not turn the pre-flight check off for any `md` stage.** The md
+  stage's own `contact_gate` declared defaults that were filled into every stage and overrode the
+  global. The per-stage keys now fall through to the global when unset.
+
+- **Three accepted config keys did nothing.**
+  - `terminate.package.namd.outputenergies` was never read, so packaged runs got 100. It now
+    reaches the packaged config, so a package written without setting it gets the schema
+    default of 1000 rather than 100.
+  - `make_membrane_system.embed.zdist` was never passed to the embed script, which always used
+    10 Å. It is passed now, and its default is 10 (was a documented 20 that nothing honored), so
+    builds that did not set it are unchanged.
+  - `make_membrane_system.embed.margin` (2.4 Å) is **removed**: the embed's clash test scales
+    van der Waals radii and has not used a single cutoff for some time. A config that sets it now
+    fails validation instead of being silently ignored.
+
+- **Error messages that named settings that do not exist or do not help:**
+  - the grid-packing error suggested `bilayer.lipid_conformers cylinder_inflation`, not a config
+    key, and `SAPL`, which does not size the full membrane; it now names `quilt_grid_slack` and
+    `leaflet_apl` for the full membrane;
+  - the "outran the patch grid" error said to raise the task's `margin`, which only sizes chunks
+    (raising it makes them longer); it now names `namd.solvated.margin` /
+    `namd.gpu-resident.margin`;
+  - the box-span error said `bilayer.embed.xydist`; `embed` is beside `bilayer`;
+  - a protein/glycan piercing with no lipid involved was blamed on `bilayer_embed`, including on
+    glycoproteins with no membrane; it now says it came from model building and names `--seed`;
+  - the graft-time glycan and tail piercing warnings now say that `terminate` will refuse the
+    package after all the MD unless a later `ring_check` clears it.
+
+- **Examples.** 10, 15 and an example-25 helper set `ligate.steer.nsteps` without
+  `method: steer`, so the block was ignored and they ran CCD; they now say `method: ccd`, which is
+  what they always ran. Two comments were false: example 16's on post-embed piercings (they are
+  rotated first) and example 17's claim that the lower leaflet's Lo and Ld ensembles are the
+  same. The sweep scripts' headers said `--seed` does not reach model building. The documented
+  search for `RING_PIERCING_FOUND` missed replica directories.
+
 - **The ring checks `make_membrane_system` splices in could not delete, and their error said to
   change a setting nothing could reach.** Every check around the patch and full-membrane
   minimizations was built with `delete='none'` hardcoded. A relaxation protocol takes only `md`

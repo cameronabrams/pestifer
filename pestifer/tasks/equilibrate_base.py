@@ -145,9 +145,11 @@ class ChunkedEquilibrateTask(MDTask):
                     raise PestiferBuildError(
                         f'{self.taskname}: NAMD keeps outrunning the patch grid even at '
                         f'{this_chunk} steps after {shrink_retries} retries. The freshly solvated '
-                        f'cell is shrinking faster than the patch margin allows; increase `margin` '
-                        f'(currently {margin:g} A) in this task or the `namd` config, or pre-shrink '
-                        f'the box.')
+                        f'cell is shrinking faster than the patch margin allows.  Increase NAMD\'s '
+                        f'margin -- `namd.solvated.margin`, or `namd.gpu-resident.margin` for a '
+                        f'GPU-resident run -- or pre-shrink the box.  Set this task\'s `margin` '
+                        f'(currently {margin:g} A) to the same value: it only sizes chunks and is '
+                        f'never passed to NAMD, so raising it alone makes chunks longer, not safer.')
                 raise
             shrink_retries = 0
             n_chunk += 1

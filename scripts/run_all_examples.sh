@@ -19,9 +19,11 @@
 #              start from the same built structure.  See "Reproducibility".
 #
 # Replicas vary the MD random-number streams -- velocity assignment and the
-# Langevin thermostat.  Model-building seeds (loop closure, membrane packing)
-# are NOT varied here; to vary those too, set ligate.ccd.seed and
-# make_membrane_system.bilayer.seed in the example YAML.
+# Langevin thermostat -- and, since 3.29.6/3.29.7, model building too: --seed
+# reaches lipid placement, CCD loop closure, and psfgen's tail modeling and
+# loop/glycan declashing.  So replicas start from different built structures.
+# An explicit ligate.ccd.seed or make_membrane_system.bilayer.seed in the YAML
+# pins that step across replicas.
 #
 # Reproducibility -- read before quoting any number from a sweep.
 #
@@ -31,6 +33,8 @@
 # triplicate sweep:
 #
 #   - psfgen output IS bit-identical across replicas -- 27 of 27 examples.
+#     (Measured before --seed reached model building; it now differs wherever
+#     psfgen models tails or declashes loops and glycans.)
 #   - Solvated starting structures differ across replicas in 24 of the 25
 #     examples that solvate (example 5 is the sole exception).
 #   - Where the solvation box is fixed AFTER dynamics, the atom count differs

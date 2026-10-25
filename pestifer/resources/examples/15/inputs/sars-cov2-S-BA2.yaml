@@ -105,8 +105,7 @@ tasks:
       cpu-override: True
       ensemble: minimize
   - ligate:
-      steer:
-        nsteps: 4000
+      method: ccd
   - md:
       cpu-override: True
       ensemble: minimize

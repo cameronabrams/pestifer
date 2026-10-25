@@ -1035,3 +1035,42 @@ class TestRingCheckDeleteIsSchemaChecked(unittest.TestCase):
         with self.assertRaises(Exception) as cm:
             self._walk('pierce')
         self.assertIn('pierce', str(cm.exception))
+
+
+class TestEmbedZdistReachesTheScript(unittest.TestCase):
+    """`embed.zdist` was declared (default 20) and never passed to `bilayer_embed.tcl`, which used
+    its own 10.0 -- so the key did nothing and the documented default was not the one built."""
+
+    class _Stop(Exception):
+        pass
+
+    def _runscript_kwargs(self, embed_specs):
+        from unittest import mock
+        t = _task(embed_specs=embed_specs)
+        t._verify_membrane_spans_protein = lambda: None
+        t.basename = 'b'
+        t.next_basename = mock.Mock()
+        t.register = mock.Mock()
+        t.quilt = mock.Mock(addl_streamfiles=[])
+        state = mock.Mock()
+        t.get_current_artifact = lambda k: None if k == 'base_coordinates_dum' else state
+        seen = {}
+
+        def runscript(**kw):
+            seen.update(kw)
+            raise self._Stop()
+        pg = mock.Mock()
+        pg.runscript.side_effect = runscript
+        t.scripters = {'psfgen': pg}
+        with self.assertRaises(self._Stop):
+            t.embed_protein()
+        return seen
+
+    def test_the_configured_zdist_is_passed(self):
+        self.assertEqual(self._runscript_kwargs({'zdist': 17.5,
+                                                 'z_ref_group': {'text': 'protein'}})['zdist'], 17.5)
+
+    def test_the_script_reads_the_argument_it_is_passed(self):
+        from importlib.resources import files as pkg_files
+        tcl = (pkg_files('pestifer.resources') / 'tcl' / 'scripts' / 'bilayer_embed.tcl').read_text()
+        self.assertIn('"-zdist"', tcl)

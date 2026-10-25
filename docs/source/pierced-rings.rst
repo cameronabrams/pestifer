@@ -294,11 +294,13 @@ This only applies to lipid rings. Protein and glycan rings are never deleted.
 
 Every message that reports a piercing as a build failure contains the literal token
 ``RING_PIERCING_FOUND``. Search build logs for that token, not for the surrounding prose,
-which can change:
+which can change. Search recursively: a sweep with replicas puts each build one directory
+deeper, and not every runner writes a ``build.log`` (every build writes
+``pestifer_diagnostics.log``):
 
 .. code-block:: bash
 
-   grep -l RING_PIERCING_FOUND */build.log
+   grep -rl --include='*.log' RING_PIERCING_FOUND .
 
 To get the token from the installed package instead of copying it, use:
 

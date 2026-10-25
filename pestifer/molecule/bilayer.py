@@ -891,8 +891,11 @@ class Bilayer:
                 f'grid packing could not place {n_uncleared} lipid(s) clear of near-coincidences '
                 f'(closest inter-lipid approach {worst_gap:.2f} A < {corruption_floor} A safety '
                 f'floor); VMD/psfgen would mis-bond and corrupt them into a NaN-producing system. '
-                f'The membrane is over-packed for these conformers -- increase SAPL, or use thinner '
-                f'conformers (lower bilayer.lipid_conformers cylinder_inflation).')
+                f'The membrane is over-packed for these conformers.  For a calibration patch, '
+                f'increase bilayer.SAPL; for the full membrane, which is sized from the calibrated '
+                f'per-leaflet APLs, increase bilayer.quilt_grid_slack (or bilayer.leaflet_apl if you '
+                f'set it).  Thinner conformers need a regenerated PDB collection '
+                f'(`pestifer make-pdb-collection --cylinder-inflation`); no config key sets that.')
         if n_uncleared:
             logger.warning(f'write_grid_pdb: {n_uncleared} lipid(s) placed with a sub-{fusion} A '
                            f'inter-lipid gap (worst {worst_gap:.2f} A, above the {corruption_floor} A '

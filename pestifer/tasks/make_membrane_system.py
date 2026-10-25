@@ -225,7 +225,7 @@ class MakeMembraneSystemTask(BaseTask):
         """True only if the specs describe an actual protein embedding.
 
         Mere presence of an ``embed`` block cannot signal intent: the ycleptic schema always
-        materializes ``embed`` with default scalars (``xydist``, ``zdist``, ``margin`` ...) even
+        materializes ``embed`` with default scalars (``xydist``, ``zdist`` ...) even
         when the user requests no embedding, so ``bool(specs.get('embed'))`` is always true on the
         real (schema-expanded) pipeline and would wrongly reject a legitimate bare-membrane build.
         A genuine embed instead carries a protein-*positioning* directive -- a head/tail z-axis
@@ -1545,7 +1545,7 @@ class MakeMembraneSystemTask(BaseTask):
                 f'oriented protein footprint ({pro_Lx:.1f} x {pro_Ly:.1f} A): the protein would '
                 f'clash with its own periodic image. A calibrated leaflet APL was likely '
                 f'overestimated, so the quilt over-condensed below the protein box. Increase '
-                f'bilayer.embed.xydist, or re-check the calibrated per-leaflet APLs.')
+                f'make_membrane_system.embed.xydist, or re-check the calibrated per-leaflet APLs.')
         if min(clear_x, clear_y) < 0.5 * margin:
             logger.warning(
                 f'embed_protein: the equilibrated membrane condensed to only '
@@ -1608,6 +1608,9 @@ class MakeMembraneSystemTask(BaseTask):
                               z_lo_dum=zvals[0],
                               z_hi_dum=zvals[1],
                               z_value=z_value,
+                              # `embed.zdist` was declared (default 20) and never passed, so every
+                              # build got the script's own 10.0; the schema default is now 10
+                              zdist=float(self.embed_specs.get('zdist', 10.0)),
                               o=self.basename)
         if result != 0:
             raise PestiferBuildError(f'psfgen failed with result {result} for {self.basename}')
