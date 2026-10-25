@@ -6,6 +6,7 @@ the only place that sees a fresh checkout.
 """
 import unittest
 from types import SimpleNamespace
+from unittest import mock
 
 import numpy as np
 
@@ -94,58 +95,77 @@ class TestWorstNonbondedContact(unittest.TestCase):
 
 
 class TestThresholdDoesNotDriftFromTheSchema(unittest.TestCase):
-    """The default lives in two places -- the Python constant and `base.yaml` -- and a reader
-    who changes one will not think to change the other."""
+    """The default lives in two places -- the Python constant and `base.yaml`'s global
+    `namd.contact_gate` -- and a reader who changes one will not think to change the other."""
 
     def test_schema_default_matches_the_module_constant(self):
         from importlib.resources import files as pkg_files
         import yaml
         spec = yaml.safe_load(
             (pkg_files('pestifer.schema') / 'base.yaml').read_text())
-
-        def find(node):
-            if isinstance(node, dict):
-                if node.get('name') == 'contact_gate':
-                    for a in node.get('attributes', []):
-                        if a.get('name') == 'min_distance':
-                            return a.get('default')
-                for v in node.values():
-                    r = find(v)
-                    if r is not None:
-                        return r
-            elif isinstance(node, list):
-                for v in node:
-                    r = find(v)
-                    if r is not None:
-                        return r
-            return None
-
-        schema_default = find(spec)
-        self.assertIsNotNone(schema_default, 'contact_gate.min_distance not found in base.yaml')
-        self.assertAlmostEqual(float(schema_default), DEFAULT_MIN_CONTACT, places=6)
+        namd = next(a for a in spec['attributes'] if a['name'] == 'namd')
+        gate = next(a for a in namd['attributes'] if a['name'] == 'contact_gate')
+        self.assertAlmostEqual(float(gate['default']['min_distance']), DEFAULT_MIN_CONTACT,
+                               places=6)
 
 
 class TestTheGateIsReachableFromAnMdSpec(unittest.TestCase):
-    """A schema key in the wrong block resolves to nothing and the gate silently never
-    configures.  The first draft of this key landed under `steer` -- whose `ensemble` entry is
-    worded identically to `md`'s -- and resolved to None."""
+    """Resolve the gate the way a build does: a real Config load, then the md stage's specs
+    merged over the global.
 
-    def test_an_md_task_resolves_the_gate_with_its_defaults(self):
+    A schema key in the wrong block resolves to nothing and the gate silently never configures
+    (the first draft of this key landed under `steer`).  And until 3.29.8 the md stage's own
+    `contact_gate` carried defaults (`enabled: True`, `min_distance: 1.2`) that the schema filled
+    into EVERY md stage, so they always overrode the global and `namd.contact_gate.enabled: false`
+    could not turn the check off for any md stage.  The tests that existed built their specs by
+    hand and never saw the filling.
+    """
+
+    def _resolved(self, namd=None):
         from importlib.resources import files as pkg_files
         from pathlib import Path
         import yaml
         from pestifer.core.config import Config
+        from pestifer.tasks.mdtask import MDTask
         ex = (Path(str(pkg_files('pestifer.resources'))) / 'examples' / '19' / 'inputs'
               / 'sperm-whale-myoglobin.yaml')
+        user = yaml.safe_load(ex.read_text()) or {}
+        if namd is not None:
+            user.setdefault('namd', {}).update(namd)
         # userdict, not userfile: a `userfile` makes Config verify charmrun/namd3/vmd/catdcd
         # on PATH, and the clean-export gate hides them on purpose
-        c = Config(userdict=yaml.safe_load(ex.read_text()) or {}, quiet=True).configure_new()
-        md = [t['md'] for t in c['user']['tasks'] if 'md' in t]
-        self.assertTrue(md, 'example 19 has no md task')
-        gate = md[0].get('contact_gate')
-        self.assertIsInstance(gate, dict, 'contact_gate did not resolve under the md task')
-        self.assertTrue(gate.get('enabled'))
-        self.assertAlmostEqual(float(gate['min_distance']), DEFAULT_MIN_CONTACT, places=6)
+        c = Config(userdict=user, quiet=True).configure_new()
+        md = [t['md'] for t in c['user']['tasks'] if 'md' in t and
+              str(t['md'].get('ensemble', '')).casefold() != 'minimize']
+        self.assertTrue(md, 'example 19 has no dynamics md task')
+        seen = {}
+
+        class _Probe(MDTask):
+            def __init__(self):
+                self.taskname = 'md'
+                self.namd_global_config = c['user']['namd']
+
+        def check_contacts(psf, coor, box=None, min_distance=None):
+            seen['min_distance'] = min_distance
+            return True, 'ok'
+        state = SimpleNamespace(psf=SimpleNamespace(path='x.psf'), pdb=SimpleNamespace(path='x.pdb'),
+                                coor=None, xsc=None)
+        with mock.patch('pestifer.tasks.mdtask.check_contacts', side_effect=check_contacts):
+            _Probe()._gate_steric_overlaps(state, md[0]['ensemble'], md[0])
+        return seen
+
+    def test_by_default_the_gate_runs_at_the_module_threshold(self):
+        seen = self._resolved()
+        self.assertIn('min_distance', seen, 'the gate did not run on a default md stage')
+        self.assertAlmostEqual(float(seen['min_distance']), DEFAULT_MIN_CONTACT, places=6)
+
+    def test_the_global_switch_turns_it_off_for_an_md_stage(self):
+        self.assertEqual(self._resolved({'contact_gate': {'enabled': False}}), {},
+                         'namd.contact_gate.enabled false did not reach an md stage')
+
+    def test_the_global_threshold_reaches_an_md_stage(self):
+        seen = self._resolved({'contact_gate': {'enabled': True, 'min_distance': 0.9}})
+        self.assertAlmostEqual(float(seen['min_distance']), 0.9, places=6)
 
 
 class TestTheGateRunsOncePerTaskNotOncePerChunk(unittest.TestCase):

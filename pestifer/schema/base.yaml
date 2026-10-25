@@ -2080,15 +2080,18 @@ attributes:
             type: dict
             attributes:
               - name: enabled
-                text: whether to run the pre-flight steric check before a dynamics stage
+                text: >-
+                  whether to run the pre-flight steric check before this dynamics stage.  Unset,
+                  it follows namd.contact_gate (enabled by default).  No default here on purpose:
+                  one would be filled into every md stage and override the global, so
+                  namd.contact_gate.enabled false could not turn the check off for any md stage.
                 type: bool
-                default: True
               - name: min_distance
                 text: >-
                   heavy-atom separation in Angstroms below which a non-bonded pair is treated as
-                  a steric overlap rather than a close contact
+                  a steric overlap rather than a close contact.  Unset, it follows
+                  namd.contact_gate (1.2 by default).
                 type: float
-                default: 1.2
           - name: minimize
             text: Number of minimization steps; ignored if ensemble is not 'minimize' (used with the 'minimize' command)
             type: int
