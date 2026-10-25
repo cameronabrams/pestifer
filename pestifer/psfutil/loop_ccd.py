@@ -49,7 +49,7 @@ closer -- so the pairing is the intended usage pattern rather than an improvisat
 """
 import numpy as np
 
-from ..util.coord import rotate_points_about_axis
+from ..util.coord import PDBSerialDecoder, rotate_points_about_axis
 
 
 def dihedral_deg(p1, p2, p3, p4):
@@ -233,10 +233,12 @@ def loop_atoms_from_pdb(pdb_path, resids, segname=None, chainID=None):
     """
     want = set(resids)
     per = {r: [] for r in resids}
+    serial_of = PDBSerialDecoder()   # stateful: must see every record, before the filters
     with open(pdb_path) as fh:
         for line in fh:
             if not line.startswith(('ATOM', 'HETATM')):
                 continue
+            serial = serial_of(line)
             if segname is not None and line[72:76].strip() != segname:
                 continue
             if chainID is not None and line[21:22].strip() != chainID:
@@ -248,7 +250,6 @@ def loop_atoms_from_pdb(pdb_path, resids, segname=None, chainID=None):
             if resid not in want:
                 continue
             name = line[12:16].strip()
-            serial = int(line[6:11])
             xyz = np.array([float(line[30:38]), float(line[38:46]), float(line[46:54])])
             per[resid].append((name, serial, xyz))
     order, coords, serials = [], [], []
@@ -603,10 +604,12 @@ def heavy_env_coords_from_pdb(pdb_path, exclude_serials=(), segname=None, chainI
     """
     excl = set(int(s) for s in exclude_serials)
     pts = []
+    serial_of = PDBSerialDecoder()   # stateful: must see every record, before the filters
     with open(pdb_path) as fh:
         for line in fh:
             if not line.startswith(('ATOM', 'HETATM')):
                 continue
+            serial = serial_of(line)
             if segname is not None and line[72:76].strip() != segname:
                 continue
             if chainID is not None and line[21:22].strip() != chainID:
@@ -614,7 +617,7 @@ def heavy_env_coords_from_pdb(pdb_path, exclude_serials=(), segname=None, chainI
             name = line[12:16].strip()
             if name.startswith('H'):
                 continue
-            if int(line[6:11]) in excl:
+            if serial in excl:
                 continue
             pts.append([float(line[30:38]), float(line[38:46]), float(line[46:54])])
     return np.asarray(pts, dtype=float)

@@ -336,6 +336,38 @@ def rotate_points_about_axis(points, pivot, axis, degrees):
     return rotated + pivot
 
 
+class PDBSerialDecoder:
+    """Decode the atom-serial field (columns 7-11) of successive ATOM/HETATM records.
+
+    VMD and psfgen write serials up to 99999 in decimal and larger ones in **hexadecimal**
+    (100000 is ``186a0``), then ``*****`` past 0xfffff = 1,048,575.  ``int(line[6:11])`` reads a
+    hex serial made only of digits as decimal -- atom 100096 is written ``18700`` and comes back
+    as atom 18700 -- and raises on one with a letter.  On a 138,488-atom example-17 system an
+    identity rewrite through that parse moved 3,300 atoms by up to 142 A (2026-10-25).
+
+    The format cannot be decoded one line at a time, since ``18700`` is valid in both bases, so
+    this is stateful: call it on **every** ATOM/HETATM record, in file order, before filtering.
+    Once a serial reaches 99999 the rest are hex; a ``*****`` serial is the previous one plus one.
+    """
+
+    def __init__(self):
+        self.prev = None
+
+    def __call__(self, line: str):
+        field = line[6:11].strip()
+        if not field or set(field) == {'*'}:
+            serial = self.prev + 1 if self.prev is not None else None
+        elif self.prev is not None and self.prev >= 99999:
+            serial = int(field, 16)
+        else:
+            try:
+                serial = int(field)
+            except ValueError:
+                serial = int(field, 16)   # a file whose first records are already past 99999
+        self.prev = serial
+        return serial
+
+
 def pdb_replace_coords(src_pdb, out_pdb, coords, row_of_serial):
     """Write ``out_pdb`` identical to ``src_pdb`` except that every ATOM/HETATM record's
     x/y/z columns are replaced with ``coords[row_of_serial[serial]]``.
@@ -347,12 +379,10 @@ def pdb_replace_coords(src_pdb, out_pdb, coords, row_of_serial):
     with open(src_pdb) as fh:
         lines = fh.readlines()
     out = []
+    serial_of = PDBSerialDecoder()
     for line in lines:
         if line.startswith(('ATOM', 'HETATM')):
-            try:
-                serial = int(line[6:11])
-            except ValueError:
-                serial = None
+            serial = serial_of(line)
             row = row_of_serial.get(serial) if serial is not None else None
             if row is not None:
                 x, y, z = coords[row]

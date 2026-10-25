@@ -22,6 +22,7 @@ from  .charmmffcontent      import CHARMMFFContent
 from ..core.config          import Config
 from ..core.controller      import Controller
 from ..core.resourcemanager import ResourceManager
+from ..util.coord import PDBSerialDecoder
 from ..util.stringthings    import my_logger
 from ..psfutil.psfcontents  import PSFContents
 
@@ -361,10 +362,11 @@ def _sample_and_write_mc_conformers(resid: str, psf_file: str, pdb_file: str,
 
     # read the template PDB in file order; MC coordinate rows are indexed the same way
     template, coords, serials = [], [], []
+    serial_of = PDBSerialDecoder()
     with open(pdb_file) as fh:
         for ln in fh:
             if ln.startswith(('ATOM', 'HETATM')):
-                serials.append(int(ln[6:11]))
+                serials.append(serial_of(ln))
                 coords.append((float(ln[30:38]), float(ln[38:46]), float(ln[46:54])))
                 template.append(ln)
     coords = np.array(coords)

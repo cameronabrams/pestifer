@@ -12,6 +12,7 @@ import numpy as np
 from ..charmmff.charmmffcontent import CHARMMFFContent
 from ..core.artifacts import ArtifactDict
 from ..core.errors import PestiferBuildError
+from ..util.coord import PDBSerialDecoder
 from ..util.stringthings import my_logger
 from ..util.units import _UNITS_, _SYMBOLS_, cuA_of_nmolec
 
@@ -627,10 +628,11 @@ class Bilayer:
         if pdbfile is not None and pdbfile not in self.register_species_pdbs:
             self.register_species_pdbs.append(pdbfile)
         coords, lines, ser2i = [], [], {}
+        serial_of = PDBSerialDecoder()
         with open(pdbfile) as fh:
             for ln in fh:
                 if ln.startswith(('ATOM', 'HETATM')):
-                    ser2i[int(ln[6:11])] = len(coords)
+                    ser2i[serial_of(ln)] = len(coords)
                     coords.append((float(ln[30:38]), float(ln[38:46]), float(ln[46:54])))
                     lines.append(ln)
         coords = np.array(coords)
