@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.29.8] - 2026-10-25
+
 ### Fixed
 
 - **Atom serials past 99,999 were misread, so coordinate write-backs put atoms on other atoms'
