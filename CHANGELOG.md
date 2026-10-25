@@ -4,6 +4,33 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Fixed
+
+- **The ring checks `make_membrane_system` splices in could not delete, and their error said to
+  change a setting nothing could reach.** Every check around the patch and full-membrane
+  minimizations was built with `delete='none'` hardcoded. A relaxation protocol takes only `md`
+  and `membrane_equilibrate` stages, so no YAML key reached them. An unclearable lipid piercing
+  stopped the build with "change the delete setting". Reported against 3.29.1 from an asymmetric
+  cholesterol- and PIP2-rich build (3.29.6's deferral already covers the check before the first
+  minimize, where that build died; the rest is still live). New key `bilayer.ring_check_delete`
+  (`none` by default, or `piercee`, `piercer`, `both`) reaches every spliced check that resolves
+  and then stops. The deferring first check and the verify-only checks are unaffected.
+
+- **A ring_check deletion is now a WARNING and is recorded.** It was INFO, and an earlier build of
+  that membrane lost about 30 cholesterols with nothing above INFO saying so. `run-record.json`
+  now carries `deleted` and `deleted_residues`.
+
+- **The stop messages name settings that exist.** The `delete: none` stop names `delete:` for a
+  ring_check task, `bilayer.ring_check_delete` for make_membrane_system, and a different `--seed`
+  or a less dense `SAPL`/`leaflet_apl`. The verify-only stop names the same remedies.
+
+- `ring_check`'s code-level fallback for `delete` was `piercee` while the schema default is
+  `none`. No real build saw it, since the schema fills the key, but a unit test asserted it as
+  "the default". It is `none` now, matching the schema.
+
+- The `make_membrane_system` page still described the guard as a lipid-only check that deletes,
+  placed before the first dynamics stage. Rewritten to match.
+
 ## [3.29.7] - 2026-10-24
 
 ### Changed

@@ -641,16 +641,25 @@ class MakeMembraneSystemTask(BaseTask):
                 guarded.append(self._ring_check_stage(resolve=False))
         return guarded
 
-    @staticmethod
-    def _ring_check_stage(resolve: bool = True, on_unresolved: str = 'stop') -> dict:
+    def _ring_check_stage(self, resolve: bool = True, on_unresolved: str = 'stop') -> dict:
         """One spliced ``ring_check`` stage.
 
         Written once rather than at each splice point: three call sites carrying the same four
         keyword arguments is how the next one gets written with a different ``cutoff`` and
         nobody notices.
+
+        ``delete`` comes from ``bilayer.ring_check_delete`` (default ``none``).  These stages are
+        built here, not read from YAML, so until 3.29.8 they hardcoded ``delete='none'`` and the
+        error telling the user to "change the delete setting" named a setting nothing could
+        reach (reported against 3.29.1 from an asymmetric PIP2 build).  It applies only where a
+        deletion is meaningful: a deferring check passes what it cannot clear to the minimize
+        instead, and a verify-only check never changes the structure.
         """
+        delete = 'none'
+        if resolve and on_unresolved == 'stop':
+            delete = str((getattr(self, 'bilayer_specs', None) or {}).get('ring_check_delete', 'none'))
         return {'ring_check': dict(segtypes=['lipid', 'glycan', 'protein'],
-                                   delete='none', cutoff=4.0, resolve=resolve,
+                                   delete=delete, cutoff=4.0, resolve=resolve,
                                    on_unresolved=on_unresolved)}
 
     def _grid_membrane(self, leaflet_nlipids, box_SAPL, aspect=None):

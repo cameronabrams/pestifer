@@ -276,9 +276,17 @@ class TestLipidDeletion(_DoCase):
     PIERCING = _piercing(_side('lipid', 'MEMB', 10, 'CHL1'),
                          _side('lipid', 'MEMB', 20, 'POPC'))
 
-    def test_by_default_the_pierced_lipid_is_deleted(self):
-        self._run([self.PIERCING])
+    def test_piercee_deletes_the_pierced_lipid(self):
+        self._run([self.PIERCING], delete='piercee')
         self.assertEqual(self._delatom_lines(), ['delatom MEMB 10'])
+
+    def test_without_a_delete_setting_nothing_is_deleted(self):
+        """The schema default is `none`, and the code's own fallback must agree: it used to be
+        `piercee`, a default no real build could see and the old version of the test above
+        asserted as if one could."""
+        with self.assertRaises(PestiferBuildError):
+            self._run([self.PIERCING])
+        self.assertEqual(self._delatom_lines(), [])
 
     def test_the_piercer_can_be_deleted_instead(self):
         self._run([self.PIERCING], delete='piercer')
@@ -306,22 +314,29 @@ class TestLipidDeletion(_DoCase):
     def test_delete_none_refuses_to_proceed(self):
         with self.assertRaises(PestiferBuildError) as cm:
             self._run([self.PIERCING], delete='none')
-        self.assertIn('delete=none', str(cm.exception))
+        msg = str(cm.exception)
+        self.assertIn('delete is none', msg)
+        # the setting it names must be one the user can reach, including from the checks
+        # make_membrane_system splices in, which no `delete:` key reaches
+        self.assertIn('bilayer.ring_check_delete', msg)
 
     def test_a_residue_named_twice_is_deleted_once(self):
         two = [self.PIERCING, self.PIERCING]
-        self._run(two)
+        self._run(two, delete='piercee')
         self.assertEqual(self._delatom_lines(), ['delatom MEMB 10'])
 
-    def test_the_deletion_is_reported_at_info(self):
-        """A silent composition change is misleading; the rotation path already reports."""
-        with self.assertLogs('pestifer.tasks.ringcheck', level='INFO') as cm:
-            self._run([self.PIERCING])
+    def test_the_deletion_is_a_warning_and_is_recorded(self):
+        """A deletion changes the composition asked for.  At INFO an earlier build lost about
+        30 cholesterols without anything above INFO saying so."""
+        with self.assertLogs('pestifer.tasks.ringcheck', level='WARNING') as cm:
+            t = self._run([self.PIERCING], delete='piercee')
         self.assertIn('Deleting', ''.join(cm.output))
+        self.assertEqual(t.outcome.get('deleted'), 1)
+        self.assertEqual(t.outcome.get('deleted_residues'), ['MEMB:10'])
 
     def test_deleting_rewrites_the_topology(self):
         """Unlike a rotation, a deletion changes the PSF, so both files are re-registered."""
-        t = self._run([self.PIERCING])
+        t = self._run([self.PIERCING], delete='piercee')
         registered = t.register.call_args_list[0].args[0]
         self.assertIn('psf', registered)
         self.assertIn('pdb', registered)
@@ -739,7 +754,7 @@ class TestAnUnresolvableLipidFallsThroughInsteadOfCrashing(_DoCase):
         with self.assertRaises(PestiferBuildError) as cm:
             self._run([p], rotation_fails=p, delete='none')
         msg = str(cm.exception)
-        self.assertIn('delete=none', msg)
+        self.assertIn('delete is none', msg)
         self.assertNotIn('NoneType', msg, 'crashed instead of reporting')
 
     def test_delete_piercee_reaches_the_deletion_path(self):

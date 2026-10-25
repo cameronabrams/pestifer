@@ -275,5 +275,5 @@ class TestVerifyOnlyPass(unittest.TestCase):
         # repository's "a check that passes is not evidence the check ran" in one line.
         with self.assertRaises(PestiferBuildError) as cm:
             RingCheckTask.do(task)      # delete='none' and nothing rotated -> still fatal
-        self.assertIn('delete=none', str(cm.exception))
+        self.assertIn('delete is none', str(cm.exception))
         self.assertTrue(task.rotated, 'a resolving pass never attempted a rotation')

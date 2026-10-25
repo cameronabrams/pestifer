@@ -284,8 +284,13 @@ changes the composition you asked for. On example 17, deletion used to remove ch
 early example-17 builds went into equilibration sterol-depleted.
 
 If losing a lipid is preferable to losing the build, set ``delete`` to ``piercee``, ``piercer``
-or ``both`` on that ``ring_check``. This only applies to lipid rings. Protein and glycan rings
-are never deleted.
+or ``both`` on that ``ring_check``. The checks ``make_membrane_system`` inserts around its
+minimizations are not in your YAML, so no ``delete:`` key reaches them; for those, set
+``bilayer.ring_check_delete`` instead. It applies to the checks that resolve and then stop. The
+check before a fresh placement's first minimization still passes leftovers on to that
+minimization, and the verify-only checks never change the structure. Either way, each deletion
+is logged as a WARNING and counted in ``run-record.json`` (``deleted``, ``deleted_residues``).
+This only applies to lipid rings. Protein and glycan rings are never deleted.
 
 Every message that reports a piercing as a build failure contains the literal token
 ``RING_PIERCING_FOUND``. Search build logs for that token, not for the surrounding prose,
@@ -355,6 +360,10 @@ Configuration summary
      - ``none``
      - What to delete for an unresolvable *lipid* ring: ``piercee``, ``piercer``, ``both`` or
        ``none``.
+   * - ``make_membrane_system.bilayer.ring_check_delete``
+     - ``none``
+     - The same choice for the checks ``make_membrane_system`` inserts around its
+       minimizations, which no ``ring_check.delete`` key reaches.
    * - ``ring_check.cutoff``
      - ``4.0``
      - Candidate pre-screen radius (Å). Larger values find nothing extra; they only run slower.

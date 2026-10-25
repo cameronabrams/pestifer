@@ -275,6 +275,20 @@ class TestGuardPiercings(unittest.TestCase):
         spec = _task()._guard_piercings([self.MINIMIZE])[0]['ring_check']
         self.assertEqual(spec['delete'], 'none')
 
+    def test_ring_check_delete_reaches_the_checks_that_can_use_it(self):
+        """Until 3.29.8 every spliced check hardcoded delete='none', and the error told the user
+        to "change the delete setting" -- one no YAML key reached.  `bilayer.ring_check_delete`
+        now reaches every resolving check that stops; the deferring first check and the
+        verify-only checks keep `none`, since one hands its leftovers to the minimize and the
+        other never changes the structure (and ring_check refuses continue + delete)."""
+        t = _task(bilayer_specs={'ring_check_delete': 'piercee'})
+        got = t._guard_piercings([self.MINIMIZE, self.NPT, self.MINIMIZE, self.NVT])
+        checks = [s['ring_check'] for s in got if 'ring_check' in s]
+        by_kind = [('defer' if c['on_unresolved'] == 'continue' else
+                    'verify' if c['resolve'] is False else 'stop', c['delete']) for c in checks]
+        self.assertEqual(by_kind, [('defer', 'none'), ('stop', 'piercee'), ('verify', 'none'),
+                                   ('stop', 'piercee'), ('stop', 'piercee'), ('verify', 'none')])
+
     def test_the_original_stages_are_all_preserved_in_order(self):
         protocol = [self.MINIMIZE, self.NPT, self.NVT]
         got = _task()._guard_piercings(protocol)
@@ -998,3 +1012,26 @@ class TestRelaxationStagesReachTheRunRecord(unittest.TestCase):
         self.assertEqual([p['converged'] for p in protocol], [True, False])
         self.assertEqual({p['within'] for p in protocol}, {'make_membrane_system'})
 
+
+
+class TestRingCheckDeleteIsSchemaChecked(unittest.TestCase):
+    """`bilayer.ring_check_delete` must be walked, not merely declared: a mistyped value has to
+    fail at config load, or it reaches `ring_check`, which would treat it as a deletion mode."""
+
+    def _walk(self, value):
+        import pathlib
+        import yaml
+        import pestifer
+        from ycleptic.walkers import dwalk
+        base = yaml.safe_load((pathlib.Path(pestifer.__file__).parent / 'schema' / 'base.yaml').read_text())
+        cfg = {'tasks': [{'make_membrane_system': {'bilayer': {'ring_check_delete': value}}}]}
+        dwalk(base, cfg)
+        return cfg['tasks'][0]['make_membrane_system']['bilayer']['ring_check_delete']
+
+    def test_a_valid_value_walks_clean(self):
+        self.assertEqual(self._walk('piercee'), 'piercee')
+
+    def test_a_mistyped_value_is_rejected_at_config_load(self):
+        with self.assertRaises(Exception) as cm:
+            self._walk('pierce')
+        self.assertIn('pierce', str(cm.exception))

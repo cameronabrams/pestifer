@@ -109,7 +109,7 @@ class RingCheckTask(BaseTask):
         state: StateArtifacts = self.get_current_artifact('state')
         cutoff: float = self.specs.get('cutoff', 3.5)
         segtypes: list = self.specs.get('segtypes', []) or []
-        delete_these: str = self.specs.get('delete', 'piercee')
+        delete_these: str = self.specs.get('delete', 'none')   # the schema default
         max_ring_size: int = self.specs.get('max_ring_size', 7)
         resolve: bool = bool(self.specs.get('resolve', True))
         on_unresolved: str = str(self.specs.get('on_unresolved', 'stop'))
@@ -170,7 +170,10 @@ class RingCheckTask(BaseTask):
                 f'minimize.  A doubly-threaded molecule is the usual cause -- one rigid rotation '
                 f'about one hinge cannot undo two threadings -- and so is a composition whose '
                 f'SAPL is far from where that leaflet sits.  Resolving it here would mean '
-                f'starting dynamics on coordinates last changed by an unrelaxed rigid move.')
+                f'starting dynamics on coordinates last changed by an unrelaxed rigid move.  '
+                f'Remedies: a different --seed (a different placement), a less dense SAPL / '
+                f'leaflet_apl, or, to trade lipids for the build, `bilayer.ring_check_delete` '
+                f'(make_membrane_system) or `delete:` on the ring_check before this one.')
 
         # ITERATE.  Clearing one piercing can create another -- a rotated tail has to go
         # somewhere -- and a molecule can be threaded twice, which one rigid rotation about one
@@ -282,8 +285,12 @@ class RingCheckTask(BaseTask):
         if delete_these == "none":
             self._report(other_piercings, logger.error)
             raise PestiferBuildError(
-                f'{PIERCING_MARKER} {len(other_piercings)} pierced-ring configuration{ess} found; '
-                f'ring_check is configured with delete=none — resolve these manually or change the delete setting'
+                f'{PIERCING_MARKER} {len(other_piercings)} pierced lipid ring{ess} that no move '
+                f'could clear, and delete is none.  To remove the lipid instead of stopping: in a '
+                f'ring_check task, set `delete:`; in make_membrane_system, whose checks are '
+                f'spliced in automatically, set `bilayer.ring_check_delete:`.  Either changes the '
+                f'composition.  Otherwise a different --seed (a different placement) or a less '
+                f'dense SAPL / leaflet_apl is the remedy.'
             )
         # Collect the residues to delete.  A lipid tail threaded through a sterol ring
         # contorts *both* lipids, so a single deletion can leave the other one in a
@@ -301,16 +308,23 @@ class RingCheckTask(BaseTask):
                     to_delete.add((pr['segname'], str(pr['resid'])))
         # deleting a lipid changes the system composition, so report it at INFO (the
         # protein/glycan rotation path is already INFO; a silent lipid delete was misleading)
-        logger.info(f'{len(other_piercings)} lipid ring piercing{ess} detected:')
-        self._report(other_piercings, logger.info)
+        # A WARNING, not INFO: a deletion is the build quietly not being the composition asked
+        # for.  An earlier build of an asymmetric cholesterol-rich membrane lost about 30 CHL1
+        # this way and nothing above INFO said so.
+        logger.warning(f'ring_check: {len(other_piercings)} pierced lipid ring{ess} no move '
+                       f'could clear; deleting (delete={delete_these}) -- the built composition '
+                       f'will differ from the one requested:')
+        self._report(other_piercings, logger.warning)
         self.next_basename('ring_check')
         pg: PsfgenScripter = self.get_scripter('psfgen')
         pg.newscript(self.basename)
         pg.load_project(state.psf.name, state.pdb.name)
-        logger.info(f'Deleting {len(to_delete)} residue(s) (delete={delete_these}) to resolve them:')
+        logger.warning(f'Deleting {len(to_delete)} residue(s) (delete={delete_these}) to resolve them:')
         for seg, resid in sorted(to_delete):
-            logger.info(f'   deleting segname {seg} residue {resid}')
+            logger.warning(f'   deleting segname {seg} residue {resid}')
             pg.addline(f'delatom {seg} {resid}')
+        self.record_outcome(deleted=len(to_delete),
+                            deleted_residues=[f'{seg}:{resid}' for seg, resid in sorted(to_delete)])
         pg.writescript(self.basename)
         pg.runscript()
         self.register(dict(psf=PSFFileArtifact(self.basename), pdb=PDBFileArtifact(self.basename), xsc=state.xsc), key='state', artifact_type=StateArtifacts)
