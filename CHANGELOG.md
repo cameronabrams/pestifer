@@ -4,6 +4,29 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Fixed
+
+- **Two copies of one modeled loop could close into each other, and nothing could undo it.**
+  The CCD closer closes every loop in parallel, each against the resolved structure only, so no
+  loop sees another. In the 3.29.8 sweep, example 14 replica 1's two copies of the 37-residue
+  loop 657-693 interpenetrated: a bond of A SER 678 through the ring of E TYR 675. Rotation
+  could not clear it, and terminate refused the structure 1.5 hours of MD later. `ligate` now
+  re-closes a loop that still pierces a ring after rotation, from a fresh seed and with every
+  other loop present as placed, then checks it again, up to three times. On replica 1's own
+  structure the re-close cleared it on the first attempt, confirmed by an independent
+  ring test. A fresh seed alone also cleared it (5 of 5), so the other loops' presence is not
+  shown to matter. Re-closures are
+  recorded as `loop_reclosures` in the run record. The comment and schema text that called this
+  case "not observed" are corrected.
+
+### Added
+
+- **A build that fails now writes `run-record-failed.json`.** It has the seeds and protocol of
+  every task that ran, the task that stopped the build, and the error, but no system facts or
+  citations. Until now a record was written only on success, so a failed build lost its seeds,
+  which are what someone needs to reproduce it. `run-record.json` still means "completed", and a
+  build that later finishes after `--restart` removes the stale failed record.
+
 ## [3.29.8] - 2026-10-25
 
 ### Fixed

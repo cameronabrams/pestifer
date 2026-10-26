@@ -58,6 +58,7 @@ class Controller:
         # Nonzero once any task has failed, so a caller (the CLI) can exit nonzero instead of
         # reporting success for an aborted build.
         self.exit_code = 0
+        self.current_task = None   # the task running, or the one that stopped the build
         self.pipeline = None
         self.parent = None
         self.restart = False   # --restart: resume from the last cleanly-completed task
@@ -176,6 +177,7 @@ class Controller:
             if manifest is not None:
                 from .run_manifest import spec_hash
                 pre_hash = spec_hash(task.specs)   # BEFORE execute() -- some tasks mutate their specs
+            self.current_task = task
             returned_result = task.execute()
             task_report[task.index] = dict(taskname=task.taskname, taskindex=task.index, result=returned_result)
             task_durations += task.duration

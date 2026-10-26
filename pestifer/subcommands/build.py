@@ -22,7 +22,8 @@ from ..cli.subcommand import Subcommand
 from ..util.stringthings import __pestifer_version__
 from ..util.provenance import log_environment
 from ..util.citations import log_citations
-from ..core.run_record import build_run_record, write_run_record
+from ..core.run_record import (build_run_record, build_failed_run_record, write_run_record,
+                               FAILED_RUN_RECORD_NAME)
 from ..util.util import hmsf
 
 #: Extensions that only ever name an *input* to a build.  A config value ending in one of
@@ -168,6 +169,20 @@ def _print_check_report(report):
       '\ncheck FAILED; the build would not start\n')
 
 
+def _write_failed_run_record(config, C, error=None):
+    """Write ``run-record-failed.json`` for a build that stopped.  Never raises: the build's
+    own failure is the one to report."""
+    try:
+        write_run_record(build_failed_run_record(
+            config, C.tasks, exit_code=C.exit_code or 1,
+            failed_task=getattr(C, 'current_task', None), error=error,
+            manifest=getattr(C, 'manifest', None), resume_from=getattr(C, 'resume_from', 0),
+            environment=getattr(config, 'environment_report', None)),
+            path=FAILED_RUN_RECORD_NAME)
+    except Exception as e:
+        logger.warning(f'could not write {FAILED_RUN_RECORD_NAME}: {e}')
+
+
 @dataclass
 class RunSubcommand(Subcommand):
     name: str = 'build'
@@ -266,7 +281,12 @@ class RunSubcommand(Subcommand):
         C.from_task = getattr(args, 'from_task', None)
         if args.complete_config:
             C.write_complete_config(f'{cbase}-complete.yaml')
-        report = C.do_tasks()
+        try:
+            report = C.do_tasks()
+        except Exception as e:
+            # terminate's refusals and other build errors arrive as exceptions, not results
+            _write_failed_run_record(config, C, error=e)
+            raise
         end_time = time.time()
         elapsed_time_s = datetime.timedelta(seconds=(end_time - begin_time))
         logger.info(f'pestifer ends. Elapsed time {time.strftime("%H:%M:%S", time.gmtime(elapsed_time_s.seconds))}.')
@@ -282,8 +302,9 @@ class RunSubcommand(Subcommand):
         if not C.exit_code:
             cites = log_citations(config)
             # One machine-readable record of what this build actually did, for a Methods draft,
-            # a replica comparison, or a summary table.  Written only for a build that finished:
-            # a record of an aborted run would describe a system that does not exist.
+            # a replica comparison, or a summary table.  Written only for a build that finished;
+            # an aborted one gets run-record-failed.json, which keeps its seeds and protocol but
+            # describes no system, since the system was never finished.
             write_run_record(build_run_record(
                 config, C.tasks,
                 manifest=getattr(C, 'manifest', None), resume_from=getattr(C, 'resume_from', 0),
@@ -292,6 +313,12 @@ class RunSubcommand(Subcommand):
                     {'subject': c.subject, 'text': c.text, 'doi': c.doi,
                      'reason': c.reason, 'key': c.key}
                     for c in (cites or [])]}))
+            if os.path.exists(FAILED_RUN_RECORD_NAME):
+                # left by an earlier attempt this run resumed and finished; it no longer
+                # describes this directory
+                os.remove(FAILED_RUN_RECORD_NAME)
+        else:
+            _write_failed_run_record(config, C)
         if args.output_dir != './':
             os.chdir(exec_dir)
         return C

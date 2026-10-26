@@ -32,6 +32,10 @@ logger = logging.getLogger(__name__)
 RUN_RECORD_NAME = 'run-record.json'
 """Conventional filename, written into the run directory by the ``terminate`` task."""
 
+FAILED_RUN_RECORD_NAME = 'run-record-failed.json'
+"""Written instead of ``run-record.json`` by a build that did not finish.  A different name, so
+the existence of ``run-record.json`` keeps meaning "this build completed"."""
+
 RUN_RECORD_VERSION = 2
 """Schema version of the record itself, so a consumer can refuse a shape it does not know."""
 
@@ -197,6 +201,32 @@ def build_run_record(config, tasks, *, environment=None, citations=None,
     if resumed_by:
         record['resumed_by'] = resumed_by
         record['resumed_from_task'] = resume_from
+    return record
+
+
+def build_failed_run_record(config, tasks, *, exit_code, failed_task=None, error=None,
+                            environment=None, manifest=None, resume_from=0):
+    """The record of a build that stopped before it finished.
+
+    A failed build is exactly the one whose seeds someone will want: 3.29.8's sweep lost
+    example 14 replica 1's ``ccd_seed`` and ``declash_seed`` to a terminate refusal, because a
+    record was written only on success.  This one carries everything the tasks that ran reported
+    -- the seeds are recorded as each task runs -- and says plainly that it failed and where.
+
+    It carries no ``system`` facts and no citations: the system it would describe was never
+    finished, and the build has nothing to cite.
+    """
+    record = build_run_record(config, tasks, environment=environment, manifest=manifest,
+                              resume_from=resume_from)
+    record['status'] = 'failed'
+    record['exit_code'] = int(exit_code) if exit_code else 1
+    record['system'] = {}
+    record['citations'] = {}
+    if failed_task is not None:
+        record['failed_task'] = {'index': getattr(failed_task, 'index', None),
+                                 'task': getattr(failed_task, 'taskname', None)}
+    if error is not None:
+        record['error'] = f'{type(error).__name__}: {error}'
     return record
 
 
