@@ -390,9 +390,29 @@ class TestMakeMembraneSystem(unittest.TestCase):
         # the upper leaflet IS the request, exactly; the lower one is derived, so the only thing
         # it can be checked against is the task's own recorded decision.  When EMBEDDING, neither
         # is the request -- both come from the protein footprint -- so the caller passes None.
+        tiled = task.outcome.get('quilt_method') == 'tile'
         if n_upper_requested is not None:
-            self.assertEqual(n_upper, n_upper_requested,
-                             'upper leaflet was not sized from patch_nlipids')
+            if tiled:
+                # a tiled leaflet carries what its patch's density puts in the box, after seam
+                # removals, and the box is enlarged once to make up for them -- so it is near the
+                # request, not equal to it
+                self.assertLessEqual(abs(n_upper - n_upper_requested), 0.1 * n_upper_requested,
+                                     f'tiled upper leaflet {n_upper} is far from the requested '
+                                     f'{n_upper_requested}; fill {task.outcome.get("quilt_fill")}')
+            else:
+                self.assertEqual(n_upper, n_upper_requested,
+                                 'upper leaflet was not sized from patch_nlipids')
+        if tiled:
+            # species counts come from the patches' own compositions, cropped, not int(frac * n):
+            # check the total against the record and each species against its fractions
+            self.assertEqual(sum(counts[r] for r in set(upper_fracs) | set(lower_fracs)),
+                             n_upper + n_lower, f'built lipids != recorded counts; all {counts}')
+            for resname in set(upper_fracs) | set(lower_fracs):
+                expected = upper_fracs.get(resname, 0.0) * n_upper + lower_fracs.get(resname, 0.0) * n_lower
+                self.assertLessEqual(abs(counts[resname] - expected), max(3.0, 0.1 * expected),
+                                     f'{resname}: built {counts[resname]}, fractions give '
+                                     f'{expected:.1f}; all {counts}')
+            return
         for resname in set(upper_fracs) | set(lower_fracs):
             # Bilayer truncates each species' share (int(frac * n)), so this is exact
             expected = (int(upper_fracs.get(resname, 0.0) * n_upper)

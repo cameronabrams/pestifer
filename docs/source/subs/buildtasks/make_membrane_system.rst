@@ -5,7 +5,7 @@ make_membrane_system
 
 As an *alternative* to a ``solvate`` task, you can use a ``make_membrane_system`` task to build a lipid bilayer and *optionally* embed the protein into it.
 
-Pestifer generates the initial lipid coordinates with a grid packer: it places lipids on a per-leaflet 2-D **orthohexagonal** lattice (oriented, head groups out) and relies on the downstream relaxation MD to resolve the initial overlaps.  It builds the full-size membrane in one shot -- sized to the embedded protein's xy footprint plus the ``embed.xydist`` margin -- so there is no separate patch-packing or replication step.  The water chambers on either side of the bilayer are *not* gridded; they are filled afterward at true liquid density (see `Solvent chambers`_).  The `Task Flow`_ section below describes the process.
+Pestifer builds a membrane from small **patches**: about 100 lipids per leaflet, placed by a grid packer on a per-leaflet 2-D **orthohexagonal** lattice (oriented, head groups out) and relaxed by MD.  By default the full-size membrane is then **tiled** from the relaxed patches -- each leaflet from a patch of its own composition, cropped to a box sized to the embedded protein's xy footprint plus the ``embed.xydist`` margin -- so it starts at the patches' relaxed packing instead of condensing from a lattice.  (The pre-3.30 alternative, gridding the whole membrane directly at the patches' measured area per lipid, remains available as ``quilt_method: grid``.)  The water chambers on either side of the bilayer are *not* placed by either route; they are filled afterward at true liquid density (see `Solvent chambers`_).  The `Task Flow`_ section below describes the process.
 
 .. note::
 
@@ -124,7 +124,7 @@ Bilayer composition is specified either using a single ``composition`` directive
      
      - ``SAPL`` specifies the target surface area per lipid (SAPL) for the bilayer, applied to both leaflets.  It sets the initial lattice spacing.  This is only an *initial* value; the equilibrium area is found during the ``relaxation_protocols`` relaxation.  If you do not specify a ``SAPL``, pestifer will use a default value of 75.0 :math:`Å^2` per lipid.
    
-     - ``relaxation_protocols`` specifies protocols to relax the bilayer before embedding.  Each protocol is a list of stages; a stage is a dictionary with a single key naming its type.  Two types are supported: ``md``, a fixed-length stage that runs exactly as written, and ``membrane_equilibrate``, a **self-terminating** stage that runs in chunks until its density and area convergence criteria are met.  The ``patch`` protocol relaxes the two per-leaflet *calibration* patches (asymmetric builds only), and the ``quilt`` protocol relaxes the full-size, directly-gridded membrane.  Long ``NPT``/``NPgT`` ``md`` stages are automatically split into a ramp of restarts so the condensing cell never outgrows NAMD's startup patch grid.  Options are documented in the Config Reference pages for :ref:`config_ref tasks md` and :ref:`config_ref tasks membrane_equilibrate`.
+     - ``relaxation_protocols`` specifies protocols to relax the bilayer before embedding.  Each protocol is a list of stages; a stage is a dictionary with a single key naming its type.  Two types are supported: ``md``, a fixed-length stage that runs exactly as written, and ``membrane_equilibrate``, a **self-terminating** stage that runs in chunks until its density and area convergence criteria are met.  The ``patch`` protocol relaxes the patches -- one for a symmetric bilayer, one per leaflet composition for an asymmetric one -- and the ``quilt`` protocol relaxes the full-size membrane.  Long ``NPT``/``NPgT`` ``md`` stages are automatically split into a ramp of restarts so the condensing cell never outgrows NAMD's startup patch grid.  Options are documented in the Config Reference pages for :ref:`config_ref tasks md` and :ref:`config_ref tasks membrane_equilibrate`.
 
        A protocol typically ends with a ``membrane_equilibrate`` stage: some short ``md`` stages to melt the lattice out, then a self-terminating stage that decides for itself when the membrane has settled.  This matters most on the calibration path, where the *whole point* is to measure a converged area per lipid -- a fixed-length NPgT tail either wastes time or, worse, stops short and reports an area the membrane had not actually reached.
 
@@ -147,13 +147,17 @@ Bilayer composition is specified either using a single ``composition`` directive
 
      - ``solvents`` and ``solvent_mole_fractions`` are optional packmol-memgen-style strings that specify the solvent composition.  Pestifer uses 100% TIP3P water by default.
      - ``solvent_to_lipid_ratio`` specifies the number of waters to include in the extra-membrane region of the box as proportional to the number of lipids.  If you do not specify this, pestifer will use a default of 32 TIP3P water molecules per lipid.
-     - ``patch_nlipids`` specifies the number of lipids in each calibration-patch leaflet (asymmetric builds only).  It expects a dictionary with keys ``upper`` and ``lower``, each an integer.  If you do not specify this, pestifer will use a default of 100 lipids per leaflet.
-     - ``quilt_grid_slack`` (default 1.05) is the area factor by which a protein-embedding quilt is gridded *looser* than its calibrated stress-free box area, giving the lipid placement a little clearance before the tensionless relaxation condenses it back to the preferred per-leaflet APL.  It multiplies the area per lipid: 1.0 grids exactly at the stress-free area, and the 1.05 default gives 5% extra area, a token placement margin.  (The former 1.15, 15% extra area, was needed only for the square lattice's tight contacts, and left the quilt badly under-dense.)
+     - ``patch_nlipids`` specifies the number of lipids in each patch leaflet.  It expects a dictionary with keys ``upper`` and ``lower``, each an integer.  If you do not specify this, pestifer will use a default of 100 lipids per leaflet.  A tiled membrane repeats its patch's lateral structure with the patch's period, so do not make the patch much smaller than this.
+     - ``quilt_method`` (default ``tile``) chooses how the full membrane is built: ``tile`` tiles it from the relaxed patches, and ``grid`` grids it directly as before 3.30.  ``grid`` is kept as a fallback while tiling is validated.
+     - ``quilt_seam_gap`` (default 2.0 Å) is the width of the strip left empty along each crop seam of a tiled membrane; see `Task Flow`_.
+     - ``quilt_grid_slack`` (default 1.05; ``quilt_method: grid`` only) is the area factor by which a protein-embedding quilt is gridded *looser* than its calibrated stress-free box area, giving the lipid placement a little clearance before the tensionless relaxation condenses it back to the preferred per-leaflet APL.  It multiplies the area per lipid: 1.0 grids exactly at the stress-free area, and the 1.05 default gives 5% extra area, a token placement margin.  (The former 1.15, 15% extra area, was needed only for the square lattice's tight contacts, and left the quilt badly under-dense.)
 
 Solvent chambers
 ++++++++++++++++
 
-The grid packer places **lipids only**.  The extra-membrane water chambers on either side of the bilayer are filled afterward, by a VMD ``solvate``/``autoionize`` step that runs after the lipid ``psfgen``: it tiles a pre-equilibrated water box into exactly the lipid system's cell (no padding) and drops the water that clashes with the dense lipid slab, leaving water only in the chambers, at true liquid density.
+Both routes place **lipids only**.  The extra-membrane water chambers on either side of the bilayer are filled afterward, by a VMD ``solvate``/``autoionize`` step that runs after the lipid ``psfgen``: it tiles a pre-equilibrated water box into exactly the lipid system's cell (no padding) and drops the water that clashes with the lipid slab.
+
+``solvate`` drops only water within about 2.4 Å of a lipid atom, so any gap in a freshly assembled bilayer -- a tiling seam, the hole a removed lipid leaves, a loosely gridded leaflet -- would fill with water inside the hydrophobic core.  On a tiled test quilt that was 1,048 of 5,228 waters, 228 of them within 5 Å of the midplane.  So before ions are placed, every water whose oxygen lies between the two leaflets' mean phosphorus planes is deleted (the ``solvate`` task's ``dry_membrane_core``, which ``make_membrane_system`` always sets).  The count is logged and recorded in ``run-record.json``.  The headgroup region rehydrates within the first nanoseconds of the relaxation; the core does not need to.
 
 This replaced an earlier cubic water lattice, whose voids the barostat would close early in the relaxation -- distorting the bilayer while the water caught up to liquid density.  Starting near density equilibrium, post-embed equilibration converges markedly faster (the :ref:`DMPC bilayer example <example mper-tm symmetric bilayer>`'s post-embed stage went from roughly 3 hours to about 1 hour 49 minutes).
 
@@ -240,42 +244,68 @@ An example ``make_membrane_system`` task is specified below:
           text: "protein and resid 696"
           z_value: 0.0
 
-This is (lightly trimmed) the membrane build from :ref:`example mper-tm viral bilayer`.  A few things worth noting: the two protocols are *lists* of stages; the calibration patch relaxes with ``constant_ratio: false`` and a plateau-gated area tolerance, because its converged APL is what sizes the whole grid; and the cholesterol-rich upper leaflet is declared ``Lo`` so it is packed already ordered rather than trying (and failing) to order during relaxation.
+This is (lightly trimmed) the membrane build from :ref:`example mper-tm viral bilayer`.  A few things worth noting: the two protocols are *lists* of stages; each patch relaxes with ``constant_ratio: false`` and a plateau-gated area tolerance, because its relaxed state is what each leaflet of the membrane is tiled from; and the cholesterol-rich upper leaflet is declared ``Lo`` so it is packed already ordered rather than trying (and failing) to order during relaxation.
 
 If you are including cholesterol or any other sterols in your bilayer, a ``make_membrane_system`` build guards against pierced rings automatically: it wraps every minimization in its patch and full-membrane relaxation protocols with ``ring_check`` stages covering lipid, glycan and protein rings, and resolves a piercing by moving molecules rather than deleting them.  A piercing that nothing clears stops the build; to delete the pierced lipid instead, set ``bilayer.ring_check_delete`` (``piercee``, ``piercer`` or ``both``), which changes the composition and is logged as a warning.  See :doc:`../../pierced-rings` for the full sequence.  It is still recommended to follow the ``make_membrane_system`` task with an energy minimization and an explicit ``ring_check``, as illustrated in :ref:`example mper-tm viral bilayer`.
 
 Task Flow
 =========
 
+Every build first relaxes its patches with the ``patch`` protocol: one patch for a **symmetric**
+bilayer, and for an **asymmetric** one two symmetric patches, one per leaflet composition.  What
+happens next depends on ``quilt_method``.
+
+**Tiled (the default).**  The upper leaflet is tiled from the upper leaflet of its patch, and the
+lower from the lower leaflet of its own, each on its patch's own periodic cell, and both are
+cropped to the target box: the protein footprint plus the ``embed.xydist`` margin when embedding,
+otherwise ``npatch`` tiles of the upper patch.  Nothing is placed, so the membrane starts at the
+patches' packing.  Lipids from partial tiles are discarded; none of them is simulated.
+
+A tile is clean: its contacts are the relaxed patch's own.  New contacts exist only along the
+**crop seams**, where a lipid near one edge of the box meets the periodic image of a lipid near
+the opposite edge, and, in an asymmetric build, at the **midplane**, where two patches' leaflets
+meet for the first time.  A tail leaning across a seam can thread a neighbor's ring (a sterol, a
+sugar, an inositol), so before anything is written pestifer scans the whole assembled membrane,
+using each patch's own topology, and **removes** every lipid that threads a ring or comes within
+0.3 Å of another across a seam -- of the two, the one closer to the box edge.  It does not try to
+move them.  A ``quilt_seam_gap`` strip (2 Å by default) along each seam keeps these few.  When the
+box holds a whole number of tiles in a direction, that direction has no seam.
+
+Seam removals and crop noise leave the two leaflets at slightly different fractions of the lipid
+counts their patches' densities put in the box, which would be a built-in differential stress.
+So the fuller leaflet is trimmed at the box edge until both carry the same fraction; the leaflet
+ratio is then the patches' stress-free ratio to within one lipid.  Since the removals leave a few
+percent of lateral room for the relaxation to close, the box is enlarged once to compensate, so
+the membrane relaxes to about the size asked for: the box that clears the protein, or ``npatch``
+tiles.  The counts, the
+fill fraction and every removal by reason are logged and recorded in ``run-record.json``.
+
+**Gridded (``quilt_method: grid``).**  A symmetric membrane is gridded directly at ``SAPL``; an
+asymmetric one is gridded at per-leaflet counts in the stress-free ratio
+:math:`n_\text{upper}/n_\text{lower} = \text{APL}_\text{lower}/\text{APL}_\text{upper}`, with
+each APL measured on its relaxed patch.  An asymmetric build whose patch area had not converged
+stops here, since the grid would be sized from an unsettled number; ``leaflet_apl`` can supply an
+APL measured elsewhere.  On the tiled route an unconverged patch is reported and recorded instead:
+its *structure* is used, not a number read from it, and it is still the best-packed thing
+available.
+
 .. note::
 
-   "Quilt" is a legacy label for the *full-size* membrane and its relaxation -- it
-   dates from an earlier packer that tiled small patches into a quilt.  The grid
-   packer does no tiling, so a build's ``*-quilt`` artifacts (``grid-quilt``,
-   ``psfgen-quilt``, ``equilibration-quilt``) are the whole membrane, **not**
-   patches.  Patches appear only in *asymmetric* builds, as the per-leaflet
-   calibration patches described below.
-
-For a **symmetric** bilayer, pestifer builds the full-size membrane directly: it grids both leaflets at the requested composition and initial ``SAPL``, sizing the box to the embedded protein's xy footprint plus the ``embed.xydist`` margin (or to ``patch_nlipids`` otherwise).  The gridded membrane is relaxed with the ``quilt`` protocol, and the protein is then embedded.  There is no separate patch or replication step.
-
-For an **asymmetric** bilayer (different leaflet compositions), pestifer first relaxes two symmetric *calibration* patches -- one per leaflet composition -- with the ``patch`` protocol, to measure each leaflet's preferred area per lipid (APL).  It then grids the full membrane (sized to the protein footprint when embedding) at per-leaflet counts in the stress-free ratio :math:`n_\text{upper}/n_\text{lower} = \text{APL}_\text{lower}/\text{APL}_\text{upper}`, so the two leaflets carry equal area at zero differential stress *by construction* -- no leaflet extraction or excess-lipid deletion is required.  The full membrane is then relaxed with the ``quilt`` protocol before embedding.
-
-.. note::
-
-   **This asymmetric protocol has a name: it is SA, built the de novo way.**  Sizing each leaflet
-   to the equilibrium area of a *symmetric* bilayer of the same composition is the **SA** ("match
-   surface areas") protocol, one of the four surveyed by `Chaisson, Heberle, and Doktorova
+   **The asymmetric protocol has a name: it is SA.**  Sizing each leaflet to the equilibrium area
+   of a *symmetric* bilayer of the same composition is the **SA** ("match surface areas")
+   protocol, one of the four surveyed by `Chaisson, Heberle, and Doktorova
    <https://doi.org/10.3390/membranes13070629>`_ (EqN, SA, 0-DS, EmBioAsym), in use since 2007 and
    the approach `Park, Im, and Pastor <https://doi.org/10.1016/j.bpj.2021.10.009>`_ recommend for
    generating initial conditions.
 
    SA can be realized two ways: **stitch** leaflets lifted out of the two equilibrated symmetric
    bilayers, or use their measured APLs to compute leaflet counts and build the asymmetric bilayer
-   **from scratch**.  Pestifer does the latter -- the calibration patches contribute their measured
-   areas and nothing else; none of their coordinates reach the product.  Both sources prefer that
-   realization over stitching, because the product is then not locked to the size of the
-   calibration cell: here the membrane is sized to the protein's footprint while the patches stay
-   at ``patch_nlipids`` (100 per leaflet by default).
+   **from scratch**.  The gridded route is the latter.  The tiled route is the former, with tiling
+   and cropping added so that the product is not locked to the size of the calibration cell --
+   the reason both sources give for preferring the from-scratch realization.  Pestifer moved to
+   stitching because a mixed, ordered leaflet's area per lipid could not be measured within a
+   build's time budget (example 17's cholesterol-rich leaflet was still contracting after 2.5M
+   steps), while the relaxed patch's packing could be used directly.
 
    Two things this does *not* claim.  SA sets each leaflet to its own *symmetric* preferred area,
    which is zero differential stress only to first order -- packing densities need not carry over
@@ -283,24 +313,24 @@ For an **asymmetric** bilayer (different leaflet compositions), pestifer first r
    Use :ref:`diagnose_differential_stress <config_ref tasks make_membrane_system diagnose_differential_stress>`
    to measure the residual stress of the assembled membrane rather than assuming it is zero.  And
    SA itself is long-standing prior art, not a pestifer invention; what pestifer contributes is
-   running the whole protocol -- both calibrations, the convergence gating, and the sizing -- as one
-   automated task.  :ref:`Example mper-tm viral bilayer <example mper-tm viral bilayer>` works a
+   running the whole protocol as one automated task.  :ref:`Example mper-tm viral bilayer <example mper-tm viral bilayer>` works a
    full asymmetric build and carries the complete reference list.
 
-In either case, the gridded lipids are built into a PSF and the water chambers are then filled by the ``solvate`` step described above, so the membrane enters its relaxation protocol already at liquid density.
+Either way, the membrane's lipids are built into a PSF and the water chambers are then filled by the ``solvate`` step described above, so the membrane enters its ``quilt`` relaxation already at liquid density.  ("Quilt" names the full-size membrane and its relaxation; a build's ``*-quilt`` artifacts are the whole membrane.)
 
-When the calibration relaxation is gated by a ``membrane_equilibrate`` stage that reports convergence, pestifer **trusts** the APL it measured and grids from it directly.  Because an overestimated APL would condense the quilt tighter than the protein it has to accommodate, the build also remembers the protein's bare xy footprint and verifies at embedding time that the equilibrated (condensed) box still spans it, rather than discovering the mismatch as a failed embed.
+Because a membrane that over-condenses could end up tighter than the protein it has to accommodate, the build remembers the protein's bare xy footprint and verifies at embedding time that the relaxed box still spans it, rather than discovering the mismatch as a failed embed.
 
 .. mermaid::
   :caption: Membrane build flow.
 
   graph TD;
-    A{Is bilayer asymmetric?};
-    A -- No --> B[Grid full membrane at initial SAPL];
-    A -- Yes --> C[Relax two per-leaflet calibration patches];
-    C --> D[Measure each leaflet's converged APL];
+    P[Relax one patch per leaflet composition];
+    P --> M{quilt_method};
+    M -- tile --> T[Tile each leaflet from its patch, crop to the box];
+    T --> R[Remove seam piercings and overlaps; equalize leaflet fill];
+    M -- grid --> D[Measure each patch's APL];
     D --> E[Grid full membrane at stress-free per-leaflet counts];
-    B --> S[psfgen lipids, then solvate chambers];
+    R --> S[psfgen lipids, then solvate chambers];
     E --> S;
     S --> F[Relax quilt];
     F --> G[Embed protein];

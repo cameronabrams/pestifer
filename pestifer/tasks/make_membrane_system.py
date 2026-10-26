@@ -19,6 +19,7 @@ from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
 
 from ..molecule.bilayer import Bilayer, BilayerSpecString, specstrings_builddict
+from ..molecule.quilt import build_quilt, read_patch, write_quilt_pdb
 
 from ..psfutil.psfcontents import get_toppar_from_psf
 
@@ -437,14 +438,21 @@ class MakeMembraneSystemTask(BaseTask):
             self.embedding = True
             logger.debug(f'Using psf {protein_state.psf.name} and pdb {protein_state.pdb.name} as inputs')
 
+        if not self.using_prebuilt_bilayer:
+            self._refuse_settings_the_route_ignores()
         if self.embedding:
             self.orient_protein()
         if not self.using_prebuilt_bilayer:
-            # grid placement fills the whole box directly: a symmetric bilayer is gridded
-            # directly, while an asymmetric one first calibrates two symmetric patches to
-            # measure per-leaflet preferred areas, then grids at stress-free counts. Either
-            # way the box is sized to the protein footprint when embedding.
-            if self.patch is not None:
+            if self._quilt_method() == 'tile':
+                # every leaflet is tiled from a relaxed patch: one patch for a symmetric
+                # bilayer, patchA (upper) and patchB (lower) for an asymmetric one
+                self.build_patch()
+                self.build_tiled_membrane()
+            # `quilt_method: grid` places the whole membrane on a lattice: a symmetric bilayer
+            # is gridded directly, while an asymmetric one first calibrates two symmetric
+            # patches to measure per-leaflet preferred areas, then grids at stress-free counts.
+            # Either way the box is sized to the protein footprint when embedding.
+            elif self.patch is not None:
                 self.build_grid_membrane()
             else:
                 self.build_patch()
@@ -454,6 +462,36 @@ class MakeMembraneSystemTask(BaseTask):
         else:
             self.pipeline.rekey('quilt_state', 'state')
         return 0
+
+    def _is_symmetric_by_construction(self, bilayer_name: str) -> bool:
+        """Whether ``bilayer_name`` is meant to carry equal leaflets: every patch is, and so is
+        the full membrane of a symmetric build."""
+        return bilayer_name.startswith('patch') or getattr(self, 'patch', None) is not None
+
+    def _quilt_method(self) -> str:
+        """``tile`` (the default) or ``grid``; see ``bilayer.quilt_method``."""
+        return str((self.bilayer_specs or {}).get('quilt_method', 'tile'))
+
+    def _refuse_settings_the_route_ignores(self):
+        """Stop before any patch is built if the config sets something the chosen route ignores.
+
+        ``bilayer.leaflet_apl`` supplies an area per lipid for the grid to be sized from.  A tiled
+        membrane is sized from nothing of the kind -- its leaflets carry their patches' own packing
+        -- so the setting would be accepted and do nothing, which is worse than refusing it (see
+        the dead-schema-key notes in CLAUDE.md).  Checked here, not after the patches, so the
+        mistake costs seconds rather than the hours a calibration patch takes.
+        """
+        if self._quilt_method() != 'tile':
+            return
+        apl = (self.bilayer_specs or {}).get('leaflet_apl') or {}
+        given = {k: v for k, v in apl.items() if v is not None}
+        if given:
+            raise PestiferBuildError(
+                f'bilayer.leaflet_apl is set ({given}), but a tiled membrane (quilt_method: tile, the '
+                f'default) is not sized from an area per lipid: each leaflet is tiled from its relaxed '
+                f'patch and keeps that patch\'s packing, so there is nothing for the value to replace. '
+                f'Remove leaflet_apl, or set bilayer.quilt_method: grid to size a gridded membrane '
+                f'from it.')
 
     def _orientation_align(self):
         """Build the :class:`~pestifer.objs.rottrans.RotTrans` ``ALIGN`` operation that orients the
@@ -707,6 +745,102 @@ class MakeMembraneSystemTask(BaseTask):
         # never shrinks past NAMD's startup patch grid in a single run
         quilt_protocol = bs.get('relaxation_protocols', {}).get('quilt', {})
         self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=quilt_protocol)
+
+    def build_tiled_membrane(self):
+        """Build the full membrane by tiling relaxed patches; see ``docs/design/patch-quilting.md``.
+
+        The upper leaflet is tiled from patchA's upper leaflet (or the one patch's, for a
+        symmetric bilayer) and the lower from patchB's lower, each on its own patch's cell, and
+        cropped to the target box.  :func:`~pestifer.molecule.quilt.build_quilt` removes every
+        lipid that threads a ring or overlaps another across a crop seam or, for an asymmetric
+        build, across the midplane where the two patches meet, and trims the fuller leaflet so
+        both carry the same fraction of their stress-free counts.  The result is a lipids-only PDB
+        registered as ``quilt_state`` -- the same hand-off the grid path makes -- so psfgen,
+        solvation and the quilt relaxation are unchanged.
+
+        **An unconverged patch is reported, not fatal.**  On the grid route the membrane is sized
+        from each patch's area per lipid, so an unsettled one mis-sizes everything and the build
+        stops.  Here the patch's structure is used, and an unsettled patch is still the best-packed
+        thing available; the risk left is a leaflet ratio taken from patches that had not settled,
+        which ``diagnose_differential_stress`` measures.  The drift is logged by
+        :meth:`equilibrate_bilayer` and recorded here.
+        """
+        bs = self.bilayer_specs
+        sources = {'upper': (self.patchA, 'patchA') if self.patch is None else (self.patch, 'patch'),
+                   'lower': (self.patchB, 'patchB') if self.patch is None else (self.patch, 'patch')}
+        read = {}
+        for leaflet, (bilayer, name) in sources.items():
+            if name not in read:
+                st: StateArtifacts = self.get_current_artifact(f'{name}_state')
+                read[name] = read_patch(st.psf.name, st.coor.name, st.xsc.name).register()
+                amb = read[name].midplane_ambiguous
+                if amb:
+                    logger.warning(
+                        f'{name}: {len(amb)} lipid(s) within 2 A of the midplane, assigned to a '
+                        f'leaflet by which side they sit on: '
+                        + ', '.join(f'{rn} (z {z:+.1f})' for _i, rn, z in amb[:10]))
+            drift = getattr(bilayer, 'area_drift', None)
+            if isinstance(drift, (int, float)) and abs(drift) > _AREA_CONVERGENCE_TOL:
+                logger.warning(
+                    f'{leaflet} leaflet: its patch ({name}) was still drifting {100 * drift:+.2f}% '
+                    f'(tolerance {100 * _AREA_CONVERGENCE_TOL:.2f}%). Tiling it anyway: its '
+                    f'structure is the best-packed one available. The leaflet ratio comes from the '
+                    f'patches\' states, so an unsettled patch can leave differential stress; enable '
+                    f'diagnose_differential_stress to measure it.')
+        P_up, P_lo = read[sources['upper'][1]], read[sources['lower'][1]]
+        if self.embedding:
+            Lx, Ly = self._protein_box_dims()
+        else:
+            npatch = self._npatch()
+            Lx, Ly = npatch[0] * P_up.cell[0], npatch[1] * P_up.cell[1]
+        gap = float(bs.get('quilt_seam_gap', 2.0))
+        # seam removals and the gap leave lateral room the relaxation closes, so the box is
+        # enlarged once to compensate: the membrane relaxes to about the size asked for -- the box
+        # that clears the protein, or npatch tiles (a one-patch box filled to 86% without this)
+        q = build_quilt(P_up, P_lo, Lx, Ly, gap, expand=True)
+        why = {}
+        for leaflet, resname, reason, _detail in q.removed:
+            why[reason] = why.get(reason, 0) + 1
+        logger.info(
+            f'Tiled membrane: box {q.Lx:.1f} x {q.Ly:.1f} A (seams in x: {q.seams[0]}, y: '
+            f'{q.seams[1]}; gap {gap} A); upper {q.n_upper} lipids from {sources["upper"][1]}, '
+            f'lower {q.n_lower} from {sources["lower"][1]}; each leaflet at {100 * q.fill:.1f}% of '
+            f'its stress-free count')
+        if q.removed:
+            logger.info(
+                f'Tiled membrane: removed {len(q.removed)} lipid(s) -- '
+                + ', '.join(f'{n} {r}' for r, n in sorted(why.items()))
+                + ' (pierce: threaded a ring across a seam; clash: atoms under 0.3 A across a seam; '
+                  'ratio: trimmed at a box edge to equalize the leaflets)')
+            for leaflet, resname, reason, detail in q.removed:
+                if reason != 'ratio':
+                    logger.debug(f'  removed {leaflet} {resname}: {reason} {detail}')
+        self.record_outcome(
+            quilt_method='tile', n_upper=int(q.n_upper), n_lower=int(q.n_lower),
+            embedding=bool(self.embedding), quilt_box=[float(q.Lx), float(q.Ly), float(q.Lz)],
+            quilt_seams=[bool(q.seams[0]), bool(q.seams[1])], quilt_seam_gap=gap,
+            quilt_fill=float(q.fill), quilt_removed=why,
+            apl_upper=float(1.0 / P_up.density()), apl_lower=float(1.0 / P_lo.density()),
+            apl_upper_source=sources['upper'][1], apl_lower_source=sources['lower'][1],
+            apl_upper_drift=_as_float(getattr(sources['upper'][0], 'area_drift', None)),
+            apl_lower_drift=_as_float(getattr(sources['lower'][0], 'area_drift', None)),
+            apl_upper_area_rate=_as_float(getattr(sources['upper'][0], 'area_rate', None)),
+            apl_lower_area_rate=_as_float(getattr(sources['lower'][0], 'area_rate', None)),
+            area_convergence_tol=_AREA_CONVERGENCE_TOL)
+        self.next_basename('tile-quilt')
+        write_quilt_pdb(q, f'{self.basename}.pdb')
+        self.register(dict(pdb=PDBFileArtifact(self.basename, pytestable=True)),
+                      key='quilt_state', artifact_type=StateArtifacts)
+        membrane = Bilayer(leaflet_nlipids=dict(upper=q.n_upper, lower=q.n_lower),
+                           charmmffcontent=self.charmmff_content, **self._bilayer_kwargs)
+        membrane.box, membrane.origin = q.box, q.origin
+        self.quilt = membrane
+        self.do_psfgen(membrane, bilayer_name='quilt')
+        quilt_protocol = bs.get('relaxation_protocols', {}).get('quilt', {})
+        self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=quilt_protocol)
+        diag_specs = self.specs.get('diagnose_differential_stress', {})
+        if self.patch is None and diag_specs.get('enabled', False):
+            self.diagnose_differential_stress(self.quilt, q.n_upper, q.n_lower, diag_specs)
 
     @staticmethod
     def _warn_phase_composition_mismatch(leaflet, phase, species):
@@ -1410,9 +1544,13 @@ class MakeMembraneSystemTask(BaseTask):
             logger.info(f'{bilayer_name}: already solvated; skipping solvate/autoionize '
                         f'(re-solvating would collide with the existing water segment)')
         else:
+            # dry_membrane_core: solvate keeps water farther than ~2.4 A from a lipid, so a seam,
+            # the hole a removed lipid leaves, or a loose grid would otherwise fill with water
+            # inside the hydrophobic core
             tasklist_user.append({'solvate': dict(
                 salt_con=bs.get('salt_con', 0.0), cation=bs.get('cation', 'POT'),
-                anion=bs.get('anion', 'CLA'), solvent=bs.get('solvents', 'TIP3'))})
+                anion=bs.get('anion', 'CLA'), solvent=bs.get('solvents', 'TIP3'),
+                dry_membrane_core=True)})
         tasklist_user.extend(guarded_protocol)
         tasklist_user.extend([
             {'mdplot': dict(timeseries=timeseries, profiles=profiles, legend=True, grid=True, basename=self.basename)},
@@ -1462,7 +1600,8 @@ class MakeMembraneSystemTask(BaseTask):
         try:
             g = membrane_leaflet_geometry(bilayer_state.psf.name, bilayer_state.pdb.name)
             bilayer.n_leaflet = 0.5 * (g.n_lower + g.n_upper)
-            if g.n_lower != g.n_upper:
+            # a statement about SYMMETRIC patches; an asymmetric quilt is unequal by design
+            if g.n_lower != g.n_upper and self._is_symmetric_by_construction(bilayer_name):
                 logger.warning(
                     f'{bilayer_name}: leaflets ended with unequal lipid counts '
                     f'({g.n_lower} lower / {g.n_upper} upper) -- a symmetric patch is then not '

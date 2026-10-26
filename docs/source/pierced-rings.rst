@@ -27,7 +27,10 @@ A piercing is made by an **unphysical displacement**: something that moves atoms
 integrating equations of motion, and so does not have to respect the energy barrier a bond
 would have to cross to enter a ring. In pestifer those are:
 
-- **Initial placement**: packing lipids onto a grid in ``make_membrane_system``.
+- **Initial placement**: packing lipids onto a grid in ``make_membrane_system`` (every patch,
+  and the full membrane under ``quilt_method: grid``).
+- **Tiling**: assembling the full membrane from relaxed patches, where lipids meet across a crop
+  seam, or at the midplane of an asymmetric build, without ever having been relaxed together.
 - **Embedding**: inserting a protein into a relaxed bilayer.
 - **Grafting**: adding glycans and modeling missing terminal tails in ``psfgen``.
 - **Loop closure**: ``ligate`` closing a modeled loop onto its downstream anchor.
@@ -277,6 +280,15 @@ threaded reaches dynamics. Before version 3.29.6 the first check was fatal too, 
 corrected detector that stopped every replica of example 17 on a sterol that the
 following minimization and check do free: the minimization removes one of its two threadings, and
 the next check clears the other with an ordinary rotation.
+
+A **tiled** membrane is checked before it is even written. Inside a tile every contact is one the
+relaxed patch already had, so a tile is clean; only the seams carry new contacts, and there a
+leaning tail can thread a neighbor's sterol ring. On example-17-sized quilts that happened 5-18
+times per quilt. The tiler scans the assembled membrane with each patch's own topology, and
+**removes** every lipid that pierces or is pierced across a seam -- of the two, the one closer to
+the box edge -- instead of moving it, since a deletion at a seam only widens a gap the relaxation
+closes anyway. The checks spliced around the quilt's minimizations still run, and on a tiled
+membrane they are expected to find nothing; a finding there is a report about the tiler.
 
 The final check cannot move anything because it is the last word before dynamics. Every move
 leaves a few soft contacts that need a minimization. A check allowed to move atoms right before

@@ -90,31 +90,84 @@ is seamless: a periodic patch's images already match at its edges.
 
 1. **Target box** `Lx × Ly`: the protein footprint plus `embed.xydist` when embedding (as today,
    `_protein_box_dims`); otherwise `npatch` tiles of the **upper** patch (asymmetric) or of the
-   patch (symmetric), or `dims` if given.
+   patch (symmetric).
 2. **Tile** each leaflet `ceil(Lx/ax) × ceil(Ly/ay)` times, where `ax, ay` are that patch's box
    lengths.
-3. **Keep** a lipid if its reference atom (the headgroup atom used for leaflet assignment) lies in
-   `[g/2, Lx - g/2) × [g/2, Ly - g/2)`, where `g` is a small seam gap. Every other lipid is discarded.
-   This is where the "excess lipids" go: lipids from partial tiles are built and thrown away. None
-   reach the system.
+3. **Keep** a lipid if its lateral **centroid** lies in `[g/2, Lx - g/2) × [g/2, Ly - g/2)`, where
+   `g` is the seam gap. Every other lipid is discarded: lipids from partial tiles are built and
+   thrown away, and none reach the system.
 
-Leaflet counts are then **whatever the patch density puts in the box**. `n_upper ≈ Lx·Ly / APL_A`
-and `n_lower ≈ Lx·Ly / APL_B` fall out of the cropping; no APL number is computed or used to size
-anything. The count ratio is the stress-free ratio of the two patches' states, exactly as now.
+*As built, and why it differs from the first draft.* The draft cropped by the headgroup reference
+atom. A lipid's body reaches 5-8 Å sideways from its phosphorus, so a headgroup crop left bodies
+overlapping across the seam even with a gap: an ex17 patch tiled 2.5 × 2.5 at a 4 Å gap left 21
+clashes and 19 threaded rings cropped by phosphorus, against 7 and 2 cropped by centroid. The
+patch is also wrapped by centroid, since a wrap by any other point loses a copy of every lipid
+whose centroid sits just outside the cell (a 2 × 2 box kept 380 of 400 per leaflet that way).
 
 **Seams.** Where the target box does not hold a whole number of tiles, the crop edge meets the
-periodic image of the opposite edge, so each leaflet has one seam in x and one in y. The gap `g`
-makes that seam a slight gap instead of an overlap (a lipid's tails lean laterally by a few Å, so a
-center-only crop with `g = 0` overlaps tails across the seam). A gap closes in NPT; an overlap is a
-clash, and possibly a threading. Seams are the only place the tiled quilt is not at the patch's
-packing. `g` is a parameter, `bilayer.quilt_seam_gap`; its default is to be measured (start from
-2 Å). When the box is a whole number of tiles, as for a symmetric build without embedding, there is
-no seam and `g` is not applied.
+periodic image of the opposite edge, so the box has one seam in x and one in y. When the box is a
+whole number of tiles of **every** patch in a direction, that direction has no seam and no gap.
+Otherwise the gap applies to **both** leaflets: a gap paid by only one leaflet costs it a share of
+its area the other does not pay, which is a built-in error in the leaflet ratio (about 4% for a
+4 Å gap on a 150 Å box, measured as an asymmetric non-embedding build would have it).
+
+**Equalization.** Crop noise and seam removals leave the two leaflets at different fractions of
+their stress-free counts `Lx·Ly·ρ`, where `ρ` is the patch's lipids per area (mean of its two
+leaflets). Measured on one ex17 patch tiled against **itself**, the two leaflets came out 1-5%
+apart, several times the calibration gate's 0.5%. So after the seam check the fuller leaflet is
+trimmed, nearest the box edges first, to the emptier one's fraction (`fill`); the ratio is then the
+patches' stress-free ratio to within one lipid. No APL is used to size anything; `ρ` only decides
+which leaflet to trim and by how much.
+
+**Size.** Removals and the gap leave a few percent of lateral room, so the membrane relaxes to about
+`fill · Lx·Ly`. So the box is enlarged once by `1/sqrt(fill)` and the quilt rebuilt; on the ex17
+patch that put the relaxed area within 1.5% of the target. This was first done only when embedding,
+and a one-patch (`npatch: [1, 1]`) asymmetric test build then filled its box to 86%: one tile is all
+edge. It now applies to every build that has a seam.
+
+### Seams are where piercings can come from
+
+Inside a tile every contact is one the relaxed patch already had, and the patch protocol ends in a
+verify-only `ring_check`, so a tile is clean. Contacts that no relaxed structure ever made exist in
+only two places:
+
+- **the crop seams**, where a lipid near one crop edge meets the periodic image of a lipid near the
+  opposite edge, and a tail leaning across can thread a neighbor's ring (a sterol, a sugar, an
+  inositol);
+- **the midplane of an asymmetric build**, where patchA's upper leaflet meets patchB's lower one for
+  the first time. Symmetric builds take both leaflets from one patch, so their midplane is the
+  patch's own.
+
+The seam gap only lowers the chance of a threading; it does not rule one out. On ex17-sized quilts
+of one ex17 patch, seamed, the tiler found 5-18 threaded rings per quilt, nearly all a POPC or PSM
+tail through a cholesterol ring. So the tiler checks before writing anything:
+
+1. Bonds and rings come from the **patch PSF**. Every tiled lipid is a copy of a patch residue, so
+   its topology is known before psfgen runs. Rings are found once per residue type from the bond
+   graph.
+2. The **whole assembled quilt** is scanned, periodically in x and y, rather than an enumerated set
+   of seam pairs: a band-width choice is its own way to miss something, and a full scan costs about a
+   second. Because a tile is clean, findings fall at the seams; the first ex17 scan placed every one
+   of them across a crop edge, which is the check that the in-tile contacts are not producing false
+   alarms. The piercing test is `PSFRing.pierced_by`, the same straddle-and-winding test
+   `ring_check` uses.
+3. A **clash** is two atoms of different lipids under 0.3 Å, the grid packer's own corruption floor.
+   0.8 Å removed 47 lipids where 0.3 Å removed 20 on one quilt; above 0.3 Å an overlap is ordinary
+   work for the first minimize.
+4. A lipid that pierces, is pierced, or clashes is **removed**, not rotated. At a seam a deletion
+   only widens the gap NPT will close anyway, and it adds no new displacement for a later check to
+   chase. Of the two, the one whose centroid is closer to a seam goes (the lipid that only just made
+   it in); piercings are resolved before clashes. Every removal is counted by reason in the run
+   record and logged by residue at debug level.
+5. The spliced `ring_check` guard still runs on the built quilt as it does now. If it finds
+   anything after the seam check, that is a defect in the seam check and is reported that way.
+   The validation builds also apply the independent segment-plane test.
 
 ### Mechanics
 
-- **Wrap first.** NAMD writes unwrapped coordinates. Before tiling, wrap each patch **by residue**
-  into its cell, so a lipid straddling the patch boundary is moved whole, never split.
+- **Wrap first.** NAMD writes unwrapped coordinates. Before tiling, wrap each patch **by residue**,
+  by its lateral centroid, into its cell, so a lipid straddling the patch boundary is moved whole,
+  never split.
 - **Leaflet assignment** by a headgroup reference atom's z relative to the patch midplane: the P
   atom for phospholipids, O3 for CHL1, with a per-species table where needed. Do not use the center
   of mass: a sterol that has sunk toward the midplane is still in the leaflet its hydroxyl points
@@ -127,9 +180,19 @@ no seam and `g` is not applied.
   exactly what `grid_patch` hands to `do_psfgen` today, and `equilibrate_bilayer` solvates it as it
   does now. This is the integration point, and it means `bilayer_patch.tcl`, solvation and the
   relaxation path are unchanged. The tiler replaces `grid_patch` for the full membrane, nothing else.
-- **Python, not Tcl.** The tiler is numpy over a parsed PDB (`pestifer/molecule/quilt.py`),
-  consistent with the coordinate-transform port. Watch the wide-resname column issue for six-character
-  CHARMM names (`SAPI24`): write through the same PDB writer the grid path uses.
+- **Python, not Tcl.** The tiler is numpy over the patch's PSF and binary coordinates
+  (`pestifer/molecule/quilt.py`), consistent with the coordinate-transform port. It writes the same
+  layout the grid packer writes: one resid per lipid (`bilayer_patch.tcl` groups lipids by resid),
+  chain `A`, and the residue name in the four-column field as the conformer PDBs carry it (`SAPI24`
+  is written `SAPI` there too), so psfgen sees a tiled quilt exactly as it sees a gridded one.
+- **Dry the core after solvating.** VMD's `solvate` keeps any water farther than ~2.4 Å from a
+  lipid atom, so seam gaps and the holes removed lipids leave fill with water inside the bilayer:
+  1,048 of 5,228 waters on the first tiled test quilt, 228 within 5 Å of the midplane. The solvate
+  step now deletes every water whose oxygen lies between the leaflets' mean phosphorus planes,
+  before ions are placed (`solvate.dry_membrane_core`, set by `make_membrane_system`). The first
+  version selected phosphorus with VMD's `lipid` keyword, which does not cover PSM, so a PSM/CHL1
+  leaflet contributed no plane and both "planes" came from one leaflet; it now selects by
+  exclusion and refuses planes under 20 Å apart.
 - **Embedding** is unchanged: `embed_protein` takes `quilt_state` and deletes what overlaps the
   protein.
 
@@ -137,7 +200,7 @@ no seam and `g` is not applied.
 
 The quilt no longer melts a grid, so its protocol should be short: minimize, a short NVT, then NPT
 (or NPgT) long enough to close seams. The spliced `ring_check` guard stays as it is. The expected
-piercing count after tiling is near zero (only at seams), so if the first check finds many, that is
+piercing count after tiling is zero once the seam check has run, so if the first check finds many, that is
 a defect report, not routine. The `quilt` relaxation protocols in examples 16 and 17 were written to
 melt a grid, and should be cut back once measured.
 
@@ -191,7 +254,7 @@ patch smaller.
 2. **Negative control:** tile with `g = 0` and confirm the seam check flags overlaps, so the gap
    test can fail.
 3. **Builds, local:** symmetric POPC (seamless case); an asymmetric POPC / POPC:CHL1 build; the
-   piercing count after tiling, which must be near zero and only at seams. Check with the
+   piercing count after tiling, which must be zero after the seam check. Check with the
    independent segment-plane test, not only `ring_check`.
 4. **Examples 16 and 17, then a sweep:** quilt relaxation survives with a shortened protocol;
    leaflet counts match the patch densities; wall time compared with the 3.29.8 sweep.

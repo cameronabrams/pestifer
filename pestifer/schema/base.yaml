@@ -1253,6 +1253,17 @@ attributes:
           - name: anion
             text: name of anion
             type: str
+          - name: dry_membrane_core
+            text: >-
+              Delete every water whose oxygen lies between the two leaflets' mean phosphorus planes,
+              after solvation and before ions are placed. VMD's solvate removes only water within
+              about 2.4 A of a solute atom, so a gap in a freshly assembled bilayer -- a tiling seam,
+              the hole a removed lipid leaves, a loosely gridded leaflet -- would otherwise be filled
+              with water inside the hydrophobic core. make_membrane_system turns this on for every
+              membrane it solvates. Needs lipid phosphorus atoms in both leaflets; without them it
+              logs a warning and deletes nothing.
+            type: bool
+            default: false
       - name: desolvate
         type: dict
         text: single-shot desolvation (no inheritance)
@@ -1558,7 +1569,9 @@ attributes:
                 type: float
               - name: packer
                 text: >-
-                  How to place the lipids. 'grid' (the only supported packer) places lipids on a
+                  How to place the lipids of every grid-placed bilayer: the relaxation patches
+                  always, and the full membrane under quilt_method grid. 'grid' (the only supported
+                  packer) places lipids on a
                   per-leaflet orthohexagonal 2D lattice (oriented, tails toward the midplane),
                   relying on the relaxation MD to resolve the initial overlaps. The packer writes a
                   lipid-only system; the extra-membrane water chambers are then filled at true liquid
@@ -1567,8 +1580,34 @@ attributes:
                 type: str
                 choices: [grid]
                 default: grid
+              - name: quilt_method
+                text: >-
+                  How the full membrane is built. 'tile' (the default) relaxes a patch -- one for a
+                  symmetric bilayer, one per leaflet composition for an asymmetric one -- and tiles
+                  each leaflet from its patch, cropped to the box, so the membrane starts at the
+                  relaxed patches' packing. Lipids that thread a ring or overlap across a crop seam
+                  are removed, and the fuller leaflet is trimmed so both sit at the same fraction of
+                  their stress-free counts. 'grid' places the whole membrane on a lattice at the
+                  patches' measured area per lipid, as before 3.30; it is kept as a fallback while
+                  tiling is validated, and is the only route on which leaflet_apl and
+                  quilt_grid_slack apply.
+                type: str
+                choices: [tile, grid]
+                default: tile
+              - name: quilt_seam_gap
+                text: >-
+                  Width, in Angstroms, of the strip left empty along each crop seam of a tiled
+                  membrane (quilt_method tile). A lipid is kept only if its lateral centroid lies at
+                  least half this far inside the box, so lipids on either side of a seam do not
+                  overlap; the strip closes during the quilt relaxation. A direction in which the
+                  box holds a whole number of tiles of every patch has no seam and no gap. Whenever
+                  either leaflet has a seam in a direction, the gap applies to both, so they lose
+                  the same fraction of their area to it.
+                type: float
+                default: 2.0
               - name: quilt_grid_slack
                 text: >-
+                  Only under quilt_method grid.
                   Area factor by which the protein-embedding quilt is gridded looser than its
                   calibrated stress-free box area, giving the lipid placement a small clearance
                   before the tensionless relaxation condenses it to the preferred per-leaflet APL.
@@ -1580,6 +1619,9 @@ attributes:
                 default: 1.05
               - name: leaflet_apl
                 text: >-
+                  Only under quilt_method grid; setting it with a tiled membrane stops the build
+                  before any patch is relaxed, since nothing in a tiled membrane is sized from an
+                  area per lipid.
                   Per-leaflet area per lipid, in square Angstroms, supplied instead of the value
                   calibrated from the relaxed symmetric patches. Intended for re-using an APL
                   measured on a large bilayer that has actually converged, because a short

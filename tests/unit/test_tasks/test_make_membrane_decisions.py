@@ -498,15 +498,17 @@ class TestDo(unittest.TestCase):
     """Which branch runs, and in what order.
 
     Every method it dispatches to needs VMD or NAMD, so they are all stubbed; what is under test
-    is the routing, which is decided by two independent facts -- whether a protein state arrived,
-    and whether the requested bilayer was symmetric.
+    is the routing, which is decided by three independent facts -- whether a protein state
+    arrived, whether the requested bilayer was symmetric, and ``bilayer.quilt_method``.
     """
 
     STEPS = ('orient_protein', 'build_grid_membrane', 'build_patch',
-             'build_grid_membrane_asymmetric', 'embed_protein')
+             'build_grid_membrane_asymmetric', 'build_tiled_membrane', 'embed_protein')
 
-    def _run(self, state=True, patch=True, prebuilt=False):
-        t = _task(using_prebuilt_bilayer=prebuilt, patch=(mock.Mock() if patch else None))
+    def _run(self, state=True, patch=True, prebuilt=False, method=None):
+        specs = {} if method is None else {'quilt_method': method}
+        t = _task(using_prebuilt_bilayer=prebuilt, patch=(mock.Mock() if patch else None),
+                  bilayer_specs=specs)
         called = []
         for name in self.STEPS:
             setattr(t, name, (lambda n=name: called.append(n)))
@@ -520,34 +522,57 @@ class TestDo(unittest.TestCase):
         rc = t.do()
         return t, called, rc
 
-    def test_a_bare_membrane_build_neither_orients_nor_embeds(self):
+    # the default route: tile every leaflet from a relaxed patch
+
+    def test_a_bare_membrane_build_relaxes_a_patch_and_tiles_it(self):
         t, called, rc = self._run(state=False)
-        self.assertEqual(called, ['build_grid_membrane'])
+        self.assertEqual(called, ['build_patch', 'build_tiled_membrane'])
         self.assertEqual(rc, 0)
         self.assertFalse(t.embedding)
 
+    def test_an_asymmetric_build_tiles_by_default(self):
+        _t, called, _rc = self._run(state=False, patch=False)
+        self.assertEqual(called, ['build_patch', 'build_tiled_membrane'])
+
     def test_a_bare_build_promotes_the_membrane_to_the_pipeline_state(self):
         """Nothing else will: with no protein to embed, the quilt *is* the system."""
-        t, _called, _rc = self._run(state=False)
-        t.pipeline.rekey.assert_called_once_with('quilt_state', 'state')
+        for method in (None, 'grid'):
+            with self.subTest(method=method):
+                t, _called, _rc = self._run(state=False, method=method)
+                t.pipeline.rekey.assert_called_once_with('quilt_state', 'state')
 
     def test_an_embedding_build_orients_first_and_embeds_last(self):
         _t, called, _rc = self._run(state=True)
-        self.assertEqual(called, ['orient_protein', 'build_grid_membrane', 'embed_protein'])
+        self.assertEqual(called, ['orient_protein', 'build_patch', 'build_tiled_membrane',
+                                  'embed_protein'])
 
     def test_an_embedding_build_does_not_rekey_the_membrane(self):
-        t, _called, _rc = self._run(state=True)
-        t.pipeline.rekey.assert_not_called()
+        for method in (None, 'grid'):
+            with self.subTest(method=method):
+                t, _called, _rc = self._run(state=True, method=method)
+                t.pipeline.rekey.assert_not_called()
 
-    def test_an_asymmetric_request_calibrates_patches_before_gridding(self):
+    # the opt-out: `quilt_method: grid`, the pre-3.30 behavior
+
+    def test_grid_a_bare_symmetric_build_grids_directly(self):
+        _t, called, _rc = self._run(state=False, method='grid')
+        self.assertEqual(called, ['build_grid_membrane'])
+
+    def test_grid_an_embedding_build_orients_first_and_embeds_last(self):
+        _t, called, _rc = self._run(state=True, method='grid')
+        self.assertEqual(called, ['orient_protein', 'build_grid_membrane', 'embed_protein'])
+
+    def test_grid_an_asymmetric_request_calibrates_patches_before_gridding(self):
         """``initialize`` leaves ``patch`` as None for an asymmetric build; the two symmetric
         patches are measured first so the grid can be laid at stress-free counts."""
-        _t, called, _rc = self._run(state=False, patch=False)
+        _t, called, _rc = self._run(state=False, patch=False, method='grid')
         self.assertEqual(called, ['build_patch', 'build_grid_membrane_asymmetric'])
 
     def test_a_prebuilt_bilayer_skips_construction_entirely(self):
-        _t, called, _rc = self._run(state=False, prebuilt=True)
-        self.assertEqual(called, [])
+        for method in (None, 'grid'):
+            with self.subTest(method=method):
+                _t, called, _rc = self._run(state=False, prebuilt=True, method=method)
+                self.assertEqual(called, [])
 
     def test_a_partial_state_is_not_treated_as_a_protein(self):
         """A state carrying only coordinates cannot be embedded -- both a psf and a pdb are
@@ -563,6 +588,47 @@ class TestDo(unittest.TestCase):
                 t.pipeline = mock.Mock()
                 t.do()
                 self.assertFalse(t.embedding)
+
+
+class TestLeafletAplIsRefusedOnTheTiledRoute(unittest.TestCase):
+    """``leaflet_apl`` sizes a gridded membrane; a tiled one has nothing for it to replace, and a
+    key accepted and then ignored is the worse failure.  It must stop the build before any patch
+    is relaxed, and only on the route that ignores it."""
+
+    def _run(self, specs, prebuilt=False):
+        t = _task(using_prebuilt_bilayer=prebuilt, patch=mock.Mock(), bilayer_specs=specs)
+        called = []
+        for name in TestDo.STEPS:
+            setattr(t, name, (lambda n=name: called.append(n)))
+        t.get_current_artifact = lambda k: None
+        t.pipeline = mock.Mock()
+        t.do()
+        return called
+
+    def test_set_with_tiling_stops_before_any_patch(self):
+        called = []
+        with self.assertRaises(PestiferBuildError) as cm:
+            t = _task(using_prebuilt_bilayer=False, patch=mock.Mock(),
+                      bilayer_specs={'leaflet_apl': {'upper': 41.6}})
+            for name in TestDo.STEPS:
+                setattr(t, name, (lambda n=name: called.append(n)))
+            t.get_current_artifact = lambda k: None
+            t.pipeline = mock.Mock()
+            t.do()
+        self.assertEqual(called, [])
+        self.assertIn('quilt_method: grid', str(cm.exception))
+
+    def test_set_with_the_grid_route_is_still_honored(self):
+        """Negative control: the same key on the grid route must not raise."""
+        called = self._run({'quilt_method': 'grid', 'leaflet_apl': {'upper': 41.6}})
+        self.assertEqual(called, ['build_grid_membrane'])
+
+    def test_an_empty_or_null_setting_is_not_a_setting(self):
+        """The schema can materialize the dict with nulls; that is not the user setting it."""
+        for spec in ({}, {'upper': None, 'lower': None}):
+            with self.subTest(spec=spec):
+                self.assertEqual(self._run({'leaflet_apl': spec}),
+                                 ['build_patch', 'build_tiled_membrane'])
 
 
 class TestBuildGridMembraneSizing(unittest.TestCase):

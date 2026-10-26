@@ -198,7 +198,8 @@ class TestTheDiagnosticDoesNotAdvanceTheMembrane(unittest.TestCase):
         """
         src = inspect.getsource(MakeMembraneSystemTask)
         calls = [ln for ln in src.splitlines() if 'self.equilibrate_bilayer(' in ln]
-        self.assertEqual(len(calls), 3, f'expected 3 call sites, found {len(calls)}')
+        # patch, gridded quilt, tiled quilt, and the diagnostic
+        self.assertEqual(len(calls), 4, f'expected 4 call sites, found {len(calls)}')
         self.assertEqual(sum(1 for ln in calls if 'preserve_state' in ln), 0,
                          'preserve_state should appear on the continuation line of the '
                          'diagnostic call only')
