@@ -1030,9 +1030,10 @@ attributes:
                 text: >-
                   Loops are closed in parallel. Set > 0 to re-close, sequentially, any pair of
                   loops whose backbones come closer than this Ca-Ca separation (Angstrom) after
-                  the parallel pass. Off by default (0): verification shows the mutual overlaps
-                  from parallel closure are ordinary clashes the downstream minimize resolves, not
-                  topological interlinks, so no re-closure is needed.
+                  the parallel pass. Off by default (0): most mutual overlaps from parallel
+                  closure are ordinary clashes the downstream minimize resolves. A loop that
+                  threads another loop's ring is re-closed against the others automatically,
+                  whatever this is set to.
                 type: float
                 default: 0.0
               - name: guard

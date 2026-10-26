@@ -23,6 +23,10 @@ from ..scripters import GenericScripter, VMDScripter, PsfgenScripter, NAMDColvar
 
 logger = logging.getLogger(__name__)
 
+_RECLOSE_ATTEMPTS = 3
+"""How many times :meth:`LigateTask.reclose_piercing_loops` re-closes a loop that still pierces a
+ring after rotation, each time from a fresh seed, before leaving it to terminate's gate."""
+
 class LigateTask(MDTask):
     """
     LigateTask class for ligating loops in molecular dynamics simulations.
@@ -31,6 +35,9 @@ class LigateTask(MDTask):
     """
     YAML header for the LigateTask, used to identify the task in configuration files as part of a ``tasks`` list.
     """
+
+    _ccd_context = None
+    """What :meth:`close_loops_ccd` closed and how, kept so a loop can be re-closed later."""
 
     @classmethod
     def pipeline_contract(cls, specs):
@@ -165,13 +172,113 @@ class LigateTask(MDTask):
                                xsc=getattr(state, 'xsc', None)),
                           key='state', artifact_type=StateArtifacts)
             logger.info(f'ligate: resolved loop ring-piercing(s) -> {self.basename}.pdb')
+        if unresolved and self._ccd_context is not None:
+            unresolved = self.reclose_piercing_loops(unresolved, loop_serials)
         if unresolved:
+            how = ('rotation or by re-closing the loop' if self._ccd_context is not None
+                   else 'rotation')
             logger.warning(f'{len(unresolved)} loop ring-piercing(s) could not be cleared by '
-                           f'rotation; add a ring_check task or re-close with a different seed:')
+                           f'{how}; terminate will refuse to package the result unless a later '
+                           f'ring_check clears it.  Add a ring_check task after the next '
+                           f'minimize, or rebuild with a different --seed:')
             for p in unresolved:
                 ee, er = p['piercee'], p['piercer']
                 logger.warning(f'  ring of {ee.get("resname", "?")} {ee["segname"]}-{ee["resid"]} '
                                f'pierced by a bond in loop {er["segname"]}-{er["resid"]}')
+
+    def reclose_piercing_loops(self, unresolved, loop_serials):
+        """Re-close, from a fresh seed, each loop that still pierces a ring after rotation --
+        this time with every other loop present, as placed.
+
+        :meth:`close_loops_ccd` closes all loops at once, each against the resolved structure
+        only, so no loop can see another.  Two copies of one long loop closed that way can
+        interpenetrate, and a threading is not a clash, so nothing in the closure notices.
+        Example 14 replica 1 in the 3.29.8 sweep: the symmetry copies of the 37-residue loop
+        657-693 closed into each other, a bond of A SER 678 through the ring of E TYR 675.  No
+        rotation could clear it, and terminate refused the structure 1.5 hours of MD later.
+
+        What is measured is that a fresh seed clears it: on that structure, re-closing loop A
+        cleared the piercing on the first attempt, and so did five other seeds both with and
+        without the other loops present.  The other loops are put in the environment anyway,
+        since a pose that overlaps them is one the least-clash selection should reject; that it
+        matters has not been shown.  The loop is re-closed if the piercing bond lies in it;
+        failing that, the loop holding the pierced ring.  Each attempt is followed by the same
+        rotation pass and check.
+
+        Returns the piercings still unresolved after :data:`_RECLOSE_ATTEMPTS` attempts.
+        """
+        from ..psfutil.loop_ccd import loop_atoms_from_pdb, close_one_loop, heavy_coords_of_serials
+        from ..psfutil.ring_resolve import resolve_model_built_piercings
+        from ..util.coord import pdb_replace_coords
+        import numpy as np
+
+        ctx = self._ccd_context
+        gaps = ctx['gaps']
+        all_loop_serials = ctx['all_loop_serials']
+
+        def gap_holding(res):
+            for i, g in enumerate(gaps):
+                if g['segname'] == res.get('segname') and res.get('resid') in g['loop_resids']:
+                    return i
+            return None
+
+        reclosed = []
+        for attempt in range(1, _RECLOSE_ATTEMPTS + 1):
+            targets = set()
+            for p in unresolved:
+                i = gap_holding(p['piercer'])
+                if i is None:
+                    i = gap_holding(p['piercee'])
+                if i is not None:
+                    targets.add(i)
+            if not targets:
+                break
+            state: StateArtifacts = self.get_current_artifact('state')
+            src_pdb = state.pdb.name
+            new_coords = {}
+            for i in sorted(targets):
+                g = gaps[i]
+                tag = f"{g['segname']}:{g['loop_resids'][0]}-{g['loop_resids'][-1]}"
+                _o, _c, own = loop_atoms_from_pdb(src_pdb, g['loop_resids'], segname=g['segname'])
+                others = sorted(set(all_loop_serials) - set(own))
+                seed = ctx['seed'] + attempt * len(gaps) + i
+                res = close_one_loop(src_pdb=src_pdb, segname=g['segname'],
+                                     loop_resids=g['loop_resids'],
+                                     n_anchor_resid=g['n_anchor_resid'],
+                                     c_anchor_resid=g['c_anchor_resid'],
+                                     all_loop_serials=all_loop_serials, seed=seed,
+                                     extra_env=heavy_coords_of_serials(src_pdb, others),
+                                     **ctx['kwargs'])
+                for k, serial in enumerate(res['serials']):
+                    new_coords[serial] = res['closed'][k]
+                reclosed.append({'loop': tag, 'attempt': attempt, 'seed': seed})
+                logger.info(f'ligate/ccd: re-closed loop {tag} against the other loops as placed '
+                            f'(attempt {attempt} of {_RECLOSE_ATTEMPTS}, seed {seed})')
+            self.next_basename(f'reclose-{attempt}')
+            out_pdb = f'{self.basename}.pdb'
+            serial_list = sorted(new_coords)
+            pdb_replace_coords(src_pdb, out_pdb, np.array([new_coords[s] for s in serial_list]),
+                               {s: k for k, s in enumerate(serial_list)})
+            self.pdb_to_coor(out_pdb)
+            self.register(dict(psf=state.psf, pdb=PDBFileArtifact(self.basename),
+                               coor=NAMDCoorFileArtifact(self.basename)),
+                          key='state', artifact_type=StateArtifacts)
+            xsc = state.xsc.name if getattr(state, 'xsc', None) else None
+            fixed_pdb, unresolved = resolve_model_built_piercings(
+                state.psf.name, out_pdb, xsc, self.basename, sorted(loop_serials),
+                segtypes=['protein', 'glycan'], mover_kind='loop')
+            if fixed_pdb is not None:
+                self.next_basename(f'reclose-{attempt}-rotated')
+                shutil.copy(fixed_pdb, f'{self.basename}.pdb')
+                self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf,
+                                   xsc=getattr(state, 'xsc', None)),
+                              key='state', artifact_type=StateArtifacts)
+            if not unresolved:
+                logger.info(f'ligate/ccd: re-closing cleared every loop ring-piercing '
+                            f'({attempt} attempt(s))')
+                break
+        self.record_outcome(loop_reclosures=reclosed, loop_piercings_unresolved=len(unresolved))
+        return unresolved
 
     def close_loops_ccd(self, ccd_specs: dict) -> int:
         """
@@ -221,6 +328,8 @@ class LigateTask(MDTask):
         refine_iters = int(ccd_specs.get('refine', 250))
         guard = bool(ccd_specs.get('guard', False))
         on_clash = str(ccd_specs.get('on_clash', 'warn')).casefold()
+        kwargs = dict(ensemble=ensemble, refine=refine_iters, guard=guard, max_iters=max_iters,
+                      tol=tol)
 
         # Serials of EVERY modeled loop copy: while unclosed they hold throwaway guesscoord
         # positions, so all are excluded from every loop's closure environment.
@@ -229,6 +338,8 @@ class LigateTask(MDTask):
             _o, _c, gser = loop_atoms_from_pdb(src_pdb, gap['loop_resids'], segname=gap['segname'])
             all_loop_serials.update(gser)
         all_loop_serials = sorted(all_loop_serials)
+        self._ccd_context = dict(gaps=gaps, all_loop_serials=all_loop_serials, seed=seed,
+                                 kwargs=kwargs)
 
         def _args(i, extra_env=None):
             g = gaps[i]
@@ -318,12 +429,15 @@ class LigateTask(MDTask):
         logger.debug(f'ligate/ccd: closed {n} loop(s) in parallel across {nworkers} worker(s)')
 
         # Optional threading repair (OFF by default). Closing all loops at once lets copies
-        # converging at an assembly axis overlap; verification on the 4zmj trimer shows those
-        # overlaps are ordinary clashes that the downstream minimize pushes apart cleanly (they
-        # are not topologically interlinked), so no re-closure is needed and the parallelism is
-        # kept. Set ccd.thread_ca > 0 to re-close, sequentially, any pair whose backbones come
-        # closer than that Ca-Ca distance -- a belt-and-braces option for the (not observed here)
-        # case of a genuinely interlinked pair that minimize could not undo.
+        # converging at an assembly axis overlap; on the 4zmj trimer those overlaps were ordinary
+        # clashes that the downstream minimize pushes apart, so the parallelism is kept. Set
+        # ccd.thread_ca > 0 to re-close, sequentially, any pair whose backbones come closer than
+        # that Ca-Ca distance.
+        #
+        # The interlinked case this comment once called "not observed" was observed: example 14
+        # replica 1 in the 3.29.8 sweep, one copy of loop 657-693 threaded through a TYR ring of
+        # the other. A Ca-Ca threshold is the wrong trigger for that (the piercing bond was a side
+        # chain), so `reclose_piercing_loops` re-closes on the piercing itself, after rotation.
         THREAD_CA = float(ccd_specs.get('thread_ca', 0.0))
         if THREAD_CA > 0:
             adj = [[] for _ in range(n)]

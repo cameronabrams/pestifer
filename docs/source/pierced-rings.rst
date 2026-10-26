@@ -237,6 +237,18 @@ on by default), and **before** the loop is patched to its anchor:
    It detected that piercing, could not clear it, and let the build run another half hour before
    the terminate gate refused it.
 
+The CCD closer closes every loop at once, each against the resolved structure only, so no loop
+can see another while it closes. Two copies of the same long loop can then close into each
+other, and since a threading is not a clash, nothing in the closure notices. When rotation
+cannot clear a piercing made by a loop, ``ligate`` re-closes that loop from a fresh seed, this
+time with every other loop present as placed, and checks it again, up to three times. The loop
+carrying the piercing bond is re-closed; if the bond is not in a loop, the loop holding the
+pierced ring is. On the structure that prompted this, a fresh seed was enough, with or without
+the other loops present. Each re-closure is recorded under ``loop_reclosures`` in the run record. This
+was added in version 3.29.9 after example 14 replica 1 in the 3.29.8 sweep: its two copies of
+the 37-residue loop 657-693 interpenetrated, a bond of A SER 678 through the ring of E TYR 675.
+No rotation could clear it, and the terminate gate refused the structure 1.5 hours of MD later.
+
 **Around every minimization in a membrane build.** ``make_membrane_system`` wraps each
 minimization in its relaxation protocols in this sequence, and examples 16 and 17 use the same
 sequence after embedding:

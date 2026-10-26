@@ -623,6 +623,25 @@ def heavy_env_coords_from_pdb(pdb_path, exclude_serials=(), segname=None, chainI
     return np.asarray(pts, dtype=float)
 
 
+def heavy_coords_of_serials(pdb_path, serials):
+    """Heavy-atom coordinates of exactly the atoms whose PDB serial is in ``serials`` -- the
+    complement of :func:`heavy_env_coords_from_pdb`.  Used to hand already-closed loops to a
+    re-closure as ``extra_env``, since every loop's serials are excluded from the ordinary
+    environment."""
+    want = set(int(s) for s in serials)
+    pts = []
+    serial_of = PDBSerialDecoder()   # stateful: must see every record, before the filters
+    with open(pdb_path) as fh:
+        for line in fh:
+            if not line.startswith(('ATOM', 'HETATM')):
+                continue
+            serial = serial_of(line)
+            if serial not in want or line[12:16].strip().startswith('H'):
+                continue
+            pts.append([float(line[30:38]), float(line[38:46]), float(line[46:54])])
+    return np.asarray(pts, dtype=float)
+
+
 def loop_clash_report(order, coords, loop_resids, env_coords=None,
                       soft_cutoff=2.0, deep_cutoff=1.6, ca_thread=3.0):
     """

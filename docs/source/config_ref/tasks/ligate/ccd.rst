@@ -17,7 +17,7 @@ Single-valued attributes:
 
   * ``refine``: Iterations of iterative declash refinement (perturb-and-reclose simulated annealing on the symmetry-aware clash score) applied to each closed candidate. This is what walks a crowded or axially-symmetric loop (e.g. gp41 HR1N in a trimer) into the clash-free region that random sampling alone rarely finds. 0 disables refinement (pure ensemble). (default: 250)
 
-  * ``thread_ca``: Loops are closed in parallel. Set > 0 to re-close, sequentially, any pair of loops whose backbones come closer than this Ca-Ca separation (Angstrom) after the parallel pass. Off by default (0): verification shows the mutual overlaps from parallel closure are ordinary clashes the downstream minimize resolves, not topological interlinks, so no re-closure is needed. (default: 0.0)
+  * ``thread_ca``: Loops are closed in parallel. Set > 0 to re-close, sequentially, any pair of loops whose backbones come closer than this Ca-Ca separation (Angstrom) after the parallel pass. Off by default (0): most mutual overlaps from parallel closure are ordinary clashes the downstream minimize resolves. A loop that threads another loop's ring is re-closed against the others automatically, whatever this is set to. (default: 0.0)
 
   * ``guard``: Keep the protein background (and the loop's symmetry images) present during the CCD closure and reject any bond rotation that increases the deep-clash count, so the loop closes without being driven into the structure. Off by default (the per-bond clash check is costly); enable for stubborn, crowded loops (e.g. gp41 HR1N converging at a trimer axis), ideally with refinement on. (default: False)
 
