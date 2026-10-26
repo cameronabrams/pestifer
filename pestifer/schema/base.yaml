@@ -1311,13 +1311,24 @@ attributes:
               logs them and hands them to the next stage.  Meant only for a check that runs before
               the FIRST minimization of a freshly placed structure -- make_membrane_system sets it
               there itself -- because that minimization untangles most of what placement threads
-              (on example 17's calibration patch, 20 threadings went in and 3 came out).  Requires
-              resolve: true and delete: none, and never applies to protein or glycan rings, which
-              stay fatal.  The checks after the minimization still resolve and still stop the
-              build, so nothing threaded reaches dynamics.
+              (on example 17's calibration patch, 20 threadings went in and 3 came out).  At most
+              `defer_limit` are passed on; past that, `delete` applies, and with delete: none the
+              build stops.  Requires resolve: true, and never applies to protein or glycan rings,
+              which stay fatal.  The checks after the minimization still resolve and still stop
+              the build, so nothing threaded reaches dynamics.
             type: str
             default: stop
             choices: ['stop', 'continue']
+          - name: defer_limit
+            text: >-
+              with on_unresolved: continue, the most unresolved lipid-ring piercings this check
+              passes on to the next stage.  A minimization can absorb a few (builds that went
+              through deferred at most 2) but not hundreds: a 1,460-lipid cholesterol-rich quilt
+              that deferred 254 died in the minimization with a RATTLE failure.  Past the limit,
+              `delete` decides what happens, and with delete: none the build stops before the
+              minimization, naming the remedies.  Ignored with on_unresolved: stop.
+            type: int
+            default: 10
           - name: resolve
             text: >-
               whether this pass may MOVE anything.  True (the default) resolves what it finds, by
@@ -1603,7 +1614,9 @@ attributes:
                   what the ring checks make_membrane_system runs around each minimize of the
                   patches and the full membrane do with a pierced LIPID ring no move can clear:
                   'none' stops the build (the default); 'piercee' deletes the ring's lipid,
-                  'piercer' the threading lipid, 'both' both.  Deleting changes the composition
+                  'piercer' the threading lipid, 'both' both.  On the check before the FIRST
+                  minimize, which passes up to 10 unresolved piercings on to that minimize (see
+                  ring_check's defer_limit), it applies only past 10.  Deleting changes the composition
                   you asked for, so every deletion is logged as a WARNING and counted in
                   run-record.json.  Patch calibration counts the lipids actually present, so a
                   deletion there does not skew the measured APL; in the full membrane it leaves

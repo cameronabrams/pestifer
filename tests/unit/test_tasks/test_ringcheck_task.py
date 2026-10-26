@@ -811,11 +811,48 @@ class TestOnUnresolved(_DoCase):
             self._run([self.LIPID], delete='none', on_unresolved='continue', resolve=False)
         self.assertIn('resolve: false', str(cm.exception))
 
-    def test_continue_with_a_delete_setting_is_refused(self):
-        """Both say what to do with a lipid ring no move clears; refuse rather than pick one."""
+    def test_continue_below_the_limit_defers_even_with_a_delete_setting(self):
+        """Under `defer_limit`, the minimize gets the piercing; `delete` is for past it."""
+        self._run([self.LIPID], delete='piercee', on_unresolved='continue')
+        self.assertEqual(self.task.outcome.get('deferred'), 1)
+        self.assertEqual(self._delatom_lines(), [])
+
+
+class TestTheDeferralHasACeiling(_DoCase):
+    """An asymmetric PIP2 build on 3.29.7: a 1,460-lipid, 41-47% cholesterol quilt deferred 254
+    threadings to its first minimize, which gave up on 6,892 atoms and died in rattle2 an hour
+    later.  A minimize absorbs a few (builds that went through deferred at most 2), not hundreds.
+    Past `defer_limit` the check stops there, or deletes if told it may."""
+
+    @staticmethod
+    def _many(n):
+        return [_piercing(_side('lipid', 'MEMB', 1000 + i, 'CHL1'),
+                          _side('lipid', 'MEMB', 2000 + i, 'POPC')) for i in range(n)]
+
+    def test_the_default_limit_is_ten(self):
+        self._run(self._many(10), delete='none', on_unresolved='continue')
+        self.assertEqual(self.task.outcome.get('deferred'), 10)
+        with self.assertRaises(PestiferBuildError):
+            self._run(self._many(11), delete='none', on_unresolved='continue')
+
+    def test_past_the_limit_with_no_delete_stops_and_names_the_remedies(self):
         with self.assertRaises(PestiferBuildError) as cm:
-            self._run([self.LIPID], delete='piercee', on_unresolved='continue')
-        self.assertIn('conflicts with delete', str(cm.exception))
+            self._run(self._many(4), delete='none', on_unresolved='continue', defer_limit=3)
+        msg = str(cm.exception)
+        self.assertIn('RING_PIERCING_FOUND', msg)
+        for remedy in ('quilt_grid_slack', '--seed', 'bilayer.ring_check_delete', 'defer_limit: 3'):
+            self.assertIn(remedy, msg)
+        self.assertEqual(self._delatom_lines(), [])
+
+    def test_past_the_limit_with_delete_deletes(self):
+        self._run(self._many(4), delete='piercee', on_unresolved='continue', defer_limit=3)
+        self.assertEqual(len(self._delatom_lines()), 4)
+        self.assertIsNone(self.task.outcome.get('deferred'))
+
+    def test_the_limit_does_not_touch_a_stopping_check(self):
+        """NEGATIVE CONTROL: on_unresolved: stop stops on one piercing, limit or no limit."""
+        with self.assertRaises(PestiferBuildError):
+            self._run(self._many(1), delete='none', defer_limit=3)
 
 
 class TestTheFailureLineNamesWhatWasTried(_DoCase):

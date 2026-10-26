@@ -651,12 +651,15 @@ class MakeMembraneSystemTask(BaseTask):
         ``delete`` comes from ``bilayer.ring_check_delete`` (default ``none``).  These stages are
         built here, not read from YAML, so until 3.29.8 they hardcoded ``delete='none'`` and the
         error telling the user to "change the delete setting" named a setting nothing could
-        reach (reported against 3.29.1 from an asymmetric PIP2 build).  It applies only where a
-        deletion is meaningful: a deferring check passes what it cannot clear to the minimize
-        instead, and a verify-only check never changes the structure.
+        reach (reported against 3.29.1 from an asymmetric PIP2 build).  It applies to every
+        resolving check.  On the deferring check before the first minimize it applies only past
+        that check's ``defer_limit``: below it, what no move clears goes to the minimize, and above
+        it, deleting is the alternative to stopping (that same PIP2 build deferred 254 threadings
+        on 3.29.8, and its quilt minimize died in rattle2).  A verify-only check never changes the
+        structure.
         """
         delete = 'none'
-        if resolve and on_unresolved == 'stop':
+        if resolve:
             delete = str((getattr(self, 'bilayer_specs', None) or {}).get('ring_check_delete', 'none'))
         return {'ring_check': dict(segtypes=['lipid', 'glycan', 'protein'],
                                    delete=delete, cutoff=4.0, resolve=resolve,

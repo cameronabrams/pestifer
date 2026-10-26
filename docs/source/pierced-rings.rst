@@ -267,7 +267,11 @@ sequence after embedding:
 Before the **first** minimization of a freshly placed patch or membrane, the check runs with
 ``on_unresolved: continue``: whatever no move can clear is logged and handed to that
 minimization instead of stopping the build, because that minimization removes most of them (see
-`Where piercings come from`_). Every later check is fatal. So is any piercing involving protein
+`Where piercings come from`_). It passes on at most ten (``defer_limit``). A minimization can
+absorb a few -- builds that went through passed on at most two -- but not hundreds: a
+1,460-lipid, cholesterol-rich quilt on 3.29.8 passed on 254, and its minimization died in a RATTLE
+failure an hour later. Past the limit the check stops the build there, naming the remedies, or
+deletes the lipids if ``bilayer.ring_check_delete`` is set. Every later check is fatal. So is any piercing involving protein
 or glycan, whatever this setting says. The final detect-only check still guarantees that nothing
 threaded reaches dynamics. Before version 3.29.6 the first check was fatal too, and on the
 corrected detector that stopped every replica of example 17 on a sterol that the
@@ -298,9 +302,9 @@ early example-17 builds went into equilibration sterol-depleted.
 If losing a lipid is preferable to losing the build, set ``delete`` to ``piercee``, ``piercer``
 or ``both`` on that ``ring_check``. The checks ``make_membrane_system`` inserts around its
 minimizations are not in your YAML, so no ``delete:`` key reaches them; for those, set
-``bilayer.ring_check_delete`` instead. It applies to the checks that resolve and then stop. The
-check before a fresh placement's first minimization still passes leftovers on to that
-minimization, and the verify-only checks never change the structure. Either way, each deletion
+``bilayer.ring_check_delete`` instead. It applies to every check that resolves. The check before
+a fresh placement's first minimization still passes up to ten leftovers on to that minimization
+and deletes only past that limit, and the verify-only checks never change the structure. Either way, each deletion
 is logged as a WARNING and counted in ``run-record.json`` (``deleted``, ``deleted_residues``).
 This only applies to lipid rings. Protein and glycan rings are never deleted.
 
@@ -369,7 +373,11 @@ Configuration summary
      - ``stop``
      - ``continue`` passes a lipid piercing no move clears on to the next stage. Set
        automatically on the check before a fresh placement's first minimization. Requires
-       ``resolve: true`` and ``delete: none``.
+       ``resolve: true``.
+   * - ``ring_check.defer_limit``
+     - ``10``
+     - With ``on_unresolved: continue``, the most piercings passed on. Past it, ``delete``
+       applies, and with ``delete: none`` the build stops.
    * - ``ring_check.delete``
      - ``none``
      - What to delete for an unresolvable *lipid* ring: ``piercee``, ``piercer``, ``both`` or

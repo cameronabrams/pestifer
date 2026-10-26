@@ -113,18 +113,15 @@ class RingCheckTask(BaseTask):
         max_ring_size: int = self.specs.get('max_ring_size', 7)
         resolve: bool = bool(self.specs.get('resolve', True))
         on_unresolved: str = str(self.specs.get('on_unresolved', 'stop'))
-        # `continue` defers what this pass cannot clear to the next stage.  It only makes sense on
-        # a pass that resolves, and only when nothing would be deleted instead -- a detect-only
-        # pass that does not stop checks nothing, and `delete` already says what to do with a
-        # lipid ring no move clears.  Refuse the combinations rather than silently pick one.
+        defer_limit: int = int(self.specs.get('defer_limit', 10))
+        # `continue` defers what this pass cannot clear to the next stage, up to `defer_limit`
+        # of them; past that, `delete` decides, and with no delete the build stops.  It only
+        # makes sense on a pass that resolves -- a detect-only pass that does not stop checks
+        # nothing -- so refuse that combination rather than silently pick one.
         if on_unresolved == 'continue' and not resolve:
             raise PestiferBuildError(
                 'ring_check: on_unresolved: continue with resolve: false would look and then ignore '
                 'whatever it found.  A detect-only pass exists to stop the build; drop one setting.')
-        if on_unresolved == 'continue' and delete_these != 'none':
-            raise PestiferBuildError(
-                f'ring_check: on_unresolved: continue conflicts with delete: {delete_these} -- both say '
-                f'what to do with a lipid ring no move clears.  Use one.')
         if not segtypes:
             # Was a warning that returned 0 -- a `ring_check` task that checked nothing and
             # reported success, which is the silent-no-op shape this repository keeps a list of.
@@ -297,7 +294,25 @@ class RingCheckTask(BaseTask):
             return self.result
 
         ess = 's' if len(other_piercings) > 1 else ''
-        if delete_these == "none" and on_unresolved == 'continue':
+        # The deferral has a ceiling.  A minimize can absorb a few threadings -- builds that went
+        # through deferred at most 2 -- but not hundreds: a 1,460-lipid, 41-47% cholesterol quilt
+        # (an asymmetric PIP2 build on 3.29.7) deferred 254, and the minimize gave up on 6,892
+        # atoms and died in rattle2 an hour later.  Past the ceiling, stop here with the remedies
+        # named, or delete if the user has said lipids may go.
+        over_limit = on_unresolved == 'continue' and len(other_piercings) > defer_limit
+        if over_limit and delete_these == 'none':
+            self._report(other_piercings, logger.error)
+            self.record_outcome(deferred=0, defer_limit=defer_limit)
+            raise PestiferBuildError(
+                f'{PIERCING_MARKER} {len(other_piercings)} pierced lipid ring{ess} that no move '
+                f'could clear, more than the {defer_limit} this check may pass on to the minimize '
+                f'after it (on_unresolved: continue, defer_limit: {defer_limit}).  A minimize cannot '
+                f'pull a bond back out of a ring, and handing it this many ends in a RATTLE failure '
+                f'rather than a fix.  The placement is too dense for this composition: loosen '
+                f'`bilayer.quilt_grid_slack` or `leaflet_apl`, try a different --seed, or, to trade '
+                f'lipids for the build, set `bilayer.ring_check_delete` (make_membrane_system) or '
+                f'`delete:` on this ring_check.')
+        if on_unresolved == 'continue' and not over_limit:
             # Deferred to the next stage, deliberately.  `make_membrane_system` sets this only on
             # the check before the FIRST minimize of a freshly grid-placed structure, because that
             # minimize untangles most of what placement threads: on example 17's patchB, 20
@@ -312,7 +327,7 @@ class RingCheckTask(BaseTask):
                            f'not cleared by any move; on_unresolved: continue passes '
                            f'{"them" if ess else "it"} to the next stage, whose checks must clear '
                            f'{"them" if ess else "it"}')
-            self.record_outcome(deferred=len(other_piercings))
+            self.record_outcome(deferred=len(other_piercings), defer_limit=defer_limit)
             self.result = 0
             return self.result
         if delete_these == "none":

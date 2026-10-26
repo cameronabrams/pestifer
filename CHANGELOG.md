@@ -4,6 +4,19 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Fixed
+
+- **A deferring ring check passed on any number of piercings, and hundreds crash the minimize.**
+  The check before a fresh placement's first minimize (`on_unresolved: continue`) hands what no
+  move clears to that minimize, which absorbs a few: builds that went through deferred at most 2.
+  An asymmetric PIP2 build (a 1,460-lipid, 41-47% cholesterol quilt) deferred 254, and its
+  minimize gave up on 6,892 atoms and died in rattle2 an hour later. The new `ring_check` key
+  `defer_limit` (default 10) caps the deferral. Past it, the check deletes if
+  `bilayer.ring_check_delete` (or `delete:`) is set, and otherwise stops there with the remedies
+  named: a looser `quilt_grid_slack` or `leaflet_apl`, a different `--seed`, or
+  `ring_check_delete`. `bilayer.ring_check_delete` now reaches that first check, where it
+  applies only past the limit; `ring_check` no longer refuses `continue` with a `delete` setting.
+
 ## [3.29.9] - 2026-10-26
 
 ### Fixed

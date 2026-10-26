@@ -278,15 +278,15 @@ class TestGuardPiercings(unittest.TestCase):
     def test_ring_check_delete_reaches_the_checks_that_can_use_it(self):
         """Until 3.29.8 every spliced check hardcoded delete='none', and the error told the user
         to "change the delete setting" -- one no YAML key reached.  `bilayer.ring_check_delete`
-        now reaches every resolving check that stops; the deferring first check and the
-        verify-only checks keep `none`, since one hands its leftovers to the minimize and the
-        other never changes the structure (and ring_check refuses continue + delete)."""
+        now reaches every resolving check, including the deferring first one, where ring_check
+        applies it only past `defer_limit` (3.29.10: deferring 254 crashed the minimize).  The
+        verify-only checks keep `none`; they never change the structure."""
         t = _task(bilayer_specs={'ring_check_delete': 'piercee'})
         got = t._guard_piercings([self.MINIMIZE, self.NPT, self.MINIMIZE, self.NVT])
         checks = [s['ring_check'] for s in got if 'ring_check' in s]
         by_kind = [('defer' if c['on_unresolved'] == 'continue' else
                     'verify' if c['resolve'] is False else 'stop', c['delete']) for c in checks]
-        self.assertEqual(by_kind, [('defer', 'none'), ('stop', 'piercee'), ('verify', 'none'),
+        self.assertEqual(by_kind, [('defer', 'piercee'), ('stop', 'piercee'), ('verify', 'none'),
                                    ('stop', 'piercee'), ('stop', 'piercee'), ('verify', 'none')])
 
     def test_the_original_stages_are_all_preserved_in_order(self):
