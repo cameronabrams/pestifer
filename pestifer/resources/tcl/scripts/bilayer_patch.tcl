@@ -14,6 +14,7 @@ set scriptname bilayer_patch
 
 set pdb "";  # grid-placed coordinate pdb
 set outbasename "bilayer_patch-parameterized"
+set lipid_placeholders ""; # comma-separated stand-ins for lipid names too long for the pdb
 
 for { set i 0 } { $i < [llength $argv] } { incr i } {
     if { [lindex $argv $i] == "-pdb"} {
@@ -24,6 +25,17 @@ for { set i 0 } { $i < [llength $argv] } { incr i } {
        incr i
        set outbasename [lindex $argv $i]
     }
+    if { [lindex $argv $i] == "-lipid_placeholders"} {
+       incr i
+       set lipid_placeholders [lindex $argv $i]
+    }
+}
+
+# A lipid whose CHARMM name is longer than the pdb's four-column field arrives under a
+# placeholder (Q001, ...) that psfgen maps back with pdbalias.  The `lipid` selection is by
+# residue name, so add the placeholders to it, or those lipids would be dropped as "other".
+if { $lipid_placeholders != "" } {
+    atomselect macro lipid "([atomselect macro lipid]) or resname [split $lipid_placeholders ,]"
 }
 
 mol new $pdb waitfor all

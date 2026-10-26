@@ -827,13 +827,13 @@ class MakeMembraneSystemTask(BaseTask):
             apl_upper_area_rate=_as_float(getattr(sources['upper'][0], 'area_rate', None)),
             apl_lower_area_rate=_as_float(getattr(sources['lower'][0], 'area_rate', None)),
             area_convergence_tol=_AREA_CONVERGENCE_TOL)
-        self.next_basename('tile-quilt')
-        write_quilt_pdb(q, f'{self.basename}.pdb')
-        self.register(dict(pdb=PDBFileArtifact(self.basename, pytestable=True)),
-                      key='quilt_state', artifact_type=StateArtifacts)
         membrane = Bilayer(leaflet_nlipids=dict(upper=q.n_upper, lower=q.n_lower),
                            charmmffcontent=self.charmmff_content, **self._bilayer_kwargs)
         membrane.box, membrane.origin = q.box, q.origin
+        self.next_basename('tile-quilt')
+        write_quilt_pdb(q, f'{self.basename}.pdb', aliases=membrane.pdb_resname_aliases())
+        self.register(dict(pdb=PDBFileArtifact(self.basename, pytestable=True)),
+                      key='quilt_state', artifact_type=StateArtifacts)
         self.quilt = membrane
         self.do_psfgen(membrane, bilayer_name='quilt')
         quilt_protocol = bs.get('relaxation_protocols', {}).get('quilt', {})
@@ -1321,11 +1321,17 @@ class MakeMembraneSystemTask(BaseTask):
         pg: PsfgenScripter = self.get_scripter('psfgen')
         pg.newscript(self.basename, additional_topologies=patch.addl_streamfiles)
         self.register_tops_streams_from_psfgen(pg.topologies)
+        # the coordinate PDB carries a placeholder for each residue name too long for its four
+        # columns; map it back before any segment is read (see Bilayer.pdb_resname_aliases)
+        aliases = patch.pdb_resname_aliases()
+        for name, placeholder in aliases.items():
+            pg.addline(f'pdbalias residue {placeholder} {name}')
         pg.usescript('bilayer_patch')
         pg.writescript(self.basename, guesscoord=False, regenerate=True, force_exit=True)
         state: StateArtifacts = self.get_current_artifact(f'{bilayer_name}_state')
         pdb: Path = state.pdb.path
-        result = pg.runscript(pdb=pdb.name, o=self.basename)
+        result = pg.runscript(pdb=pdb.name, o=self.basename,
+                              lipid_placeholders=','.join(aliases.values()))
         cell_to_xsc(patch.box, patch.origin, f'{self.basename}.xsc')
         patch.area = patch.box[0][0] * patch.box[1][1]
         self.register(dict(

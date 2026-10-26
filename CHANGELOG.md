@@ -25,6 +25,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Fixed
 
+- **A lipid whose CHARMM name is longer than four characters was built as a different lipid.**
+  The membrane's coordinate PDBs are topology-free and psfgen takes residue names from them, but
+  the conformer PDBs carry names cut to four characters. So `SAPI24` (PIP2: 150 atoms, charge -4)
+  was built as `SAPI` (phosphatidylinositol: 143 atoms, charge -1), its seven extra atoms dropped
+  with only a psfgen "failed to set coordinate" line in a log, and the same happened to every
+  phosphoinositide (`POPI24` as `POPI`, `DMPI…` as `DMPI`) on both the grid and the tiled route.
+  A truncation that names no residue (`CER160`, cardiolipins such as `LNACL1`) failed outright.
+  Each such species is now written under a four-character placeholder that psfgen maps back
+  with `pdbalias`.
+
 - **Water filled gaps inside freshly built bilayers.** VMD's `solvate` drops only water within
   about 2.4 Å of a lipid atom, so any lateral gap in a newly assembled membrane filled with water
   inside the hydrophobic core: 1,048 of 5,228 waters on a tiled test quilt, 228 of them within 5 Å

@@ -647,6 +647,31 @@ class Bilayer:
         coords[:, 1] -= coords[:, 1].mean()
         return coords, lines, head_i, tail_is
 
+    def pdb_resname_aliases(self) -> dict:
+        """``{CHARMM name: four-character placeholder}`` for every lipid species whose name does not
+        fit the PDB's four-column residue-name field.
+
+        The coordinate PDBs a membrane is built from are topology-free, and psfgen takes each
+        residue's name from them.  The conformer PDBs carry a long name cut to four characters,
+        so ``SAPI24`` (PIP2, 150 atoms, charge -4) arrived as ``SAPI`` and psfgen built
+        phosphatidylinositol (143 atoms, charge -1), dropping the seven atoms ``SAPI`` lacks
+        without an error.  Every phosphoinositide was built as its parent PI that way, and a
+        truncation that names no residue (``CER160`` -> ``CER1``, ``LNACL1`` -> ``LNAC``) failed
+        outright.  The writers put this placeholder in the PDB instead, and
+        :meth:`MakeMembraneSystemTask.do_psfgen` declares ``pdbalias residue <placeholder> <name>``,
+        so psfgen builds the residue that was asked for.
+
+        Placeholders are ``Q`` plus three digits, numbered over the sorted long names of this
+        bilayer, so every writer and the psfgen run for one bilayer agree.  No CHARMM residue in
+        the release is named that way (checked 2026-10-26).
+        """
+        names = set()
+        for lyr in ('upper_leaflet', 'lower_leaflet'):
+            for sp in self.slices.get(lyr, {}).get('composition', []):
+                names.add(sp['name'])
+        long_names = sorted(n for n in names if len(n) > 4)
+        return {n: f'Q{i:03d}' for i, n in enumerate(long_names, start=1)}
+
     def write_grid_pdb(self, output_pdb, half_mid_zgap=1.0, seed=None, jitter=1.5,
                        clash_cutoff=1.2, place_solvent=True):
         """Deterministic grid placement of the bilayer patch.
@@ -665,12 +690,20 @@ class Bilayer:
         Lx, Ly = ur[0] - ll[0], ur[1] - ll[1]
         out, counters = [], {'serial': 0, 'resid': 0}
 
-        def emit(coords, lines):
+        # a residue name longer than the PDB's four columns is written as a placeholder that
+        # psfgen maps back (see pdb_resname_aliases); the conformer lines carry it truncated
+        aliases = self.pdb_resname_aliases()
+        name_of = {sp['conf_key']: sp['name']
+                   for lyr in (self.LL, self.UL) for sp in lyr['composition']}
+
+        def emit(coords, lines, name=None):
             counters['resid'] += 1
             rr = counters['resid'] % 10000
+            rn = aliases.get(name)
             for (x, y, z), ln in zip(coords, lines):
                 counters['serial'] += 1
-                out.append(f"{ln[:6]}{counters['serial'] % 100000:5d}{ln[11:22]}{rr:4d}"
+                mid = ln[11:22] if rn is None else f'{ln[11:17]}{rn:<4}{ln[21]}'
+                out.append(f"{ln[:6]}{counters['serial'] % 100000:5d}{mid}{rr:4d}"
                            f"{ln[26:30]}{x:8.3f}{y:8.3f}{z:8.3f}{ln[54:].rstrip()}\n")
 
         def zspin(c):
@@ -876,7 +909,7 @@ class Bilayer:
                         if (attempt + 1) % 8 == 0:
                             jit = min(jit * 1.5, 0.45 * min(dx, dy))
                             ci = int(rng.integers(len(conformers)))
-                    emit(best_c, best_lines)
+                    emit(best_c, best_lines, name_of.get(nm))
                     lipid_xyz.append(best_c)
                     if best_anchor_i is not None:
                         anchor_z[upper].append(float(best_c[best_anchor_i, 2]))

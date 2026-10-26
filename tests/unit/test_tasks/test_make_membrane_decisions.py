@@ -889,6 +889,51 @@ if __name__ == '__main__':
     unittest.main()
 
 
+class TestLongLipidNamesReachPsfgen(unittest.TestCase):
+    """A CHARMM lipid name longer than the PDB's four residue-name columns must reach psfgen
+    whole.  Cut to four, ``SAPI24`` (PIP2) arrived as ``SAPI`` and psfgen built
+    phosphatidylinositol -- 143 atoms and charge -1 instead of 150 and -4, with no error."""
+
+    @staticmethod
+    def _bilayer(upper, lower):
+        from pestifer.molecule.bilayer import Bilayer
+        b = Bilayer.__new__(Bilayer)
+        b.slices = {'upper_leaflet': {'composition': [{'name': n} for n in upper]},
+                    'lower_leaflet': {'composition': [{'name': n} for n in lower]}}
+        return b
+
+    def test_only_long_names_get_placeholders_and_they_are_stable(self):
+        b = self._bilayer(['POPC', 'SAPI24', 'CHL1'], ['POPE', 'SAPI24', 'CER160'])
+        self.assertEqual(b.pdb_resname_aliases(), {'CER160': 'Q001', 'SAPI24': 'Q002'})
+
+    def test_do_psfgen_declares_each_alias_before_the_patch_script(self):
+        t = _task()
+        t.next_basename = lambda *a, **k: None
+        t.basename = 'pg'
+        lines, calls = [], {}
+        pg = mock.Mock()
+        pg.topologies = []
+        pg.addline.side_effect = lambda ln: lines.append(ln)
+        pg.usescript.side_effect = lambda name: lines.append(f'<usescript {name}>')
+        pg.runscript.side_effect = lambda **kw: calls.update(kw) or 0
+        t.get_scripter = lambda name: pg
+        t.register_tops_streams_from_psfgen = lambda *a: None
+        t.register = mock.Mock()
+        t.register_tmpfiles_from_tcl = lambda *a: None
+        state = SimpleNamespace(pdb=SimpleNamespace(path=SimpleNamespace(name='g.pdb')))
+        t.get_current_artifact = lambda k: state
+        patch = self._bilayer(['POPC', 'SAPI24'], ['POPC', 'SAPI24'])
+        patch.addl_streamfiles = []
+        patch.box, patch.origin = [[10, 0, 0], [0, 10, 0], [0, 0, 10]], [5, 5, 5]
+        with tempfile.TemporaryDirectory() as d, mock.patch.object(MMS, 'cell_to_xsc'):
+            os.chdir(d)
+            t.do_psfgen(patch, 'patch')
+        self.assertLess(lines.index('pdbalias residue Q001 SAPI24'),
+                        lines.index('<usescript bilayer_patch>'))
+        self.assertEqual(calls.get('lipid_placeholders'), 'Q001',
+                         'the Tcl split must be told the placeholder is a lipid')
+
+
 if __name__ == '__main__':
     unittest.main()
 

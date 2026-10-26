@@ -507,10 +507,14 @@ def build_quilt(upper: Patch, lower: Patch, Lx: float, Ly: float, gap: float,
                  n_lower=sum(1 for c in kept if c.leaflet == 'lower'))
 
 
-def write_quilt_pdb(quilt: Quilt, path):
+def write_quilt_pdb(quilt: Quilt, path, aliases=None):
     """Write the quilt's lipids as a topology-free coordinate PDB, in the grid packer's layout:
     one unique resid per lipid, chain ``A``, residue name in the four-column field exactly as
     the conformer PDBs the patches were gridded from carry it, coordinates in columns 31-54.
+
+    ``aliases`` maps a residue name longer than four characters to the placeholder psfgen will
+    map back (:meth:`Bilayer.pdb_resname_aliases`); without one, a long name is cut to four
+    characters, which psfgen then reads as a different residue or none.
 
     Frame: the box spans ``[0, Lx) x [0, Ly)`` with the midplane at ``z = 0``, so the xsc written
     alongside uses :attr:`Quilt.origin`.
@@ -522,7 +526,7 @@ def write_quilt_pdb(quilt: Quilt, path):
     with open(path, 'w') as f:
         for resid, c in enumerate(quilt.copies, start=1):
             lip = c.patch.lipids[c.lipid]
-            rn = str(lip.resname)[:4]
+            rn = (aliases or {}).get(str(lip.resname), str(lip.resname)[:4])
             for nm, (x, y, z) in zip(c.patch.names[lip.rows], c.xyz):
                 serial += 1
                 nm = str(nm)

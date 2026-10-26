@@ -264,5 +264,19 @@ class TestWriteQuiltPdb(unittest.TestCase):
         self.assertEqual({ln[21] for ln in lines}, {'A'})
 
 
+    def test_a_long_name_is_written_as_its_placeholder(self):
+        """Cut to four columns, SAPI24 reads as SAPI -- a different residue psfgen builds
+        without complaint.  With an alias the writer puts the placeholder psfgen maps back."""
+        mols = [_phospholipid(4, 4, True), _phospholipid(4, 4, False)]
+        P = _patch(mols, (8.0, 8.0, 90.0)).register()
+        P.lipids[0].resname = 'SAPI24'
+        q = build_quilt(P, P, 16.0, 16.0, gap=2.0)
+        with tempfile.TemporaryDirectory() as d:
+            path = os.path.join(d, 'q.pdb')
+            write_quilt_pdb(q, path, aliases={'SAPI24': 'Q001'})
+            names = {ln[17:21] for ln in open(path) if ln.startswith('ATOM')}
+        self.assertEqual(names, {'Q001', 'POPC'})
+
+
 if __name__ == '__main__':
     unittest.main()
