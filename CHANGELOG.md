@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.29.9] - 2026-10-26
+
 ### Fixed
 
 - **Two copies of one modeled loop could close into each other, and nothing could undo it.**
