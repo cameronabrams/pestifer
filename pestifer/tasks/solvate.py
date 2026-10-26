@@ -185,6 +185,83 @@ class SolvateTask(VMDTask):
                 counts[cation] = counts.get(cation, 0) + int(round(-net / qcat))
         return {k: v for k, v in counts.items() if v > 0}
 
+    # the line _write_dry_membrane_core prints and _record_dry_membrane_core reads back
+    _DRY_CORE_MARKER = 'dry_membrane_core:'
+    # phosphate planes closer than this are one leaflet split in two, not a bilayer
+    _DRY_CORE_MIN_THICKNESS = 20.0
+
+    def _write_dry_membrane_core(self, vt: VMDScripter, solv: str):
+        """Delete every water whose oxygen sits between the two leaflets' mean phosphorus planes.
+
+        VMD's ``solvate`` keeps any water farther than about 2.4 A from a solute atom, so a gap in
+        a freshly assembled bilayer -- a tiling seam, the hole a removed lipid leaves, a loose grid
+        -- fills with water inside the hydrophobic core, where it has no business being and is slow
+        to leave.  Runs between ``solvate`` and ionization, so ion counts and placement only ever
+        see the water that stays.  Whole molecules are deleted (``delatom`` by segment and resid).
+
+        The planes are the mean z of each leaflet's phosphorus atoms, split at their overall mean:
+        this is a flat, freshly built membrane, and anything finer would need the per-lipid
+        neighborhood the planes are a stand-in for.  The VMD log carries the count and the planes,
+        read back into the run record by :meth:`_record_dry_membrane_core`.
+        """
+        m = self._DRY_CORE_MARKER
+        vt.addline(f'mol new {solv}.psf')
+        vt.addline(f'mol addfile {solv}.pdb waitfor all')
+        vt.addline( 'set _dry_mol [molinfo top get id]')
+        # phosphorus by exclusion, not by the `lipid` keyword: VMD's built-in one does not
+        # cover every CHARMM lipid (it missed PSM, so a PSM/CHL1 leaflet contributed no plane)
+        vt.addline( 'set _dry_pz [[atomselect $_dry_mol "name P and not (protein or nucleic or water or ion)"] get z]')
+        vt.addline( 'set _dry_up {}; set _dry_lo {}')
+        vt.addline( 'if {[llength $_dry_pz] > 0} {')
+        vt.addline( '    set _dry_mid [vecmean $_dry_pz]')
+        vt.addline( '    foreach z $_dry_pz { if {$z > $_dry_mid} { lappend _dry_up $z } else { lappend _dry_lo $z } }')
+        vt.addline( '}')
+        vt.addline( 'set _dry_ok 0')
+        vt.addline( 'if {[llength $_dry_up] > 0 && [llength $_dry_lo] > 0} {')
+        vt.addline( '    set _dry_zhi [vecmean $_dry_up]; set _dry_zlo [vecmean $_dry_lo]')
+        # two planes closer than any bilayer is thick means the split found one leaflet, not two
+        vt.addline(f'    if {{$_dry_zhi - $_dry_zlo >= {self._DRY_CORE_MIN_THICKNESS}}} {{ set _dry_ok 1 }}')
+        vt.addline( '}')
+        vt.addline( 'if {!$_dry_ok} {')
+        vt.addline(f'    vmdcon -warn "{m} no pair of phosphate planes at least {self._DRY_CORE_MIN_THICKNESS} A apart; nothing deleted"')
+        vt.addline( '} else {')
+        vt.addline( '    set _dry_w [atomselect $_dry_mol "water and noh and z > $_dry_zlo and z < $_dry_zhi"]')
+        vt.addline( '    set _dry_sr [lsort -unique [$_dry_w get {segname resid}]]')
+        vt.addline( '    if {[llength $_dry_sr] > 0} {')
+        vt.addline( '        resetpsf')
+        vt.addline(f'        readpsf {solv}.psf')
+        vt.addline(f'        coordpdb {solv}.pdb')
+        vt.addline( '        foreach sr $_dry_sr { delatom [lindex $sr 0] [lindex $sr 1] }')
+        vt.addline(f'        writepsf {solv}.psf')
+        vt.addline(f'        writepdb {solv}.pdb')
+        vt.addline( '    }')
+        vt.addline(f'    vmdcon -info "{m} removed [llength $_dry_sr] water(s) between z [format %.2f $_dry_zlo] and [format %.2f $_dry_zhi]"')
+        vt.addline( '}')
+        vt.addline( 'mol delete $_dry_mol')
+
+    def _record_dry_membrane_core(self, logfile: str):
+        """Read the deletion count back from the VMD log and record it.
+
+        A deletion step that reports nothing is indistinguishable from one that did not run, so
+        the count goes into the run record, and its absence is a warning, not a zero.
+        """
+        import re
+        removed = None
+        try:
+            with open(logfile) as f:
+                for line in f:
+                    hit = re.search(rf'{self._DRY_CORE_MARKER} removed (\d+) water', line)
+                    if hit:
+                        removed = int(hit.group(1))
+        except OSError:
+            pass
+        if removed is None:
+            logger.warning(f'dry_membrane_core: no deletion report in {logfile}; the bilayer core '
+                           f'may hold water')
+            return
+        logger.info(f'dry_membrane_core: removed {removed} water(s) from between the phosphate planes')
+        self.record_outcome(dry_membrane_core_removed=removed)
+
     def do(self):
         """
         Execute the solvate task.
@@ -276,6 +353,13 @@ class SolvateTask(VMDTask):
         vt.addline(f'mol new {state.psf.name}')
         vt.addline(f'mol addfile {state.pdb.name} waitfor all')
         vt.addline(f'solvate {state.psf.name} {state.pdb.name} -minmax {box_tcl}{box_args} -o {self.basename}_solv')
+        dry_core = bool(self.specs.get('dry_membrane_core', False))
+        if dry_core:
+            if is_water:
+                self._write_dry_membrane_core(vt, f'{self.basename}_solv')
+            else:
+                logger.warning(f'dry_membrane_core is set but the solvent is {solvent}, not water; '
+                               f'nothing is deleted')
 
         if is_water and wants_ions:
             # water: VMD autoionize (-sc also neutralizes; else -neutralize)
@@ -325,6 +409,8 @@ class SolvateTask(VMDTask):
                 raise PestiferError(
                     f'solvate task {self.taskname}: no {self.basename}.{ext} was produced '
                     f'(VMD returned {self.result}) -- {hint}. See {self.basename}.log')
+        if dry_core and is_water:
+            self._record_dry_membrane_core(f'{self.basename}.log')
         psf1 = PSFFileArtifact(f'{self.basename}_solv.psf')
         pdb1 = PDBFileArtifact(f'{self.basename}_solv.pdb')
         self.register(dict(psf=psf1, pdb=pdb1, xsc=xsc), key='state', artifact_type=StateArtifacts)

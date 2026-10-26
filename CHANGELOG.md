@@ -4,7 +4,34 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Changed
+
+- **The full membrane is now tiled from relaxed patches, not gridded.** `make_membrane_system`
+  relaxes a patch per leaflet composition (one for a symmetric bilayer, which until now had no patch
+  stage), tiles each leaflet of the membrane from its own patch on that patch's cell, and crops it
+  to the box. The membrane starts at the patches' relaxed packing instead of condensing from a
+  lattice (example 17's ordered leaflet condensed ~17% in its patch), and nothing in it is sized
+  from an area per lipid -- the number a cholesterol-rich leaflet cannot deliver in a build's time
+  budget (example 17's upper leaflet was still contracting at 2.5M steps, and replicas differed by
+  up to 6 Å² by where they stopped). New contacts exist only at the crop seams and, in an asymmetric
+  build, at the midplane; every lipid that threads a ring or comes within 0.3 Å of another there is
+  removed before anything is written (5-18 per seamed ex17-sized quilt), and the fuller leaflet is
+  trimmed so both carry the same fraction of their stress-free counts. New keys
+  `bilayer.quilt_method` (`tile`, the default, or `grid`, the previous behavior, kept as a fallback
+  while tiling is validated) and `bilayer.quilt_seam_gap` (default 2 Å). On the tiled route an
+  unconverged patch is reported and recorded rather than stopping the build, and
+  `bilayer.leaflet_apl` is refused before any patch is built. Design:
+  `docs/design/patch-quilting.md`.
+
 ### Fixed
+
+- **Water filled gaps inside freshly built bilayers.** VMD's `solvate` drops only water within
+  about 2.4 Å of a lipid atom, so any lateral gap in a newly assembled membrane filled with water
+  inside the hydrophobic core: 1,048 of 5,228 waters on a tiled test quilt, 228 of them within 5 Å
+  of the midplane. The `solvate` task's new `dry_membrane_core` deletes every water whose oxygen
+  lies between the two leaflets' mean phosphorus planes, before ions are placed, and records the
+  count; `make_membrane_system` sets it for every patch and membrane it solvates. It deletes
+  nothing, with a warning, unless it finds two phosphate planes at least 20 Å apart.
 
 - **A deferring ring check passed on any number of piercings, and hundreds crash the minimize.**
   The check before a fresh placement's first minimize (`on_unresolved: continue`) hands what no

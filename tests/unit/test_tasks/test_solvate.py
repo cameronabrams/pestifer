@@ -195,5 +195,81 @@ class TestIonCounts(unittest.TestCase):
         self.assertEqual(counts, {'SOD': n_pairs, 'CLA': n_pairs})   # no neutralizing anion
 
 
+class TestDryMembraneCore(unittest.TestCase):
+    """``dry_membrane_core`` deletes water between the phosphate planes.  Pinned: it is written
+    between ``solvate`` and ionization (so ions only ever see the water that stays), it is not
+    written unless asked, and its count is read back -- a deletion that reports nothing must not
+    read as zero deleted."""
+
+    class _VT:
+        def __init__(self):
+            self.lines = []
+
+        def newscript(self, *a, **k):
+            pass
+
+        def addline(self, line):
+            self.lines.append(line)
+
+        def writescript(self, *a, **k):
+            pass
+
+        def runscript(self, *a, **k):
+            return 1      # stop do() right after the script is written
+
+    def _script(self, specs):
+        with tempfile.TemporaryDirectory() as d:
+            xsc = os.path.join(d, 'cell.xsc')
+            with open(xsc, 'w') as f:
+                f.write('# NAMD extended system configuration\n'
+                        '#$LABELS step a_x a_y a_z b_x b_y b_z c_x c_y c_z o_x o_y o_z\n'
+                        '0 60 0 0 0 60 0 0 0 90 30 30 0\n')
+            t = _task_with_specs(specs)
+            t.basename = 'solv'
+            t.next_basename = lambda *a, **k: None
+            t.register = mock.Mock()
+            state = types.SimpleNamespace(psf=types.SimpleNamespace(name='m.psf'),
+                                          pdb=types.SimpleNamespace(name='m.pdb'),
+                                          xsc=types.SimpleNamespace(name=xsc))
+            t.get_current_artifact = lambda k: state
+            t._solvent_box_entry = lambda solvent: None
+            t._solvent_box_args = lambda entry, solvent: ''
+            vt = self._VT()
+            t.scripters = {'vmd': vt}
+            t.do()
+            return vt.lines
+
+    def test_deletion_runs_after_solvate_and_before_ionization(self):
+        lines = self._script({'dry_membrane_core': True, 'salt_con': 0.15})
+        at = lambda word: next(i for i, ln in enumerate(lines) if ln.lstrip().startswith(word))
+        self.assertLess(at('solvate '), at('foreach sr $_dry_sr'))
+        self.assertLess(at('foreach sr $_dry_sr'), at('autoionize '))
+        self.assertTrue(any('delatom' in ln for ln in lines))
+
+    def test_off_by_default(self):
+        lines = self._script({'salt_con': 0.15})
+        self.assertFalse(any('delatom' in ln for ln in lines))
+
+    def test_the_count_is_read_back_and_recorded(self):
+        t = _task_with_specs({})
+        t.record_outcome = mock.Mock()
+        with tempfile.TemporaryDirectory() as d:
+            log = os.path.join(d, 'solv.log')
+            with open(log, 'w') as f:
+                f.write('Info) dry_membrane_core: removed 37 water(s) between z -19.80 and 19.95\n')
+            t._record_dry_membrane_core(log)
+        t.record_outcome.assert_called_once_with(dry_membrane_core_removed=37)
+
+    def test_no_report_is_a_warning_not_a_zero(self):
+        t = _task_with_specs({})
+        t.record_outcome = mock.Mock()
+        with tempfile.TemporaryDirectory() as d:
+            log = os.path.join(d, 'solv.log')
+            open(log, 'w').close()
+            with self.assertLogs('pestifer.tasks.solvate', level='WARNING'):
+                t._record_dry_membrane_core(log)
+        t.record_outcome.assert_not_called()
+
+
 if __name__ == '__main__':
     unittest.main()
