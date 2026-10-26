@@ -168,21 +168,19 @@ patch smaller.
   `on_unresolved: continue`, `quilt_grid_slack`, the deferral ceiling) becomes dead for the full
   membrane. The patches are still gridded, so it stays for them.
 
-## Open questions for the decision
+## Decisions (2026-10-26)
 
-1. **What the calibration gate does under tiling.** Today an unconverged patch stops the build,
-   because the grid is sized from its APL. Under tiling the patch's *structure* is used, not just a
-   number, and an unconverged patch is still the best-packed thing available. Options: keep it
-   fatal; or warn, record the drift in the run record, and continue. Recommendation: warn and
-   record, since the error it guards against (a wrong leaflet ratio) is the same either way, and
-   `diagnose_differential_stress` is where it is measured.
-2. **`bilayer.leaflet_apl` under tiling.** It has nothing to inject into: no APL sizes anything.
-   Either retire it, or reinterpret it as "scale this leaflet's tile laterally to this APL", which
-   strains the packing. Recommendation: retire it, with a clear error naming why.
-3. **Should the grid path remain** as an option (`packer: grid`), or be removed for the full
-   membrane? Recommendation: keep `packer: grid` for one release as the fallback while tiling is
-   validated across the examples, then remove it.
-4. **`quilt_seam_gap` default.** Proposed 2 Å, pending measurement.
+1. **The calibration gate warns under tiling; it no longer stops the build.** An unconverged patch
+   is still the best-packed thing available. Its drift is logged and recorded in the run record,
+   and `diagnose_differential_stress` is where a wrong leaflet ratio is measured.
+2. **`bilayer.leaflet_apl` is retired.** Nothing is sized from an APL, so it has nothing to inject
+   into. Setting it raises a clear error saying why.
+3. **The full membrane may still be gridded directly, as an opt-out** (`bilayer.quilt_method:
+   grid`; the default is `tile`), while tiling is validated. The patches are gridded either way.
+   On the grid route the calibration gate stays fatal and `leaflet_apl` keeps working, because that
+   route still sizes the membrane from an APL; decisions 1 and 2 apply to the tiled route. The
+   opt-out is to be removed once tiling has carried the examples through a sweep.
+4. **`quilt_seam_gap` starts at 2 Å**, to be confirmed by measurement.
 
 ## Validation plan
 
