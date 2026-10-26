@@ -430,6 +430,31 @@ class TestResolveGlycanPiercings(_PiercingCase):
         self.assertIn('BGLC', out)
         self.assertIn('glycan', out)
 
+    @staticmethod
+    def _protein_protein():
+        # example 14's shape: a model-built loop residue threading a resolved one, no glycan
+        return {'piercee': {'resname': 'PHE', 'segname': 'E', 'resid': 518, 'segtype': 'protein'},
+                'piercer': {'resname': 'GLN', 'segname': 'E', 'resid': 410, 'segtype': 'protein'}}
+
+    def test_a_piercing_with_no_glycan_is_not_reported_as_a_glycan_failure(self):
+        """In the 3.29.8 sweep every line under the glycan warning was protein-protein, and its
+        prediction that terminate would refuse was wrong 8 times in 9."""
+        with self.assertLogs('pestifer.tasks.psfgen', level='INFO') as cm:
+            self._resolve(unresolved=[self._protein_protein()])
+        warnings = [ln for ln in cm.output if ln.startswith('WARNING')]
+        self.assertEqual(warnings, [])
+        self.assertTrue(any('involve no glycan' in ln and 'protein-protein' in ln
+                            for ln in cm.output))
+
+    def test_a_glycan_piercing_still_warns_and_its_prediction_is_conditional(self):
+        """Negative control for the test above: a glycan piercing must still reach WARNING."""
+        with self.assertLogs('pestifer.tasks.psfgen', level='INFO') as cm:
+            self._resolve(unresolved=[self._piercing(), self._protein_protein()])
+        warnings = ''.join(ln for ln in cm.output if ln.startswith('WARNING'))
+        self.assertIn('1 glycan ring-piercing', warnings)
+        self.assertNotIn('GLN', warnings, 'the protein-protein piercing leaked into the warning')
+        self.assertNotIn('will refuse', warnings)
+
 
 # --- topology collection ---------------------------------------------------------------------------
 

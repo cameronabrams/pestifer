@@ -719,17 +719,42 @@ class PsfgenTask(VMDTask):
                                xsc=getattr(state, 'xsc', None)),
                           key='state', artifact_type=StateArtifacts)
             logger.info(f'Resolved glycan ring-piercing(s) at graft time -> {self.basename}.pdb')
-        if unresolved:
-            logger.warning(f'{len(unresolved)} ring-piercing(s) could not be cleared by glycan '
-                           f'rotation at graft time.  Unless a later ring_check clears it (it can '
-                           f'also rotate aromatic side chains), terminate will refuse to package '
-                           f'the result -- after all the MD.  Rebuilding with a different --seed '
+        # The scan covers every protein and glycan ring, so it also sees piercings no glycan is
+        # part of.  Those are not this pass's to report as glycan failures: in the 3.29.8 sweep all
+        # 51 such lines (examples 8, 11, 14) were protein-protein, and in example 14 every one
+        # involved a residue model-built in a loop that `ligate` had not yet closed -- temporary
+        # geometry with its own check after closure.  Reported under the glycan header with a
+        # prediction that terminate would refuse, they were wrong 8 times in 9, while the one
+        # piercing that did stop a build came from loop closure.
+        def _glycan(p):
+            return 'glycan' in (p['piercer'].get('segtype'), p['piercee'].get('segtype'))
+        glycan_unresolved = [p for p in unresolved if _glycan(p)]
+        other = [p for p in unresolved if not _glycan(p)]
+        if glycan_unresolved:
+            logger.warning(f'{len(glycan_unresolved)} glycan ring-piercing(s) could not be cleared '
+                           f'by glycan rotation at graft time.  terminate refuses to package a '
+                           f'structure that still carries one, so if the minimizations and any '
+                           f'later ring_check (it can also rotate aromatic side chains) do not '
+                           f'clear it, the build stops there.  Rebuilding with a different --seed '
                            f'draws different glycan poses:')
-            for p in unresolved:
-                ee, er = p['piercee'], p['piercer']
-                logger.warning(f'  ring of {ee.get("resname","?")} {ee["segname"]}-{ee["resid"]} '
-                               f'pierced by a bond in {er.get("resname","?")} '
-                               f'{er["segname"]}-{er["resid"]} ({er["segtype"]})')
+            for p in glycan_unresolved:
+                logger.warning(f'  {self._describe_piercing(p)}')
+        if other:
+            kinds = sorted({f'{p["piercee"].get("segtype", "?")}-{p["piercer"].get("segtype", "?")}'
+                            for p in other})
+            logger.info(f'{len(other)} ring piercing(s) at graft time involve no glycan '
+                        f'({", ".join(kinds)}); glycan rotation does not address them.  A '
+                        f'piercing by a model-built loop is checked again once ligate closes the '
+                        f'loop, and terminate checks the final structure.')
+            for p in other:
+                logger.debug(f'  {self._describe_piercing(p)}')
+
+    @staticmethod
+    def _describe_piercing(p):
+        ee, er = p['piercee'], p['piercer']
+        return (f'ring of {ee.get("resname","?")} {ee["segname"]}-{ee["resid"]} ({ee.get("segtype","?")}) '
+                f'pierced by a bond in {er.get("resname","?")} {er["segname"]}-{er["resid"]} '
+                f'({er.get("segtype","?")})')
 
     def resi_topologies(self):
         """

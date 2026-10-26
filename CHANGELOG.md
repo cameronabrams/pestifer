@@ -35,6 +35,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   Each such species is now written under a four-character placeholder that psfgen maps back
   with `pdbalias`.
 
+- **The glycan graft check reported protein-protein piercings as glycan failures.** It scans every
+  protein and glycan ring, and listed every piercing left unresolved under "could not be cleared
+  by glycan rotation", predicting terminate would refuse. In the 3.29.8 sweep all 51 such lines
+  (examples 8, 11 and 14) were protein-protein, in example 14 every one involved a residue
+  model-built in a loop `ligate` had not yet closed, and the prediction was wrong in 8 of 9
+  builds. The warning now covers only piercings involving a glycan and says terminate refuses
+  only if nothing later clears it; the rest are counted in one INFO line that names the later
+  checks and listed at DEBUG.
+
 - **Water filled gaps inside freshly built bilayers.** VMD's `solvate` drops only water within
   about 2.4 Å of a lipid atom, so any lateral gap in a newly assembled membrane filled with water
   inside the hydrophobic core: 1,048 of 5,228 waters on a tiled test quilt, 228 of them within 5 Å
