@@ -39,7 +39,7 @@ Single-valued attributes:
 
     Allowed values: ``grid``
 
-  * ``quilt_grid_slack``: Linear factor by which the protein-embedding quilt is gridded looser than its calibrated stress-free box area, giving the lipid placement a small clearance before the tensionless relaxation condenses it to the preferred per-leaflet APL. 1.0 grids exactly at the stress-free area; the default 1.05 (~5% extra area) is a token placement margin. The old 1.15 (~32% extra area) was needed only for the square lattice's tight contacts and left the quilt badly under-dense. (default: 1.05)
+  * ``quilt_grid_slack``: Area factor by which the protein-embedding quilt is gridded looser than its calibrated stress-free box area, giving the lipid placement a small clearance before the tensionless relaxation condenses it to the preferred per-leaflet APL. It multiplies the area per lipid, so 1.0 grids exactly at the stress-free area and the default 1.05 gives 5% extra area (2.5% on each side). The old 1.15 (15% extra area) was needed only for the square lattice's tight contacts and left the quilt badly under-dense. (default: 1.05)
 
   * ``seed``: RNG seed for lipid placement (grid jitter and conformer choice) in every patch and the full membrane.  Unset (the default), it is the build's namd.seed, so replicas run with different --seed values start from different placements; set it to pin the placement independently of --seed.
 

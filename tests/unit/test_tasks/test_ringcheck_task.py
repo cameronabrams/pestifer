@@ -853,3 +853,64 @@ class TestTheFatalMessageNamesItsRealSource(_DoCase):
         with self.assertRaises(PestiferBuildError) as cm:
             self._run([p])
         self.assertIn('bilayer_embed', str(cm.exception))
+
+
+class TestAWorsePassIsNotKept(unittest.TestCase):
+    """A rotation pass can leave more piercings than it found.  On a 1,460-lipid,
+    41-47% cholesterol quilt (3.29.7), one pass took 108 threadings to 254; the loop stopped for
+    lack of progress but kept the 254, and the next minimize died in rattle2.  The structure with
+    the fewest piercings is what goes on."""
+
+    def _run(self, rounds):
+        t = _task(segtypes=['lipid', 'glycan', 'protein'], on_unresolved='continue')
+        first = mock.Mock()
+        first.psf.name, first.pdb.name, first.xsc = 'in.psf', 'in.pdb', None
+        current = {'state': first}
+        names = iter(f'pass{i}' for i in range(1, 20))
+
+        def next_basename(label=''):
+            t.basename = next(names)
+        t.next_basename = next_basename
+
+        def register(d, key=None, artifact_type=None):
+            st = mock.Mock()
+            st.psf, st.xsc = d['psf'], d['xsc']
+            st.pdb.name = d['pdb'].name
+            current['state'] = st
+        t.register = mock.Mock(side_effect=register)
+        t.get_current_artifact = lambda k: current['state']
+        t._cleanup_declash_scratch = mock.Mock()
+        t._rotatable = staticmethod(lambda p: True)
+        t._resolve_by_rotation = mock.Mock(return_value=('fixed.pdb', []))
+        rounds = [list(r) for r in rounds]
+        with mock.patch('pestifer.tasks.ringcheck.ring_check',
+                        side_effect=lambda *a, **k: rounds.pop(0)), \
+             mock.patch('pestifer.tasks.ringcheck.shutil.copy') as copy, \
+             mock.patch.object(RingCheckTask, '_rotatable', return_value=True):
+            t.do()
+        return t, current['state'], copy
+
+    def _lipids(self, n):
+        return [_piercing(_side('lipid', 'L', i, 'CHL1'), _side('lipid', 'L', 1000 + i))
+                for i in range(n)]
+
+    def test_the_best_structure_goes_on_after_a_pass_that_made_things_worse(self):
+        # 10 found; first pass leaves 4; second pass makes it 9 and the loop stops
+        t, final, copy = self._run([self._lipids(10), self._lipids(4), self._lipids(9)])
+        self.assertEqual(copy.call_args.args[0], 'pass1.pdb',
+                         'the structure with 4 piercings must be restored, not the one with 9')
+        self.assertEqual(final.pdb.name, copy.call_args.args[1])
+        self.assertEqual(t.outcome['piercings_remaining'], 4)
+        self.assertTrue(t.outcome['reverted_to_best'])
+
+    def test_a_first_pass_that_makes_things_worse_restores_the_input(self):
+        t, final, copy = self._run([self._lipids(3), self._lipids(8)])
+        self.assertEqual(copy.call_args.args[0], 'in.pdb')
+        self.assertEqual(t.outcome['piercings_remaining'], 3)
+
+    def test_steady_progress_is_not_reverted(self):
+        """Negative control: the last pass is the best one, so nothing is restored."""
+        t, final, copy = self._run([self._lipids(10), self._lipids(4), self._lipids(2),
+                                    self._lipids(2)])
+        self.assertNotIn('reverted_to_best', t.outcome)
+        self.assertEqual(t.outcome['piercings_remaining'], 2)

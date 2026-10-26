@@ -178,6 +178,12 @@ class RingCheckTask(BaseTask):
         # ITERATE.  Clearing one piercing can create another -- a rotated tail has to go
         # somewhere -- and a molecule can be threaded twice, which one rigid rotation about one
         # hinge cannot undo.  So resolve, re-check, and repeat while progress is being made.
+        #
+        # And keep the best structure seen, not the last.  A pass can make things worse: on a
+        # 1,460-lipid, 41-47% cholesterol quilt (an asymmetric PIP2 build on 3.29.7) one pass took
+        # 108 threadings to 254, the loop stopped for lack of progress, and the 254 went on to a
+        # minimize that died in rattle2.
+        best_state, best_piercings = state, npiercings
         for _cycle in range(_MAX_RESOLVE_CYCLES):
             rotatable = [p for p in npiercings if self._rotatable(p)]
             if not rotatable:
@@ -206,6 +212,8 @@ class RingCheckTask(BaseTask):
             state = self.get_current_artifact('state')
             before = len(npiercings)
             npiercings = run_check(state)
+            if len(npiercings) < len(best_piercings):
+                best_state, best_piercings = state, npiercings
             if not npiercings:
                 break
             if len(npiercings) >= before:
@@ -213,11 +221,24 @@ class RingCheckTask(BaseTask):
                             f'progress; stopping the rotation loop')
                 break
 
+        reverted = len(npiercings) > len(best_piercings)
+        if reverted:
+            logger.warning(f'ring_check: the last rotation pass left {len(npiercings)} piercings '
+                           f'against {len(best_piercings)} before it; keeping the structure with '
+                           f'{len(best_piercings)}')
+            self.next_basename('ring_check-best')
+            shutil.copy(best_state.pdb.name, f'{self.basename}.pdb')
+            self.register(dict(psf=best_state.psf, pdb=PDBFileArtifact(self.basename),
+                               xsc=best_state.xsc), key='state', artifact_type=StateArtifacts)
+            state = self.get_current_artifact('state')
+            npiercings = best_piercings
+
         # Record the decision rather than leaving it to a log line: a caller that wants to know
         # whether this pass MOVED anything -- and therefore whether a minimize is owed before any
         # dynamics -- must not have to parse INFO output for it.
         self.record_outcome(piercings_initial=n_initial, rotations=n_rotations,
-                            piercings_remaining=len(npiercings), resolve=True)
+                            piercings_remaining=len(npiercings), resolve=True,
+                            reverted_to_best=reverted or None)
 
         if not npiercings:
             self.result = 0

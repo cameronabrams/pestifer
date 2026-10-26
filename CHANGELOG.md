@@ -19,6 +19,17 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   recorded as `loop_reclosures` in the run record. The comment and schema text that called this
   case "not observed" are corrected.
 
+- **`ring_check` kept the worst structure when a rotation pass made things worse.** The rotation
+  loop stopped once a pass made no net progress, but registered that pass's structure anyway.
+  On an asymmetric 41-47% cholesterol quilt of 1,460 lipids (reported against 3.29.7), one
+  pass took 108 threadings to 254. The pre-minimize check passed the 254 on, and the minimize
+  died in rattle2. The structure with the fewest piercings seen is now the one that goes on, and
+  `reverted_to_best` is recorded when that happens.
+
+- **`bilayer.quilt_grid_slack` was documented as a linear factor.** It multiplies the area per
+  lipid. The text said 1.15 meant ~32% extra area; it meant 15%, both before and after the
+  default changed. Code unchanged.
+
 ### Added
 
 - **A build that fails now writes `run-record-failed.json`.** It has the seeds and protocol of
