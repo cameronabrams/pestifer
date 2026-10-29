@@ -4,6 +4,19 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Added
+
+- **Protein stereochemistry is now checked through the build.** A D alpha carbon, an inverted Thr
+  or Ile beta carbon, or a cis peptide bond not preceding a proline is recorded as psfgen hands the
+  structure on (reported at INFO: a deposited structure, or an AlphaFold model, can carry one),
+  then every `md` task reports any defect it newly introduced at WARNING, naming itself, and
+  `terminate` summarizes. Prompted by an outside group finding D-Trp666 and D-Lys683 on residues
+  pestifer had modeled onto 4ZMJ. Across the 3.29.8 example sweep 22 of 94 builds carry such a
+  defect: 12 inherited from their source, and 10 made by pestifer -- a first minimization
+  inverting a modeled tail residue (example 11's Leu149), and a modeled loop joined to the crystal
+  structure through a near-cis bond that the minimization then inverts (example 9's Ser112, all
+  three chains). This change reports them; it does not yet prevent them.
+
 ### Changed
 
 - **The full membrane is now tiled from relaxed patches, not gridded.** `make_membrane_system`

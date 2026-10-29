@@ -96,6 +96,8 @@ class MDTask(VMDTask):
         Execute the MD task; special messaging is handled here, and do() is stubbed out.
         """
         self.result = self.namdrun()
+        if self.result == 0:
+            self.track_stereochemistry()
         return self.result
 
     def record_md_run(self, ensemble: str, psf, csv_keys: list):

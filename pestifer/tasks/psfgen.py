@@ -100,7 +100,10 @@ class PsfgenTask(VMDTask):
             # SOURCE was fetched, and the requested edits are additive -- so edit the incoming topology
             # in place rather than rebuilding it from segments (which would discard patches / custom
             # residues).
-            return self._psfgen_preserve()
+            self.result = self._psfgen_preserve()
+            if self.result == 0:
+                self.track_stereochemistry(baseline=True)
+            return self.result
         # Build mode: from a fetched SOURCE, or (P3) an incoming STATE carrying a re-segmenting edit
         # (mutation/deletion/insertion) that requires rebuilding the topology from CHARMM RESIs.  The
         # incoming-state case reconstructs a Molecule from the prebuilt PSF+coords with the mods.
@@ -123,6 +126,7 @@ class PsfgenTask(VMDTask):
             # a re-segment reproduces the same cell, so carry the incoming box (xsc) forward -- the
             # build-mode psfgen registers only psf/pdb, and downstream MD of a boxed system needs it.
             self._carry_incoming_xsc(incoming_xsc)
+        self.track_stereochemistry(baseline=True)
         return self.result
 
     #: seq mods that require rebuilding a segment's topology (they cannot be layered onto a readpsf'd

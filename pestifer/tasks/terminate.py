@@ -177,6 +177,7 @@ class TerminateTask(MDTask):
                                'continuing -- the state files, parameters, package and run record '
                                'are unaffected')
         self._refuse_to_ship_a_piercing()
+        self.track_stereochemistry(final=True)
         self.result = self.test_standard()
         if self.specs.get('basename'):
             self.copy_state_to_basename()

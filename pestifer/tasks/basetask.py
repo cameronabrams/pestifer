@@ -509,6 +509,76 @@ class BaseTask(ABC):
         """
         self.pipeline.import_artifacts(pipeline)
 
+    def track_stereochemistry(self, baseline: bool = False, final: bool = False):
+        """Report protein stereochemistry defects at the stage that introduced them.
+
+        ``baseline`` (psfgen) records what the structure carries as psfgen hands it on: inherited
+        from the source or placed by psfgen, and reported at INFO, since a crystal structure can
+        hold a genuine non-proline cis bond.  Every later call reports only what is new since the
+        record, at WARNING, naming this task -- that is the information nobody had when D-Trp666
+        and D-Lys683 turned up in an outside group's Env systems, built here.  ``final``
+        (terminate) summarizes the finished structure.  Without a baseline (no psfgen in this
+        controller) only the final call looks, so a membrane patch's many MD stages cost nothing.
+
+        Never raises: this is a report, and it must not become a way to lose a build.
+        """
+        from ..psfutil.stereo import StereoChecker
+        who = getattr(self, 'taskname', type(self).__name__)
+        try:
+            record = self.get_current_artifact_data('stereo_record')
+            if record is None and not (baseline or final):
+                return
+            state = self.get_current_artifact('state')
+            if state is None or state.psf is None or state.pdb is None:
+                return
+            psf = str(state.psf.path)
+            cache = getattr(self.pipeline, '_stereo_checker', None)
+            if cache is None or cache[0] != psf:
+                cache = (psf, StereoChecker(psf))
+                self.pipeline._stereo_checker = cache
+            if not (cache[1].centers or cache[1].peptides):
+                # no protein in this system (a membrane patch in a sub-controller): nothing to
+                # say, and it must not read as every recorded defect having gone away
+                return
+            found = {d.key: d for d in cache[1].check(str(state.pdb.path))}
+        except Exception as e:
+            logger.debug(f'{who}: stereochemistry check skipped ({type(e).__name__}: {e})')
+            return
+        if baseline or record is None:
+            record = {k: 'psfgen' if baseline else None for k in found}
+            if found:
+                origin = ('present as psfgen wrote the structure (from the source, or placed by '
+                          'psfgen)' if baseline else 'present in the final structure')
+                logger.info(f'{who}: {len(found)} protein stereochemistry defect(s) {origin}:')
+                for d in found.values():
+                    logger.info(f'  {d.describe()}')
+            self.register(record, key='stereo_record')
+            return
+        new = [d for k, d in found.items() if k not in record or record[k] is None]
+        if new:
+            logger.warning(f'{who}: introduced {len(new)} protein stereochemistry defect(s) that '
+                           f'no build step asked for:')
+            for d in new:
+                logger.warning(f'  {d.describe()}')
+                record[d.key] = who
+        for k, stage in list(record.items()):
+            if k not in found and stage is not None:
+                logger.info(f'{who}: {k[1]}:{k[2]} no longer carries the {k[0]} defect '
+                            f'first seen at {stage}')
+                record[k] = None
+        self.register(record, key='stereo_record')
+        if final:
+            introduced = {k: s for k, s in record.items() if s not in (None, 'psfgen')}
+            if introduced:
+                logger.warning(f'{who}: the final structure carries {len(introduced)} protein '
+                               f'stereochemistry defect(s) introduced during the build:')
+                for k, s in introduced.items():
+                    logger.warning(f'  {found[k].describe()} (first seen at {s})')
+            else:
+                logger.info(f'{who}: no protein stereochemistry defect was introduced during the '
+                            f'build ({sum(1 for s in record.values() if s == "psfgen")} carried '
+                            f'from psfgen)')
+
     def write_rotation_report(self, entries, kind='loop closure'):
         """
         Write a provenance record of the internal backbone-bond rotations that carried each
