@@ -303,6 +303,13 @@ class MDTask(VMDTask):
             eb_file = self.make_ssrestraints_file(ssrestraints)
             params['extraBonds'] = 'on'
             params['extraBondsFile'] = eb_file
+        stereo = specs.get('stereo_restraints', {})
+        if stereo.get('enabled', False):
+            eb_file = self.make_stereo_restraints_file(state, float(stereo.get('k', 100.0)),
+                                                       params.get('extraBondsFile'))
+            if eb_file:
+                params['extraBonds'] = 'on'
+                params['extraBondsFile'] = eb_file
 
         params.update(other_params)
         params.update(extras)

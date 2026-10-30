@@ -29,6 +29,12 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   The anchors' CA-CA distance (3.89 Å) was not the obstacle -- released and rebuilt, I140 and S144
   sit within 0.9 Å of where they were deposited -- their peptide planes were. Across 38 interior
   gaps of seven structures, four need widening (also 5FYL H 126-131 and 6B0N G 62-64 and 140-150).
+- **`md: stereo_restraints` holds protein stereochemistry through a stage.** With `enabled: true`,
+  every alpha carbon that is L when the stage starts is held L and every trans peptide bond held trans,
+  through NAMD `extraBonds` at `k` (default 100); merged with `ssrestraints` when both are on. Off by
+  default: a safety net for a stage that moves modeled residues hard, such as the first minimize after
+  psfgen -- not a repair, since a center or bond already wrong is left alone. On the 4ZMJ MPER build
+  that went D at Trp666 and Lys683, it kept every center L through that minimize.
 
 ### Fixed
 

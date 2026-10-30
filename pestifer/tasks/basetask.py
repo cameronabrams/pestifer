@@ -722,6 +722,29 @@ class VMDTask(BaseTask, ABC):
         self.register(self.basename, key=statekey, artifact_type=NAMDExtraBondsFileArtifact)
         return eb_file
 
+    def make_stereo_restraints_file(self, state, k: float, prior: str | None = None) -> str | None:
+        """
+        Write a NAMD ``extraBonds`` file holding every currently L alpha carbon L and every trans
+        peptide bond trans (:meth:`~pestifer.psfutil.stereo.StereoChecker.restraint_lines`), appended
+        to ``prior`` (an ``ssrestraints`` file for the same stage) when there is one, since NAMD takes
+        a single ``extraBondsFile``.  Returns its name, or None when the system has no protein.
+        """
+        from ..psfutil.stereo import StereoChecker
+        checker = StereoChecker(state.psf.name)
+        lines = checker.restraint_lines(checker.load_coords(state.pdb.name), k)
+        if not lines:
+            logger.info(f'{self.taskname}: stereo_restraints enabled, but there is no protein to hold')
+            return None
+        stem = f'{self.basename}-stereo'
+        with open(f'{stem}.extrabonds', 'w') as f:
+            if prior:
+                f.write(Path(prior).read_text().rstrip('\n') + '\n')
+            f.write('\n'.join(lines) + '\n')
+        logger.info(f'{self.taskname}: holding {len(lines)} alpha carbons and trans peptide bonds '
+                    f'(k {k:g}) in {stem}.extrabonds')
+        self.register(stem, key='stereo_extrabonds', artifact_type=NAMDExtraBondsFileArtifact)
+        return f'{stem}.extrabonds'
+
     def make_constraint_pdb(self, specs: dict, statekey: str = 'consref'):
         """
         Creates a PDB file with constraints based on the specifications provided.
