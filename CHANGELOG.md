@@ -17,6 +17,20 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   structure through a near-cis bond that the minimization then inverts (example 9's Ser112, all
   three chains). This change reports them; it does not yet prevent them.
 
+### Fixed
+
+- **A `chi1`/`chi2` crotation no longer moves the alpha hydrogen.** The moving set of a side-chain
+  rotation was a list of backbone names to leave behind, and the list omitted HA (and, for `chi2`,
+  the HBs), so they swung about the side-chain bond: on a 4ZMJ MPER extension HA ended 3.2-3.5 Å
+  from its own CA, and the first minimization pulled it back by carrying the side chain through the
+  backbone plane. That is how an outside group's build came out with D-Trp666 and D-Lys683 in all
+  three gp41 chains; rebuilt with this fix, from their unchanged config, all six are L and none
+  is strained. Inherited from the Tcl `brot`, so every pestifer version had it. The moving set is now
+  walked from the bonds: `chi2` of Ile turns about CB-CG1 and leaves the CG2 branch, a disulfide
+  Cys does not drag its partner, and a rotation about a ring bond (Pro) is refused rather than
+  tearing the ring. `ring_check`'s side-chain rotations use the same moving set and skip a chi that
+  cannot turn.
+
 ### Changed
 
 - **The full membrane is now tiled from relaxed patches, not gridded.** `make_membrane_system`

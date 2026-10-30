@@ -218,6 +218,66 @@ class TestCrot(unittest.TestCase):
         sc = self.cm.select('resid 22') & ~self.cm.select('resid 22 and backbone')
         self.assertTrue(np.any(np.linalg.norm(self.cm.coords[sc] - self.orig[sc], axis=1) > 0.1))
 
+    def _bond_lengths(self, cm, resid):
+        """Every PSF bond with an atom in ``resid``, as {(i, j): length}."""
+        rows = set(np.nonzero(cm.select(f'resid {resid}'))[0])
+        out = {}
+        for b in cm._psf.bonds.data:
+            i, j = b.serial1 - 1, b.serial2 - 1
+            if i in rows or j in rows:
+                out[(i, j)] = np.linalg.norm(cm.coords[i] - cm.coords[j])
+        return out
+
+    def test_a_chi_rotation_changes_no_bond_length(self):
+        """The invariant a moving set gets wrong: before 2026-10-30 a CHI1 rotation swung HA (and
+        CHI2 the HBs too) about the side-chain bond, stretching CA-HA to 3.5 A on a real build,
+        and a minimizer then made the residue D.  The test above checks only that CA stays."""
+        for resid, angle in ((22, 'CHI1'), (22, 'CHI2'), (15, 'CHI1'), (15, 'CHI2'),
+                             (18, 'CHI1'), (18, 'CHI2')):       # Phe, Lys, Ile (chi2 = CB-CG1)
+            with self.subTest(resid=resid, angle=angle):
+                cm = CoordManipulator(PSF, PDB)
+                before = self._bond_lengths(cm, resid)
+                cm.apply_crot(Crot(angle=angle, chainID='A', resid1=ResID(resid), degrees=100.0))
+                after = self._bond_lengths(cm, resid)
+                worst = max(abs(after[k] - before[k]) for k in before)
+                self.assertLess(worst, 1e-6, f'{angle} of resid {resid} stretched a bond by {worst:.2f} A')
+                # a rotation about CA-CB preserves the CA-HA length even when it swings HA, so
+                # bond lengths alone cannot catch CHI1 -- HA itself must not move
+                ha = cm.select(f'resid {resid}') & np.isin(np.array(cm._name), ['HA'])
+                self.assertTrue(np.allclose(cm.coords[ha], self.orig[ha], atol=1e-6),
+                                f'{angle} of resid {resid} moved HA')
+                moved = np.linalg.norm(cm.coords - self.orig, axis=1) > 0.1
+                self.assertTrue(moved.any(), 'NEGATIVE CONTROL: the rotation must move something')
+
+    def test_a_chi_rotation_keeps_the_alpha_carbon_L(self):
+        from pestifer.psfutil.stereo import StereoChecker
+        cm = CoordManipulator(PSF, PDB)
+        for resid in (15, 18, 22):
+            for angle in ('CHI1', 'CHI2'):
+                cm.apply_crot(Crot(angle=angle, chainID='A', resid1=ResID(resid), degrees=120.0))
+        ha = np.isin(np.array(cm._name), ['HA']) & (cm.select('resid 15') | cm.select('resid 18') | cm.select('resid 22'))
+        self.assertTrue(np.allclose(cm.coords[ha], self.orig[ha], atol=1e-6), 'HA rides on CA, not the side chain')
+        self.assertEqual(StereoChecker(PSF).check_coords(cm.coords), [])
+
+    def test_ile_chi2_leaves_the_other_beta_branch(self):
+        cm = CoordManipulator(PSF, PDB)
+        cg2 = cm.select('resid 18') & np.isin(np.array(cm._name), ['CG2', 'HG21', 'HG22', 'HG23', 'HB'])
+        cd = cm.select('resid 18 and name CD')
+        cm.apply_crot(Crot(angle='CHI2', chainID='A', resid1=ResID(18), degrees=120.0))
+        self.assertTrue(np.allclose(cm.coords[cg2], self.orig[cg2], atol=1e-6))
+        self.assertGreater(np.linalg.norm(cm.coords[cd] - self.orig[cd]), 0.5)
+
+    def test_a_chi_rotation_in_a_ring_is_refused(self):
+        from pestifer.molecule.coordmanip import CoordManipulateError
+        with self.assertRaises(CoordManipulateError) as cm:
+            self.cm.apply_crot(Crot(angle='CHI1', chainID='A', resid1=ResID(8), degrees=30.0))   # Pro
+        self.assertIn('ring', str(cm.exception))
+
+    def test_a_disulfide_cysteine_does_not_drag_its_partner(self):
+        partner = self.cm.select('resid 55')
+        self.cm.apply_crot(Crot(angle='CHI1', chainID='A', resid1=ResID(5), degrees=30.0))
+        self.assertTrue(np.allclose(self.cm.coords[partner], self.orig[partner], atol=1e-6))
+
     def test_fold_alpha_drives_backbone_to_helix(self):
         self.cm.apply_crot(Crot(angle='ALPHA', chainID='A', resid1=ResID(5),
                                 resid2=ResID(15), resid3=ResID(25)))

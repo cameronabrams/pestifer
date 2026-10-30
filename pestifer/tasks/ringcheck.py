@@ -590,11 +590,16 @@ class RingCheckTask(BaseTask):
     def _write_sidechain_candidates(self, psf, pdb, segname, resid, chi, degrees, out_prefix):
         """Emit one PDB per candidate chi rotation of the residue's side chain
         (``<out_prefix>_<deg>.pdb``), each measured from the input pose -- pure numpy, no VMD."""
-        from ..molecule.coordmanip import CoordManipulator
+        from ..molecule.coordmanip import CoordManipulator, CoordManipulateError
         cm = CoordManipulator(psf, pdb)
         rn = cm.residue_of_segname(segname, resid)
         orig = cm.coords.copy()
         for deg in degrees:
             cm.coords = orig.copy()
-            cm.apply_scrot(chi, rn, deg)
+            try:
+                cm.apply_scrot(chi, rn, deg)
+            except CoordManipulateError as e:
+                # no such chi (Val chi2) or one inside a ring (Pro): no candidates, not a crash
+                logger.debug(f'{segname}:{resid} chi{chi}: {e}')
+                return
             cm.write_pdb(f'{out_prefix}_{deg}.pdb')

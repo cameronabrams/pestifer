@@ -638,6 +638,18 @@ class TestWriteSidechainCandidates(unittest.TestCase):
             t._write_sidechain_candidates('in.psf', 'in.pdb', 'A', 42, 2, list(degrees), 'pfx')
         return applied, written, coords_at_apply
 
+    def test_a_chi_that_cannot_turn_gives_no_candidates_and_no_crash(self):
+        """A proline chi1 is a ring bond; turning it used to tear the ring silently, and now
+        ``apply_scrot`` refuses.  The search must take that as "no rotamer here", not die."""
+        from pestifer.molecule.coordmanip import CoordManipulateError
+        t = _task()
+        cm = mock.Mock()
+        cm.coords = np.zeros((3, 3))
+        cm.apply_scrot.side_effect = CoordManipulateError('the bond is in a ring')
+        with mock.patch('pestifer.molecule.coordmanip.CoordManipulator', return_value=cm):
+            t._write_sidechain_candidates('in.psf', 'in.pdb', 'A', 8, 1, [120, 240], 'pfx')
+        cm.write_pdb.assert_not_called()
+
     def test_one_file_per_requested_rotation(self):
         _a, written, _c = self._write(degrees=(120, 240, 180))
         self.assertEqual(written, ['pfx_120.pdb', 'pfx_240.pdb', 'pfx_180.pdb'])

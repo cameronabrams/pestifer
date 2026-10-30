@@ -83,6 +83,7 @@ class CoordManipulator:
             self._segtype = [Labels.segtype_of_resname.get(a.resname, '') for a in self.atoms.data]
             self._name = [a.name for a in self.atoms.data]
         self._fragment = None
+        self._adj = None
 
     # ---- coordinate access ------------------------------------------------
 
@@ -458,18 +459,70 @@ class CoordManipulator:
             else:
                 mask = (ridx <= r0) & (ridx >= r1)
         elif angle_name == 'chi':
-            if rot == 1:
-                pn, pc = xyz(r0, 'CA'), xyz(r0, 'CB')
-                mask = (ridx == r0) & ~np.isin(names, ['N', 'HN', 'CA', 'C', 'O'])
-            else:
-                pn, pc = xyz(r0, 'CB'), xyz(r0, 'CG')
-                mask = (ridx == r0) & ~np.isin(names, ['N', 'HN', 'CA', 'CB', 'C', 'O'])
+            a1, a2 = ('CA', 'CB') if rot == 1 else ('CB', 'CG')
+            if rot == 2 and xyz(r0, 'CG') is None:
+                a2 = 'CG1'                                  # Ile's chi2 runs CB-CG1
+            pn, pc = xyz(r0, a1), xyz(r0, a2)
+            if pn is None or pc is None:
+                raise CoordManipulateError(f'brot: missing axis atoms for chi{rot} at residue {r0}')
+            mask = self._far_side(ridx, names, r0, a1, a2)
         else:
             raise CoordManipulateError(f'brot: angle {angle_name!r} not recognized')
         if pn is None or pc is None:
             raise CoordManipulateError(f'brot: missing axis atoms for {angle_name} at residue {r0}')
         coords[mask] = rotate_points_about_axis(coords[mask], pn, pc - pn, deg)
         self.coords = coords
+
+    def _far_side(self, ridx, names, r, a1, a2) -> np.ndarray:
+        """Atoms of residue ``r`` beyond the bond ``a1``-``a2``: those bonded to ``a2``'s side
+        without passing through ``a1``, excluding ``a2`` itself, which sits on the axis.
+
+        This is the moving set of a chi rotation, and it used to be a list of backbone names to
+        leave behind.  That list omitted HA, and for chi2 also every HB, so a chi rotation
+        swung the alpha hydrogen -- and for chi2 the beta hydrogens -- about the side-chain bond
+        with everything else: 3.5 A from its own carbon on a real build.  A minimizer then pulls
+        it back by the shortest path, which can carry the side chain through the N-CA-C plane:
+        the residue comes out D.  Found 2026-10-30 on an outside group's 4ZMJ MPER extension,
+        whose chi1/chi2 crotations on Trp666 and Lys683 made both D in all three protomers.
+        Walking the bonds cannot get the set wrong for any residue, branched ones included.
+        """
+        rows = np.nonzero(ridx == r)[0]
+        row_of = {names[i]: int(i) for i in rows}
+        i1, i2 = row_of[a1], row_of[a2]
+        if self._psf is None:
+            # no bonds: the side chain past the axis by name, never the backbone or what a1/a2 carry
+            keep = {'N', 'HN', 'HT1', 'HT2', 'HT3', 'CA', 'HA', 'HA1', 'HA2', 'C', 'O', 'OT1', 'OT2',
+                    'OXT', 'CB'}
+            if a1 == 'CB':
+                keep |= {'HB', 'HB1', 'HB2', 'HB3', 'CG2', 'HG21', 'HG22', 'HG23'}
+            mask = (ridx == r) & ~np.isin(names, list(keep))
+            mask[i2] = False
+            return mask
+        adj = self._adjacency()
+        mine = set(int(i) for i in rows)      # a disulfide partner is not ours to move
+        seen, stack = {i2}, [i2]
+        while stack:
+            for j in adj[stack.pop()]:
+                if j == i1 or j not in mine:
+                    continue
+                if j not in seen:
+                    seen.add(j)
+                    stack.append(j)
+        if any(i1 in adj[j] for j in seen if j != i2):
+            raise CoordManipulateError(f'chi rotation about {a1}-{a2} of residue {r}: the bond is in '
+                                       f'a ring, so nothing can turn about it')
+        mask = np.zeros(len(names), dtype=bool)
+        mask[list(seen - {i2})] = True
+        return mask
+
+    def _adjacency(self):
+        if self._adj is None:
+            adj = [[] for _ in range(len(self.atoms))]
+            for b in self._psf.bonds.data:
+                adj[b.serial1 - 1].append(b.serial2 - 1)
+                adj[b.serial2 - 1].append(b.serial1 - 1)
+            self._adj = adj
+        return self._adj
 
     def residue_of_segname(self, segname, resid) -> int:
         """VMD residue index of ``segname``/``resid`` (matched at its CA, else any atom).
@@ -484,10 +537,10 @@ class CoordManipulator:
 
     def apply_scrot(self, chi, residue_index, deg):
         """
-        Rotate a side chain about its chi1 (CA-CB) or chi2 (CB-CG) bond -- the numpy port of
-        crot.tcl ``SCrot_chi1``/``SCrot_chi2`` (rotation about the first axis atom, along the
-        first-minus-second direction).  Unlike the ``brot`` CHI path this excludes HA/HB and CB
-        from the moving set.
+        Rotate a side chain about its chi1 (CA-CB) or chi2 (CB-CG, or CB-CG1 for Ile) bond -- the
+        numpy port of crot.tcl ``SCrot_chi1``/``SCrot_chi2`` (rotation about the first axis atom,
+        along the first-minus-second direction).  The moving set is the one :meth:`_far_side`
+        walks from the bonds, as for a ``CHI`` crotation.
         """
         ridx = self._residue_index()
         names = self._names
@@ -497,14 +550,13 @@ class CoordManipulator:
             idx = np.nonzero((ridx == residue_index) & (names == nm))[0]
             return coords[idx[0]] if idx.size else None
 
-        if chi == 1:
-            p1, p2 = xyz('CA'), xyz('CB')
-            mask = (ridx == residue_index) & ~np.isin(names, ['N', 'HN', 'CA', 'CB', 'HA', 'C', 'O'])
-        else:
-            p1, p2 = xyz('CB'), xyz('CG')
-            mask = (ridx == residue_index) & ~np.isin(names, ['N', 'HN', 'CA', 'CB', 'HA', 'C', 'O', 'HB1', 'HB2'])
+        a1, a2 = ('CA', 'CB') if chi == 1 else ('CB', 'CG')
+        if chi != 1 and xyz('CG') is None:
+            a2 = 'CG1'
+        p1, p2 = xyz(a1), xyz(a2)
         if p1 is None or p2 is None:
             raise CoordManipulateError(f'SCrot chi{chi}: missing axis atoms at residue {residue_index}')
+        mask = self._far_side(ridx, names, residue_index, a1, a2)
         coords[mask] = rotate_points_about_axis(coords[mask], p1, p1 - p2, deg)
         self.coords = coords
 
