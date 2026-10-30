@@ -250,12 +250,24 @@ class TestTheBuildCallsIt(unittest.TestCase):
         t.do()
         self.assertEqual(calls, [])
 
-    def test_ligate_checks_the_junctions_it_just_made(self):
-        import inspect
+    def test_a_loop_closure_checks_the_junctions_it_just_made(self):
+        """Whichever task closes the loops (psfgen or ligate), the check comes after connect,
+        when the junctions first exist -- and the molecule is marked closed only on success."""
         from pestifer.tasks.ligate import LigateTask
-        src = inspect.getsource(LigateTask.do)
-        connect, track = src.find('self.connect(connect_specs)'), src.find('self.track_stereochemistry()')
-        self.assertTrue(0 < connect < track, 'after connect, when the junctions first exist')
+        calls = []
+        t = LigateTask.__new__(LigateTask)
+        t.basename = '00-01-004_psfgen-heal'
+        t.base_molecule = NS(loops_closed_by=None)
+        t.resolve_loop_piercings = lambda: calls.append('resolve')
+        t.connect = lambda specs: calls.append('connect') or 0
+        t.track_stereochemistry = lambda **kw: calls.append(('track', t.base_molecule.loops_closed_by))
+        self.assertEqual(t.finish_loop_closure({}), 0)
+        self.assertEqual(calls, ['resolve', 'connect', ('track', '00-01-004_psfgen-heal')])
+        calls.clear()
+        t.base_molecule.loops_closed_by = None
+        t.connect = lambda specs: calls.append('connect') or 1
+        self.assertEqual(t.finish_loop_closure({}), 1)
+        self.assertIsNone(t.base_molecule.loops_closed_by, 'a failed connect closes nothing')
 
     def test_psfgen_sets_the_baseline_and_terminate_summarizes(self):
         import inspect

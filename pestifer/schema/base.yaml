@@ -2197,13 +2197,12 @@ attributes:
                 text: Name of the constraints PDB file to generate (defaults to <basename>-constraints.pdb)
                 type: str
           - name: stereo_restraints
-            text: Hold protein stereochemistry through this md stage with NAMD extraBonds -- every alpha carbon that is L when the stage starts is held L (its N-C-CB-CA improper at -33 deg) and every trans peptide bond held trans. Off by default; a safety net for stages that move modeled residues hard (the first minimize after psfgen), not a repair, since a center or bond already wrong is left alone. Merged with ssrestraints when both are on.
+            text: Hold protein stereochemistry through this md stage with NAMD extraBonds -- every alpha carbon that is L when the stage starts is held L (its N-C-CB-CA improper at -33 deg) and every trans peptide bond held trans. On by default for the first minimize after psfgen, where modeled residues are pushed hardest, and off elsewhere. A safety net, not a repair -- a center or bond already wrong is left alone -- and the stage reports afterwards, by residue, every one it had to hold against strain. Merged with ssrestraints when both are on.
             type: dict
             attributes:
               - name: enabled
-                text: Hold L alpha carbons and trans peptide bonds for this md stage (default off)
+                text: Hold L alpha carbons and trans peptide bonds for this md stage. Unset, it is on for the first minimize after psfgen and off elsewhere; true or false overrides that.
                 type: bool
-                default: False
               - name: k
                 text: Harmonic force constant of each held improper and omega (kcal/mol/rad^2)
                 type: float

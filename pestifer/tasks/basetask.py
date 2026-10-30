@@ -170,8 +170,19 @@ class BaseTask(ABC):
 
     def followed_by(self, taskname: str) -> bool:
         """Whether a ``taskname`` task runs later in this task's controller."""
-        names = (self.provisions or {}).get('tasknames', [])
-        return taskname in names[self.index + 1:]
+        names = (getattr(self, 'provisions', None) or {}).get('tasknames', [])
+        return bool(names) and taskname in names[self.index + 1:]
+
+    def next_specs(self, taskname: str) -> dict | None:
+        """The specs of the next ``taskname`` task after this one in its controller, or None."""
+        names = (getattr(self, 'provisions', None) or {}).get('tasknames', [])
+        specs = (getattr(self, 'provisions', None) or {}).get('taskspecs', [])
+        if not names:
+            return None
+        for i in range(self.index + 1, min(len(names), len(specs))):
+            if names[i] == taskname:
+                return specs[i]
+        return None
 
     #: The seed a derived RNG falls back to when neither the step nor the build names one.
     #: Equal to ``namd.seed``'s schema default, so a build run without ``--seed`` is unchanged.
@@ -726,28 +737,80 @@ class VMDTask(BaseTask, ABC):
         self.register(self.basename, key=statekey, artifact_type=NAMDExtraBondsFileArtifact)
         return eb_file
 
-    def make_stereo_restraints_file(self, state, k: float, prior: str | None = None) -> str | None:
+    def make_stereo_restraints_file(self, state, k: float, prior: str | None = None,
+                                    why: str = '') -> str | None:
         """
         Write a NAMD ``extraBonds`` file holding every currently L alpha carbon L and every trans
-        peptide bond trans (:meth:`~pestifer.psfutil.stereo.StereoChecker.restraint_lines`), appended
+        peptide bond trans (:meth:`~pestifer.psfutil.stereo.StereoChecker.restraint_terms`), appended
         to ``prior`` (an ``ssrestraints`` file for the same stage) when there is one, since NAMD takes
         a single ``extraBondsFile``.  Returns its name, or None when the system has no protein.
+
+        The terms are kept on the task (``_stereo_terms``, with the checker) so that
+        :meth:`report_stereo_strain` can say afterwards which of them the stage pushed against.
+        ``why`` is appended to the log line: a default-on hold says why it is on and how to turn it off.
         """
         from ..psfutil.stereo import StereoChecker
         checker = StereoChecker(state.psf.name)
-        lines = checker.restraint_lines(checker.load_coords(state.pdb.name), k)
-        if not lines:
+        terms = checker.restraint_terms(checker.load_coords(state.pdb.name))
+        if not terms:
             logger.info(f'{self.taskname}: stereo_restraints enabled, but there is no protein to hold')
             return None
         stem = f'{self.basename}-stereo'
         with open(f'{stem}.extrabonds', 'w') as f:
             if prior:
                 f.write(Path(prior).read_text().rstrip('\n') + '\n')
-            f.write('\n'.join(lines) + '\n')
-        logger.info(f'{self.taskname}: holding {len(lines)} alpha carbons and trans peptide bonds '
-                    f'(k {k:g}) in {stem}.extrabonds')
+            f.write('\n'.join(f'dihedral {" ".join(str(i) for i in rows)} {k} {ref}'
+                              for rows, ref, *_ in terms) + '\n')
+        ncenters = sum(1 for t in terms if t[2] == 'D-CA')
+        logger.info(f'{self.taskname} ({self.basename}): holding {ncenters} L alpha carbons and '
+                    f'{len(terms) - ncenters} trans peptide bonds (k {k:g}) in {stem}.extrabonds'
+                    + (f' -- {why}' if why else ''))
         self.register(stem, key='stereo_extrabonds', artifact_type=NAMDExtraBondsFileArtifact)
+        self._stereo_terms = (checker, terms)
         return f'{stem}.extrabonds'
+
+    #: a held term ending further than this from its held angle (deg) is reported by name
+    STEREO_STRAIN_REPORT = 30.0
+
+    def report_stereo_strain(self):
+        """After a stage that held stereochemistry, say where it had to.
+
+        A held improper or omega that ended far from its held value is a residue the stage pushed
+        toward a D center or a cis bond -- one the restraints stopped.  It is L and trans now, but the
+        structure around it is strained, and the cause is usually upstream: in example 9 it was a
+        modeled loop placed through resolved protein.  Named at WARNING, worst first; when nothing
+        strained, one INFO line with the largest deviation, so the hold is visibly not idle.
+        Never raises.
+        """
+        held = getattr(self, '_stereo_terms', None)
+        if not held:
+            return
+        checker, terms = held
+        try:
+            state = self.get_current_artifact('state')
+            dev = checker.term_strain(checker.load_coords(state.pdb.name), terms)
+        except Exception as e:
+            logger.debug(f'{self.taskname}: stereo strain report skipped ({type(e).__name__}: {e})')
+            return
+        who = f'{self.taskname} ({self.basename})'
+        order = sorted(range(len(terms)), key=lambda i: -abs(dev[i]))
+        strained = [i for i in order if abs(dev[i]) > self.STEREO_STRAIN_REPORT]
+        if not strained:
+            logger.info(f'{who}: every held alpha carbon and peptide bond ended within '
+                        f'{abs(dev[order[0]]):.0f} deg of its held value')
+            return
+        logger.warning(f'{who}: {len(strained)} of {len(terms)} held alpha carbons and peptide bonds '
+                       f'were pushed more than {self.STEREO_STRAIN_REPORT:.0f} deg from where they '
+                       f'were held -- toward a D residue or a cis bond, which the restraints stopped:')
+        for i in strained[:10]:
+            rows, ref, kind, seg, resid, resname = terms[i]
+            what = 'alpha carbon (N-C-CB-CA improper' if kind == 'D-CA' else 'peptide bond (omega'
+            logger.warning(f'  {seg}:{resname}{resid} {what} {ref + dev[i]:.0f} deg, held at {ref:.0f})')
+        if len(strained) > 10:
+            logger.warning(f'  ... and {len(strained) - 10} more')
+        logger.warning(f'{who}: these are L and trans now, but strained; the cause is usually '
+                       f'upstream -- a modeled loop placed through resolved protein, or a crowded '
+                       f'placement -- and the structure around them deserves a look.')
 
     def make_constraint_pdb(self, specs: dict, statekey: str = 'consref'):
         """

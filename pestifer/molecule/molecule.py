@@ -86,6 +86,10 @@ class Molecule:
 
     _molcounter: int = 0
 
+    #: the basename of the stage that closed and bonded every interior loop (psfgen, when a ligate
+    #: task follows; see LoopClosureMixin), so a later ligate knows not to close them again
+    loops_closed_by: str | None = None
+
     #: most resolved residues :meth:`widen_unclosable_gaps` releases on each side of one gap.
     #: Across 38 interior gaps of seven structures, the four that could not close as deposited
     #: needed one per side (8FAD B/D/E 108..112, 5FYL H 126..131, 6B0N G 62..64) or two (6B0N G

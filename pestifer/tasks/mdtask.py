@@ -97,8 +97,19 @@ class MDTask(VMDTask):
         """
         self.result = self.namdrun()
         if self.result == 0:
+            self.report_stereo_strain()
             self.track_stereochemistry()
         return self.result
+
+    def _first_minimize_after_psfgen(self, ens: str) -> bool:
+        """Whether this is a minimize and no md task has run since the last psfgen in this controller:
+        the stage where modeled residues are pushed hardest, and where every stereochemistry defect
+        pestifer made in the 3.29.8 example sweep was made."""
+        names = (self.provisions or {}).get('tasknames', [])[:self.index]
+        if ens != 'minimize' or 'psfgen' not in names:
+            return False
+        last = len(names) - 1 - names[::-1].index('psfgen')
+        return 'md' not in names[last + 1:]
 
     def record_md_run(self, ensemble: str, psf, csv_keys: list):
         """Append this NAMD run to the pipeline's chronological MD history.
@@ -303,10 +314,15 @@ class MDTask(VMDTask):
             eb_file = self.make_ssrestraints_file(ssrestraints)
             params['extraBonds'] = 'on'
             params['extraBondsFile'] = eb_file
-        stereo = specs.get('stereo_restraints', {})
-        if stereo.get('enabled', False):
+        stereo = specs.get('stereo_restraints', {}) or {}
+        enabled, why = stereo.get('enabled'), ''
+        if enabled is None:     # not set: on for the first minimize after psfgen, off elsewhere
+            enabled = self._first_minimize_after_psfgen(ens)
+            why = ('on by default for the first minimize after psfgen, where modeled residues are '
+                   'pushed hardest; stereo_restraints: {enabled: false} on this md task turns it off')
+        if enabled:
             eb_file = self.make_stereo_restraints_file(state, float(stereo.get('k', 100.0)),
-                                                       params.get('extraBondsFile'))
+                                                       params.get('extraBondsFile'), why=why)
             if eb_file:
                 params['extraBonds'] = 'on'
                 params['extraBondsFile'] = eb_file

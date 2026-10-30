@@ -17,6 +17,7 @@ from typing import ClassVar
 
 
 from .basetask import VMDTask
+from .loopclosure import LoopClosureMixin
 from ..molecule.chainidmanager import ChainIDManager
 from ..molecule.molecule import Molecule
 from difflib import get_close_matches
@@ -46,7 +47,8 @@ def _resid_seqnum(r):
         return int(m.group(1)) if m else None
 
 
-class PsfgenTask(VMDTask):
+class PsfgenTask(LoopClosureMixin, VMDTask):
+    _closure_tag = 'psfgen'
     """ 
     A class for handling invocations of psfgen which create a molecule from a base PDB/mmCIF file
     or from a PSF file generated previously by psfgen
@@ -122,7 +124,9 @@ class PsfgenTask(VMDTask):
             return self.result
         # we now have a full coordinate set, so we can do coormods
         self.coormods()
-        self.declash()
+        self.result = self.declash()
+        if self.result != 0:
+            return self.result
         if incoming and incoming_xsc:
             # a re-segment reproduces the same cell, so carry the incoming box (xsc) forward -- the
             # build-mode psfgen registers only psf/pdb, and downstream MD of a boxed system needs it.
@@ -522,7 +526,25 @@ class PsfgenTask(VMDTask):
         for segtype in ['protein','nucleicacid']:
             self.declash_counts[segtype] *= num_images
         self.declash_counts['glycan'] = self.base_molecule.nglycans() * num_images
+        # Close interior loops now, with the following ligate task's settings, rather than leave
+        # guesscoord's placement for the first minimize to pull out of whatever it was built
+        # through (LoopClosureMixin).  A closed loop needs no random declash, which would only
+        # undo the closure.
+        ligate = self.next_specs('ligate')
+        close_now = (self.declash_counts['protein'] > 0 and ligate is not None
+                     and str(ligate.get('method', 'ccd')).casefold() == 'ccd')
+        if close_now:
+            ccd = ligate.get('ccd', {}) or {}
+            logger.info(f'psfgen: closing and bonding {self.declash_counts["protein"]} interior '
+                        f'loop(s) now, with the following ligate task\'s ccd settings (ensemble '
+                        f'{ccd.get("ensemble", 10)}, refine {ccd.get("refine", 250)}), so the first '
+                        f'minimize sees them closed instead of as built')
+            result = self.close_and_connect_loops(ligate)
+            if result != 0:
+                return result
         for segtype,speckey in zip(['protein','nucleicacid','glycan'],['loops','loops','glycans']):
+            if segtype == 'protein' and close_now:
+                continue
             if self.declash_counts[segtype]>0 and self.specs['source']['sequence'][speckey]['declash']['maxcycles']>0:
                 logger.debug(f'Declashing {self.declash_counts[segtype]} {segtype} segments')
                 self.declash_segtype(self.specs['source']['sequence'][speckey]['declash'], segtype=segtype)
@@ -535,6 +557,7 @@ class PsfgenTask(VMDTask):
         # rotate the glycan pendant out of the ring here, before the structure is written --
         # ideally making a downstream ring_check task unnecessary.
         self.resolve_glycan_piercings()
+        return 0
 
     def model_terminal_tails(self):
         """

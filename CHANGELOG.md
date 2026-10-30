@@ -36,12 +36,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   The anchors' CA-CA distance (3.89 Å) was not the obstacle -- released and rebuilt, I140 and S144
   sit within 0.9 Å of where they were deposited -- their peptide planes were. Across 38 interior
   gaps of seven structures, four need widening (also 5FYL H 126-131 and 6B0N G 62-64 and 140-150).
-- **`md: stereo_restraints` holds protein stereochemistry through a stage.** With `enabled: true`,
-  every alpha carbon that is L when the stage starts is held L and every trans peptide bond held trans,
-  through NAMD `extraBonds` at `k` (default 100); merged with `ssrestraints` when both are on. Off by
-  default: a safety net for a stage that moves modeled residues hard, such as the first minimize after
-  psfgen -- not a repair, since a center or bond already wrong is left alone. On the 4ZMJ MPER build
-  that went D at Trp666 and Lys683, it kept every center L through that minimize.
+- **`md: stereo_restraints` holds protein stereochemistry through a stage, and is on by default for
+  the first minimize after psfgen.** Every alpha carbon that is L when the stage starts is held L and
+  every trans peptide bond held trans, through NAMD `extraBonds` at `k` (default 100), merged with
+  `ssrestraints` when both are on. Unset, it is on for the first minimize after psfgen -- the stage
+  where modeled residues are pushed hardest, and where pestifer made the stereochemistry defects of
+  the 3.29.8 example sweep -- and off elsewhere; `enabled: true` or `false` overrides that. The log
+  says when it is on by default and how to turn it off, and afterwards names, by residue, every held
+  center or bond the stage pushed more than 30 deg from where it was held (L and trans, but strained:
+  usually a placement problem upstream). A safety net, not a repair: a center or bond already wrong
+  is left alone. Example 9 built with it, twice, carried no defect at all.
 
 ### Fixed
 
@@ -65,6 +69,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Changed
 
+- **Interior loops are closed and bonded by psfgen, before the first minimize, when a `ligate` task
+  follows.** The CCD closure, its ring-piercing repair and `connect` used to run in `ligate`, after a
+  minimize had relaxed the loops as `guesscoord` built them -- and that placement can run straight
+  through resolved protein. Example 9's modeled gp41 loop F 29-43A was built through chain A 69-76
+  (0.72 Å at closest); the minimize pulled them apart and left cis bonds in both, which the later
+  closure (re-seeding only phi and psi) carried to the final structure, in every run. psfgen now runs
+  the same closure (`LoopClosureMixin`), with the following `ligate` task's `ccd` settings, right
+  after building; the first minimize sees every loop closed, clash-filtered and bonded, and `ligate`
+  logs that it has nothing left to do. A config is unchanged: `ligate` still asks for the closure and
+  carries its settings. `method: steer` still closes in `ligate`, after the minimize.
 - **The full membrane is now tiled from relaxed patches, not gridded.** `make_membrane_system`
   relaxes a patch per leaflet composition (one for a symmetric bilayer, which until now had no patch
   stage), tiles each leaflet of the membrane from its own patch on that patch's cell, and crops it

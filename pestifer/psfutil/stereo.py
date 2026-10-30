@@ -169,29 +169,45 @@ class StereoChecker:
                     out.append(StereoDefect('cis', t[0], t[1], t[2], float(w)))
         return out
 
-    def restraint_lines(self, xyz, k=100.0):
-        """NAMD ``extraBonds`` lines holding every L alpha carbon L and every trans peptide bond trans
-        at coordinates ``xyz``, with harmonic constant ``k``: the N-C-CB-CA improper at -33 deg (an L
-        center reads about -33) and omega at 180 deg.  Row indices are 0-based, as NAMD wants.
+    def restraint_terms(self, xyz):
+        """What :meth:`restraint_lines` holds at coordinates ``xyz``: one ``(rows, ref, kind, segname,
+        resid, resname)`` per term, ``rows`` the four 0-based atom rows, ``ref`` the held angle,
+        ``kind`` ``'D-CA'`` (the N-C-CB-CA improper, -33 deg for an L center) or ``'cis'`` (omega,
+        180 deg; named for the defect it prevents, as in :class:`StereoDefect`).
 
-        Centers or bonds already wrong are left alone: a restraint pulling a D center back through
-        the plane is a different operation from holding a correct one, and is the tracker's to report.
-        Measured on the 4ZMJ MPER build that went D at 666/683 (2026-10-29): 3711 restraints at k 100
-        kept every center L through the first minimize."""
-        lines = []
+        Centers or bonds already wrong are left out: a restraint pulling a D center back through the
+        plane is a different operation from holding a correct one, and is the tracker's to report."""
+        terms = []
         for t in self.centers:
             if t[0] != 'D-CA':
                 continue
             ca = t[4]
             n, c, cb = t[5]
             if float(_dihedral(xyz[[n]], xyz[[c]], xyz[[cb]], xyz[[ca]])[0]) < 0:
-                lines.append(f'dihedral {n} {c} {cb} {ca} {k} -33.0')
+                terms.append(((n, c, cb, ca), -33.0, 'D-CA', t[1], t[2], t[3]))
         for t in self.peptides:
             ca_i, c_i, n_j, ca_j = t[3:]
             w = float(_dihedral(xyz[[ca_i]], xyz[[c_i]], xyz[[n_j]], xyz[[ca_j]])[0])
             if abs(w) > 90:
-                lines.append(f'dihedral {ca_i} {c_i} {n_j} {ca_j} {k} 180.0')
-        return lines
+                terms.append(((ca_i, c_i, n_j, ca_j), 180.0, 'cis', t[0], t[1], t[2]))
+        return terms
+
+    def restraint_lines(self, xyz, k=100.0):
+        """NAMD ``extraBonds`` lines for :meth:`restraint_terms` at harmonic constant ``k``.  Row
+        indices are 0-based, as NAMD wants.  Measured on the 4ZMJ MPER build that went D at 666/683
+        (2026-10-29): 3711 of them at k 100 kept every center L through the first minimize."""
+        return [f'dihedral {" ".join(str(i) for i in rows)} {k} {ref}'
+                for rows, ref, *_ in self.restraint_terms(xyz)]
+
+    @staticmethod
+    def term_strain(xyz, terms):
+        """Signed deviation (degrees, wrapped to (-180, 180]) of each term's angle from its held value
+        at coordinates ``xyz``: how hard the stage pushed against each restraint."""
+        if not terms:
+            return np.zeros(0)
+        r = np.array([t[0] for t in terms])
+        ang = _dihedral(xyz[r[:, 0]], xyz[r[:, 1]], xyz[r[:, 2]], xyz[r[:, 3]])
+        return (ang - np.array([t[1] for t in terms]) + 180.0) % 360.0 - 180.0
 
     def check(self, pdb) -> list[StereoDefect]:
         return self.check_coords(self.load_coords(pdb))

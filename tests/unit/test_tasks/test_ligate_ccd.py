@@ -126,6 +126,7 @@ class TestLoopPiercingResolution(unittest.TestCase):
         state.xsc = None
         t.get_current_artifact = lambda k: state
         t.base_molecule = mock.Mock()
+        t.base_molecule.loops_closed_by = None      # a Mock attribute would read as closed
         t.base_molecule.protein_loop_gaps.return_value = [
             {'segname': 'A', 'loop_resids': ['10', '11', '12']}]
         t.get_current_artifact_data = lambda k: t.base_molecule
@@ -201,6 +202,80 @@ class TestLoopPiercingResolution(unittest.TestCase):
             LigateTask.do(t)
         self.assertEqual(calls, ['resolve', 'connect'],
                          'the piercing resolution must run while the loop is still a pendant')
+
+
+class TestClosedAtPsfgen(unittest.TestCase):
+    """Since 2026-10-30 psfgen closes the loops when a ligate task follows (LoopClosureMixin), so
+    the first minimize sees them closed; ligate then stands aside.  Example 9's gp41 loop, built by
+    guesscoord through chain A, otherwise left cis bonds the later closure carried to the end."""
+
+    def _psfgen(self, tasknames, taskspecs, nloops=2):
+        from pestifer.tasks.psfgen import PsfgenTask
+        t = PsfgenTask.__new__(PsfgenTask)
+        t.index = 1
+        t.provisions = {'tasknames': tasknames, 'taskspecs': taskspecs}
+        t.specs = {'source': {'sequence': {
+            'loops': {'min_loop_length': 4, 'declash': {'maxcycles': 10}},
+            'glycans': {'declash': {'maxcycles': 0}}}}}
+        t.base_molecule = mock.Mock()
+        t.base_molecule.loop_counts.return_value = {'protein': nloops, 'nucleicacid': 0}
+        t.base_molecule.num_images.return_value = 1
+        t.base_molecule.nglycans.return_value = 0
+        t.calls = []
+        t.close_and_connect_loops = lambda specs: t.calls.append(('close', specs)) or 0
+        t.declash_segtype = lambda specs, segtype: t.calls.append(('declash', segtype))
+        t.model_terminal_tails = lambda: None
+        t.resolve_glycan_piercings = lambda: None
+        return t
+
+    def test_a_following_ccd_ligate_closes_here_with_its_settings(self):
+        lig = {'method': 'ccd', 'ccd': {'ensemble': 4, 'refine': 500}}
+        t = self._psfgen(['fetch', 'psfgen', 'md', 'ligate'], [{}, {}, {}, lig])
+        self.assertEqual(t.declash(), 0)
+        self.assertEqual(t.calls, [('close', lig)], 'closed with ligate\'s specs, and no random '
+                                                    'loop declash to undo the closure')
+
+    def test_no_ligate_no_closure(self):
+        """NEGATIVE CONTROL: without a ligate, loops are built and left as before."""
+        t = self._psfgen(['fetch', 'psfgen', 'md'], [{}, {}, {}])
+        t.declash()
+        self.assertEqual(t.calls, [('declash', 'protein')])
+
+    def test_steer_still_closes_in_ligate(self):
+        t = self._psfgen(['fetch', 'psfgen', 'ligate'], [{}, {}, {'method': 'steer'}])
+        t.declash()
+        self.assertNotIn('close', [c[0] for c in t.calls])
+
+    def test_no_loops_nothing_to_close(self):
+        t = self._psfgen(['fetch', 'psfgen', 'ligate'], [{}, {}, {'method': 'ccd'}], nloops=0)
+        t.declash()
+        self.assertEqual(t.calls, [])
+
+    def test_a_failed_closure_fails_psfgen(self):
+        t = self._psfgen(['fetch', 'psfgen', 'ligate'], [{}, {}, {'method': 'ccd'}])
+        t.close_and_connect_loops = lambda specs: 1
+        self.assertEqual(t.declash(), 1)
+
+    def test_ligate_stands_aside_after_psfgen_closed_them(self):
+        from pestifer.tasks.ligate import LigateTask
+        t = LigateTask.__new__(LigateTask)
+        t.specs = {'method': 'ccd'}
+        t.base_molecule = mock.Mock(has_protein_loops=True, loops_closed_by='00-01-004_psfgen-heal')
+        t.get_current_artifact_data = lambda k: t.base_molecule
+        with mock.patch.object(LigateTask, 'close_and_connect_loops') as c, \
+             self.assertLogs('pestifer.tasks.ligate', level='INFO') as cm:
+            self.assertEqual(LigateTask.do(t), 0)
+        c.assert_not_called()
+        self.assertIn('closed and bonded at 00-01-004_psfgen-heal', cm.output[0])
+
+    def test_next_specs_finds_the_next_one_only(self):
+        from pestifer.tasks.psfgen import PsfgenTask
+        t = PsfgenTask.__new__(PsfgenTask)
+        t.index = 2
+        t.provisions = {'tasknames': ['ligate', 'x', 'psfgen', 'md', 'ligate', 'ligate'],
+                        'taskspecs': [{'n': 0}, {}, {}, {}, {'n': 4}, {'n': 5}]}
+        self.assertEqual(t.next_specs('ligate'), {'n': 4})
+        self.assertIsNone(t.next_specs('solvate'))
 
 
 if __name__ == '__main__':

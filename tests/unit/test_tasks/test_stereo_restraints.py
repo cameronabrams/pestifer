@@ -26,6 +26,18 @@ PDB = HERE / 'fixtures' / 'continuation_inputs' / 'my_6pti.pdb'
 BPTI = HERE / 'fixtures' / 'bpti_build'
 
 
+def write_pdb(src, dst, xyz):
+    """Copy ``src`` with its ATOM/HETATM coordinates replaced, in file order."""
+    i = 0
+    with open(src) as f, open(dst, 'w') as g:
+        for ln in f:
+            if ln.startswith(('ATOM', 'HETATM')):
+                x, y, z = xyz[i]
+                ln = f'{ln[:30]}{x:8.3f}{y:8.3f}{z:8.3f}{ln[54:]}'
+                i += 1
+            g.write(ln)
+
+
 def parse(lines):
     out = []
     for ln in lines:
@@ -102,11 +114,93 @@ class TestTheFile(unittest.TestCase):
 
     def test_no_protein_writes_nothing(self):
         import pestifer.psfutil.stereo as stereo
-        orig = stereo.StereoChecker.restraint_lines
-        stereo.StereoChecker.restraint_lines = lambda self, xyz, k=100.0: []
-        self.addCleanup(setattr, stereo.StereoChecker, 'restraint_lines', orig)
+        orig = stereo.StereoChecker.restraint_terms
+        stereo.StereoChecker.restraint_terms = lambda self, xyz: []
+        self.addCleanup(setattr, stereo.StereoChecker, 'restraint_terms', orig)
         self.assertIsNone(self.task.make_stereo_restraints_file(self.state, 100.0))
         self.assertEqual(glob.glob('*.extrabonds'), [])
+
+
+class TestOnByDefaultAfterPsfgen(unittest.TestCase):
+
+    def _task(self, names, index):
+        t = MDTask.__new__(MDTask)
+        t.index = index
+        t.provisions = {'tasknames': names}
+        return t
+
+    def test_the_first_minimize_after_psfgen(self):
+        names = ['fetch', 'psfgen', 'validate', 'md', 'ligate', 'md', 'md', 'terminate']
+        self.assertTrue(self._task(names, 3)._first_minimize_after_psfgen('minimize'))
+        self.assertFalse(self._task(names, 5)._first_minimize_after_psfgen('minimize'),
+                         'the minimize after ligate is not the first after psfgen')
+        self.assertFalse(self._task(names, 3)._first_minimize_after_psfgen('nvt'))
+
+    def test_a_second_psfgen_starts_over(self):
+        names = ['fetch', 'psfgen', 'md', 'psfgen', 'md']
+        self.assertTrue(self._task(names, 4)._first_minimize_after_psfgen('minimize'))
+
+    def test_no_psfgen_no_default(self):
+        """A continuation, or a membrane patch's sub-controller, has nothing modeled to protect."""
+        names = ['continuation', 'md', 'md']
+        self.assertFalse(self._task(names, 1)._first_minimize_after_psfgen('minimize'))
+
+
+class TestTheStrainReport(unittest.TestCase):
+
+    def test_an_md_task_reports_after_a_successful_run_only(self):
+        calls = []
+        for rc in (0, 1):
+            t = MDTask.__new__(MDTask)
+            t.namdrun = lambda rc=rc: rc
+            t.report_stereo_strain = lambda: calls.append(rc)
+            t.track_stereochemistry = lambda **kw: None
+            t.do()
+        self.assertEqual(calls, [0])
+
+    def setUp(self):
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
+        self.addCleanup(os.chdir, os.getcwd())
+        os.chdir(self.d)
+        self.task = MDTask.__new__(MDTask)
+        self.task.basename = '00-02-000_md-minimize'
+        self.task.taskname = 'md'
+        self.task.register = lambda *a, **k: None
+        self.checker = StereoChecker(str(PSF))
+        self.task.make_stereo_restraints_file(NS(psf=NS(name=str(PSF)), pdb=NS(name=str(PDB))), 100.0)
+
+    def _report(self, pdb):
+        self.task.get_current_artifact = lambda key: NS(pdb=NS(name=pdb))
+        with self.assertLogs('pestifer.tasks.basetask', level='INFO') as cm:
+            self.task.report_stereo_strain()
+        return cm.records
+
+    def test_an_unstrained_stage_says_so_quietly(self):
+        recs = self._report(str(PDB))
+        self.assertEqual([r.levelname for r in recs], ['INFO'])
+        # a relaxed real structure sits up to ~23 deg off ideal; the threshold is above that
+        m = re.search(r'ended within (\d+) deg', recs[0].getMessage())
+        self.assertTrue(m and int(m.group(1)) < 30, recs[0].getMessage())
+
+    def test_a_bond_pushed_toward_cis_is_named(self):
+        """Turn one omega 60 deg toward cis -- still trans by the tracker's cutoff, so this is the
+        report's to name, not the tracker's."""
+        import numpy as np
+        xyz = self.checker.load_coords(str(PDB))
+        seg, resid, resname, ca_i, c_i, n_j, ca_j = next(t for t in self.checker.peptides if t[2] != 'PRO')
+        rows = [r for r in range(n_j + 1, self.checker.natoms)
+                if self.checker.topol.atoms.data[r].segname == seg]
+        axis = xyz[n_j] - xyz[c_i]
+        axis /= np.linalg.norm(axis)
+        p = xyz[rows] - xyz[n_j]
+        t = np.radians(60.0)
+        xyz[rows] = (xyz[n_j] + p * np.cos(t) + np.cross(axis, p) * np.sin(t)
+                     + np.outer(p @ axis, axis) * (1 - np.cos(t)))
+        write_pdb(str(PDB), 'pushed.pdb', xyz)
+        msgs = [r.getMessage() for r in self._report('pushed.pdb') if r.levelname == 'WARNING']
+        self.assertIn('1 of ', msgs[0])
+        self.assertTrue(any(f'{seg}:{resname}{resid} peptide bond (omega' in m for m in msgs), msgs)
 
 
 @pytest.mark.needs_tools
