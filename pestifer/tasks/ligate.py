@@ -101,6 +101,9 @@ class LigateTask(MDTask):
         self.result = self.connect(connect_specs)
         if self.result != 0:
             return self.result
+        # The closures' junctions exist only from here; checked now, a cis bond or D residue made
+        # by the closure is blamed on ligate, not on the minimize that follows it.
+        self.track_stereochemistry()
         # Relaxation is intentionally left to an explicit downstream `minimize`/`md` task
         # (the standard pattern is to follow `ligate` with one, and `pipeline_contract`
         # REQUIRES one because `ligate` is in `_MOVES_ATOMS`). The clash-filtered ensemble

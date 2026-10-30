@@ -529,6 +529,10 @@ class BaseTask(ABC):
         """
         from ..psfutil.stereo import StereoChecker
         who = getattr(self, 'taskname', type(self).__name__)
+        # the stage's own name (00-04-000_md-minimize), so a build with five md tasks says which
+        stage = getattr(self, 'basename', None) or who
+        if stage != who:
+            who = f'{who} ({stage})'
         try:
             record = self.get_current_artifact_data('stereo_record')
             if record is None and not (baseline or final):
@@ -565,7 +569,7 @@ class BaseTask(ABC):
                            f'no build step asked for:')
             for d in new:
                 logger.warning(f'  {d.describe()}')
-                record[d.key] = who
+                record[d.key] = stage
         for k, stage in list(record.items()):
             if k not in found and stage is not None:
                 logger.info(f'{who}: {k[1]}:{k[2]} no longer carries the {k[0]} defect '

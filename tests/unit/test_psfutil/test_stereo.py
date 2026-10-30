@@ -112,6 +112,26 @@ class TestStereoChecker(unittest.TestCase):
         self.assertEqual([(d.kind, d.resid) for d in self.checker.check_coords(self.xyz)],
                          [('D-CA', resid)])
 
+    def test_an_alpha_hydrogen_on_the_beta_side(self):
+        """Reflect one HA through its N-CA-C plane: CB is untouched, so the residue is still L, and
+        the only report is the hydrogen -- the state a coordinate transfer left 25-30 residues in."""
+        seg, resid, resname, ca, n, c, cb, ha = self.checker.alpha_h[7]
+        nrm = np.cross(self.xyz[n] - self.xyz[ca], self.xyz[c] - self.xyz[ca])
+        nrm /= np.linalg.norm(nrm)
+        self.xyz[ha] -= 2 * np.dot(self.xyz[ha] - self.xyz[ca], nrm) * nrm
+        self.assertEqual([(d.kind, d.resid) for d in self.checker.check_coords(self.xyz)],
+                         [('HA-CB', resid)])
+
+    def test_a_real_d_residue_is_not_also_an_ha_defect(self):
+        """NEGATIVE CONTROL for the above: a whole residue mirrored keeps HA opposite CB."""
+        seg, resid, resname, ca, n, c, cb, ha = self.checker.alpha_h[7]
+        nrm = np.cross(self.xyz[n] - self.xyz[ca], self.xyz[c] - self.xyz[ca])
+        nrm /= np.linalg.norm(nrm)
+        for i in (cb, ha):
+            self.xyz[i] -= 2 * np.dot(self.xyz[i] - self.xyz[ca], nrm) * nrm
+        kinds = {d.kind for d in self.checker.check_coords(self.xyz) if d.resid == resid}
+        self.assertNotIn('HA-CB', kinds)
+
     def test_the_file_reader_and_the_array_agree(self):
         with tempfile.TemporaryDirectory() as d:
             self.xyz[:, 0] *= -1
@@ -124,8 +144,10 @@ class FakeTask:
     """Just enough of a task for ``BaseTask.track_stereochemistry``."""
     track_stereochemistry = BaseTask.track_stereochemistry
 
-    def __init__(self, store, pdb, taskname):
+    def __init__(self, store, pdb, taskname, basename=None):
         self.store, self.taskname = store, taskname
+        if basename:
+            self.basename = basename
         self.pipeline = store.setdefault('_pipeline', NS())
         self.state = NS(psf=NS(path=PSF), pdb=NS(path=pdb))
 
@@ -179,6 +201,17 @@ class TestTrackingAcrossStages(unittest.TestCase):
         recs = self._run(self.mirror, 'terminate', final=True)
         self.assertFalse([r for r in recs if r.levelno >= logging.WARNING])
 
+    def test_the_stage_is_named_not_just_its_task(self):
+        """A build runs several md tasks; "md: introduced" does not say which."""
+        self._run(PDB, 'psfgen', baseline=True)
+        with self.assertLogs('pestifer.tasks.basetask', level='WARNING') as cm:
+            FakeTask(self.store, self.mirror, 'md', basename='00-04-000_md-minimize').track_stereochemistry()
+        self.assertTrue(cm.output[0].endswith('md (00-04-000_md-minimize): introduced '
+                                              f'{len(cm.output) - 1} protein stereochemistry defect(s) '
+                                              'that no build step asked for:'), cm.output[0])
+        recs = self._run(self.mirror, 'terminate', final=True)
+        self.assertTrue(any('first seen at 00-04-000_md-minimize' in r.getMessage() for r in recs))
+
     def test_no_baseline_means_no_mid_build_check(self):
         """NEGATIVE CONTROL: without psfgen in this controller (a membrane patch's md stages),
         an md stage must not even read the structure -- the mirror would otherwise warn."""
@@ -216,6 +249,13 @@ class TestTheBuildCallsIt(unittest.TestCase):
         t.track_stereochemistry = lambda **kw: calls.append(kw)
         t.do()
         self.assertEqual(calls, [])
+
+    def test_ligate_checks_the_junctions_it_just_made(self):
+        import inspect
+        from pestifer.tasks.ligate import LigateTask
+        src = inspect.getsource(LigateTask.do)
+        connect, track = src.find('self.connect(connect_specs)'), src.find('self.track_stereochemistry()')
+        self.assertTrue(0 < connect < track, 'after connect, when the junctions first exist')
 
     def test_psfgen_sets_the_baseline_and_terminate_summarizes(self):
         import inspect

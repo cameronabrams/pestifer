@@ -15,7 +15,14 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   defect: 12 inherited from their source, and 10 made by pestifer -- a first minimization
   inverting a modeled tail residue (example 11's Leu149), and a modeled loop joined to the crystal
   structure through a near-cis bond that the minimization then inverts (example 9's Ser112, all
-  three chains). This change reports them; it does not yet prevent them.
+  three chains). This change reports them; it does not yet prevent them. A report names the stage
+  that made the defect (`md (00-04-000_md-minimize)`, not just `md`); `ligate` checks the junctions
+  its closures make as soon as they are bonded, so its defects are not blamed on the minimize after
+  it; and an alpha hydrogen on the beta-carbon side of the N-CA-C plane is reported (`HA-CB`) --
+  still L, but one minimization from D. That state is what an outside group's coordinate transfer
+  left in 25-30 residues per Env system, and what a restrained build of the 4ZMJ MPER held Trp666
+  and Lys683 in, invisible to every other check; across seven finished builds it reports nothing
+  else.
 - **A gap that cannot close against its deposited anchors is widened.** Before building, every
   interior protein gap is tested for whether its missing residues can join the two resolved anchors
   with each anchor's peptide plane where the structure puts it. One that cannot has flanking resolved

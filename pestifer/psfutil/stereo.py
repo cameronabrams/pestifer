@@ -1,6 +1,6 @@
 # Author: Cameron F. Abrams, <cfa22@drexel.edu>
-"""Protein stereochemistry check: D alpha carbons, inverted Thr/Ile beta carbons, and cis peptide
-bonds that do not precede a proline.
+"""Protein stereochemistry check: D alpha carbons, inverted Thr/Ile beta carbons, cis peptide
+bonds that do not precede a proline, and alpha hydrogens on the beta-carbon side.
 
 None of these is something a build step ever asks for, and none of them is visible to anything
 else pestifer checks.  Found 2026-10-29 from an outside group's audit of HIV Env systems: the
@@ -19,6 +19,13 @@ and for the beta carbons of threonine (OG1, CG2, CA about CB) and isoleucine (CG
 CB), whose natural configurations also give V > 0.  The signs were read off a real build (all
 1549 alpha carbons of example 11's psfgen output, and every Thr and Ile in it) rather than
 derived, because a sign convention is exactly the kind of claim that is easy to get backwards.
+
+An alpha hydrogen on the same side of the N-CA-C plane as CB (``HA-CB``) is not yet a D residue --
+CB still reads L -- but it is one minimization away: the bond terms pull HA back across, and they
+carry the side chain through the plane as readily.  That is how an outside group's coordinate
+transfer produced 25-30 D residues per HIV Env system (2026-10-29), and how a chi rotation that
+dragged HA along made D-Trp666 here.  A residue already reported D is not reported again here,
+whichever of its atoms is out of place.
 """
 from __future__ import annotations
 
@@ -46,7 +53,7 @@ _APPLIES = {'D-CA': None, 'THR-CB': {'THR'}, 'ILE-CB': {'ILE'}}
 
 @dataclass(frozen=True)
 class StereoDefect:
-    kind: str                  # 'D-CA', 'THR-CB', 'ILE-CB' or 'cis'
+    kind: str                  # 'D-CA', 'THR-CB', 'ILE-CB', 'HA-CB' or 'cis'
     segname: str
     resid: str
     resname: str
@@ -59,7 +66,9 @@ class StereoDefect:
 
     def describe(self):
         what = {'D-CA': 'D alpha carbon', 'THR-CB': 'inverted Thr beta carbon (allo-Thr)',
-                'ILE-CB': 'inverted Ile beta carbon (allo-Ile)'}.get(self.kind)
+                'ILE-CB': 'inverted Ile beta carbon (allo-Ile)',
+                'HA-CB': 'alpha hydrogen on the beta-carbon side (a minimization usually inverts it)',
+                }.get(self.kind)
         if what is None:
             what = f'cis peptide bond to the preceding residue (omega {self.value:.0f} deg)'
         return f'{self.segname}:{self.resname}{self.resid} {what}'
@@ -105,6 +114,10 @@ class StereoChecker:
                 if center in rows and all(s in rows for s in subs):
                     self.centers.append((kind, seg, resid, r['resname'],
                                          rows[center], [rows[s] for s in subs]))
+        # alpha hydrogens: (seg, resid, resname, CA, N, C, CB, HA) rows; Gly has HA1/HA2 and no CB
+        self.alpha_h = [(seg, resid, r['resname'], *(r['rows'][n] for n in ('CA', 'N', 'C', 'CB', 'HA')))
+                        for (seg, resid), r in residues.items()
+                        if all(n in r['rows'] for n in ('CA', 'N', 'C', 'CB', 'HA'))]
         # peptide bonds: a PSF bond C(i)-N(j) between two protein residues of one segment
         self.peptides = []
         for b in self.topol.bonds:
@@ -138,6 +151,16 @@ class StereoChecker:
             for t, v in zip(self.centers, vol):
                 if v < 0:
                     out.append(StereoDefect(t[0], t[1], t[2], t[3], float(v)))
+        if self.alpha_h:
+            r = np.array([t[3:] for t in self.alpha_h])
+            ca = xyz[r[:, 0]]
+            normal = np.cross(xyz[r[:, 1]] - ca, xyz[r[:, 2]] - ca)
+            side_cb = np.sum(normal * (xyz[r[:, 3]] - ca), axis=1)
+            side_ha = np.sum(normal * (xyz[r[:, 4]] - ca), axis=1)
+            already_d = {(d.segname, d.resid) for d in out if d.kind == 'D-CA'}
+            for t, a, b in zip(self.alpha_h, side_cb, side_ha):
+                if a * b > 0 and (t[0], t[1]) not in already_d:   # one report per residue
+                    out.append(StereoDefect('HA-CB', t[0], t[1], t[2], float(b)))
         if self.peptides:
             p = np.array([t[3:] for t in self.peptides])
             omega = _dihedral(xyz[p[:, 0]], xyz[p[:, 1]], xyz[p[:, 2]], xyz[p[:, 3]])
