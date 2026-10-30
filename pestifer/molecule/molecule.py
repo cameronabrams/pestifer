@@ -5,6 +5,8 @@ A class for handling molecules
 import logging
 import os
 
+import numpy as np
+
 from pathlib import Path
 from pidibble.pdbparse import PDBParser
 
@@ -22,6 +24,13 @@ from ..util.stringthings import my_logger
 from ..util.util import strip_cif_category
 
 logger=logging.getLogger(__name__)
+
+def _ca(residue):
+    """CA coordinates of a resolved residue, or None."""
+    for a in residue.atoms.data:
+        if a.name == 'CA':
+            return np.array([a.x, a.y, a.z])
+    return None
 
 class Molecule:
     """
@@ -82,6 +91,14 @@ class Molecule:
     """
 
     _molcounter: int = 0
+
+    #: CA-CA virtual bond length (A); the most one residue step can span
+    CA_STEP: float = 3.8
+    #: anchors this close (CA-CA, A) are a directly bonded pair, with no room for a residue
+    #: between them.  One residue needs about 4.6 A (the smallest CA-CA-CA angle, ~75 deg); across
+    #: 42 interior gaps of six structures every gap was >= 6 A except the two this catches,
+    #: 8FAD B/D/E 108..112 (3.89 A) and 6B0N G:140..150 (4.23 A).
+    GAP_ANCHORS_BONDED: float = 4.5
 
     def __init__(self, source: dict = {}, objmanager: ObjManager = None, chainIDmanager: ChainIDManager=None, **kwargs):
         psf = None
@@ -527,6 +544,56 @@ class Molecule:
                             'c_anchor_resid': c_anchor.resid.resid,
                         })
         return gaps
+
+    def infeasible_protein_gaps(self):
+        """
+        Find interior protein gaps whose resolved anchors cannot hold the residues declared
+        missing between them.
+
+        ``n`` missing residues are spanned by ``n+1`` CA-CA virtual bonds of 3.8 A, so the anchors'
+        CA-CA distance must be at most ``n+1`` steps (``too_far``).  At the other end, anchors as
+        close as a directly bonded pair (CA-CA at or below :attr:`GAP_ANCHORS_BONDED`) leave no room
+        for any residue: the declared residues are likely absent from the construct (``too_close``).
+        Either way psfgen still builds the loop, and the residues it squeezes in come out cis and
+        then D at the first minimize (8FAD B/D/E 109-111).  Every interior gap is checked, whatever
+        ``min_loop_length`` is, since a gap below it is built continuously by psfgen rather than
+        closed later.
+
+        Distances are measured in the asymmetric unit; each image is a rigid copy.
+
+        Returns
+        -------
+        list of dict
+            ``{'chainID', 'segname', 'first', 'last', 'n_anchor', 'c_anchor', 'nmissing', 'ca_ca',
+            'problem'}``, one per offending gap, where ``first``/``last`` are the missing residues'
+            resids and ``problem`` is ``'too_close'`` or ``'too_far'``.
+        """
+        found = []
+        for S in self.asymmetric_unit.segments:
+            if S.segtype != 'protein':
+                continue
+            for i, b in enumerate(S.subsegments):
+                if b.state != 'MISSING' or not 0 < i < (len(S.subsegments) - 1):
+                    continue
+                n_anchor = S.residues[b.bounds[0] - 1]
+                c_anchor = S.residues[S.subsegments[i + 1].bounds[0]]
+                p, q = _ca(n_anchor), _ca(c_anchor)
+                if p is None or q is None:
+                    continue
+                n = b.num_items()
+                d = float(np.linalg.norm(p - q))
+                if d <= self.GAP_ANCHORS_BONDED:
+                    problem = 'too_close'
+                elif d > self.CA_STEP * (n + 1):
+                    problem = 'too_far'
+                else:
+                    continue
+                found.append(dict(chainID=S.chainID, segname=S.segname,
+                                  first=S.residues[b.bounds[0]].resid.resid,
+                                  last=S.residues[b.bounds[1]].resid.resid,
+                                  n_anchor=n_anchor.resid.resid, c_anchor=c_anchor.resid.resid,
+                                  nmissing=n, ca_ca=d, problem=problem))
+        return found
 
     def protein_terminal_tails(self, min_length=1):
         """

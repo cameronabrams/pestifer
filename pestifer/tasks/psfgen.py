@@ -115,6 +115,7 @@ class PsfgenTask(VMDTask):
         self.ingest_molecules()
         logger.debug(f'base mol num images {self.base_molecule.num_images()}')
         self._check_ion_aliases()
+        self._warn_infeasible_gaps()
         logger.debug('Running first psfgen')
         self.result = self.psfgen()
         if self.result != 0:
@@ -916,6 +917,38 @@ class PsfgenTask(VMDTask):
             f'      aliases:\n'
             f'        residue: [{res_aliases}]\n'
             f'        atom: [{atom_aliases}]')
+
+    def _warn_infeasible_gaps(self):
+        """Warn, before psfgen, about each interior gap whose resolved anchors cannot hold the
+        residues declared missing (:meth:`Molecule.infeasible_protein_gaps`).
+
+        psfgen builds such a loop anyway, and the squeezed-in residues come out cis and then D at the
+        first minimize.  This only warns: whether the residues are really absent from the construct
+        is a decision about the protein, so the fix is named, not applied.  A gap the user has already
+        deleted is no longer a gap and is not reported.
+        """
+        gaps = self.base_molecule.infeasible_protein_gaps()
+        close = [g for g in gaps if g['problem'] == 'too_close']
+        for g in gaps:
+            label = f'{g["chainID"]}:{g["first"]}-{g["last"]}'
+            if g['problem'] == 'too_close':
+                logger.warning(
+                    f'{label}: {g["nmissing"]} residue(s) declared missing, but resolved anchors '
+                    f'{g["n_anchor"]} and {g["c_anchor"]} are {g["ca_ca"]:.2f} A apart (CA-CA), the '
+                    f'spacing of directly bonded residues.  They are likely absent from the construct; '
+                    f'built in, they will come out cis or D.')
+            else:
+                logger.warning(
+                    f'{label}: {g["nmissing"]} residue(s) cannot span anchors {g["n_anchor"]} and '
+                    f'{g["c_anchor"]}, {g["ca_ca"]:.2f} A apart (CA-CA; at most '
+                    f'{self.base_molecule.CA_STEP * (g["nmissing"] + 1):.1f} A).  The loop cannot be '
+                    f'closed as deposited; check the sequence or the numbering.')
+        if close:
+            dels = ', '.join(f'{g["chainID"]}:{g["first"]}-{g["last"]}' for g in close)
+            logger.warning(
+                f'To build the resolved anchors bonded directly instead, add to this psfgen task:\n'
+                f'    mods:\n'
+                f'      deletions: [{dels}]')
 
     def _assert_coordinates_set(self):
         """Hard-error if the psfgen output PDB contains atoms left at the origin (0,0,0).

@@ -16,6 +16,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   inverting a modeled tail residue (example 11's Leu149), and a modeled loop joined to the crystal
   structure through a near-cis bond that the minimization then inverts (example 9's Ser112, all
   three chains). This change reports them; it does not yet prevent them.
+- **psfgen warns about a gap its anchors cannot hold.** Before building, every interior protein gap
+  is checked against its resolved anchors' CA-CA distance. Anchors 4.5 Å or closer -- the spacing of
+  a bonded pair -- leave no room for the declared residues, which are then likely absent from the
+  construct, and the warning gives the `mods: deletions:` line that builds the anchors bonded
+  directly. Anchors farther apart than 3.8 Å per CA-CA step cannot be reached at all. Example 9's
+  Ser112 is the first case: 8FAD lists B/D/E 109-111 as unobserved, but Ile108 and Ser112 are 3.89 Å
+  apart; built in, the three residues leave Ser112 cis and then D in every chain, and built with
+  them deleted, 108-112 closes trans with both residues L. Only a warning: whether the residues
+  exist is a decision about the protein.
 
 ### Fixed
 
