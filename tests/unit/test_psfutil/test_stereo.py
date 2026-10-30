@@ -212,6 +212,26 @@ class TestTrackingAcrossStages(unittest.TestCase):
         recs = self._run(self.mirror, 'terminate', final=True)
         self.assertTrue(any('first seen at 00-04-000_md-minimize' in r.getMessage() for r in recs))
 
+    def test_an_inherited_defect_that_comes_back_is_not_blamed(self):
+        """A deposited omega near the cutoff wobbles across it in MD (4ZMJ G Thr139 at -24.5 deg):
+        gone at one stage, back at the next.  Its return is not that stage's doing."""
+        self._run(self.mirror, 'psfgen', baseline=True)
+        self._run(PDB, 'md')                                  # everything inherited goes away
+        recs = self._run(self.mirror, 'md2')                  # ... and comes back
+        self.assertFalse([r for r in recs if r.levelno >= logging.WARNING],
+                         [r.getMessage() for r in recs if r.levelno >= logging.WARNING][:2])
+        self.assertTrue(any('again carries' in r.getMessage() for r in recs))
+        recs = self._run(self.mirror, 'terminate', final=True)
+        self.assertFalse([r for r in recs if r.levelno >= logging.WARNING])
+
+    def test_an_inherited_defect_gone_at_the_end_is_not_counted(self):
+        self._run(self.mirror, 'psfgen', baseline=True)
+        self._run(PDB, 'md')
+        recs = self._run(PDB, 'terminate', final=True)
+        self.assertFalse([r for r in recs if r.levelno >= logging.WARNING])
+        self.assertTrue(any('no protein stereochemistry defect was introduced' in r.getMessage()
+                            for r in recs))
+
     def test_no_baseline_means_no_mid_build_check(self):
         """NEGATIVE CONTROL: without psfgen in this controller (a membrane patch's md stages),
         an md stage must not even read the structure -- the mirror would otherwise warn."""

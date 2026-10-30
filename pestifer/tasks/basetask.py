@@ -574,6 +574,14 @@ class BaseTask(ABC):
                     logger.info(f'  {d.describe()}')
             self.register(record, key='stereo_record')
             return
+        # an inherited defect (psfgen's baseline) that went away and came back -- a bond whose
+        # deposited omega sits near the cutoff, wobbling across it in MD (4ZMJ G Thr139, -24.5 deg)
+        # -- is not this stage's doing, and must not be blamed on it
+        back = [d for k, d in found.items() if record.get(k) == 'psfgen gone']
+        for d in back:
+            logger.info(f'{who}: {d.segname}:{d.resid} again carries the {d.kind} defect it '
+                        f'inherited (present as psfgen wrote it)')
+            record[d.key] = 'psfgen'
         new = [d for k, d in found.items() if k not in record or record[k] is None]
         if new:
             logger.warning(f'{who}: introduced {len(new)} protein stereochemistry defect(s) that '
@@ -582,13 +590,13 @@ class BaseTask(ABC):
                 logger.warning(f'  {d.describe()}')
                 record[d.key] = stage
         for k, stage in list(record.items()):
-            if k not in found and stage is not None:
+            if k not in found and stage not in (None, 'psfgen gone'):
                 logger.info(f'{who}: {k[1]}:{k[2]} no longer carries the {k[0]} defect '
                             f'first seen at {stage}')
-                record[k] = None
+                record[k] = 'psfgen gone' if stage == 'psfgen' else None
         self.register(record, key='stereo_record')
         if final:
-            introduced = {k: s for k, s in record.items() if s not in (None, 'psfgen')}
+            introduced = {k: s for k, s in record.items() if s not in (None, 'psfgen', 'psfgen gone')}
             if introduced:
                 logger.warning(f'{who}: the final structure carries {len(introduced)} protein '
                                f'stereochemistry defect(s) introduced during the build:')
