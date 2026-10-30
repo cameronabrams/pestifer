@@ -985,27 +985,31 @@ class ResidueList(BaseObjList[Residue]):
             chain: ResidueList = self.get(lambda x: x.chainID == s.chainID)
             r1 = chain.filter(lambda x: x.resid == s.resid1)[0]
             r2 = chain.filter(lambda x: x.resid == s.resid2)[0]
-            for r in chain.data:
-                if r1 <= r <= r2:
-                    if currsubidx < len(subseq):
-                        resname = Labels.res_123[subseq[currsubidx].upper()]
-                        if r.resolved:  # make a new seqadv for this mutation
-                            newseqadv.append(Seqadv(
-                                idCode='I doubt I ever use this',
-                                typekey='user',
-                                resname=r.resname,
-                                chainID=r.chainID,
-                                resid=ResID(r.resid),
-                                dbRes=resname
-                            ))
-                        else:  # just change the residue name
-                            r.resname = resname
-                        currsubidx += 1
-                    else:
-                        delete_us.append(r)
+            # in sequence order, not storage order: resolved residues are stored ahead of missing
+            # ones, so walking chain.data gave 8FAD's B 108-112 the letters I,S,N,N,S -- Ser112
+            # silently mutated to Asn, and the missing 109-111 built out of order
+            for r in sorted(x for x in chain.data if r1 <= x <= r2):
+                if currsubidx < len(subseq):
+                    resname = Labels.res_123[subseq[currsubidx].upper()]
+                    if r.resolved:  # make a new seqadv for this mutation
+                        newseqadv.append(Seqadv(
+                            idCode='I doubt I ever use this',
+                            typekey='user',
+                            resname=r.resname,
+                            chainID=r.chainID,
+                            resid=ResID(r.resid),
+                            dbRes=resname
+                        ))
+                    else:  # just change the residue name
+                        r.resname = resname
+                    currsubidx += 1
+                else:
+                    delete_us.append(r)
             if currsubidx < len(subseq):
-                # we have unsubstituted residue(s) left that must be inserted
-                pass
+                logger.warning(f'substitution {s.chainID}:{s.resid1.resid}-{s.resid2.resid},{subseq}: '
+                               f'the range holds {currsubidx} residue(s), so the last '
+                               f'{len(subseq) - currsubidx} letter(s) ({subseq[currsubidx:]}) are not '
+                               f'built; use insertions to add residues')
         for r in delete_us:
             self.remove(r)
         return newseqadv, delete_us

@@ -45,6 +45,12 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Fixed
 
+- **A substitution spanning resolved and missing residues puts its letters in sequence order.** It
+  walked the residues in storage order, where resolved residues come first, so `B:108-112,INNSS` on
+  8FAD gave 108 and 112 the first two letters: Ser112 silently became Asn and the missing 109-111 were
+  built out of order. A sequence longer than its range also dropped its extra letters without a word;
+  it now warns, and the docs' example, which promised six residues from a four-residue range, is
+  corrected.
 - **A `chi1`/`chi2` crotation no longer moves the alpha hydrogen.** The moving set of a side-chain
   rotation was a list of backbone names to leave behind, and the list omitted HA (and, for `chi2`,
   the HBs), so they swung about the side-chain bond: on a 4ZMJ MPER extension HA ended 3.2-3.5 Å

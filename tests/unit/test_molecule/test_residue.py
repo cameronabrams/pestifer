@@ -574,10 +574,29 @@ class TestResidueList(unittest.TestCase):
         slist=SubstitutionList([substitution1])
         chain: ResidueList = rl.get(lambda x: x.chainID == substitution1.chainID)
         self.assertTrue(len(chain) > 0)
-        seqadvs, substituted=rl.substitutions(slist)
+        with self.assertLogs('pestifer.molecule.residue', level='WARNING') as cm:
+            seqadvs, substituted=rl.substitutions(slist)
         self.assertEqual(len(substituted), 0) # subseq is greater in length that the number of residues substituted
         self.assertEqual(len(seqadvs), 2)
         self.assertEqual(len(rl), 4)
+        self.assertIn('the last 2 letter(s) (VE) are not built', cm.output[0])
+
+    def test_residue_list_substitutions_follow_sequence_order(self):
+        """A range spanning resolved and missing residues is stored resolved-first; the letters
+        must still go on in sequence order.  Walking storage order turned 8FAD's B 108-112 (INNSS)
+        into I,S,N,N,S -- a silent Ser112->Asn mutation."""
+        def res(resname, n, resolved):
+            return Residue(resname=resname, resid=ResID(n), chainID='B', resolved=resolved,
+                           segtype='protein', segname='B', atoms=AtomList([]))
+        r108, r112 = res('ILE', 108, True), res('SER', 112, True)
+        missing = [res('ASN', 109, False), res('ASN', 110, False), res('SER', 111, False)]
+        rl = ResidueList([r108, r112] + missing)          # storage order, as a structure builds it
+        slist = SubstitutionList([Substitution(chainID='B', resid1=ResID(108), resid2=ResID(112),
+                                               subseq='WAGEK')])
+        seqadvs, deleted = rl.substitutions(slist)
+        self.assertEqual(deleted, [])
+        self.assertEqual({str(a.resid.resid): a.dbRes for a in seqadvs}, {'108': 'TRP', '112': 'LYS'})
+        self.assertEqual([r.resname for r in missing], ['ALA', 'GLY', 'GLU'])
 
     def test_residue_list_insertions(self):
         r1 = Residue(
