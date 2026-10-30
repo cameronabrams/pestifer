@@ -126,6 +126,8 @@ class Controller:
             'shell-commands': self.config.shell_commands,
             'progress-flag': self.config.use_terminal_progress,
             'namd_global_config': self.config['user']['namd'],
+            # in order, so a task can ask what runs after it (BaseTask.followed_by)
+            'tasknames': [t.taskname for t in self.tasks],
         }
         self.packet = packet   # kept so a --restart can provision a state-restore continuation
         logger.debug(f'Controller {self.index:02d} provisioning {len(self.tasks)} task{plu(len(self.tasks))} with packet:')

@@ -117,11 +117,12 @@ Under ``source``, there are several useful directives:
 source.sequence.loops
 #####################
 
-Under the ``loops`` directive under ``source.sequence``, one can specify three main directives.
+Under the ``loops`` directive under ``source.sequence``, one can specify four main directives.
 
 1. ``sac_res_name``: The is the 3-letter name of the residue used as a temporary C-terminus on the growing loop.  This is necessary to separate the actual least residue of the loop from an active C-terminus, making it very easy to delete the C-terminus prior to linking the C-terminus to the next residue to close the gap.  Defaul is **GLY**.
 2. ``min_loop_length``: The minimum number of residues in a loop that qualifies it for the loop-closure step (``ccd``) to close the gap.  Default is **4**.
-3. ``declash``: A dictionary of parameters governing a declashing procedure for grown in loop prior to loop closure.
+3. ``widen_unclosable`` *(default* ``true`` *)*: Before building, every interior gap is tested for whether its missing residues can join its two resolved anchors *as deposited* -- with each anchor's peptide plane where the structure puts it, which a short CA-CA distance alone does not reveal.  A gap that cannot is widened: flanking resolved residues are released into the loop, one at a time from the side with the higher B-factor, at most three per side and never a residue in a disulfide or a link (a glycosylated Asn), until the gap can close.  The widened gap is built and closed by ``ligate`` like any loop, whatever ``min_loop_length`` is, and every released residue is reported, in the author's numbering too when the input has its own (mmCIF).  Built as deposited instead, such a gap leaves a cis bond or a D residue at a junction: in 8FAD, gp120 N141-S143 cannot join the deposited I140 and S144, which pestifer reads as B 109-111 and 108/112.  Widening needs a later ``ligate`` task; without one, or with this set to ``false``, the gap is reported and built as deposited.
+4. ``declash``: A dictionary of parameters governing a declashing procedure for grown in loop prior to loop closure.
 
     a. ``maxcycles``: maximum number of declash cycles; a cycle is a random torsion angle displacment per residue of the loop.  Default is **0**, which turns off declashing.
     b. ``include_C_termini``: A boolean.  If true, any C-terminal loops are subject to declashing (provided that ``maxcycles`` is greater than 0.)  Default is **true**.

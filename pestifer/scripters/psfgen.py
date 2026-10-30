@@ -442,7 +442,7 @@ class PsfgenScripter(VMDScripter):
                 for r in segment.residues[b.bounds[0]:b.bounds[1]+1]:
                     rname = Labels.charmm_resname_of_pdb_resname.get(r.resname, r.resname)
                     self.addline(f'residue {r.resid.resid} {rname} {image_seglabel}', indents=1)
-                if b.num_items() >= min_loop_length and not b in [segment.subsegments[0], segment.subsegments[-1]]:
+                if b.builds_as_loop(min_loop_length) and not b in [segment.subsegments[0], segment.subsegments[-1]]:
                     lrr = segment.residues[b.bounds[1]]
                     sac_resid = lrr.resid.increment()
                     b.sacres = Residue({'resname': sac_rn, 'resid': sac_resid, 'chainID': seglabel, 'segtype': segtype, 'segname': seglabel, 'resolved': False, 'atoms': AtomList([])})

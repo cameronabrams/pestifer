@@ -19,6 +19,7 @@ from unittest import mock
 import networkx as nx
 import numpy as np
 
+from pestifer.molecule.stateinterval import StateInterval
 from pestifer.objs.resid import ResID
 from pestifer.tasks.psfgen import PsfgenTask, _resid_seqnum
 
@@ -678,8 +679,8 @@ class TestEnumerateProteinLoops(unittest.TestCase):
         S = mock.Mock()
         S.segname = segname
         S.segtype = segtype
-        sub = [mock.Mock(state=st, bounds=b, **{'num_items.return_value': b[1] - b[0] + 1})
-               for st, b in subsegs]
+        # real intervals: the enumerator asks builds_as_loop, which a Mock answers truthily
+        sub = [StateInterval(state=st, bounds=list(b)) for st, b in subsegs]
         S.subsegments.data = sub
         S.subsegments.__len__ = mock.Mock(return_value=len(sub))
         S.subsegments.index = lambda x: sub.index(x)

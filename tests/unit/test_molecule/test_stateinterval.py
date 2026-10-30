@@ -9,7 +9,7 @@ class TestStateInterval(unittest.TestCase):
 
     def test_describe(self):
         description = repr(self.interval)
-        expected_description = "StateInterval(state='TESTING-A', bounds=[1, 10], build=False)"
+        expected_description = "StateInterval(state='TESTING-A', bounds=[1, 10], build=False, force_loop=False)"
         self.assertEqual(description, expected_description)
 
     def test_declare_buildable(self):

@@ -11,6 +11,7 @@ from pathlib import Path
 from pidibble.pdbparse import PDBParser
 
 from .asymmetricunit import AsymmetricUnit
+from .atom import AtomList
 from .bioassemb import BioAssembList, BioAssemb
 from .chainidmanager import ChainIDManager
 from .segment import Segment
@@ -24,13 +25,6 @@ from ..util.stringthings import my_logger
 from ..util.util import strip_cif_category
 
 logger=logging.getLogger(__name__)
-
-def _ca(residue):
-    """CA coordinates of a resolved residue, or None."""
-    for a in residue.atoms.data:
-        if a.name == 'CA':
-            return np.array([a.x, a.y, a.z])
-    return None
 
 class Molecule:
     """
@@ -92,13 +86,11 @@ class Molecule:
 
     _molcounter: int = 0
 
-    #: CA-CA virtual bond length (A); the most one residue step can span
-    CA_STEP: float = 3.8
-    #: anchors this close (CA-CA, A) are a directly bonded pair, with no room for a residue
-    #: between them.  One residue needs about 4.6 A (the smallest CA-CA-CA angle, ~75 deg); across
-    #: 42 interior gaps of six structures every gap was >= 6 A except the two this catches,
-    #: 8FAD B/D/E 108..112 (3.89 A) and 6B0N G:140..150 (4.23 A).
-    GAP_ANCHORS_BONDED: float = 4.5
+    #: most resolved residues :meth:`widen_unclosable_gaps` releases on each side of one gap.
+    #: Across 38 interior gaps of seven structures, the four that could not close as deposited
+    #: needed one per side (8FAD B/D/E 108..112, 5FYL H 126..131, 6B0N G 62..64) or two (6B0N G
+    #: 140..150).
+    WIDEN_MAX_PER_SIDE: int = 3
 
     def __init__(self, source: dict = {}, objmanager: ObjManager = None, chainIDmanager: ChainIDManager=None, **kwargs):
         psf = None
@@ -281,11 +273,11 @@ class Molecule:
         for S in au.segments:
             if S.segtype=='protein':
                 for b in S.subsegments:
-                    if b.state=='MISSING' and b.num_items()>=min_loop_length:
+                    if b.builds_as_loop(min_loop_length):
                         nloops['protein']+=1
             elif S.segtype=='nucleicacid':
                 for b in S.subsegments:
-                    if b.state=='MISSING' and b.num_items()>=min_loop_length:
+                    if b.builds_as_loop(min_loop_length):
                         nloops['nucleicacid']+=1
         if nloops['protein']>0:
             self.has_protein_loops=True
@@ -433,7 +425,7 @@ class Molecule:
                         # -- either way healing it would duplicate/dangle a peptide bond. The
                         # upper bound already excludes the C-terminal loop; require 0<i to also
                         # exclude the N-terminal loop.
-                        if b.num_items()>=min_length and 0<i<(len(S.subsegments)-1):
+                        if b.builds_as_loop(min_length) and 0<i<(len(S.subsegments)-1):
                             reslist=[f'{r.resid.resid}' for r in S.residues[b.bounds[0]:b.bounds[1]+1]]
                             bpp=S.subsegments[i+1]
                             nreslist=[f'{r.resid.resid}' for r in S.residues[bpp.bounds[0]:bpp.bounds[1]+1]]
@@ -473,7 +465,7 @@ class Molecule:
                         # bonded contiguously to its neighbor (no CTER/GLYP break), so re-linking
                         # it here would duplicate the peptide bond (NAMD then reports a degenerate
                         # C-N-C angle). Require 0<i; the upper bound already excludes the C-terminus.
-                        if b.num_items()>=min_length and 0<i<(len(S.subsegments)-1):
+                        if b.builds_as_loop(min_length) and 0<i<(len(S.subsegments)-1):
                             llres=S.residues[b.bounds[1]-1]
                             lres=S.residues[b.bounds[1]]
                             nextb=S.subsegments[i+1]
@@ -528,7 +520,7 @@ class Molecule:
                 continue
             asymm_segname = S.segname
             for i, b in enumerate(S.subsegments):
-                if b.state == 'MISSING' and b.num_items() >= min_length and 0 < i < (len(S.subsegments) - 1):
+                if b.builds_as_loop(min_length) and 0 < i < (len(S.subsegments) - 1):
                     loop_res = S.residues[b.bounds[0]:b.bounds[1] + 1]
                     n_anchor = S.residues[b.bounds[0] - 1]
                     nextb = S.subsegments[i + 1]
@@ -545,54 +537,105 @@ class Molecule:
                         })
         return gaps
 
-    def infeasible_protein_gaps(self):
+    def widen_unclosable_gaps(self, max_per_side=None, seed=0, release=True):
         """
-        Find interior protein gaps whose resolved anchors cannot hold the residues declared
-        missing between them.
+        Find interior protein gaps that cannot close against their resolved anchors as deposited,
+        and widen each by releasing flanking resolved residues into the loop until it can.
 
-        ``n`` missing residues are spanned by ``n+1`` CA-CA virtual bonds of 3.8 A, so the anchors'
-        CA-CA distance must be at most ``n+1`` steps (``too_far``).  At the other end, anchors as
-        close as a directly bonded pair (CA-CA at or below :attr:`GAP_ANCHORS_BONDED`) leave no room
-        for any residue: the declared residues are likely absent from the construct (``too_close``).
-        Either way psfgen still builds the loop, and the residues it squeezes in come out cis and
-        then D at the first minimize (8FAD B/D/E 109-111).  Every interior gap is checked, whatever
-        ``min_loop_length`` is, since a gap below it is built continuously by psfgen rather than
-        closed later.
+        Each gap is first tested with its anchors fixed (:func:`~pestifer.psfutil.loop_ccd.gap_closes`).
+        One that fails is widened a residue at a time, from whichever side's next residue has the
+        higher B-factor (the less certain coordinates), never past :attr:`WIDEN_MAX_PER_SIDE` on a
+        side, never releasing a residue in a disulfide or a link (a glycosylated Asn), and never
+        consuming the last residue of a resolved run.  A released residue keeps its identity and
+        loses its coordinates, so the loop is rebuilt through it; the widened gap is marked
+        ``force_loop`` so it is built and closed as a loop whatever ``min_loop_length`` is.
 
-        Distances are measured in the asymmetric unit; each image is a rigid copy.
+        The deposited anchors of a gap that cannot close are usually only slightly misplaced in
+        weak density: 8FAD's B 108/112 (gp120 I140/S144, V1) had to be released for N141-S143 to
+        fit, and the rebuilt 108 and 112 sit within 0.3-0.9 A of where they were deposited.
+
+        Parameters
+        ----------
+        max_per_side : int, optional
+            Defaults to :attr:`WIDEN_MAX_PER_SIDE`.
+        seed : int
+            Seeds the trial closures, so the decision is reproducible.
+        release : bool
+            When False, only report what would be released.
 
         Returns
         -------
         list of dict
-            ``{'chainID', 'segname', 'first', 'last', 'n_anchor', 'c_anchor', 'nmissing', 'ca_ca',
-            'problem'}``, one per offending gap, where ``first``/``last`` are the missing residues'
-            resids and ``problem`` is ``'too_close'`` or ``'too_far'``.
+            One per gap that could not close as deposited: ``{'segment', 'gap', 'released',
+            'closes'}``, where ``gap`` and ``released`` are lists of residues (the original missing
+            ones, and the resolved ones released, in sequence order) and ``closes`` says whether the
+            widened gap can close.  Nothing is released for a gap that still cannot.
         """
+        from ..psfutil.loop_ccd import gap_closes
+        if max_per_side is None:
+            max_per_side = self.WIDEN_MAX_PER_SIDE
+        rng = np.random.default_rng(seed)
+        topol = self.asymmetric_unit.objmanager.get('topol', {})
+        bonded = set()
+        for key in ('ssbonds', 'links'):
+            for o in topol.get(key, []):
+                bonded.add((o.chainID1, o.resid1.resid))
+                bonded.add((o.chainID2, o.resid2.resid))
+
+        def backbone(r):
+            if not r.resolved:
+                return None
+            d = {a.name: np.array([a.x, a.y, a.z]) for a in r.atoms.data}
+            return d if all(k in d for k in ('N', 'CA', 'C', 'O')) else None
+
+        def beta(r):
+            return np.mean([a.beta for a in r.atoms.data]) if len(r.atoms.data) else 0.0
+
         found = []
         for S in self.asymmetric_unit.segments:
             if S.segtype != 'protein':
                 continue
+            res = S.residues
+            widened = []
             for i, b in enumerate(S.subsegments):
                 if b.state != 'MISSING' or not 0 < i < (len(S.subsegments) - 1):
                     continue
-                n_anchor = S.residues[b.bounds[0] - 1]
-                c_anchor = S.residues[S.subsegments[i + 1].bounds[0]]
-                p, q = _ca(n_anchor), _ca(c_anchor)
-                if p is None or q is None:
+                lo, hi = b.bounds[0] - 1, S.subsegments[i + 1].bounds[0]
+                if backbone(res[lo]) is None or backbone(res[hi]) is None:
                     continue
-                n = b.num_items()
-                d = float(np.linalg.norm(p - q))
-                if d <= self.GAP_ANCHORS_BONDED:
-                    problem = 'too_close'
-                elif d > self.CA_STEP * (n + 1):
-                    problem = 'too_far'
-                else:
+                if gap_closes(backbone(res[lo]), backbone(res[hi]), hi - lo - 1, rng)[0]:
                     continue
-                found.append(dict(chainID=S.chainID, segname=S.segname,
-                                  first=S.residues[b.bounds[0]].resid.resid,
-                                  last=S.residues[b.bounds[1]].resid.resid,
-                                  n_anchor=n_anchor.resid.resid, c_anchor=c_anchor.resid.resid,
-                                  nmissing=n, ca_ca=d, problem=problem))
+                gap = list(res[lo + 1:hi])
+                taken = {'N': 0, 'C': 0}
+                closes = False
+                while not closes:
+                    # a side can give up its anchor only if a resolved residue stands behind it
+                    side = {'N': (lo, lo - 1), 'C': (hi, hi + 1)}
+                    ok = {s: (taken[s] < max_per_side and 0 <= nxt < len(res)
+                              and backbone(res[nxt]) is not None
+                              and (S.chainID, res[cur].resid.resid) not in bonded)
+                          for s, (cur, nxt) in side.items()}
+                    if not any(ok.values()):
+                        break
+                    pick = max((s for s in ok if ok[s]), key=lambda s: beta(res[side[s][0]]))
+                    taken[pick] += 1
+                    if pick == 'N':
+                        lo -= 1
+                    else:
+                        hi += 1
+                    closes = gap_closes(backbone(res[lo]), backbone(res[hi]), hi - lo - 1, rng)[0]
+                released = [r for r in res[lo + 1:hi] if r.resolved]
+                found.append(dict(segment=S, gap=gap, released=released, closes=closes))
+                if closes and release:
+                    widened.append((lo + 1, hi - 1))
+            if widened:
+                for r in (r for a, z in widened for r in res[a:z + 1] if r.resolved):
+                    r.resolved = False
+                    r.atoms = AtomList([])
+                S.subsegments = res.state_bounds(lambda x: 'RESOLVED' if x.resolved else 'MISSING')
+                for b in S.subsegments:
+                    if b.state == 'MISSING' and any(b.bounds[0] <= a and z <= b.bounds[1] for a, z in widened):
+                        b.force_loop = True
         return found
 
     def protein_terminal_tails(self, min_length=1):

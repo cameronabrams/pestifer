@@ -115,7 +115,7 @@ class PsfgenTask(VMDTask):
         self.ingest_molecules()
         logger.debug(f'base mol num images {self.base_molecule.num_images()}')
         self._check_ion_aliases()
-        self._warn_infeasible_gaps()
+        self._widen_unclosable_gaps()
         logger.debug('Running first psfgen')
         self.result = self.psfgen()
         if self.result != 0:
@@ -918,37 +918,59 @@ class PsfgenTask(VMDTask):
             f'        residue: [{res_aliases}]\n'
             f'        atom: [{atom_aliases}]')
 
-    def _warn_infeasible_gaps(self):
-        """Warn, before psfgen, about each interior gap whose resolved anchors cannot hold the
-        residues declared missing (:meth:`Molecule.infeasible_protein_gaps`).
+    @staticmethod
+    def _residues_label(residues) -> str:
+        """``B:109-111``, with the author's numbering appended when the input carries a different
+        one (an mmCIF file is read by its label numbering: 8FAD's B 109-111 is the author's C
+        141-143)."""
+        def span(chain, ids):
+            ids = [str(i) for i in ids]
+            return f'{chain}:{ids[0]}' if len(ids) == 1 else f'{chain}:{ids[0]}-{ids[-1]}'
+        label = span(residues[0].chainID, [r.resid.resid for r in residues])
+        auth = [getattr(r, 'auth_seq_id', None) for r in residues]
+        chain = getattr(residues[0], 'auth_asym_id', None)
+        if None not in auth and chain:
+            alt = span(chain, auth)
+            if alt != label:
+                label += f' (author {alt})'
+        return label
 
-        psfgen builds such a loop anyway, and the squeezed-in residues come out cis and then D at the
-        first minimize.  This only warns: whether the residues are really absent from the construct
-        is a decision about the protein, so the fix is named, not applied.  A gap the user has already
-        deleted is no longer a gap and is not reported.
+    def _widen_unclosable_gaps(self):
+        """Before psfgen, widen each interior gap that cannot close against its deposited anchors
+        (:meth:`Molecule.widen_unclosable_gaps`), and say what was released.
+
+        Built as deposited, such a gap comes out with a cis bond or a D residue at a junction:
+        8FAD's three gp120 V1 gaps gave three D-Ser112 in example 9.  Releasing the flanking residue
+        on each side let all of it close trans and L, with the rebuilt anchors within 0.9 A of
+        their deposited positions.  On by default (``loops.widen_unclosable``); widening needs a
+        later ``ligate`` task to close the loop, so without one the gap is only reported.
         """
-        gaps = self.base_molecule.infeasible_protein_gaps()
-        close = [g for g in gaps if g['problem'] == 'too_close']
-        for g in gaps:
-            label = f'{g["chainID"]}:{g["first"]}-{g["last"]}'
-            if g['problem'] == 'too_close':
+        loops = self.specs['source'].get('sequence', {}).get('loops', {})
+        widen = loops.get('widen_unclosable', True)
+        has_ligate = self.followed_by('ligate')
+        found = self.base_molecule.widen_unclosable_gaps(release=widen and has_ligate)
+        for f in found:
+            gap = self._residues_label(f['gap'])
+            if not f['closes']:
                 logger.warning(
-                    f'{label}: {g["nmissing"]} residue(s) declared missing, but resolved anchors '
-                    f'{g["n_anchor"]} and {g["c_anchor"]} are {g["ca_ca"]:.2f} A apart (CA-CA), the '
-                    f'spacing of directly bonded residues.  They are likely absent from the construct; '
-                    f'built in, they will come out cis or D.')
+                    f'{gap}: cannot close against its resolved anchors, even with up to '
+                    f'{self.base_molecule.WIDEN_MAX_PER_SIDE} residues released on each side (a '
+                    f'disulfide, link or chain break stops it); built as deposited, expect a cis bond '
+                    f'or a D residue at a junction.')
+                continue
+            released = ', '.join(self._residues_label([r]) for r in f['released'])
+            if widen and has_ligate:
+                logger.warning(
+                    f'{gap}: cannot close against its resolved anchors as deposited; released '
+                    f'{released} into the loop, which ligate rebuilds and closes through them '
+                    f'(source.sequence.loops.widen_unclosable: false to keep them).')
             else:
+                why = ('widen_unclosable is false' if not widen
+                       else 'no ligate task follows to close a widened loop')
                 logger.warning(
-                    f'{label}: {g["nmissing"]} residue(s) cannot span anchors {g["n_anchor"]} and '
-                    f'{g["c_anchor"]}, {g["ca_ca"]:.2f} A apart (CA-CA; at most '
-                    f'{self.base_molecule.CA_STEP * (g["nmissing"] + 1):.1f} A).  The loop cannot be '
-                    f'closed as deposited; check the sequence or the numbering.')
-        if close:
-            dels = ', '.join(f'{g["chainID"]}:{g["first"]}-{g["last"]}' for g in close)
-            logger.warning(
-                f'To build the resolved anchors bonded directly instead, add to this psfgen task:\n'
-                f'    mods:\n'
-                f'      deletions: [{dels}]')
+                    f'{gap}: cannot close against its resolved anchors as deposited, and would '
+                    f'close with {released} released into the loop; not released because {why}.  '
+                    f'Built as deposited, expect a cis bond or a D residue at a junction.')
 
     def _assert_coordinates_set(self):
         """Hard-error if the psfgen output PDB contains atoms left at the origin (0,0,0).
@@ -1058,7 +1080,7 @@ class PsfgenTask(VMDTask):
             n_subsegs = len(S.subsegments)
             for b in S.subsegments.data:
                 is_c_terminus = (S.subsegments.index(b) == (n_subsegs - 1))
-                is_processible = b.state == 'MISSING' and b.num_items() >= min_length
+                is_processible = b.builds_as_loop(min_length)
                 if is_processible and (not include_c_termini) and is_c_terminus:
                     is_processible = False
                 if not is_processible:
@@ -1141,7 +1163,7 @@ class PsfgenTask(VMDTask):
                 lr_resid = S.residues[b.bounds[0]].resid
                 rr_resid = S.residues[b.bounds[1]].resid
                 is_c_terminus = (S.subsegments.index(b) == (n_subsegs - 1))
-                is_processible = b.state == 'MISSING' and b.num_items() >= min_length
+                is_processible = b.builds_as_loop(min_length)
                 if is_processible and (not include_c_termini) and is_c_terminus:
                     is_processible = False
                 if not is_processible:

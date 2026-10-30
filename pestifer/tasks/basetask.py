@@ -168,6 +168,11 @@ class BaseTask(ABC):
         self.controller_index: int = self.provisions.get('controller_index', 0)
         self.pipeline: PipelineContext = self.provisions.get('pipeline', None)
 
+    def followed_by(self, taskname: str) -> bool:
+        """Whether a ``taskname`` task runs later in this task's controller."""
+        names = (self.provisions or {}).get('tasknames', [])
+        return taskname in names[self.index + 1:]
+
     #: The seed a derived RNG falls back to when neither the step nor the build names one.
     #: Equal to ``namd.seed``'s schema default, so a build run without ``--seed`` is unchanged.
     _LEGACY_SEED = 27021972

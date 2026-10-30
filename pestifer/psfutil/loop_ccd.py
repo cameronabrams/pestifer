@@ -405,6 +405,70 @@ def anchor_closure_target(anchor_N, anchor_CA, anchor_C, phi_deg=-120.0):
     return np.array([CA, C, O])
 
 
+#: ideal backbone for building a trial loop residue by residue from the N-anchor
+_TRIAL = dict(C_N=1.33, N_CA=1.458, CA_C=1.525, CA_C_N=116.2, C_N_CA=121.7, N_CA_C=111.2)
+
+
+def gap_closes(n_anchor, c_anchor, nres, rng, tries=8, tol=0.3, max_iters=300,
+               c_anchor_phis=(-60.0, -90.0, -120.0, -150.0)):
+    """
+    Whether ``nres`` ideal residues can bridge two resolved anchors held exactly as deposited.
+
+    A backbone-only reachability test, with no environment and no side chains, run before
+    anything is built.  The trial chain leaves the N-anchor along the peptide plane its own
+    carbonyl fixes (its psi is read from N-CA-C-O, so it is not free), keeps every omega
+    trans, and is closed by CCD on its phi/psi onto the trans junction with the C-anchor, for
+    each of a few C-anchor phi values (the C-anchor's phi is defined by the missing residue
+    before it, so it is free).  A gap whose deposited anchors point their peptide planes the
+    wrong way cannot close however short the CA-CA distance is: 8FAD's B 108..112 (three
+    residues, anchors 3.89 A apart) misses by 1.2 A at best, and closes once 107 and 113 are
+    the anchors.
+
+    Parameters
+    ----------
+    n_anchor, c_anchor : dict
+        ``{'N','CA','C','O'}`` (n_anchor) and ``{'N','CA','C'}`` (c_anchor) coordinates.
+    nres : int
+        Number of residues between the anchors.
+    rng : numpy.random.Generator
+    tries, max_iters :
+        Trials per C-anchor phi, and CCD sweeps per trial.  Over 38 interior gaps of seven
+        structures, 8 x 300 gave the same verdicts and the same best misses as 20 x 2000, at a
+        fifteenth of the cost; a gap that closes usually does so on its first trial.
+
+    Returns
+    -------
+    (bool, float)
+        Whether some trial closed to within ``tol`` (A, RMSD of the last residue's CA and C on
+        their targets), and the best RMSD reached.
+    """
+    t = _TRIAL
+    psi_a = dihedral_deg(n_anchor['N'], n_anchor['CA'], n_anchor['C'], n_anchor['O']) + 180.0
+    best = np.inf
+    for phi_c in c_anchor_phis:
+        target = anchor_closure_target(c_anchor['N'], c_anchor['CA'], c_anchor['C'], phi_deg=phi_c)[[0, 1]]
+        for _ in range(tries):
+            phipsi = sample_backbone_dihedrals(rng, nres)
+            X, order = [], []
+            prev, psi = (n_anchor['N'], n_anchor['CA'], n_anchor['C']), psi_a
+            for i in range(nres):
+                N = place_atom_nerf(*prev, t['C_N'], t['CA_C_N'], psi)
+                CA = place_atom_nerf(prev[1], prev[2], N, t['N_CA'], t['C_N_CA'], 180.0)
+                C = place_atom_nerf(prev[2], N, CA, t['CA_C'], t['N_CA_C'], phipsi[i, 0])
+                X += [N, CA, C]
+                order += [(i, 'N'), (i, 'CA'), (i, 'C')]
+                prev, psi = (N, CA, C), phipsi[i, 1]
+            prob = build_loop_problem(order, np.array(X), list(range(nres)))
+            r = prob['row']
+            _X, rmsd, _it = ccd_close(prob['coords'], prob['bonds'], prob['moving_masks'],
+                                      [r[(nres - 1, 'CA')], r[(nres - 1, 'C')]], target,
+                                      tol=0.05, max_iters=max_iters)
+            best = min(best, rmsd)
+            if rmsd < tol:
+                return True, float(rmsd)
+    return False, float(best)
+
+
 def optimal_ccd_angle(moving, target, pivot, axis, weights=None):
     """
     Closed-form rotation angle (degrees, right-handed about ``axis``) that minimizes

@@ -706,6 +706,10 @@ attributes:
                         text: Minimum length of model-built loop that triggers the ligation algorithm
                         type: int
                         default: 4
+                      - name: widen_unclosable
+                        text: Release resolved residues flanking an interior gap that cannot close against its deposited anchors (at most 3 per side, never a disulfide or linked residue), so the loop is rebuilt and closed through them; each released residue is reported.  Needs a later ligate task.
+                        type: bool
+                        default: true
                       - name: declash
                         text: Specifies how model-built residues are moved to avoid steric clashes
                         type: dict

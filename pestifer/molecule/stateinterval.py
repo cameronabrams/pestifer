@@ -26,7 +26,7 @@ class StateInterval(BaseObj):
     This is useful for tracking the state of an object over a period of time.
     """
     _required_fields = {'state', 'bounds'}
-    _optional_fields = {'build', 'selname', 'pdb', 'sacres'}
+    _optional_fields = {'build', 'selname', 'pdb', 'sacres', 'force_loop'}
     _attr_choices = {
         'state': {'RESOLVED', 'MISSING', 'TESTING-A', 'TESTING-B', 'TESTING-C'},
         'build': {True, False}
@@ -38,6 +38,7 @@ class StateInterval(BaseObj):
     selname: str = Field(None, description="Selection name, if applicable")
     pdb: str = Field(None, description="Temporary PDB file name, if applicable")
     sacres: 'Residue' = Field(None, description="Saccharide residue, if applicable")
+    force_loop: bool = Field(False, description="build and close as a loop whatever its length (a widened gap)")
 
     def declare_buildable(self) -> None:
         """
@@ -59,6 +60,14 @@ class StateInterval(BaseObj):
             self.bounds[-1] += increment
         else:
             raise ValueError("Bounds must be a list of integers with at least one element.")
+
+    def builds_as_loop(self, min_length: int) -> bool:
+        """
+        Whether a missing interval is built as a loop that ``ligate`` closes, rather than
+        continuously by psfgen: one at least ``min_length`` long, or one widened because it could
+        not close against its deposited anchors (``force_loop``), however short.
+        """
+        return self.state == 'MISSING' and (self.num_items() >= min_length or self.force_loop)
 
     def num_items(self) -> int:
         """

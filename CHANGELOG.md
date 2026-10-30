@@ -16,15 +16,19 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   inverting a modeled tail residue (example 11's Leu149), and a modeled loop joined to the crystal
   structure through a near-cis bond that the minimization then inverts (example 9's Ser112, all
   three chains). This change reports them; it does not yet prevent them.
-- **psfgen warns about a gap its anchors cannot hold.** Before building, every interior protein gap
-  is checked against its resolved anchors' CA-CA distance. Anchors 4.5 Å or closer -- the spacing of
-  a bonded pair -- leave no room for the declared residues, which are then likely absent from the
-  construct, and the warning gives the `mods: deletions:` line that builds the anchors bonded
-  directly. Anchors farther apart than 3.8 Å per CA-CA step cannot be reached at all. Example 9's
-  Ser112 is the first case: 8FAD lists B/D/E 109-111 as unobserved, but Ile108 and Ser112 are 3.89 Å
-  apart; built in, the three residues leave Ser112 cis and then D in every chain, and built with
-  them deleted, 108-112 closes trans with both residues L. Only a warning: whether the residues
-  exist is a decision about the protein.
+- **A gap that cannot close against its deposited anchors is widened.** Before building, every
+  interior protein gap is tested for whether its missing residues can join the two resolved anchors
+  with each anchor's peptide plane where the structure puts it. One that cannot has flanking resolved
+  residues released into the loop -- one at a time from the side with the higher B-factor, at most
+  three per side, never a disulfide or linked residue -- until it can, and is then built and closed
+  by `ligate` whatever `min_loop_length` is. Each released residue is reported at WARNING, in the
+  author's numbering too for an mmCIF input. On by default (`loops.widen_unclosable`); without a
+  later `ligate` task the gap is only reported. Example 9 is the case that found it: 8FAD's gp120
+  N141-S143 (pestifer's B/D/E 109-111) could not join the deposited I140 and S144, and built as
+  deposited every chain ended with a D-Ser112; widened by two residues, all three close trans and L.
+  The anchors' CA-CA distance (3.89 Å) was not the obstacle -- released and rebuilt, I140 and S144
+  sit within 0.9 Å of where they were deposited -- their peptide planes were. Across 38 interior
+  gaps of seven structures, four need widening (also 5FYL H 126-131 and 6B0N G 62-64 and 140-150).
 
 ### Fixed
 
