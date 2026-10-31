@@ -312,5 +312,34 @@ class TestCrot(unittest.TestCase):
                                     atomk='O', degrees=30.0))
 
 
+class TestWritePdbKeepsSegments(unittest.TestCase):
+    """The PDB written after a crotation is what psfgen-time loop closure reads, and it selects
+    loop atoms by segment.  With the segID column blank it found none (example 11, 7TXD)."""
+
+    def setUp(self):
+        import tempfile, shutil, os
+        self.d = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.d, ignore_errors=True)
+        self.out = os.path.join(self.d, 'rot.pdb')
+        cm = CoordManipulator(PSF, PDB)
+        cm.apply_crot(Crot(angle='PHI', chainID='A', resid1=ResID(20), resid2=ResID(40), degrees=15.0))
+        cm.write_pdb(self.out)
+        self.cm = cm
+
+    def test_every_atom_carries_its_psf_segment(self):
+        segs = [ln[72:76].strip() for ln in open(self.out) if ln.startswith(('ATOM', 'HETATM'))]
+        self.assertEqual(segs, [a.segname for a in self.cm.atoms.data])
+        self.assertIn('WT1', segs, 'a segment named differently from its chain keeps its own name')
+
+    def test_coordinates_survive(self):
+        back = CoordManipulator(PSF, self.out)
+        self.assertTrue(np.allclose(back.coords, self.cm.coords, atol=1e-3))
+
+    def test_the_loop_closer_finds_its_atoms(self):
+        from pestifer.psfutil.loop_ccd import loop_atoms_from_pdb
+        order, _c, _s = loop_atoms_from_pdb(self.out, [20, 21, 22], segname='A')
+        self.assertEqual({r for r, n in order if n == 'N'}, {20, 21, 22})
+
+
 if __name__ == '__main__':
     unittest.main()

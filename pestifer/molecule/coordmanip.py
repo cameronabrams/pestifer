@@ -99,10 +99,19 @@ class CoordManipulator:
         """Write the (transformed) coordinates back to a PDB, standard columns (coords pinned at
         31-54), matching what VMD's ``writepdb`` produced and what NAMD/psfgen read next.
 
-        Note: the ``standard`` dialect leaves the segID column (73-76) blank, so a reader that
-        selects atoms by segment must be prepared to fall back to the chain column (see the
-        terminal-tail modeler's segid/chain fallback)."""
-        self.atoms.write_pdb(path, dialect='standard')
+        The ``standard`` dialect leaves the segID column (73-76) blank, so it is filled here from
+        each atom's segment (its chain when there is no psf).  Everything downstream that selects by
+        segment reads it: a blank column made psfgen-time loop closure find no loop atoms at all in
+        any build with a crotation, while ligate, reading NAMD's output, never saw the problem."""
+        lines = self.atoms.write_pdb(None, dialect='standard')
+        records = iter(self.atoms.data)
+        with open(path, 'w') as fh:
+            for ln in lines:
+                if ln.startswith(('ATOM', 'HETATM')):
+                    a = next(records)
+                    seg = (a.segname or a.chainID or '')[:4]
+                    ln = f'{ln.ljust(76)[:72]}{seg:<4s}{ln[76:]}'.rstrip()
+                fh.write(ln + '\n')
 
     # ---- selection --------------------------------------------------------
 
