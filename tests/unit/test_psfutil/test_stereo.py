@@ -197,7 +197,7 @@ class TestTrackingAcrossStages(unittest.TestCase):
         recs = self._run(self.mirror, 'psfgen', baseline=True)
         self.assertFalse([r for r in recs if r.levelno >= logging.WARNING],
                          'what psfgen hands on is inherited or placed, not introduced')
-        self.assertTrue(any('present as psfgen wrote' in r.getMessage() for r in recs))
+        self.assertTrue(any('present as psfgen built' in r.getMessage() for r in recs))
         recs = self._run(self.mirror, 'terminate', final=True)
         self.assertFalse([r for r in recs if r.levelno >= logging.WARNING])
 
@@ -288,6 +288,26 @@ class TestTheBuildCallsIt(unittest.TestCase):
         t.connect = lambda specs: calls.append('connect') or 1
         self.assertEqual(t.finish_loop_closure({}), 1)
         self.assertIsNone(t.base_molecule.loops_closed_by, 'a failed connect closes nothing')
+
+    def test_psfgen_takes_its_baseline_before_it_closes_anything(self):
+        """Example 11: a junction the psfgen-time closure left cis was filed as inherited, because
+        the baseline was taken after declash.  Everything declash does is pestifer's own doing."""
+        from pestifer.tasks.psfgen import PsfgenTask
+        calls = []
+        t = PsfgenTask.__new__(PsfgenTask)
+        t._validate_patch_names = lambda: None
+        t._incoming_state_without_source = lambda: None
+        t.ingest_molecules = lambda: calls.append('build')
+        t.base_molecule = NS(num_images=lambda: 1)
+        t._check_ion_aliases = lambda: None
+        t._widen_unclosable_gaps = lambda: None
+        t.psfgen = lambda: 0
+        t.coormods = lambda: calls.append('coormods')
+        t.declash = lambda: calls.append('declash') or 0
+        t.track_stereochemistry = lambda **kw: calls.append(('track', kw))
+        self.assertEqual(t.do(), 0)
+        self.assertEqual(calls, ['build', 'coormods', ('track', {'baseline': True}), 'declash',
+                                 ('track', {})])
 
     def test_psfgen_sets_the_baseline_and_terminate_summarizes(self):
         import inspect

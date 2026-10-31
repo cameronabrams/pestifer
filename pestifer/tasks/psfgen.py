@@ -124,6 +124,11 @@ class PsfgenTask(LoopClosureMixin, VMDTask):
             return self.result
         # we now have a full coordinate set, so we can do coormods
         self.coormods()
+        # The baseline is the structure as built and as asked for, before declash: closing loops,
+        # placing tails and clearing piercings all move atoms nobody specified, so what they do is
+        # tracked like any later stage's.  Taken at the end of psfgen, it filed a cis junction made
+        # by the closure (ex11 D:52-53) as inherited.
+        self.track_stereochemistry(baseline=True)
         self.result = self.declash()
         if self.result != 0:
             return self.result
@@ -131,7 +136,7 @@ class PsfgenTask(LoopClosureMixin, VMDTask):
             # a re-segment reproduces the same cell, so carry the incoming box (xsc) forward -- the
             # build-mode psfgen registers only psf/pdb, and downstream MD of a boxed system needs it.
             self._carry_incoming_xsc(incoming_xsc)
-        self.track_stereochemistry(baseline=True)
+        self.track_stereochemistry()
         return self.result
 
     #: seq mods that require rebuilding a segment's topology (they cannot be layered onto a readpsf'd

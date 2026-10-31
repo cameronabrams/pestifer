@@ -49,6 +49,22 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Fixed
 
+- **A loop that a piercing repair swings off its anchor is re-closed before it is bonded.** The
+  loop piercing check runs while each closed loop still hangs free at its C-terminal end, and a
+  backbone rotation inside the loop carries that end with it. On example 11 (7TXD) the rotation that
+  cleared HSD D-53 left loop D:32-52 6.8 Å from its anchor; `connect` bonded it as it lay, and the
+  junction ended cis (omega -29 deg) in the final structure. Every CCD-closed junction is now checked
+  after the rotation pass -- off a peptide bond by more than 0.5 Å, or less trans than 150 deg -- and
+  an opened loop is re-closed from a fresh seed like one that still pierces a ring; one still open
+  after three attempts is named at WARNING.
+- **psfgen records its stereochemistry baseline before it closes anything.** Taken at the end of
+  psfgen, the baseline absorbed whatever loop closure, tail placement and piercing repair did, so the
+  example 11 junction above was reported as inherited from the source. It is now taken after the
+  build and any requested coordinate mods, and those later steps are tracked like any other stage.
+- **psfgen-time loop closure finds its loops after a crotation.** The PDB written after an
+  `irotations`/`crotations` mod left the segment-name column blank, so the closure, which selects
+  loop atoms by segment, found none and stopped with `KeyError: (35, 'N')` (example 11). The column
+  is now written.
 - **A substitution spanning resolved and missing residues puts its letters in sequence order.** It
   walked the residues in storage order, where resolved residues come first, so `B:108-112,INNSS` on
   8FAD gave 108 and 112 the first two letters: Ser112 silently became Asn and the missing 109-111 were

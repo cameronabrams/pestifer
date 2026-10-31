@@ -24,6 +24,11 @@ logger = logging.getLogger(__name__)
 _RECLOSE_ATTEMPTS = 3
 """How many times :meth:`LoopClosureMixin.reclose_piercing_loops` re-closes a loop that still pierces
 a ring after rotation, each time from a fresh seed, before leaving it to terminate's gate."""
+_PEPTIDE_BOND = 1.33
+_JUNCTION_BOND_SLACK = 0.5
+"""How far (A) a CCD-closed loop's C may sit from the ideal peptide bond to its anchor's N."""
+_JUNCTION_MIN_OMEGA = 150.0
+"""The least trans (|omega|, deg) a CCD-closed loop's junction may be."""
 
 
 class LoopClosureMixin:
@@ -134,8 +139,18 @@ class LoopClosureMixin:
                                xsc=getattr(state, 'xsc', None)),
                           key='state', artifact_type=StateArtifacts)
             logger.info(f'{self._closure_tag}: resolved loop ring-piercing(s) -> {self.basename}.pdb')
-        if unresolved and self._ccd_context is not None:
-            unresolved = self.reclose_piercing_loops(unresolved, loop_serials)
+        # A rotation inside a pendant loop swings its free end too, off the anchor the closure put
+        # it on, and connect would then bond across the gap (ex11 D:52-53 at 6.8 A, closed cis).
+        # Only a CCD closure put the end on an ideal junction; a steered one never sat there.
+        opened = self.open_junctions(gaps) if self._ccd_context is not None else {}
+        if (unresolved or opened) and self._ccd_context is not None:
+            unresolved, opened = self.reclose_piercing_loops(unresolved, loop_serials, opened)
+        for i, (d, w) in opened.items():
+            g = gaps[i]
+            logger.warning(f'{self._closure_tag}: loop {g["segname"]}:{g["loop_resids"][0]}-'
+                           f'{g["loop_resids"][-1]} no longer meets its anchor {g["segname"]}:'
+                           f'{g["c_anchor_resid"]} (C-N {d:.2f} A, omega {w:.0f} deg) after piercing '
+                           f'resolution; connect bonds it as it lies, and the junction may close cis')
         if unresolved:
             how = ('rotation or by re-closing the loop' if self._ccd_context is not None
                    else 'rotation')
@@ -148,7 +163,35 @@ class LoopClosureMixin:
                 logger.warning(f'  ring of {ee.get("resname", "?")} {ee["segname"]}-{ee["resid"]} '
                                f'pierced by a bond in loop {er["segname"]}-{er["resid"]}')
 
-    def reclose_piercing_loops(self, unresolved, loop_serials):
+    def open_junctions(self, gaps):
+        """Loops in the current state whose free end no longer meets its downstream anchor:
+        ``{gap index: (C-N distance, omega)}`` for each junction more than
+        :data:`_JUNCTION_BOND_SLACK` off a peptide bond or less trans than :data:`_JUNCTION_MIN_OMEGA`.
+
+        CCD puts the last loop residue's CA and C on an ideal trans peptide upstream of the anchor,
+        so a closed junction sits near 1.33 A and 180 deg; one moved after closure does not."""
+        from ..psfutil.loop_ccd import backbone_from_pdb, dihedral_deg
+        import numpy as np
+        out = {}
+        try:
+            pdb = self.get_current_artifact('state').pdb.name
+            bbs = {}
+            for i, g in enumerate(gaps):
+                seg = g['segname']
+                if seg not in bbs:
+                    bbs[seg] = backbone_from_pdb(pdb, segname=seg)
+                last, anc = bbs[seg].get(g['loop_resids'][-1]), bbs[seg].get(g['c_anchor_resid'])
+                if not last or not anc:
+                    continue
+                d = float(np.linalg.norm(last['C'] - anc['N']))
+                w = float(dihedral_deg(last['CA'], last['C'], anc['N'], anc['CA']))
+                if abs(d - _PEPTIDE_BOND) > _JUNCTION_BOND_SLACK or abs(w) < _JUNCTION_MIN_OMEGA:
+                    out[i] = (d, w)
+        except Exception as e:
+            logger.debug(f'{self._closure_tag}: junction check skipped ({type(e).__name__}: {e})')
+        return out
+
+    def reclose_piercing_loops(self, unresolved, loop_serials, opened=None):
         """Re-close, from a fresh seed, each loop that still pierces a ring after rotation --
         this time with every other loop present, as placed.
 
@@ -167,7 +210,12 @@ class LoopClosureMixin:
         failing that, the loop holding the pierced ring.  Each attempt is followed by the same
         rotation pass and check.
 
-        Returns the piercings still unresolved after :data:`_RECLOSE_ATTEMPTS` attempts.
+        A loop whose junction a rotation opened (``opened``, from :meth:`open_junctions`) is
+        re-closed the same way, and every rotation pass after a re-closure is checked for that
+        too, since it can open another.
+
+        Returns ``(unresolved, opened)``: the piercings and open junctions still left after
+        :data:`_RECLOSE_ATTEMPTS` attempts.
         """
         from ..psfutil.loop_ccd import loop_atoms_from_pdb, close_one_loop, heavy_coords_of_serials
         from ..psfutil.ring_resolve import resolve_model_built_piercings
@@ -184,9 +232,10 @@ class LoopClosureMixin:
                     return i
             return None
 
+        opened = dict(opened or {})
         reclosed = []
         for attempt in range(1, _RECLOSE_ATTEMPTS + 1):
-            targets = set()
+            targets = set(opened)
             for p in unresolved:
                 i = gap_holding(p['piercer'])
                 if i is None:
@@ -235,12 +284,14 @@ class LoopClosureMixin:
                 self.register(dict(pdb=PDBFileArtifact(self.basename), psf=state.psf,
                                    xsc=getattr(state, 'xsc', None)),
                               key='state', artifact_type=StateArtifacts)
-            if not unresolved:
+            opened = self.open_junctions(gaps)
+            if not unresolved and not opened:
                 logger.info(f'{self._closure_tag}/ccd: re-closing cleared every loop ring-piercing '
-                            f'({attempt} attempt(s))')
+                            f'and left every loop on its anchor ({attempt} attempt(s))')
                 break
-        self.record_outcome(loop_reclosures=reclosed, loop_piercings_unresolved=len(unresolved))
-        return unresolved
+        self.record_outcome(loop_reclosures=reclosed, loop_piercings_unresolved=len(unresolved),
+                            loop_junctions_open=len(opened))
+        return unresolved, opened
 
     def close_loops_ccd(self, ccd_specs: dict) -> int:
         """

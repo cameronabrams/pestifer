@@ -528,8 +528,9 @@ class BaseTask(ABC):
     def track_stereochemistry(self, baseline: bool = False, final: bool = False):
         """Report protein stereochemistry defects at the stage that introduced them.
 
-        ``baseline`` (psfgen) records what the structure carries as psfgen hands it on: inherited
-        from the source or placed by psfgen, and reported at INFO, since a crystal structure can
+        ``baseline`` (psfgen) records what the structure carries as psfgen built it, before
+        declash and loop closure: inherited from the source or placed by psfgen's build, and
+        reported at INFO, since a crystal structure can
         hold a genuine non-proline cis bond.  Every later call reports only what is new since the
         record, at WARNING, naming this task -- that is the information nobody had when D-Trp666
         and D-Lys683 turned up in an outside group's Env systems, built here.  ``final``
@@ -567,8 +568,9 @@ class BaseTask(ABC):
         if baseline or record is None:
             record = {k: 'psfgen' if baseline else None for k in found}
             if found:
-                origin = ('present as psfgen wrote the structure (from the source, or placed by '
-                          'psfgen)' if baseline else 'present in the final structure')
+                origin = ('present as psfgen built the structure, before loop closure and '
+                          'declash (from the source, or placed by the build)' if baseline
+                          else 'present in the final structure')
                 logger.info(f'{who}: {len(found)} protein stereochemistry defect(s) {origin}:')
                 for d in found.values():
                     logger.info(f'  {d.describe()}')
@@ -580,7 +582,7 @@ class BaseTask(ABC):
         back = [d for k, d in found.items() if record.get(k) == 'psfgen gone']
         for d in back:
             logger.info(f'{who}: {d.segname}:{d.resid} again carries the {d.kind} defect it '
-                        f'inherited (present as psfgen wrote it)')
+                        f'inherited (present as psfgen built it)')
             record[d.key] = 'psfgen'
         new = [d for k, d in found.items() if k not in record or record[k] is None]
         if new:
