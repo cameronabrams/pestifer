@@ -6,6 +6,19 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Added
 
+- **A knotted backbone is now reported.** The stereochemistry tracker also tests each covalently
+  continuous protein backbone for a knot (alpha-carbon trace closed far outside the protein, reduced
+  by Koniaris-Muthukumar-Taylor triangle elimination, knot determinant from a projection), at every
+  stage it already checks. A knot is what a modeled loop that passed one strand through another
+  leaves behind once minimization has separated the strands, and no later stage can undo it. Unlike
+  the other defects it warns even when present as psfgen built the structure, since that state
+  already holds psfgen's modeled loops and proteins are almost never natively knotted. Closure's
+  `THREADED` warning is a proxy (two alpha carbons closer than 3 A) and does not say whether
+  anything crossed; this answers that for the structure the build actually hands on. Checked against
+  YbeA (1NS5, trefoil) and UCH-L3 (1XD3, 5_2 knot), both detected, and against the final structures
+  of 84 example builds (the 3.22.1 triplicate sweep, an August triplicate of example 11, and the
+  builds made for this release), none of them knotted -- including six whose loop closure had warned
+  `THREADED`. It costs about 0.3 s per check on a trimer.
 - **Protein stereochemistry is now checked through the build.** A D alpha carbon, an inverted Thr
   or Ile beta carbon, or a cis peptide bond not preceding a proline is recorded as psfgen hands the
   structure on (reported at INFO: a deposited structure, or an AlphaFold model, can carry one),

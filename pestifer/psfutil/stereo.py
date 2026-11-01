@@ -135,6 +135,14 @@ class StereoChecker:
                 self.peptides.append((aj.segname, str(aj.resid.resid), aj.resname,
                                       ri['CA'], i, j, rj['CA']))
 
+    def knots(self, xyz):
+        """Knotted backbone chains in this frame (see :mod:`pestifer.psfutil.knots`)."""
+        from .knots import backbone_chains, find_knots
+        if getattr(self, '_chains', None) is None:
+            self._chains = backbone_chains(self.peptides)
+        atoms = self.topol.atoms.data
+        return find_knots(xyz, self._chains, lambda r: (atoms[r].segname, str(atoms[r].resid.resid)))
+
     def load_coords(self, pdb):
         df = coorddf_from_pdb(pdb)
         if df.shape[0] != self.natoms:

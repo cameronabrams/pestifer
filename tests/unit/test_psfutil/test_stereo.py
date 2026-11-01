@@ -207,7 +207,7 @@ class TestTrackingAcrossStages(unittest.TestCase):
         with self.assertLogs('pestifer.tasks.basetask', level='WARNING') as cm:
             FakeTask(self.store, self.mirror, 'md', basename='00-04-000_md-minimize').track_stereochemistry()
         self.assertTrue(cm.output[0].endswith('md (00-04-000_md-minimize): introduced '
-                                              f'{len(cm.output) - 1} protein stereochemistry defect(s) '
+                                              f'{len(cm.output) - 1} protein stereochemistry or knot defect(s) '
                                               'that no build step asked for:'), cm.output[0])
         recs = self._run(self.mirror, 'terminate', final=True)
         self.assertTrue(any('first seen at 00-04-000_md-minimize' in r.getMessage() for r in recs))
@@ -229,7 +229,7 @@ class TestTrackingAcrossStages(unittest.TestCase):
         self._run(PDB, 'md')
         recs = self._run(PDB, 'terminate', final=True)
         self.assertFalse([r for r in recs if r.levelno >= logging.WARNING])
-        self.assertTrue(any('no protein stereochemistry defect was introduced' in r.getMessage()
+        self.assertTrue(any('no protein stereochemistry or knot defect was introduced' in r.getMessage()
                             for r in recs))
 
     def test_no_baseline_means_no_mid_build_check(self):

@@ -537,6 +537,11 @@ class BaseTask(ABC):
         (terminate) summarizes the finished structure.  Without a baseline (no psfgen in this
         controller) only the final call looks, so a membrane patch's many MD stages cost nothing.
 
+        A knotted backbone (:mod:`~pestifer.psfutil.knots`) is tracked the same way, but always
+        warned about, at the baseline and in the final summary too: proteins are almost never
+        natively knotted, the baseline already holds the loops psfgen placed, and a knot is the
+        one modeling error no later stage can undo.
+
         Never raises: this is a report, and it must not become a way to lose a build.
         """
         from ..psfutil.stereo import StereoChecker
@@ -561,7 +566,9 @@ class BaseTask(ABC):
                 # no protein in this system (a membrane patch in a sub-controller): nothing to
                 # say, and it must not read as every recorded defect having gone away
                 return
-            found = {d.key: d for d in cache[1].check(str(state.pdb.path))}
+            xyz = cache[1].load_coords(str(state.pdb.path))
+            found = {d.key: d for d in cache[1].check_coords(xyz)}
+            found.update({k.key: k for k in cache[1].knots(xyz)})
         except Exception as e:
             logger.debug(f'{who}: stereochemistry check skipped ({type(e).__name__}: {e})')
             return
@@ -571,9 +578,9 @@ class BaseTask(ABC):
                 origin = ('present as psfgen built the structure, before loop closure and '
                           'declash (from the source, or placed by the build)' if baseline
                           else 'present in the final structure')
-                logger.info(f'{who}: {len(found)} protein stereochemistry defect(s) {origin}:')
+                logger.info(f'{who}: {len(found)} protein stereochemistry or knot defect(s) {origin}:')
                 for d in found.values():
-                    logger.info(f'  {d.describe()}')
+                    (logger.warning if d.kind == 'knot' else logger.info)(f'  {d.describe()}')
             self.register(record, key='stereo_record')
             return
         # an inherited defect (psfgen's baseline) that went away and came back -- a bond whose
@@ -586,7 +593,7 @@ class BaseTask(ABC):
             record[d.key] = 'psfgen'
         new = [d for k, d in found.items() if k not in record or record[k] is None]
         if new:
-            logger.warning(f'{who}: introduced {len(new)} protein stereochemistry defect(s) that '
+            logger.warning(f'{who}: introduced {len(new)} protein stereochemistry or knot defect(s) that '
                            f'no build step asked for:')
             for d in new:
                 logger.warning(f'  {d.describe()}')
@@ -601,13 +608,18 @@ class BaseTask(ABC):
             introduced = {k: s for k, s in record.items() if s not in (None, 'psfgen', 'psfgen gone')}
             if introduced:
                 logger.warning(f'{who}: the final structure carries {len(introduced)} protein '
-                               f'stereochemistry defect(s) introduced during the build:')
+                               f'stereochemistry or knot defect(s) introduced during the build:')
                 for k, s in introduced.items():
                     logger.warning(f'  {found[k].describe()} (first seen at {s})')
             else:
-                logger.info(f'{who}: no protein stereochemistry defect was introduced during the '
+                logger.info(f'{who}: no protein stereochemistry or knot defect was introduced during the '
                             f'build ({sum(1 for s in record.values() if s == "psfgen")} carried '
                             f'from psfgen)')
+            for k, d in found.items():
+                if d.kind == 'knot' and k not in introduced:
+                    logger.warning(f'{who}: the final structure is still knotted as psfgen built it, '
+                                   f'loops included: {d.describe()}; unless this protein is natively '
+                                   f'knotted, one of its modeled loops is threaded')
 
     def write_rotation_report(self, entries, kind='loop closure'):
         """
