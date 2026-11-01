@@ -62,32 +62,10 @@ Conformer         Head-tail (Å)    Max internal (Å)    Min chain extent
 ``POPC-09``       16.66            28.94               0.79
 ================  ===============  ==================  ==================
 
-All ten are distinct, verified by hashing coordinates rather than by comparing the metrics above.
-
 *Min chain extent* is how far the least-extended acyl chain descends below its own attachment
 carbon, as a fraction of that chain's all-trans contour. An all-trans chain scores 1.0; anything
 under 0.25 is rejected at generation as folded. Every conformer here passes, ``POPC-04`` least
 comfortably — its sn-2 chain descends 7.4 Å of a 21.6 Å contour.
-
-.. note::
-
-   **This page caught a sampler defect, and now shows the repaired ensemble.**
-
-   Its first version — drawn from the collection shipped in 3.26.0 — showed POPC with **four
-   distinct conformers of ten**, one draw repeated seven times. The cause was in ``run_mc``: its
-   sample-collection test sat inside the accepted-move branch, so a checkpoint fired only when
-   the proposal that happened to land on it was accepted. Most checkpoints never fired, and the
-   shortfall was padded with copies of the final conformer. Across the whole shipped collection
-   only **1416 of 2690 conformers (53%) were distinct**, no entry reached ten, and one entry was
-   a single conformer repeated ten times.
-
-   Sampling now runs on the step schedule: a rejected move leaves the chain in a state that is
-   still worth recording. Regenerating POPC with the same seed and settings gives ten distinct
-   conformers, and the four that shipped are all still among them — the fix restores draws that
-   padding was swallowing rather than moving the sampler somewhere new.
-
-   The defect was visible in the metadata for anyone who looked, and nobody had. It was obvious
-   on sight in a contact sheet. That is the argument for building the rest of this gallery.
 
 Provenance
 ----------
