@@ -5,7 +5,7 @@ make_membrane_system
 
 As an *alternative* to a ``solvate`` task, you can use a ``make_membrane_system`` task to build a lipid bilayer and *optionally* embed the protein into it.
 
-Pestifer builds a membrane from small **patches**: about 100 lipids per leaflet, placed by a grid packer on a per-leaflet 2-D **orthohexagonal** lattice (oriented, head groups out) and relaxed by MD.  By default the full-size membrane is then **tiled** from the relaxed patches -- each leaflet from a patch of its own composition, cropped to a box sized to the embedded protein's xy footprint plus the ``embed.xydist`` margin -- so it starts at the patches' relaxed packing instead of condensing from a lattice.  (The pre-3.30 alternative, gridding the whole membrane directly at the patches' measured area per lipid, remains available as ``quilt_method: grid``.)  The water chambers on either side of the bilayer are *not* placed by either route; they are filled afterward at true liquid density (see `Solvent chambers`_).  The `Task Flow`_ section below describes the process.
+Pestifer places lipids with a grid packer on a per-leaflet 2-D **orthohexagonal** lattice (oriented, head groups out) and relaxes them by MD.  By default (``quilt_method: auto``) a **symmetric** membrane is gridded this way directly, at its ``SAPL``, as before 3.30.  An **asymmetric** membrane is built from small **patches** instead: about 100 lipids per leaflet, one patch per leaflet composition, each gridded and relaxed, and the full-size membrane is then **tiled** from them -- each leaflet from the patch of its own composition, cropped to a box sized to the embedded protein's xy footprint plus the ``embed.xydist`` margin -- so it starts at the patches' relaxed packing instead of condensing from a lattice.  Either route can be chosen for either kind of membrane with ``quilt_method: grid`` or ``quilt_method: tile``.  The water chambers on either side of the bilayer are *not* placed by either route; they are filled afterward at true liquid density (see `Solvent chambers`_).  The `Task Flow`_ section below describes the process.
 
 .. note::
 
@@ -148,7 +148,7 @@ Bilayer composition is specified either using a single ``composition`` directive
      - ``solvents`` and ``solvent_mole_fractions`` are optional packmol-memgen-style strings that specify the solvent composition.  Pestifer uses 100% TIP3P water by default.
      - ``solvent_to_lipid_ratio`` specifies the number of waters to include in the extra-membrane region of the box as proportional to the number of lipids.  If you do not specify this, pestifer will use a default of 32 TIP3P water molecules per lipid.
      - ``patch_nlipids`` specifies the number of lipids in each patch leaflet.  It expects a dictionary with keys ``upper`` and ``lower``, each an integer.  If you do not specify this, pestifer will use a default of 100 lipids per leaflet.  A tiled membrane repeats its patch's lateral structure with the patch's period, so do not make the patch much smaller than this.
-     - ``quilt_method`` (default ``tile``) chooses how the full membrane is built: ``tile`` tiles it from the relaxed patches, and ``grid`` grids it directly as before 3.30.  ``grid`` is kept as a fallback while tiling is validated.
+     - ``quilt_method`` (default ``auto``) chooses how the full membrane is built: ``tile`` tiles it from the relaxed patches, and ``grid`` grids it directly as before 3.30.  ``auto`` grids a symmetric membrane and tiles an asymmetric one.  A fluid symmetric leaflet reaches its area per lipid quickly, so gridding it at ``SAPL`` is reliable, while a tiled symmetric membrane inherits its patch's packing, which for DMPC came out too dense.  An asymmetric membrane cannot be gridded reliably, because an ordered or sterol-rich leaflet does not reach its area per lipid within a build's time, and tiling needs no such number.
      - ``quilt_seam_gap`` (default 2.0 Å) is the width of the strip left empty along each crop seam of a tiled membrane; see `Task Flow`_.
      - ``quilt_grid_slack`` (default 1.05; ``quilt_method: grid`` only) is the area factor by which a protein-embedding quilt is gridded *looser* than its calibrated stress-free box area, giving the lipid placement a little clearance before the tensionless relaxation condenses it back to the preferred per-leaflet APL.  It multiplies the area per lipid: 1.0 grids exactly at the stress-free area, and the 1.05 default gives 5% extra area, a token placement margin.  (The former 1.15, 15% extra area, was needed only for the square lattice's tight contacts, and left the quilt badly under-dense.)
 
@@ -251,11 +251,12 @@ If you are including cholesterol or any other sterols in your bilayer, a ``make_
 Task Flow
 =========
 
-Every build first relaxes its patches with the ``patch`` protocol: one patch for a **symmetric**
-bilayer, and for an **asymmetric** one two symmetric patches, one per leaflet composition.  What
-happens next depends on ``quilt_method``.
+What happens depends on ``quilt_method``, which by default (``auto``) grids a **symmetric**
+bilayer and tiles an **asymmetric** one.  Every route except a gridded symmetric membrane first
+relaxes patches with the ``patch`` protocol: one patch for a symmetric bilayer, and for an
+asymmetric one two symmetric patches, one per leaflet composition.
 
-**Tiled (the default).**  The upper leaflet is tiled from the upper leaflet of its patch, and the
+**Tiled (the default for an asymmetric bilayer).**  The upper leaflet is tiled from the upper leaflet of its patch, and the
 lower from the lower leaflet of its own, each on its patch's own periodic cell, and both are
 cropped to the target box: the protein footprint plus the ``embed.xydist`` margin when embedding,
 otherwise ``npatch`` tiles of the upper patch.  Nothing is placed, so the membrane starts at the
@@ -280,7 +281,7 @@ the membrane relaxes to about the size asked for: the box that clears the protei
 tiles.  The counts, the
 fill fraction and every removal by reason are logged and recorded in ``run-record.json``.
 
-**Gridded (``quilt_method: grid``).**  A symmetric membrane is gridded directly at ``SAPL``; an
+**Gridded (the default for a symmetric bilayer).**  A symmetric membrane is gridded directly at ``SAPL``, with no patch; an
 asymmetric one is gridded at per-leaflet counts in the stress-free ratio
 :math:`n_\text{upper}/n_\text{lower} = \text{APL}_\text{lower}/\text{APL}_\text{upper}`, with
 each APL measured on its relaxed patch.  An asymmetric build whose patch area had not converged
@@ -324,14 +325,17 @@ Because a membrane that over-condenses could end up tighter than the protein it 
   :caption: Membrane build flow.
 
   graph TD;
-    P[Relax one patch per leaflet composition];
-    P --> M{quilt_method};
-    M -- tile --> T[Tile each leaflet from its patch, crop to the box];
+    M{"quilt_method<br/>auto: grid if symmetric, tile if asymmetric"};
+    M -- tile --> P[Relax one patch per leaflet composition];
+    P --> T[Tile each leaflet from its patch, crop to the box];
     T --> R[Remove seam piercings and overlaps; equalize leaflet fill];
-    M -- grid --> D[Measure each patch's APL];
+    M -- grid, asymmetric --> PA[Relax one patch per leaflet composition];
+    PA --> D[Measure each patch's APL];
     D --> E[Grid full membrane at stress-free per-leaflet counts];
+    M -- grid, symmetric --> ES[Grid full membrane at SAPL];
     R --> S[psfgen lipids, then solvate chambers];
     E --> S;
+    ES --> S;
     S --> F[Relax quilt];
     F --> G[Embed protein];
 

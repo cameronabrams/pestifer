@@ -108,19 +108,21 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   after building; the first minimize sees every loop closed, clash-filtered and bonded, and `ligate`
   logs that it has nothing left to do. A config is unchanged: `ligate` still asks for the closure and
   carries its settings. `method: steer` still closes in `ligate`, after the minimize.
-- **The full membrane is now tiled from relaxed patches, not gridded.** `make_membrane_system`
-  relaxes a patch per leaflet composition (one for a symmetric bilayer, which until now had no patch
-  stage), tiles each leaflet of the membrane from its own patch on that patch's cell, and crops it
-  to the box. The membrane starts at the patches' relaxed packing instead of condensing from a
+- **An asymmetric membrane is now tiled from relaxed patches, not gridded.** `make_membrane_system`
+  relaxes a patch per leaflet composition, tiles each leaflet of the membrane from its own patch on
+  that patch's cell, and crops it to the box. The membrane starts at the patches' relaxed packing instead of condensing from a
   lattice (example 17's ordered leaflet condensed ~17% in its patch), and nothing in it is sized
   from an area per lipid -- the number a cholesterol-rich leaflet cannot deliver in a build's time
   budget (example 17's upper leaflet was still contracting at 2.5M steps, and replicas differed by
   up to 6 Å² by where they stopped). New contacts exist only at the crop seams and, in an asymmetric
   build, at the midplane; every lipid that threads a ring or comes within 0.3 Å of another there is
   removed before anything is written (5-18 per seamed ex17-sized quilt), and the fuller leaflet is
-  trimmed so both carry the same fraction of their stress-free counts. New keys
-  `bilayer.quilt_method` (`tile`, the default, or `grid`, the previous behavior, kept as a fallback
-  while tiling is validated) and `bilayer.quilt_seam_gap` (default 2 Å). On the tiled route an
+  trimmed so both carry the same fraction of their stress-free counts. A symmetric membrane is
+  still gridded directly at `SAPL`, as before: tiled, it inherits its patch's packing, and on
+  example 16 (DMPC) that came out too dense (55.2 Å² against 59.0 gridded, where DMPC sits near
+  60). New keys `bilayer.quilt_method` (`auto`, the default, which grids a symmetric bilayer and
+  tiles an asymmetric one; or `tile` or `grid` for either) and `bilayer.quilt_seam_gap` (default
+  2 Å). On the tiled route an
   unconverged patch is reported and recorded rather than stopping the build, and
   `bilayer.leaflet_apl` is refused before any patch is built. Design:
   `docs/design/patch-quilting.md`.

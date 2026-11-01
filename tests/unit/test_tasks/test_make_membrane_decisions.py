@@ -522,17 +522,33 @@ class TestDo(unittest.TestCase):
         rc = t.do()
         return t, called, rc
 
-    # the default route: tile every leaflet from a relaxed patch
+    # the default, `quilt_method: auto`: grid a symmetric bilayer, tile an asymmetric one
 
-    def test_a_bare_membrane_build_relaxes_a_patch_and_tiles_it(self):
+    def test_a_bare_symmetric_build_grids_directly_by_default(self):
+        """As every build before 3.30 did: no patch, gridded at SAPL."""
         t, called, rc = self._run(state=False)
-        self.assertEqual(called, ['build_patch', 'build_tiled_membrane'])
+        self.assertEqual(called, ['build_grid_membrane'])
         self.assertEqual(rc, 0)
         self.assertFalse(t.embedding)
 
     def test_an_asymmetric_build_tiles_by_default(self):
         _t, called, _rc = self._run(state=False, patch=False)
         self.assertEqual(called, ['build_patch', 'build_tiled_membrane'])
+
+    def test_auto_written_out_is_the_default(self):
+        """The schema fills in `auto`; it must route exactly as the key left unset does."""
+        for patch in (True, False):
+            with self.subTest(symmetric=patch):
+                self.assertEqual(self._run(state=False, patch=patch, method='auto')[1],
+                                 self._run(state=False, patch=patch)[1])
+
+    def test_tile_can_be_chosen_for_a_symmetric_build(self):
+        _t, called, _rc = self._run(state=False, method='tile')
+        self.assertEqual(called, ['build_patch', 'build_tiled_membrane'])
+
+    def test_a_symmetric_embedding_build_grids_between_orienting_and_embedding(self):
+        _t, called, _rc = self._run(state=True)
+        self.assertEqual(called, ['orient_protein', 'build_grid_membrane', 'embed_protein'])
 
     def test_a_bare_build_promotes_the_membrane_to_the_pipeline_state(self):
         """Nothing else will: with no protein to embed, the quilt *is* the system."""
@@ -541,8 +557,8 @@ class TestDo(unittest.TestCase):
                 t, _called, _rc = self._run(state=False, method=method)
                 t.pipeline.rekey.assert_called_once_with('quilt_state', 'state')
 
-    def test_an_embedding_build_orients_first_and_embeds_last(self):
-        _t, called, _rc = self._run(state=True)
+    def test_an_asymmetric_embedding_build_orients_first_and_embeds_last(self):
+        _t, called, _rc = self._run(state=True, patch=False)
         self.assertEqual(called, ['orient_protein', 'build_patch', 'build_tiled_membrane',
                                   'embed_protein'])
 
@@ -552,7 +568,7 @@ class TestDo(unittest.TestCase):
                 t, _called, _rc = self._run(state=True, method=method)
                 t.pipeline.rekey.assert_not_called()
 
-    # the opt-out: `quilt_method: grid`, the pre-3.30 behavior
+    # `quilt_method: grid` chosen outright, which is the only way to grid an asymmetric bilayer
 
     def test_grid_a_bare_symmetric_build_grids_directly(self):
         _t, called, _rc = self._run(state=False, method='grid')
@@ -595,8 +611,9 @@ class TestLeafletAplIsRefusedOnTheTiledRoute(unittest.TestCase):
     key accepted and then ignored is the worse failure.  It must stop the build before any patch
     is relaxed, and only on the route that ignores it."""
 
-    def _run(self, specs, prebuilt=False):
-        t = _task(using_prebuilt_bilayer=prebuilt, patch=mock.Mock(), bilayer_specs=specs)
+    def _run(self, specs, prebuilt=False, symmetric=True):
+        t = _task(using_prebuilt_bilayer=prebuilt, patch=(mock.Mock() if symmetric else None),
+                  bilayer_specs=specs)
         called = []
         for name in TestDo.STEPS:
             setattr(t, name, (lambda n=name: called.append(n)))
@@ -606,17 +623,25 @@ class TestLeafletAplIsRefusedOnTheTiledRoute(unittest.TestCase):
         return called
 
     def test_set_with_tiling_stops_before_any_patch(self):
-        called = []
-        with self.assertRaises(PestiferBuildError) as cm:
-            t = _task(using_prebuilt_bilayer=False, patch=mock.Mock(),
-                      bilayer_specs={'leaflet_apl': {'upper': 41.6}})
-            for name in TestDo.STEPS:
-                setattr(t, name, (lambda n=name: called.append(n)))
-            t.get_current_artifact = lambda k: None
-            t.pipeline = mock.Mock()
-            t.do()
-        self.assertEqual(called, [])
-        self.assertIn('quilt_method: grid', str(cm.exception))
+        """Both ways onto the tiled route: an asymmetric bilayer by default, and `tile` chosen."""
+        for symmetric, specs in ((False, {}), (True, {'quilt_method': 'tile'})):
+            with self.subTest(symmetric=symmetric, specs=specs):
+                called = []
+                with self.assertRaises(PestiferBuildError) as cm:
+                    t = _task(using_prebuilt_bilayer=False,
+                              patch=(mock.Mock() if symmetric else None),
+                              bilayer_specs={**specs, 'leaflet_apl': {'upper': 41.6}})
+                    for name in TestDo.STEPS:
+                        setattr(t, name, (lambda n=name: called.append(n)))
+                    t.get_current_artifact = lambda k: None
+                    t.pipeline = mock.Mock()
+                    t.do()
+                self.assertEqual(called, [])
+                self.assertIn('quilt_method: grid', str(cm.exception))
+
+    def test_set_on_a_symmetric_build_by_default_is_honored(self):
+        """Negative control: by default a symmetric bilayer is gridded, so the key is in use."""
+        self.assertEqual(self._run({'leaflet_apl': {'upper': 60.0}}), ['build_grid_membrane'])
 
     def test_set_with_the_grid_route_is_still_honored(self):
         """Negative control: the same key on the grid route must not raise."""
@@ -627,7 +652,7 @@ class TestLeafletAplIsRefusedOnTheTiledRoute(unittest.TestCase):
         """The schema can materialize the dict with nulls; that is not the user setting it."""
         for spec in ({}, {'upper': None, 'lower': None}):
             with self.subTest(spec=spec):
-                self.assertEqual(self._run({'leaflet_apl': spec}),
+                self.assertEqual(self._run({'leaflet_apl': spec}, symmetric=False),
                                  ['build_patch', 'build_tiled_membrane'])
 
 

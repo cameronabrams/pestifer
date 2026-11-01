@@ -244,6 +244,15 @@ patch smaller.
    route still sizes the membrane from an APL; decisions 1 and 2 apply to the tiled route. The
    opt-out is to be removed once tiling has carried the examples through a sweep.
 4. **`quilt_seam_gap` starts at 2 Å**, to be confirmed by measurement.
+5. **(2026-11-01) The default is `auto`: grid a symmetric bilayer, tile an asymmetric one.**
+   On example 16 (DMPC, one build per route) the tiled membrane finished at 55.2 Å² against 59.0
+   gridded, where DMPC at 310 K sits near 60-61. Each route ended near where it started -- the
+   grid at its `SAPL` of 60, the tile at its patch's 52, relaxed to 54.8 -- and the stage-2 gate
+   certified both, so neither result is a convergence. For a fluid symmetric bilayer the grid's
+   starting point is reliable and the patch's is not; for an asymmetric one the grid has no
+   reliable number to start from (above). Tiling becomes the default for a symmetric bilayer only
+   once its patch is shown to settle where the gridded membrane does. Example 17's sweep replicas,
+   checked with `diagnose_differential_stress`, are the acceptance test for the asymmetric route.
 
 ## Validation plan
 

@@ -1586,18 +1586,19 @@ attributes:
                 default: grid
               - name: quilt_method
                 text: >-
-                  How the full membrane is built. 'tile' (the default) relaxes a patch -- one for a
-                  symmetric bilayer, one per leaflet composition for an asymmetric one -- and tiles
-                  each leaflet from its patch, cropped to the box, so the membrane starts at the
-                  relaxed patches' packing. Lipids that thread a ring or overlap across a crop seam
-                  are removed, and the fuller leaflet is trimmed so both sit at the same fraction of
-                  their stress-free counts. 'grid' places the whole membrane on a lattice at the
-                  patches' measured area per lipid, as before 3.30; it is kept as a fallback while
-                  tiling is validated, and is the only route on which leaflet_apl and
-                  quilt_grid_slack apply.
+                  How the full membrane is built. 'auto' (the default) grids a symmetric bilayer
+                  and tiles an asymmetric one. 'tile' relaxes a patch -- one for a symmetric
+                  bilayer, one per leaflet composition for an asymmetric one -- and tiles each
+                  leaflet from its patch, cropped to the box, so the membrane starts at the relaxed
+                  patches' packing. Lipids that thread a ring or overlap across a crop seam are
+                  removed, and the fuller leaflet is trimmed so both sit at the same fraction of
+                  their stress-free counts. 'grid' places the whole membrane on a lattice, as
+                  before 3.30: a symmetric bilayer directly at SAPL, an asymmetric one at the
+                  patches' measured area per lipid. leaflet_apl and quilt_grid_slack apply only to
+                  a gridded membrane.
                 type: str
-                choices: [tile, grid]
-                default: tile
+                choices: [auto, tile, grid]
+                default: auto
               - name: quilt_seam_gap
                 text: >-
                   Width, in Angstroms, of the strip left empty along each crop seam of a tiled

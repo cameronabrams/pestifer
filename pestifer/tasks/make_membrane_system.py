@@ -469,8 +469,21 @@ class MakeMembraneSystemTask(BaseTask):
         return bilayer_name.startswith('patch') or getattr(self, 'patch', None) is not None
 
     def _quilt_method(self) -> str:
-        """``tile`` (the default) or ``grid``; see ``bilayer.quilt_method``."""
-        return str((self.bilayer_specs or {}).get('quilt_method', 'tile'))
+        """``tile`` or ``grid``, with ``auto`` (the default) resolved by symmetry; see
+        ``bilayer.quilt_method``.
+
+        A symmetric bilayer is gridded directly at its SAPL, as every build before 3.30 was: a fluid
+        leaflet reaches its area per lipid quickly, and a tiled one inherits its patch's packing,
+        which on example 16 (DMPC) settled near 52 A^2 and finished at 55.2 against 59.0 gridded
+        (2026-10-29).  An asymmetric bilayer is tiled, because gridding one needs a per-leaflet
+        area per lipid that an ordered or sterol-rich leaflet does not reach in a build's time
+        (``docs/design/patch-quilting.md``).  ``initialize`` has already decided symmetry:
+        ``patch`` is set only for a symmetric bilayer.
+        """
+        method = str((self.bilayer_specs or {}).get('quilt_method', 'auto'))
+        if method == 'auto':
+            return 'grid' if getattr(self, 'patch', None) is not None else 'tile'
+        return method
 
     def _refuse_settings_the_route_ignores(self):
         """Stop before any patch is built if the config sets something the chosen route ignores.
@@ -487,8 +500,9 @@ class MakeMembraneSystemTask(BaseTask):
         given = {k: v for k, v in apl.items() if v is not None}
         if given:
             raise PestiferBuildError(
-                f'bilayer.leaflet_apl is set ({given}), but a tiled membrane (quilt_method: tile, the '
-                f'default) is not sized from an area per lipid: each leaflet is tiled from its relaxed '
+                f'bilayer.leaflet_apl is set ({given}), but a tiled membrane (quilt_method: tile, which '
+                f'auto chooses for an asymmetric bilayer) is not sized from an area per lipid: each '
+                f'leaflet is tiled from its relaxed '
                 f'patch and keeps that patch\'s packing, so there is nothing for the value to replace. '
                 f'Remove leaflet_apl, or set bilayer.quilt_method: grid to size a gridded membrane '
                 f'from it.')
