@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.30.0] - 2026-11-01
+
 ### Added
 
 - **The lipid gallery covers the whole shipped collection.** Every one of the 219 lipids has a page:
