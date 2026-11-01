@@ -509,12 +509,16 @@ class TestMakeMembraneSystem(unittest.TestCase):
             {'validate': {
                 'tests': [
                     {
+                        # NOT 49: this bilayer is asymmetric, so it is tiled, and a tiled leaflet
+                        # carries what its patch's density puts in the box -- within 10% of the
+                        # request, not equal to it (48 and 50 on two runs of the same commit).
+                        # _assert_leaflet_sizing below holds it to that 10%; this is a ceiling.
                         'residue_test': {
                             'name': 'Count of POPC residues',
                             'selection': 'resname POPC',
                             'measure': 'residue_count',
                             'relation': '<=',
-                            'value': 49
+                            'value': 53
                         }
                     },
                     {
@@ -615,12 +619,15 @@ class TestMakeMembraneSystem(unittest.TestCase):
             {'validate': {
                 'tests': [
                     {
+                        # NOT 32, for the same reason as POPC in test_makemembranesystem_popc_pope:
+                        # a tiled leaflet is within 10% of its request, which
+                        # _assert_leaflet_sizing below enforces.
                         'residue_test': {
                             'name': 'Count of POPC residues',
                             'selection': 'resname POPC',
                             'measure': 'residue_count',
                             'relation': '<=',
-                            'value': 32
+                            'value': 35
                         }
                     },
                     {
