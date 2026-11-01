@@ -36,15 +36,22 @@ Cost and open questions, if this is built out
 under three hours, trivially parallel. The Tcl renderer is fed to VMD on stdin, as
 ``scripts/pestifer-snapshot`` does.
 
-**Repository size is the real constraint.** A contact sheet plus an SVG is ~240 KB per entry,
-which is **~66 MB for 277 entries** — too much to commit. Three options, none yet chosen:
+**Images are committed, as 64-color palette PNGs.** A contact sheet saved that way is about
+37 KB with no visible loss (RMSE 0.006 against the full-color render), so a full build is about
+16 MB: a sheet and a ~27 KB structure drawing for each of the 219 base lipids, and a sheet for
+each of the 58 ``__Lo`` ensembles. Docs are excluded from the wheel and the sdist, so this costs
+clone size only. Generating the images while Read the Docs builds is not possible (VMD cannot be
+installed there, and rendering takes hours); hosting them outside the repository becomes worth
+its plumbing only if the conformer collection is regenerated often, since each full re-render
+adds another ~16 MB to history.
 
-- generate the images at docs-build time, which makes the build need VMD and Open Babel;
-- commit smaller sheets (fewer conformers shown, or lower resolution);
-- host the images outside the repository and reference them, which breaks offline builds.
+**How a sheet is made.** Each conformer is rendered by ``lipidsnap.tcl`` straight at tile size,
+``-size 188x332 -scale 0.0954``, tiled five across with ``magick montage -tile 5x2 -geometry
++0+0 -background white``, and reduced with ``magick ... -depth 8 -colors 64``. POPC's two
+ensembles share that one scale.
 
-**Per-entry scale.** The prototype uses one hand-calibrated scale for POPC. A real build needs a
-scale computed per entry from its most-extended conformer — shared within an entry, not across
+**Per-entry scale.** That scale was calibrated by hand for POPC. A full build needs a scale
+computed per entry from its most-extended conformer — shared within an entry, not across
 entries, since a 24-carbon lipid and a 12-carbon one cannot usefully share a frame.
 
 Drawing the 2D structures
