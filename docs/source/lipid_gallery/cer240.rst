@@ -1,0 +1,93 @@
+.. _lipid_gallery cer240:
+
+CER240
+======
+
+**CERAMIDE d18:1/24:0**
+
+==============  ============================================
+CHARMM resname  ``CER240``
+Net charge      0.00
+Atoms           129
+Topology file   ``toppar_all36_lipid_sphingo.str``
+Conformers      10 fluid, 10 liquid-ordered (``CER240__Lo``)
+==============  ============================================
+
+Structure
+---------
+
+.. image:: img/cer240-structure.svg
+   :width: 340px
+   :alt: Two-dimensional structure of CER240
+
+Conformers
+----------
+
+The grid packer draws a conformer per lipid from an ensemble, so what the ensemble contains is what a built bilayer is made of. CER240 ships two: a fluid one, used by default, and a liquid-ordered one, used for a leaflet declared ``phase: Lo``. All conformers on this page are rendered at one shared scale.
+
+Fluid (``CER240``)
+~~~~~~~~~~~~~~~~~~
+
+.. image:: img/cer240-conformers.png
+   :width: 100%
+   :alt: 10 CER240 conformer(s) at a shared scale
+
+=============  =============  ================
+Conformer      Head-tail (Å)  Max internal (Å)
+=============  =============  ================
+``CER240-00``  11.40          28.48
+``CER240-01``  11.09          25.41
+``CER240-02``  12.15          28.61
+``CER240-03``  11.76          29.39
+``CER240-04``  2.92           21.07
+``CER240-05``  8.24           29.70
+``CER240-06``  9.21           28.94
+``CER240-07``  11.95          26.51
+``CER240-08``  12.43          24.89
+``CER240-09``  6.53           29.52
+=============  =============  ================
+
+Liquid-ordered (``CER240__Lo``)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. image:: img/cer240-lo-conformers.png
+   :width: 100%
+   :alt: 10 liquid-ordered CER240 conformer(s) at a shared scale
+
+=============  =============  ================
+Conformer      Head-tail (Å)  Max internal (Å)
+=============  =============  ================
+``CER240-00``  10.43          31.80
+``CER240-01``  10.36          32.18
+``CER240-02``  13.08          33.41
+``CER240-03``  12.28          32.41
+``CER240-04``  12.89          33.29
+``CER240-05``  8.79           31.79
+``CER240-06``  12.21          32.34
+``CER240-07``  11.37          33.13
+``CER240-08``  10.67          33.59
+``CER240-09``  10.00          32.68
+=============  =============  ================
+
+Provenance
+----------
+
+How each ensemble was generated, read from the entry's own ``info.yaml``:
+
+===================  ============  ==============
+Setting              ``CER240``    ``CER240__Lo``
+===================  ============  ==============
+Sampler              ``mc``        ``mc``
+Phase                none (fluid)  Lo
+Trans bias           0.0           10.0
+Chain order          0.146         0.281
+MC seed              0             0
+Chains               2             2
+Cylinder APL         60.0 Å²       60.0 Å²
+Cylinder inflation   1.9           1.9
+Equilibration steps  20000         20000
+Decorrelation steps  3000          3000
+Max MC angle         30°           30°
+Radius scale         0.8           0.8
+Axial bias           1.0           1.0
+===================  ============  ==============

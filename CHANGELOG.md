@@ -6,6 +6,13 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Added
 
+- **The lipid gallery covers the whole shipped collection.** Every one of the 219 lipids has a page:
+  its identity read from the force field, a 2D structure (all but `CHM1`, a ring model compound),
+  every conformer at one shared scale, the liquid-ordered ensemble beside the fluid one for the 58
+  lipids that ship one, and the generation settings the entry records. The index groups them by
+  defining topology file. `docs/source/lipid_gallery/build_gallery.py` writes all of it from the
+  collection, choosing each entry's scale from its coordinates and checking every tile is drawn and
+  unclipped; the images are 64-color palette PNGs, 16 MB in all.
 - **A knotted backbone is now reported.** The stereochemistry tracker also tests each covalently
   continuous protein backbone for a knot (alpha-carbon trace closed far outside the protein, reduced
   by Koniaris-Muthukumar-Taylor triangle elimination, knot determinant from a projection), at every
