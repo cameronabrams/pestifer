@@ -125,3 +125,34 @@ class TestUnclassifiedResidues(unittest.TestCase):
         names = {r.resname for seg in AU.segments for r in seg.residues.data}
         self.assertNotIn('EDO', names)
         self.assertIn('ALA', names)
+
+
+class TestSSBondsDelete(unittest.TestCase):
+    """``ssbondsdelete`` removed bonds from the list it was iterating, so a bond sitting right
+    after a deleted one was never examined and silently kept (reported from a pseudo-C3 Env
+    model: the third of three deletions survived and built an S-S-S-S chain).  6pti's three
+    SSBONDs are adjacent in the list, so deleting any two consecutive ones exercises it."""
+
+    def setUp(self):
+        self.pdb = Path(__file__).parent.parent.parent / 'inputs' / '6pti.pdb'
+
+    def _kept(self, deletes):
+        pstruct = PDBParser(filepath=self.pdb, input_format='PDB').parse().parsed
+        AU = AsymmetricUnit(parsed=pstruct, chainIDmanager=ChainIDManager(format='PDB'),
+                            objmanager=ObjManager({'ssbondsdelete': deletes}), source_format='PDB')
+        ssbonds = AU.objmanager.get('topol', {}).get('ssbonds', [])
+        return {(s.resid1.resid, s.resid2.resid) for s in ssbonds}, AU.ignored.ssbonds
+
+    def test_two_adjacent_deletions_both_take(self):
+        kept, ignored = self._kept(['A_5-A_55', 'A_14-A_38'])
+        self.assertEqual(kept, {(30, 51)})
+        self.assertEqual(len(ignored), 2)
+
+    def test_deleting_every_bond_leaves_none(self):
+        kept, ignored = self._kept(['A_5-A_55', 'A_14-A_38', 'A_30-A_51'])
+        self.assertEqual(kept, set())
+        self.assertEqual(len(ignored), 3)
+
+    def test_a_single_deletion_keeps_the_rest(self):
+        kept, _ = self._kept(['A_14-A_38'])
+        self.assertEqual(kept, {(5, 55), (30, 51)})

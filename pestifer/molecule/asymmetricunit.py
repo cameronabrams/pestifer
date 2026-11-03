@@ -486,7 +486,9 @@ class AsymmetricUnit:
         topomods = objmanager.get('topol', {})
         if 'ssbondsdelete' in topomods and len(topomods['ssbondsdelete']) > 0:
             logger.debug(f'SSBonds to delete: {topomods["ssbondsdelete"]} ')
-            for s in ssbonds:
+            # iterate a copy: removing from the list being walked skips the bond after each
+            # deleted one, so two adjacent deletions silently kept the second
+            for s in list(ssbonds):
                 logger.debug(f'Examining ssbond {s}')
                 if topomods['ssbondsdelete'].is_deleted(s):
                     logger.debug(f'Deleting ssbond {s}')

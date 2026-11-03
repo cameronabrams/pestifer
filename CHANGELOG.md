@@ -4,6 +4,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Fixed
+
+- **`ssbondsdelete` kept a bond listed right after another deleted one.** The deletion loop removed
+  bonds from the list it was walking, so the next bond was never examined: of two adjacent
+  deletions only the first took effect, with no message. Reported from a model whose three
+  `ssbondsdelete` entries left the third disulfide in place beside the replacement given in
+  `ssbonds`, making an S-S-S-S chain that stopped the first minimize on missing parameters.
+  Example 3 deletes a single bond, which is why nothing caught it.
+
 ## [3.30.0] - 2026-11-01
 
 ### Added
