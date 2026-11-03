@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.30.1] - 2026-11-03
+
 ### Added
 
 - **`psfgen` `source.obstacles`: atoms not built, but kept clear of.** Same selection form as
