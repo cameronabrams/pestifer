@@ -513,3 +513,28 @@ class TestMergeTaskIntegration(unittest.TestCase):
         self.assertEqual(len(renamed_chains), 6, f'expected 6 renamed-segment chains: {renamed_chains}')
         for c, s in renamed_chains.items():
             self.assertEqual(len(s), 1, f'renamed-segment chain {c!r} shares segids: {s}')
+
+    def test_merge_checks_the_interfaces_it_creates(self):
+        """A copy merged onto itself without a shift overlaps atom for atom; the merge must say
+        so, naming residues from both systems.  Exercised through `do`, not the helper, so a
+        call site that stops calling the check goes red here."""
+        self._setup_subdir('__test_merge_interfaces')
+        task_list = [{'merge': {
+            'systems': [{'psf': _PSF, 'pdb': _PDB}, {'psf': _PSF, 'pdb': _PDB}],
+            'interface_check': 'warn',
+        }}]
+        self.controller.reconfigure_tasks(task_list)
+        with self.assertLogs('pestifer.tasks.merge', level='WARNING') as cm:
+            self.controller.do_tasks()
+        self.assertTrue(any('heavy-atom pair(s) from different systems' in m for m in cm.output),
+                        cm.output)
+
+    def test_interface_check_off_skips_it(self):
+        self._setup_subdir('__test_merge_interfaces_off')
+        task_list = [{'merge': {
+            'systems': [{'psf': _PSF, 'pdb': _PDB}, {'psf': _PSF, 'pdb': _PDB}],
+            'interface_check': 'off',
+        }}]
+        self.controller.reconfigure_tasks(task_list)
+        with self.assertNoLogs('pestifer.tasks.merge', level='WARNING'):
+            self.controller.do_tasks()

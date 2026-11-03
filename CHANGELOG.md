@@ -4,6 +4,17 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Added
+
+- **`merge` checks the interfaces it creates.** Each input was built and checked alone, so the
+  contacts between inputs were first examined at `terminate`, after every stage in between had run.
+  Example 25's Env build models the V3 tip, which 5vn3 does not resolve, with the 17b Fabs absent,
+  and in every replica of the 3.29.8 and 3.30.0 sweeps the modeled tip overlapped a Fab; in one, a
+  Tyr ring and a Phe ring were threaded through each other and `terminate` refused the package hours
+  later. `merge` now reports heavy-atom overlaps between inputs at WARNING, by residue pair, and
+  stops on a ring pierced by a bond from another input. `interface_check: warn` reports and
+  continues; `off` skips both.
+
 ### Fixed
 
 - **`ssbondsdelete` kept a bond listed right after another deleted one.** The deletion loop removed

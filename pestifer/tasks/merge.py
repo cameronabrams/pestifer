@@ -34,6 +34,8 @@ per-system via ``segname_map``.
 import logging
 import os
 
+import numpy as np
+
 from .psfgen import PsfgenTask
 from ..core.artifacts import *
 from ..core.errors import PestiferBuildError
@@ -260,7 +262,81 @@ class MergeTask(PsfgenTask):
             f'{len(final_segnames)} segments: {list(final_segnames.keys())}'
         )
 
+        mode = self.specs.get('interface_check', 'error')
+        if mode != 'off':
+            system_of = {seg: i for i, sys in enumerate(resolved) for seg in
+                         (sys['effective_segname_map'].get(o, o) for o in sys['segnames'])}
+            self._check_interfaces(f'{self.basename}.psf', f'{self.basename}.pdb', system_of, mode)
+
         return self.result
+
+    # ------------------------------------------------------------------
+    # Interface check
+    # ------------------------------------------------------------------
+
+    def _check_interfaces(self, psf: str, pdb: str, system_of: dict, mode: str) -> None:
+        """Report where the merged systems occupy the same space.
+
+        Each input was built, and checked, on its own, so nothing upstream has ever seen the
+        interfaces this task creates.  A loop modeled in one system where another system's
+        chain sits arrives here interpenetrating it: example 25's V3 tip, modeled with the 17b
+        Fabs excluded, overlapped a Fab in every replica of the 3.29.8 and 3.30.0 sweeps, and
+        in one the minimize that followed locked a Tyr ring and a Phe ring through each other,
+        which ``terminate`` then refused hours later.
+
+        Heavy-atom overlaps between systems are logged at WARNING -- a few are what the
+        following minimize is for.  A ring pierced by a bond from *another* system raises
+        under ``interface_check: error`` (the default): each input is a relaxed structure, and
+        from a relaxed structure a minimize cements a threading rather than undoing it.
+        """
+        from scipy.spatial import cKDTree
+        from ..psfutil.psfring import ring_check, PIERCING_MARKER
+        from ..util.contact_gate import DEFAULT_MIN_CONTACT
+        from ..util.density_convergence import _read_coor_xyz
+
+        atoms = PSFContents(psf).atoms
+        xyz = _read_coor_xyz(pdb, len(atoms))
+        sysid = np.array([system_of.get(a.segname, -1) for a in atoms])
+        heavy = np.array([not str(a.atomname).startswith('H') for a in atoms])
+        idx = np.where(heavy & (sysid >= 0))[0]
+        pairs = cKDTree(xyz[idx]).query_pairs(r=DEFAULT_MIN_CONTACT, output_type='ndarray')
+        overlaps: dict = {}
+        for a, b in pairs:
+            i, j = int(idx[a]), int(idx[b])
+            if sysid[i] == sysid[j]:
+                continue
+            key = tuple(sorted(f'{atoms[k].segname} {atoms[k].resname} {atoms[k].resid}'
+                               for k in (i, j)))
+            overlaps[key] = overlaps.get(key, 0) + 1
+        if overlaps:
+            worst = sorted(overlaps.items(), key=lambda kv: -kv[1])[:10]
+            logger.warning(
+                f'merge: {sum(overlaps.values())} heavy-atom pair(s) from different systems are '
+                f'closer than {DEFAULT_MIN_CONTACT} A, across {len(overlaps)} residue pair(s). '
+                f'The inputs were built without each other, so a part modeled in one can sit '
+                f'where another is. Most overlapped:\n' +
+                '\n'.join(f'  {a} / {b}: {n}' for (a, b), n in worst))
+
+        piercings = ring_check(psf, pdb, segtypes=['lipid', 'glycan', 'protein'],
+                               cutoff=4.0, max_ring_size=7)
+        crossing = [p for p in piercings
+                    if system_of.get(p['piercee'].get('segname'), -1)
+                    != system_of.get(p['piercer'].get('segname'), -1)]
+        if not crossing:
+            logger.info('merge: no ring is pierced by a bond from another merged system')
+            return
+        lines = [f"  {p['piercee'].get('segname')} {p['piercee'].get('resname')} "
+                 f"{p['piercee'].get('resid')} ring <- {p['piercer'].get('segname')} "
+                 f"{p['piercer'].get('resname')} {p['piercer'].get('resid')} bond"
+                 for p in crossing]
+        msg = (f'merge: {PIERCING_MARKER} {len(crossing)} ring(s) pierced by a bond from another '
+               f'merged system:\n' + '\n'.join(lines) +
+               '\nThe systems were built without each other and interpenetrate here. Rebuild the '
+               'input that models this region with the other system present (psfgen '
+               '`source.obstacles`), or set `interface_check: warn` to continue anyway.')
+        if mode == 'error':
+            raise PestiferBuildError(msg)
+        logger.warning(msg)
 
     # ------------------------------------------------------------------
     # Collision resolution

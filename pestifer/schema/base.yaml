@@ -607,6 +607,16 @@ attributes:
             type: str
             default: enumerate
             choices: ['enumerate', 'error']
+          - name: interface_check
+            text: >-
+              What to do about the interfaces the merge creates, which no input was built or
+              checked against. Heavy-atom overlaps between systems are always reported at
+              WARNING (the minimize that should follow a merge clears a few); a ring pierced by
+              a bond from another system stops the build under 'error', is reported and passed
+              on under 'warn', and 'off' skips both checks.
+            type: str
+            default: error
+            choices: ['error', 'warn', 'off']
       - name: psfgen
         text: Parameters controlling a specific psfgen run on an input molecule
         type: dict

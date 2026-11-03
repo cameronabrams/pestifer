@@ -53,4 +53,14 @@ If you prefer to control the final segment names yourself, supply a ``segname_ma
 
 Explicit maps take priority over the automatic enumeration strategy.  If an explicitly requested name still collides with an earlier system, the automatic strategy is used as a fallback.
 
+Checking the interfaces the merge creates
++++++++++++++++++++++++++++++++++++++++++
+
+Each input was built and checked on its own, so the contacts *between* inputs are first seen here.  A part modeled in one input -- a loop the crystal structure did not resolve, say -- knows nothing about where another input sits, and can arrive inside it.  After merging, the task therefore checks every pair of atoms and every ring across the inputs:
+
+* Heavy atoms from different inputs closer than 1.2 Å are reported at WARNING, by residue pair.  A few are what the minimize that should follow a merge is for; many, concentrated on one region, mean that region was built into space another input occupies.
+* A ring (protein, glycan or lipid) pierced by a bond from a *different* input stops the build.  The inputs are relaxed structures, and a minimize started from a relaxed structure locks a threading in rather than undoing it, so ``terminate`` would refuse it anyway -- after every stage in between had run.
+
+``interface_check`` sets the response to a piercing: ``error`` *(default)*, ``warn`` (report it and continue), or ``off`` (skip both checks).  The fix is to build the input that models the region with the other input present as an obstacle; see ``obstacles`` under :ref:`psfgen <subs_buildtasks_psfgen>`.
+
 For a full description of all parameters see :ref:`config_ref tasks merge`.
