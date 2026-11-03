@@ -14,6 +14,11 @@ tasks:
         biological_assembly: 1
         exclude:
           - chainID in ['H', 'K', 'M', 'L', 'N', 'O']   # the six partial 17b Fab chains
+        # ...which the merge puts back exactly where they are now.  5vn3 does not resolve the
+        # V3 tip (311-324), and with the Fabs merely excluded the loop closer modeled it into
+        # their space in every replica; as obstacles they are not built but the closure avoids them.
+        obstacles:
+          - chainID in ['H', 'K', 'M', 'L', 'N', 'O']
         sequence:
           loops:
             min_loop_length: 4

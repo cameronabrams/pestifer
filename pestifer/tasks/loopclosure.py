@@ -40,6 +40,16 @@ class LoopClosureMixin:
     #: prefix of this closure's log lines, so a psfgen-time closure does not read as ligate's
     _closure_tag = 'ligate'
 
+    def with_obstacles(self, extra_env=None):
+        """``extra_env`` plus the heavy atoms of ``source.obstacles``, for a modeler's clash
+        environment.  Every loop and tail closure goes through here, so a part modeled with
+        another molecule excluded still keeps clear of where that molecule will be."""
+        import numpy as np
+        mol = getattr(self, 'base_molecule', None)
+        obs = mol.obstacle_coords() if mol is not None else None
+        parts = [np.asarray(x, dtype=float) for x in (extra_env, obs) if x is not None and len(x)]
+        return np.vstack(parts) if parts else None
+
     def close_and_connect_loops(self, specs: dict) -> int:
         """Close every interior loop by CCD (``specs['ccd']``), clear ring piercings the closure
         made (unless ``check_piercings`` is false), bond the junctions, and check stereochemistry
@@ -258,7 +268,7 @@ class LoopClosureMixin:
                                      n_anchor_resid=g['n_anchor_resid'],
                                      c_anchor_resid=g['c_anchor_resid'],
                                      all_loop_serials=all_loop_serials, seed=seed,
-                                     extra_env=heavy_coords_of_serials(src_pdb, others),
+                                     extra_env=self.with_obstacles(heavy_coords_of_serials(src_pdb, others)),
                                      **ctx['kwargs'])
                 for k, serial in enumerate(res['serials']):
                     new_coords[serial] = res['closed'][k]
@@ -360,7 +370,7 @@ class LoopClosureMixin:
                         n_anchor_resid=g['n_anchor_resid'], c_anchor_resid=g['c_anchor_resid'],
                         all_loop_serials=all_loop_serials, seed=seed + i, ensemble=ensemble,
                         refine=refine_iters, guard=guard, max_iters=max_iters, tol=tol,
-                        extra_env=extra_env)
+                        extra_env=self.with_obstacles(extra_env))
 
         # Loops that do not interfere can be closed at once (steering closes all loops
         # simultaneously too). Close every loop CONCURRENTLY against the resolved structure only;

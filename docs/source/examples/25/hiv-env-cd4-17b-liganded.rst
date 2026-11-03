@@ -19,7 +19,7 @@ The strategy
 
 The build is done in stages, each a small pestifer script:
 
-#. **Base** (``helper-01-base.yaml``) — build the Env trimer + sCD4, excluding the six partial Fab chains.  The Env preparation is the same as in that example (undo the SOSIP mutations, GGG-stub the V1/V2 loops, ligate the breaks).  5vn3's N-glycans are detected and modeled automatically.
+#. **Base** (``helper-01-base.yaml``) — build the Env trimer + sCD4, excluding the six partial Fab chains but keeping them as ``obstacles``: 5vn3 does not resolve the V3 tip, and the loop closer has to model it around the Fabs the merge will put back, not into them.  The Env preparation is the same as in that example (undo the SOSIP mutations, GGG-stub the V1/V2 loops, ligate the breaks).  5vn3's N-glycans are detected and modeled automatically.
 #. **Fv donor** (``helper-02-fabdonor.yaml``) — rebuild 5vn3's six partial Fab chains through psfgen so every resolved residue has all its atoms.  These are the exact interface coordinates we will preserve.
 #. **Position each Fab** (``helper-03-position-fab{1,2,3}.yaml``) — build a complete 1gc1 Fab, rigid-body ``align`` it onto one protomer's 5vn3 Fv, then ``transfer_coords`` to overwrite the Fv with 5vn3's exact coordinates.
 #. **Assemble** (``hiv-env-cd4-17b-liganded.yaml``) — ``merge`` the three completed Fabs into the base, then solvate and equilibrate.

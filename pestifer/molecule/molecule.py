@@ -316,6 +316,22 @@ class Molecule:
             The number of images (transforms) in the active biological assembly."""
         return len(self.active_biological_assembly.transforms)
 
+    def obstacle_coords(self):
+        """Heavy-atom coordinates of ``source.obstacles``, placed by every transform of the
+        active biological assembly whose chain list includes them, as an ``(N, 3)`` array.
+        ``None`` when no obstacles were declared."""
+        obs = self.asymmetric_unit.obstacles
+        if not obs:
+            return None
+        xyz = np.array([[a.x, a.y, a.z] for a in obs.data], dtype=float)
+        chains = np.array([a.chainID for a in obs.data])
+        placed = []
+        for T in self.active_biological_assembly.transforms:
+            mask = np.isin(chains, T.applies_chainIDs) if T.applies_chainIDs else np.ones(len(obs), bool)
+            if mask.any():
+                placed.append(T.apply(xyz[mask]))
+        return np.vstack(placed) if placed else None
+
     def num_atoms(self):
         """
         Count the number of atoms in the asymmetric unit.

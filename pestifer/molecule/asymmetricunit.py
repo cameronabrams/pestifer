@@ -141,6 +141,8 @@ class AsymmetricUnit:
         self.psfcontents = PSFContents(psf) if psf else None
         self.ignored = Namespace()
         self.pruned = Namespace()
+        # heavy atoms of the source that the build's modelers must keep clear of (source.obstacles)
+        self.obstacles = AtomList([])
 
         atom_include_logic = sourcespecs.get('include', [])
         atom_exclude_logic = sourcespecs.get('exclude', [])
@@ -245,6 +247,21 @@ class AsymmetricUnit:
         for u in userpatches:
             logger.debug(f'Adding user-specified patch {u}')
         patches.extend(userpatches)
+
+        # Obstacles are read before include/exclude, which is the point: they are usually the
+        # atoms excluded from the build because they will join it later (a merge), and a part
+        # modeled now -- a loop, a tail -- has to keep clear of where they will be.
+        obstacle_logic = sourcespecs.get('obstacles', []) or []
+        if obstacle_logic:
+            funcs = [parse_filter_expression(e) for e in obstacle_logic]
+            self.obstacles = AtomList([a for a in atoms.data
+                                       if not str(a.name).startswith('H')
+                                       and any(f(a) for f in funcs)])
+            if not self.obstacles:
+                raise PestiferBuildError(f'source.obstacles {obstacle_logic} matches no heavy '
+                                         f'atom of the source structure')
+            logger.info(f'{len(self.obstacles)} heavy atom(s) of the source kept as obstacles '
+                        f'for loop and tail modeling ({obstacle_logic})')
 
         # Build the list of residues
         ignored_atom_count = 0

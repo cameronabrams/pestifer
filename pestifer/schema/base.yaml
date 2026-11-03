@@ -658,6 +658,17 @@ attributes:
                 text: List of logical expressions involving atom attributes used in parallel to specify those atoms to be excluded
                 type: list
                 required: False
+              - name: obstacles
+                text: >-
+                  List of logical expressions, in the same form as exclude, naming atoms of the
+                  source whose heavy atoms every part this build models -- CCD-closed loops,
+                  terminal tails, the loop declash -- must keep clear of. They are not built.
+                  Meant for atoms excluded now that join the system later, typically by a
+                  merge: a loop modeled with a bound antibody excluded otherwise knows nothing
+                  of where the antibody will be. Placed by every biological-assembly
+                  transform; cannot be combined with an orient coormod.
+                type: list
+                required: False
               - name: sequence
                 text: Parameters controlling sequence modifications based on specifications in the PDB source
                 type: dict

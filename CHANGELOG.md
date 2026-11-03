@@ -6,6 +6,17 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Added
 
+- **`psfgen` `source.obstacles`: atoms not built, but kept clear of.** Same selection form as
+  `exclude`. Their heavy atoms join the clash environment of every part the build models -- CCD
+  loop closure (including re-closures), terminal tails and the loop declash -- placed by every
+  biological-assembly transform. It is for atoms excluded now that join the system later, usually
+  by `merge`. Example 25's Env build now lists its six excluded 17b Fab chains as obstacles, so the
+  V3 tip that 5vn3 does not resolve is modeled around the Fabs instead of into them. Glycan
+  modeling does not consult obstacles, and an `orient` coormod is refused alongside them.
+  Measured on example 25's Env build at two seeds each, against the Fabs the sweep merged in:
+  as shipped, 2-38 V3-tip atoms per protomer lay within 2 A of a Fab (closest 0.39-0.67 A) and
+  both merges then stopped on 2 and 3 pierced rings; with obstacles, 0-1 (closest 1.77 A or
+  more), and both merged and packaged with no piercing.
 - **`merge` checks the interfaces it creates.** Each input was built and checked alone, so the
   contacts between inputs were first examined at `terminate`, after every stage in between had run.
   Example 25's Env build models the V3 tip, which 5vn3 does not resolve, with the 17b Fabs absent,

@@ -470,6 +470,12 @@ class PsfgenTask(LoopClosureMixin, VMDTask):
                                        xsc=state.xsc), key='state', artifact_type=StateArtifacts)
                     continue
                 if objtype == 'orient':
+                    if self.base_molecule.obstacle_coords() is not None:
+                        # obstacles stay in the source frame; orienting the build would leave
+                        # every modeler steering clear of where they no longer are
+                        raise PestiferBuildError('source.obstacles cannot be combined with an '
+                                                 'orient coormod: the obstacles are not moved '
+                                                 'with the structure')
                     # principal-axis reorientation of the whole molecule -- pure numpy
                     if self._apply_python_orient(objlist, state) != 0:
                         self.result = 1
@@ -626,7 +632,8 @@ class PsfgenTask(LoopClosureMixin, VMDTask):
             extra_env = np.vstack(placed_tails) if placed_tails else None
             res = model_one_tail(src_pdb, t['segname'], t['tail_resids'], t['anchor_resid'],
                                  t['end'], all_modeled_serials,
-                                 seed=self.declash_seed() + k, ensemble=ensemble, extra_env=extra_env)
+                                 seed=self.declash_seed() + k, ensemble=ensemble,
+                                 extra_env=self.with_obstacles(extra_env))
             placed_tails.append(res['heavy'])
             rep = res['rep']
             tag = (f"{t['segname']}:{t['tail_resids'][0]}-{t['tail_resids'][-1]} "
@@ -1135,12 +1142,18 @@ class PsfgenTask(LoopClosureMixin, VMDTask):
         seg = np.array([a.segname for a in cm.atoms.data])
         rng = np.random.default_rng(self.declash_seed())
         not_nhn = ~np.isin(names, ['N', 'HN'])
+        # obstacles ride along as extra rows: environment only, never moved
+        n_sys = len(coords)
+        obs = self.with_obstacles()
+        if obs is not None:
+            coords = np.vstack([coords, obs])
+        obs_rows = np.arange(n_sys, len(coords))
         for segname, resids in loops:
             seg_mask = seg == segname
             # Match on the full resid ('100A', not 100) so the mask tracks the ResIDs above.
             loop_keys = {str(r) for r in resids}
             loop_mask = seg_mask & np.array([str(a.resid) in loop_keys for a in cm.atoms.data])
-            env_heavy = np.nonzero(heavy & ~loop_mask)[0]
+            env_heavy = np.concatenate([np.nonzero(heavy & ~loop_mask)[0], obs_rows])
             try:
                 r_end = cm.residue_of_segname(segname, resids[-1])
             except CoordManipulateError:
@@ -1157,7 +1170,7 @@ class PsfgenTask(LoopClosureMixin, VMDTask):
                 residues.append({'pivot': int(n_i[0]), 'axis_to': int(ca_i[0]),
                                  'movers': movers, 'frag_heavy': frag_heavy})
             declash_loop(coords, residues, env_heavy, cycles, 2.0, rng)
-        cm.coords = coords
+        cm.coords = coords[:n_sys]
         cm.write_pdb(f'{self.basename}.pdb')
 
     def declash_na_loops(self, specs):

@@ -103,6 +103,7 @@ class TestLoopClosureSeed(unittest.TestCase):
         state.pdb.name = 'in.pdb'
         t.get_current_artifact = lambda k: state
         t.base_molecule = mock.Mock()
+        t.base_molecule.obstacle_coords.return_value = None
         t.base_molecule.protein_loop_gaps.return_value = [{'segname': 'A', 'loop_resids': [10, 11],
                                                          'n_anchor_resid': 9, 'c_anchor_resid': 12}]
         seen = {}
@@ -190,6 +191,7 @@ class TestDeclashSeed(unittest.TestCase):
         t = self._task(namd_seed)
         t.specs = {'source': {'sequence': {'loops': {'declash': {}}}}}
         t.base_molecule = mock.Mock()
+        t.base_molecule.obstacle_coords.return_value = None
         t.base_molecule.protein_terminal_tails.return_value = [
             {'segname': 'A', 'tail_resids': [1, 2], 'anchor_resid': 3, 'end': 'N'}]
         t.base_molecule.protein_loop_gaps.return_value = []

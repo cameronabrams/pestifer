@@ -38,6 +38,7 @@ def _task(with_ccd_context=True):
     state.xsc = None
     t.get_current_artifact = lambda k: state
     t.base_molecule = mock.Mock()
+    t.base_molecule.obstacle_coords.return_value = None
     t.base_molecule.protein_loop_gaps.return_value = _GAPS
     t.get_current_artifact_data = lambda k: t.base_molecule
     if with_ccd_context:
