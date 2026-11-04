@@ -49,7 +49,7 @@ def _task(**attrs):
     return t
 
 
-def _profile(nslabs=4, nframes=8, pxx=0.0, pyy=0.0, pzz=0.0, first_ts_zero=True):
+def _profile(nslabs=4, nframes=24, pxx=0.0, pyy=0.0, pzz=0.0, first_ts_zero=True):
     """A NAMD pressureprofile dataframe with constant per-slab components."""
     def per_slab(v):
         return list(v) if hasattr(v, '__len__') else [v] * nslabs
@@ -895,6 +895,39 @@ class TestDifferentialStressDiagnostic(unittest.TestCase):
         self.assertIn('gamma_upper          = +200.000', out)
         self.assertIn('move ~', out)
         self.assertIn('from the lower to the upper', out)
+
+    def test_a_dgamma_inside_its_noise_gets_no_advice(self):
+        """The 3.30.0 ex17 replicas gave Dgamma +24.4, +17.3 and +1.6 mN/m, each printed with a
+        lipid-count fix and no uncertainty.  A difference that the frames themselves cannot tell
+        from zero must not turn into a rebuild recommendation."""
+        pp = _profile(nslabs=4, nframes=41, pzz=[0, 0, 0, 0])
+        # alternate the upper leaflet's Pzz by +/-4000 bar around a +40 bar offset: a mean Dgamma
+        # of +20 mN/m buried in block-to-block scatter of thousands
+        sampled = pp.index[pp['TS'] > 0]
+        for k, i in enumerate(sampled):
+            pp.loc[i, ['z_2', 'z_3']] = 40.0 + (4000.0 if (k // 4) % 2 else -4000.0)
+        with self.assertLogs(LOGGER, level='INFO') as cm:
+            self._run(pp)
+        out = ''.join(cm.output)
+        self.assertIn('block SE', out)
+        self.assertIn('within two standard errors', out)
+        self.assertNotIn('move ~', out)
+        self.assertNotIn('look balanced', out)
+
+    def test_too_few_frames_for_an_uncertainty_gets_no_advice(self):
+        with self.assertLogs(LOGGER, level='WARNING') as cm:
+            self._run(_profile(nslabs=4, nframes=8, pzz=[0, 0, 400, 400]))
+        self.assertIn('Too few profile frames', ''.join(cm.output))
+
+    def test_a_significant_dgamma_still_gets_advice(self):
+        """Negative control for the two above: the gate must not swallow a real imbalance."""
+        pp = _profile(nslabs=4, nframes=41, pzz=[0, 0, 400, 400])
+        sampled = pp.index[pp['TS'] > 0]
+        for k, i in enumerate(sampled):
+            pp.loc[i, ['z_2', 'z_3']] = 400.0 + (10.0 if k % 2 else -10.0)
+        with self.assertLogs(LOGGER, level='INFO') as cm:
+            self._run(pp)
+        self.assertIn('move ~', ''.join(cm.output))
 
     def test_the_suggested_count_follows_the_area_modulus(self):
         """dm = -Dgamma / [K_A * (1/n_up + 1/n_low)] -- a softer membrane needs more lipids

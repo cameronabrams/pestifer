@@ -4,6 +4,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Changed
+
+- **The differential-stress diagnostic reports how sure it is.** `diagnose_differential_stress`
+  now gives Dgamma with a standard error from five contiguous blocks of the sampled frames, and
+  suggests a leaflet-count change only when Dgamma is more than two standard errors from zero
+  (or says it has too few frames to tell). Example 17's 3.30.0 replicas reported +24.4, +17.3 and
+  +1.6 mN/m, each with a rebuild recommendation and no way to tell that spread from sampling
+  noise. Short blocks are still correlated, so the error is a floor, not a bound.
+
 ## [3.30.1] - 2026-11-03
 
 ### Added

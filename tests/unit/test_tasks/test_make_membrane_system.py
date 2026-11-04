@@ -219,6 +219,26 @@ class TestPerLeafletTension(unittest.TestCase):
         self.assertIsNotNone(res)
         self.assertLess(abs(res['total']), 10.0)      # sane magnitude, not ~1e6
 
+    def test_dgamma_standard_error_from_blocks(self):
+        # constant profile: every block agrees, SE 0
+        res = _per_leaflet_tension(_pp_df_from_dp(np.ones(20), nframes=40), c_z=60.0)
+        self.assertEqual(res['dgamma_se'], 0.0)
+        # too few sampled frames for 5 blocks of 2: no SE rather than a fabricated one
+        res = _per_leaflet_tension(_pp_df_from_dp(np.ones(20), nframes=6), c_z=60.0)
+        self.assertIsNone(res['dgamma_se'])
+
+    def test_dgamma_standard_error_tracks_block_scatter(self):
+        nslabs, nframes = 4, 40
+        pp = _pp_df_from_dp(np.zeros(nslabs), nframes=nframes)
+        # sampled frames are the last 20; give the upper slabs block means 0,10,20,30,40 (bar)
+        rows = pp.index[pp['TS'] > 0][nframes // 2:]
+        for k, i in enumerate(rows):
+            pp.loc[i, ['z_2', 'z_3']] = 10.0 * (k // 4)
+        res = _per_leaflet_tension(pp, c_z=40.0)
+        dz = 40.0 / nslabs
+        block_dg = 0.01 * 2 * dz * 10.0 * np.arange(5)
+        self.assertAlmostEqual(res['dgamma_se'], block_dg.std(ddof=1) / np.sqrt(5), places=9)
+
     def test_degenerate_inputs_return_none(self):
         self.assertIsNone(_per_leaflet_tension(None, c_z=80.0))
         self.assertIsNone(_per_leaflet_tension(pd.DataFrame(), c_z=80.0))

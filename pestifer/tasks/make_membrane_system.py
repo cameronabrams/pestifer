@@ -53,6 +53,9 @@ def _as_float(v):
 # measured residual differential stress into a suggested leaflet-count adjustment.  A
 # representative value for fluid lipid monolayers; the suggestion is a guide, not a fit.
 _DEFAULT_AREA_MODULUS = 250.0
+#: Contiguous blocks the differential-stress diagnostic splits its sampled frames into to
+#: estimate the standard error of Dgamma.
+_DGAMMA_BLOCKS = 5
 
 # Schema defaults for the two relaxation-stage task types, mirrored here so a protocol stage that
 # names no temperature can still be told what it ran at.  THEY DIFFER, and that is the point:
@@ -183,17 +186,31 @@ def _per_leaflet_tension(pp_df, c_z, midplane_slab=None):
     frames = _sampled_profile_frames(pp_df)
     if frames is None:
         return None
-    pxx = np.array([frames[f'x_{i}'].mean() for i in range(nslabs)])
-    pyy = np.array([frames[f'y_{i}'].mean() for i in range(nslabs)])
-    pzz = np.array([frames[f'z_{i}'].mean() for i in range(nslabs)])
     dz = float(c_z) / nslabs
-    gamma_slab = 0.01 * (pzz - 0.5 * (pxx + pyy)) * dz   # mN/m per slab
     if midplane_slab is None:
         midplane_slab = nslabs // 2
-    lower = float(gamma_slab[:midplane_slab].sum())
-    upper = float(gamma_slab[midplane_slab:].sum())
-    return dict(total=float(gamma_slab.sum()), lower=lower, upper=upper,
-                dgamma=upper - lower, nslabs=nslabs, nframes=int(len(frames)))
+
+    def leaflets(rows):
+        pxx = np.array([rows[f'x_{i}'].mean() for i in range(nslabs)])
+        pyy = np.array([rows[f'y_{i}'].mean() for i in range(nslabs)])
+        pzz = np.array([rows[f'z_{i}'].mean() for i in range(nslabs)])
+        gamma_slab = 0.01 * (pzz - 0.5 * (pxx + pyy)) * dz   # mN/m per slab
+        return (float(gamma_slab[:midplane_slab].sum()), float(gamma_slab[midplane_slab:].sum()),
+                float(gamma_slab.sum()))
+
+    lower, upper, total = leaflets(frames)
+    # Standard error of Dgamma from contiguous block means.  Without it a single Dgamma cannot be
+    # told from noise: ex17's 3.30.0 replicas gave +24.4, +17.3 and +1.6 mN/m from 100k-step
+    # passes, and nothing in the report said whether that spread was the membrane or the sampling.
+    # Blocks this short are still correlated, so this is a floor on the uncertainty, not a bound.
+    dgamma_se = None
+    if len(frames) >= 2 * _DGAMMA_BLOCKS:
+        blocks = np.array_split(np.arange(len(frames)), _DGAMMA_BLOCKS)
+        per_block = [leaflets(frames.iloc[b]) for b in blocks]
+        dgammas = np.array([u - l for l, u, _ in per_block])
+        dgamma_se = float(dgammas.std(ddof=1) / np.sqrt(len(dgammas)))
+    return dict(total=total, lower=lower, upper=upper, dgamma=upper - lower,
+                dgamma_se=dgamma_se, nslabs=nslabs, nframes=int(len(frames)))
 
 
 #: Step count for the minimize spliced in to relax a just-rotated structure, used only when
@@ -1286,9 +1303,22 @@ class MakeMembraneSystemTask(BaseTask):
         logger.info(f'  gamma_total          = {res["total"]:+.3f} mN/m '
                     f'(real-space only; the PME reciprocal term is absent from this profile, so '
                     f'this is not expected to vanish even at zero applied tension)')
-        logger.info(f'  Dgamma (upper-lower) = {res["dgamma"]:+.3f} mN/m '
+        se = res['dgamma_se']
+        se_text = f' +/- {se:.3f} (block SE, {_DGAMMA_BLOCKS} blocks)' if se is not None else ''
+        logger.info(f'  Dgamma (upper-lower) = {res["dgamma"]:+.3f}{se_text} mN/m '
                     f'(target ~0 for a stress-free membrane; the absent reciprocal term cancels '
                     f'here only insofar as it is symmetric about the midplane)')
+        if se is None:
+            logger.warning(f'  Too few profile frames ({res["nframes"]}) to estimate the '
+                           f'uncertainty of Dgamma; no leaflet-count change is suggested.  '
+                           f'Raise diagnose_differential_stress.nsteps.')
+            return
+        if abs(res['dgamma']) < 2.0 * se:
+            logger.info(f'  Dgamma is within two standard errors of zero: not distinguishable '
+                        f'from a stress-free membrane at this sampling length, so no '
+                        f'leaflet-count change is suggested.  A longer pass '
+                        f'(diagnose_differential_stress.nsteps) narrows it.')
+            return
         # gamma_leaflet ~ K_A*(A/A0 - 1); moving dm lipids from upper to lower changes
         # Dgamma by K_A*dm*(1/n_upper + 1/n_lower), so dm = -Dgamma / [K_A*(...)]
         denom = K_A * (1.0 / n_upper + 1.0 / n_lower)
