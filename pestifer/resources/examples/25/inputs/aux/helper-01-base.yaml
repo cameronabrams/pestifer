@@ -17,6 +17,8 @@ tasks:
         # ...which the merge puts back exactly where they are now.  5vn3 does not resolve the
         # V3 tip (311-324), and with the Fabs merely excluded the loop closer modeled it into
         # their space in every replica; as obstacles they are not built but the closure avoids them.
+        # (No hand-set crotation of 309-324 here: it swung the crystal Ile309 into Fab Tyr100,
+        # where obstacles do not reach, and the merge found the Ile309 bond through that ring.)
         obstacles:
           - chainID in ['H', 'K', 'M', 'L', 'N', 'O']
         sequence:
@@ -39,10 +41,6 @@ tasks:
           - G:131A-133T,GGG
           - I:131A-133T,GGG
           - J:131A-133T,GGG
-        crotations:
-          - phi,G,309,324,-60
-          - phi,I,309,324,-60
-          - phi,J,309,324,-60
   - md:
       cpu-override: True
       ensemble: minimize

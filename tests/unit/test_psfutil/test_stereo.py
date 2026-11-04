@@ -239,6 +239,24 @@ class TestTrackingAcrossStages(unittest.TestCase):
         self.assertEqual(recs, [])
         self.assertNotIn('stereo_record', self.store)
 
+    def test_a_clean_final_without_a_baseline_says_so(self):
+        """A merged build (continuation + merge, no psfgen) used to print nothing at terminate
+        when clean -- the same silence as a check that never ran (ex25 on 3.30.1)."""
+        recs = self._run(PDB, 'terminate', final=True)
+        self.assertTrue(any('final structure carries no protein stereochemistry' in r.getMessage()
+                            for r in recs), [r.getMessage() for r in recs])
+
+    def test_a_defective_final_without_a_baseline_lists_it(self):
+        recs = self._run(self.mirror, 'terminate', final=True)
+        msgs = [r.getMessage() for r in recs]
+        self.assertTrue(any('present in the final structure' in m for m in msgs), msgs[:2])
+        self.assertFalse(any('carries no protein stereochemistry' in m for m in msgs))
+
+    def test_a_final_check_that_cannot_read_says_so_at_info(self):
+        recs = self._run(os.path.join(self.d, 'missing.pdb'), 'terminate', final=True)
+        self.assertTrue(any('skipped' in r.getMessage() and r.levelno == logging.INFO
+                            for r in recs), [(r.levelname, r.getMessage()) for r in recs])
+
     def test_a_check_that_cannot_read_never_raises(self):
         self._run(PDB, 'psfgen', baseline=True)
         recs = self._run(os.path.join(self.d, 'missing.pdb'), 'md')

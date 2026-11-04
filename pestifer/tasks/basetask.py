@@ -570,7 +570,10 @@ class BaseTask(ABC):
             found = {d.key: d for d in cache[1].check_coords(xyz)}
             found.update({k.key: k for k in cache[1].knots(xyz)})
         except Exception as e:
-            logger.debug(f'{who}: stereochemistry check skipped ({type(e).__name__}: {e})')
+            # the final summary is the line a reader looks for; its absence must not be what a
+            # skipped check and a clean structure have in common
+            (logger.info if final else logger.debug)(
+                f'{who}: stereochemistry check skipped ({type(e).__name__}: {e})')
             return
         if baseline or record is None:
             record = {k: 'psfgen' if baseline else None for k in found}
@@ -581,6 +584,11 @@ class BaseTask(ABC):
                 logger.info(f'{who}: {len(found)} protein stereochemistry or knot defect(s) {origin}:')
                 for d in found.values():
                     (logger.warning if d.kind == 'knot' else logger.info)(f'  {d.describe()}')
+            elif final:
+                # a build assembled by continuation/merge has no psfgen baseline; said out loud,
+                # since otherwise a clean structure and an unchecked one both print nothing
+                logger.info(f'{who}: the final structure carries no protein stereochemistry or '
+                            f'knot defect (no psfgen stage in this build to compare against)')
             self.register(record, key='stereo_record')
             return
         # an inherited defect (psfgen's baseline) that went away and came back -- a bond whose

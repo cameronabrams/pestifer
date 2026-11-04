@@ -4,6 +4,19 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Fixed
+
+- **Example 25: removed the `crotations` of Env 309-324.** The hand-set phi rotation swung the
+  crystal Ile309 from 3.3 A to about 2.4 A off Fab Tyr100's ring, and the minimizes that follow,
+  run with the Fabs absent, pushed it to 1.5 A. `source.obstacles` guards modeled loops and tails,
+  not a user's rotation, so 3.30.1 still carried the overlap: the Ile309/Tyr100 pair sat under 1.2 A
+  at 7 of 9 interfaces across three picotte replicas, and one stopped at `merge` on that bond
+  through the ring. Without the rotation, four local seeds gave no Ile309 overlap and no piercing.
+- **The final stereochemistry check is no longer silent on a merged build.** With no psfgen stage
+  to compare against (a build assembled by `continuation` and `merge`), `terminate` printed nothing
+  when the structure was clean -- the same as when the check could not run. It now says the
+  structure is clean, and a final check that cannot read the structure says so at INFO.
+
 ### Changed
 
 - **The differential-stress diagnostic reports how sure it is.** `diagnose_differential_stress`
