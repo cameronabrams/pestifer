@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.30.2] - 2026-11-04
+
 ### Fixed
 
 - **Example 25: removed the `crotations` of Env 309-324.** The hand-set phi rotation swung the
