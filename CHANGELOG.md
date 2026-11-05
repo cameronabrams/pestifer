@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.30.3] - 2026-11-05
+
 ### Fixed
 
 - **A run that writes a pressure profile now uses `fullElectFrequency 1`.** Under multiple time
