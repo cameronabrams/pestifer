@@ -20,6 +20,50 @@ from ..charmmff import fileset
 
 logger = logging.getLogger(__name__)
 
+_NAMD_TRUE = {'on', 'yes', 'true', '1'}
+
+
+def _is_on(value) -> bool:
+    """NAMD's reading of a boolean directive's value."""
+    if isinstance(value, bool):
+        return value
+    return str(value).strip().lower() in _NAMD_TRUE
+
+
+def profile_safe_electrostatics(params: dict) -> dict:
+    """Return ``params`` with ``fullElectFrequency`` forced to 1 if a pressure profile is on.
+
+    Under multiple time stepping (``fullElectFrequency`` > 1) NAMD's ordinary pressure profile
+    already carries part of the PME reciprocal-space term, so adding the reciprocal profile from a
+    ``pressureProfileEwald`` replay counts that part twice.  Measured on a 200-lipid DMPC patch
+    (2026-11-05): at ``fullElectFrequency 1`` the profile plus the replayed reciprocal term matches
+    NAMD's own pressure tensor to about 1 bar per component; at 2 it misses by 70-95 bar per
+    component, an anisotropic error worth +14.5 mN/m of total tension.  No rescaling of the
+    reciprocal term repairs it exactly, so a run that writes a profile must not use MTS.
+
+    The input dict is not modified.  Keys are matched case-insensitively, as NAMD does.
+    """
+    profile_on = any(k.lower() in ('pressureprofile', 'pressureprofileewald') and _is_on(v)
+                     for k, v in params.items())
+    if not profile_on:
+        return params
+    out = dict(params)
+    for k, v in params.items():
+        if k.lower() != 'fullelectfrequency':
+            continue
+        try:
+            freq = int(v)
+        except (TypeError, ValueError):
+            continue
+        if freq > 1:
+            out[k] = 1
+            logger.warning(
+                f'fullElectFrequency {freq} -> 1 because this run writes a pressure profile: under '
+                'multiple time stepping the profile already holds part of the PME reciprocal term, '
+                'and adding the pressure-profile-ewald replay would count it twice')
+    return out
+
+
 class NAMDScripter(TcLScripter):
     """
     This class extends the TcLScripter class to provide functionality for creating and managing NAMD scripts (which NAMD refers to as "configurations" -- this is not to be confused with Pestifer's Config class).
@@ -125,6 +169,7 @@ class NAMDScripter(TcLScripter):
             If True, the script will be written with CPU-specific configurations, even if the NAMD type is 'gpu'.
         """
         # logger.debug(f'params: {params}')
+        params = profile_safe_electrostatics(params)
         tailers = ['minimize', 'run', 'numsteps']
         gpu_resident_active = self.namd_type == 'gpu' and not cpu_override
         gpu_override_keys = {k.lower() for k in self.namd_config['gpu-resident']} if gpu_resident_active else set()

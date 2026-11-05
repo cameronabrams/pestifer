@@ -1419,7 +1419,7 @@ attributes:
             type: bool
             default: True
           - name: compute_pressure_profile
-            text: enable NAMD's on-the-fly pressure profile calculation during bilayer relaxation NPT/NPAT stages; not supported on CUDA-enabled (GPU) NAMD
+            text: enable NAMD's on-the-fly pressure profile calculation during bilayer relaxation NPT/NPAT stages; not supported on CUDA-enabled (GPU) NAMD. Those stages run with fullElectFrequency 1, since under multiple time stepping the profile double-counts part of the PME reciprocal term once it is added back.
             type: dict
             attributes:
               - name: enabled
@@ -1447,7 +1447,9 @@ attributes:
               build that writes wrong pressure profiles, nothing is reported from it.
               Dgamma is reported with a block standard error (five contiguous blocks of the
               sampled frames, a floor on the true uncertainty), and no leaflet-count change is
-              suggested unless Dgamma exceeds two standard errors.
+              suggested unless Dgamma exceeds two standard errors. The pass runs with
+              fullElectFrequency 1: under multiple time stepping NAMD's profile carries part
+              of the PME reciprocal term, a part that differs between the leaflets.
             type: dict
             attributes:
               - name: enabled

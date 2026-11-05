@@ -4,6 +4,20 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Fixed
+
+- **A run that writes a pressure profile now uses `fullElectFrequency 1`.** Under multiple time
+  stepping NAMD's ordinary profile already carries part of the PME reciprocal term, so the
+  reciprocal profile from `pestifer pressure-profile-ewald` counted that part twice. On a 200-lipid
+  DMPC patch held at zero tension, profile plus replayed reciprocal term missed NAMD's own pressure
+  tensor by 70-95 bar per component at `fullElectFrequency 2`, about +14.5 mN/m of total tension
+  that does not exist; at 1 it agreed to about 1 bar, and its tension matched the virial's. Every
+  example 16 and 17 profile used the default of 2. `NAMDScripter.writescript` now forces 1 whenever
+  `pressureProfile` or `pressureProfileEwald` is on and logs a warning saying so; this covers the
+  `diagnose_differential_stress` pass, `compute_pressure_profile` stages, and any `md` task that
+  turns a profile on through `other_parameters`. The cost was about 2% on that patch. Profiles
+  written before this change cannot be corrected after the fact.
+
 ## [3.30.2] - 2026-11-04
 
 ### Fixed

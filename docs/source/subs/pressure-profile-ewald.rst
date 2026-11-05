@@ -24,6 +24,17 @@ Nor is it practical to compute the Ewald half during the production run.  NAMD r
 
 Replaying a trajectory evaluates once per **sampled frame** instead of once per step, so the cost falls by the sampling stride.  That example samples every 100 steps, so the reconstruction costs about 1% of what computing it inline would have: hours rather than days.
 
+.. warning::
+
+   The production run must use ``fullElectFrequency 1``.  Under multiple time stepping
+   (``fullElectFrequency`` 2 or more) NAMD's ordinary profile already carries part of the
+   reciprocal term, so adding the replayed reciprocal profile counts that part twice.  On a
+   200-lipid DMPC patch the sum then missed NAMD's own pressure tensor by 70–95 bar per component,
+   about +14.5 mN/m of total tension that does not exist; at ``fullElectFrequency 1`` it agreed to
+   about 1 bar.  No rescaling of the reciprocal term repairs it exactly.  Pestifer writes
+   ``fullElectFrequency 1`` into any stage it generates with a pressure profile on, and logs that
+   it did; a production config written by hand has to do the same.
+
 Usage
 ~~~~~
 

@@ -526,3 +526,51 @@ class TestConsolidateParamsVerifiesCoverage(unittest.TestCase):
             self.assertIn('PESTIFER BUG', msg)
             self.assertIn('CT1-C-O', msg)
             self.assertNotIn('charmmff.standard.str', msg)
+
+
+class TestPressureProfileForbidsMultipleTimeStepping(unittest.TestCase):
+    """A run that writes a pressure profile must not use fullElectFrequency > 1.
+
+    Under MTS NAMD's ordinary profile already carries part of the PME reciprocal term, so the
+    pressure-profile-ewald replay added on top counts it twice. Measured 2026-11-05 on a DMPC patch:
+    at fullElectFrequency 1 profile + replayed reciprocal matched NAMD's PRESSAVG tensor to ~1 bar per
+    component; at 2 it missed by 70-95 bar, +14.5 mN/m of spurious total tension.
+    """
+
+    def test_profile_on_forces_fullelectfrequency_to_one(self):
+        from pestifer.scripters.namd import profile_safe_electrostatics
+        for on in (True, 'on', 'yes', 'True', 1):
+            params = {'fullElectFrequency': 2, 'pressureProfile': on}
+            with self.assertLogs('pestifer.scripters.namd', level='WARNING') as cm:
+                out = profile_safe_electrostatics(params)
+            self.assertEqual(out['fullElectFrequency'], 1, on)
+            self.assertEqual(params['fullElectFrequency'], 2, 'the input dict must not be modified')
+            self.assertIn('count it twice', cm.output[0])
+
+    def test_ewald_profile_counts_as_a_profile_and_keys_are_case_insensitive(self):
+        from pestifer.scripters.namd import profile_safe_electrostatics
+        out = profile_safe_electrostatics({'fullelectfrequency': '4', 'PRESSUREPROFILEEWALD': 'on'})
+        self.assertEqual(out['fullelectfrequency'], 1)
+
+    def test_no_profile_leaves_mts_alone(self):
+        from pestifer.scripters.namd import profile_safe_electrostatics
+        for params in ({'fullElectFrequency': 2},
+                       {'fullElectFrequency': 2, 'pressureProfile': 'off'},
+                       {'fullElectFrequency': 2, 'pressureProfile': False}):
+            self.assertEqual(profile_safe_electrostatics(params)['fullElectFrequency'], 2)
+
+    def test_writescript_emits_the_forced_value(self):
+        """At the call site, not just the helper: the emitted config must say 1."""
+        from pestifer.scripters.tcl import TcLScripter
+        p = NAMDScripter.__new__(NAMDScripter)
+        p.namd_type = 'cpu'
+        p.namd_config = {}
+        p.namd_deprecates = {}
+        lines = []
+        p.addline = lines.append
+        with mock.patch.object(TcLScripter, 'writescript'), self.assertLogs('pestifer.scripters.namd', 'WARNING'):
+            p.writescript({'timestep': 2.0, 'fullElectFrequency': 2, 'pressureProfile': True,
+                           'pressureProfileSlabs': 40, 'run': 1000})
+        self.assertIn('fullElectFrequency 1', lines)
+        self.assertNotIn('fullElectFrequency 2', lines)
+        self.assertEqual(lines[-1], 'run 1000')
