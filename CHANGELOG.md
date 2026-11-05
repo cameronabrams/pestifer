@@ -4,6 +4,36 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Changed
+
+- **`pestifer pressure-profile-ewald` now completes the production run's own profile, and
+  takes its log (`--log`, required).** It replays only the PME reciprocal term and adds it, frame
+  by frame and matched by MD step, to the production `PRESSUREPROFILE` records. The replayed
+  real-space pass is gone: a replay evaluates each frame at `run 0` with one velocity set reused
+  for every frame and no rigid-bond constraint virial, and on a DMPC patch it missed the production
+  profile by tens of bar per component (about 485 bar of trace without rigid bonds). Its
+  self-check passed anyway, because it compared the replay with the replay's own `PRESSURE`.
+- **The self-check is per component, against the production run's `PRESSAVG` tensor**
+  (`outputPressure` equal to `pressureProfileFreq` in production), and fails at 10 bar. A surface
+  tension is a difference of components, which the old trace-only check could not see. With no
+  tensor in the log, the command says the result was not checked.
+- **The command refuses a production config with `fullElectFrequency` above 1** (override:
+  `--accept-mts`), since the sum then double-counts part of the reciprocal term.
+- **The Ewald grid defaults to about 3 A per point, sized from the cell.** NAMD's default 10^3
+  missed by 182 bar on example 17's box and 20^3 by 53, under the old 100-bar warning threshold;
+  30^3 and 40^3 were within about 1 bar. The warning now names grid convergence as the first
+  suspect, ahead of a faulty NAMD build.
+- **`diagnose_differential_stress` reports a complete, checked profile, split at the measured
+  midplane.** The pass now writes its DCD and pressure tensor; the reciprocal term is replayed and
+  added (`reciprocal: true`, new, default), and nothing is reported unless the complete profile
+  reproduces the pass's own tensor. The leaflets are split at the lipid methyl trough located from
+  the coordinates in each frame, and each is integrated over half the cell from there, instead of
+  at the central slab: one slab of misplacement moved example 17's Dgamma by 8-15 mN/m. On example
+  17 the reciprocal term alone contributed -2.8 to -13.2 mN/m to Dgamma, so with `reciprocal: false`
+  the tensions are reported as real-space only and no leaflet-count change is suggested.
+- Examples 16 and 17 write `outputPressure` with their profiles, and their comments describe the
+  replay as it now works.
+
 ## [3.30.3] - 2026-11-05
 
 ### Fixed

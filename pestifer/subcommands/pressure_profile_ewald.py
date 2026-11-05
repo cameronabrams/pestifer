@@ -1,24 +1,23 @@
 # Author: Cameron F. Abrams <cfa22@drexel.edu>
 """
 The pressure-profile-ewald subcommand.  Reconstructs a *complete* NAMD pressure profile --
-reciprocal-space term included -- by replaying a saved trajectory twice and summing the halves.
+reciprocal-space term included -- from a production run's own profile and its trajectory.
 
 A run with ``pressureProfile on`` omits the PME reciprocal-space contribution, and NAMD makes
 ``pressureProfileEwald`` mutually exclusive with the ordinary profile, so no single run reports the
-whole thing.  Computing the Ewald half inline is impractical (it evaluates every step, not every
-sampled frame); replaying the trajectory costs the inline penalty divided by the sampling stride.
-See :mod:`pestifer.util.ppewald` for the mechanism and its validation.
+whole thing.  This replays the trajectory for the reciprocal term alone and adds it, frame by frame
+and matched by MD step, to the profile the production run already wrote.  The production run must
+use ``fullElectFrequency 1``.  See :mod:`pestifer.util.ppewald` for the mechanism and the
+measurements behind it.
 
 Example:
 --------
 
 .. code-block:: bash
 
-   $ pestifer pressure-profile-ewald --namd-config prod.namd --dcd prod.dcd --slabs 20
+   $ pestifer pressure-profile-ewald --namd-config prod.namd --log prod.log --dcd prod.dcd
 
-This reads the production config for its force field, cutoffs and PME settings, emits two replay
-configs, runs both over ``prod.dcd``, and writes ``ppreplay-pressure-profile.png`` and
-``ppreplay-pressure-profile.csv``.
+This writes ``ppreplay-pressure-profile.png`` and ``ppreplay-pressure-profile.csv``.
 """
 import logging
 import os
@@ -28,8 +27,8 @@ import argparse as ap
 from dataclasses import dataclass
 
 from . import Subcommand
-from ..util.ppewald import (replay, write_csv, plot, validate_against_total_pressure,
-                             profile_warnings)
+from ..util.ppewald import (replay, write_csv, plot, check_against_tensor,
+                             closure_warnings)
 from ..util.provenance import stamp as provenance_stamp
 
 logger = logging.getLogger(__name__)
@@ -41,32 +40,42 @@ class PressureProfileEwaldSubcommand(Subcommand):
     group: str = 'After the run'
     log_file: str = 'pressure-profile-ewald.log'
     short_help: str = "reconstruct a complete pressure profile, reciprocal term included"
-    long_help: str = ("Replay a trajectory twice -- once for the real-space profile, once for the "
-                      "PME reciprocal-space profile, which NAMD will not report together -- and "
-                      "sum them frame by frame into the complete pressure profile.")
+    long_help: str = ("Replay a production trajectory for the PME reciprocal-space pressure "
+                      "profile, which NAMD will not report alongside the ordinary one, and add it "
+                      "frame by frame to the production run's own profile.")
     func_returns_type: type = bool
 
     @staticmethod
     def func(args: ap.Namespace, **kwargs):
-        for name, path in (('--namd-config', args.namd_config), ('--dcd', args.dcd)):
+        for name, path in (('--namd-config', args.namd_config), ('--log', args.log),
+                           ('--dcd', args.dcd)):
             if not os.path.exists(path):
                 raise FileNotFoundError(f'{name} {path}: no such file')
-        grid = tuple(args.ewald_grid)
-        result = replay(args.namd_config, args.dcd,
-                        workdir=args.workdir, slabs=args.slabs, ewald_grid=grid,
-                        stride=args.stride, temperature=args.temperature,
-                        namd=args.namd, nprocs=args.np, prefix=args.prefix)
+        grid = tuple(args.ewald_grid) if args.ewald_grid else None
+        result = replay(args.namd_config, args.dcd, args.log,
+                        workdir=args.workdir, ewald_grid=grid, stride=args.stride,
+                        temperature=args.temperature, namd=args.namd, nprocs=args.np,
+                        prefix=args.prefix, accept_mts=args.accept_mts)
+        if args.slabs is not None and args.slabs != result.nslabs:
+            raise RuntimeError(f'--slabs {args.slabs}, but the production profile has '
+                               f'{result.nslabs} slabs; the replay always uses the production '
+                               'slab count')
         logger.info(f'reconstructed {result.nframes} frames x {result.nslabs} slabs')
 
-        check = validate_against_total_pressure(result)
-        if check is not None:
-            # The real-space pass reports the total pressure of a complete force evaluation in its
-            # ENERGY lines, so this is an independent check that summing the halves was right.
-            logger.info('agreement with NAMD\'s own reported pressure '
-                        f'(mean |slab-average - PRESSURE|, over {result.nframes} frames):')
-            logger.info(f'    real space only : {check["real_only_deviation"]:10.2f} bar')
-            logger.info(f'    reconstructed   : {check["reconstructed_deviation"]:10.2f} bar')
-            for reason in profile_warnings(check):
+        check = check_against_tensor(result)
+        if check is None:
+            logger.warning(
+                'the production log carries no pressure tensor, so the reconstruction was NOT '
+                'checked.  Set outputPressure equal to pressureProfileFreq in the production run '
+                'to get one.')
+        else:
+            dev, real = check['deviation'], check['real_only_deviation']
+            fmt = lambda v: ' / '.join(f'{x:+8.2f}' for x in v)
+            logger.info('agreement with the production run\'s own pressure tensor (frame mean of '
+                        f'slab average - PRESSAVG, xx / yy / zz, over {check["nframes"]} frames):')
+            logger.info(f'    real space only : {fmt(real)} bar')
+            logger.info(f'    complete        : {fmt(dev)} bar')
+            for reason in closure_warnings(check):
                 logger.warning(reason)
 
         base = os.path.join(args.workdir, f'{args.prefix}-pressure-profile')
@@ -84,21 +93,31 @@ class PressureProfileEwaldSubcommand(Subcommand):
         self.parser.add_argument('--namd-config', type=str, required=True,
                                  help='the production NAMD config the trajectory came from; its '
                                       'force field, cutoffs, PME and restraint settings are '
-                                      'reused verbatim so the profile matches the run')
+                                      'reused verbatim so the reciprocal term matches the run')
+        self.parser.add_argument('--log', type=str, required=True,
+                                 help='the production NAMD log: its PRESSUREPROFILE records are '
+                                      'the real-space half, and its PRESSAVG tensor (written with '
+                                      'outputPressure = pressureProfileFreq) is the self-check')
         self.parser.add_argument('--dcd', type=str, required=True,
-                                 help='trajectory to replay (must carry unit cell data, i.e. it '
-                                      'was written with DCDUnitCell yes)')
-        self.parser.add_argument('--slabs', type=int, default=20,
-                                 help='pressureProfileSlabs for both passes (default: %(default)s)')
-        self.parser.add_argument('--ewald-grid', type=int, nargs=3, default=(10, 10, 10),
+                                 help='trajectory of that run (must carry unit cell data, i.e. it '
+                                      'was written with DCDUnitCell yes, at a multiple of '
+                                      'pressureProfileFreq)')
+        self.parser.add_argument('--slabs', type=int, default=None,
+                                 help='optional check: the slab count you expect; the replay '
+                                      'always uses the production profile\'s own')
+        self.parser.add_argument('--ewald-grid', type=int, nargs=3, default=None,
                                  metavar=('X', 'Y', 'Z'),
-                                 help='pressureProfileEwald grid (default: %(default)s, NAMD\'s '
-                                      'own default; raise it and re-run to check convergence)')
+                                 help='pressureProfileEwald grid (default: sized from the cell at '
+                                      'about 3 A; raise it and re-run to check convergence)')
         self.parser.add_argument('--stride', type=int, default=1,
                                  help='replay every Nth frame (default: %(default)s)')
         self.parser.add_argument('--temperature', type=float, default=300.0,
-                                 help='temperature for velocity initialization; affects only the '
-                                      'kinetic term (default: %(default)s)')
+                                 help='temperature NAMD needs to start; it does not enter the '
+                                      'reciprocal term (default: %(default)s)')
+        self.parser.add_argument('--accept-mts', action='store_true',
+                                 help='proceed even though the production run used '
+                                      'fullElectFrequency > 1 (the result double-counts part of '
+                                      'the reciprocal term)')
         self.parser.add_argument('--workdir', type=str, default='.',
                                  help='directory for the replay configs, logs and output')
         self.parser.add_argument('--prefix', type=str, default='ppreplay',

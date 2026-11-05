@@ -1,8 +1,8 @@
-"""Unit tests for pestifer.util.ppewald (the NAMD-free half of the two-pass replay).
+"""Unit tests for pestifer.util.ppewald: the production profile plus a replayed reciprocal term.
 
-The engine is deliberately testable without NAMD: config synthesis, log parsing, the guard against
-combining mismatched passes, and the validation arithmetic all run on strings and arrays.  One
-`needs_tools` test at the end drives real NAMD end to end.
+The engine is deliberately testable without NAMD: config synthesis, log parsing, step matching,
+the MTS refusal and the per-component closure check all run on strings and arrays.  The
+`needs_tools` tests at the end drive real NAMD end to end.
 """
 import os
 import textwrap
@@ -11,14 +11,19 @@ import numpy as np
 import pytest
 
 from pestifer.util.ppewald import (
+    CLOSURE_TOLERANCE_BAR,
     DROP_DIRECTIVES,
     ProfilePass,
     ReplayResult,
+    align_production,
     build_replay_config,
+    check_against_tensor,
+    closure_warnings,
     combine,
+    full_elect_frequency,
     parse_profiles,
+    replay,
     strip_for_replay,
-    validate_against_total_pressure,
     write_csv,
 )
 
@@ -101,78 +106,86 @@ class TestStripForReplay:
         assert all(d == d.lower() for d in DROP_DIRECTIVES)
 
 
-class TestBuildReplayConfig:
-    def test_real_pass_has_no_ewald_block(self):
-        cfg = build_replay_config(PROD, 'traj.dcd', 'real', slabs=20, outname='out')
-        assert 'pressureProfileEwald' not in cfg
-        assert 'pressureProfile         on' in cfg
+def _cfg(**kw):
+    args = dict(slabs=20, outname='out', ewald_grid=(10, 10, 10))
+    args.update(kw)
+    return build_replay_config(PROD, kw.pop('dcd', 'traj.dcd'), **args)
 
-    def test_ewald_pass_turns_ewald_on(self):
-        cfg = build_replay_config(PROD, 'traj.dcd', 'ewald', slabs=20, outname='out',
-                                  ewald_grid=(12, 13, 14))
+
+class TestBuildReplayConfig:
+    def test_the_replay_is_the_reciprocal_term_only(self):
+        cfg = _cfg(ewald_grid=(12, 13, 14))
         assert 'pressureProfileEwald    on' in cfg
         for axis, n in zip('XYZ', (12, 13, 14)):
             assert f'pressureProfileEwald{axis}   {n}' in cfg
 
+    def test_pressureprofile_is_on_too_or_namd_writes_nothing(self):
+        # measured 2026-11-05: with pressureProfileEwald on but pressureProfile absent, NAMD ran
+        # every frame and wrote no PRESSUREPROFILE record at all
+        assert 'pressureProfile         on' in _cfg()
+
     def test_numsteps_zero_and_outputname_present(self):
         # NAMD requires outputName even when nothing is integrated, and numsteps must be 0 or the
         # replay integrates instead of replaying.
-        cfg = build_replay_config(PROD, 'traj.dcd', 'real', slabs=20, outname='myout')
+        cfg = _cfg(outname='myout')
         assert 'numsteps                0' in cfg
         assert 'outputName              myout' in cfg
 
     def test_cwd_precedes_the_passthrough_lines(self):
         # NAMD chdirs to the config file's directory, so `cwd` must come before any relative path
         # the production config named, or those paths resolve against the wrong directory.
-        cfg = build_replay_config(PROD, 'traj.dcd', 'real', slabs=20, outname='out',
-                                  basedir='/run/dir')
+        cfg = _cfg(basedir='/run/dir')
         assert cfg.index('cwd /run/dir') < cfg.index('structure               sys.psf')
 
     def test_no_basedir_emits_no_cwd(self):
-        cfg = build_replay_config(PROD, 'traj.dcd', 'real', slabs=20, outname='out')
-        assert 'cwd ' not in cfg
+        assert 'cwd ' not in _cfg()
 
     def test_replay_loop_reads_the_named_trajectory(self):
-        cfg = build_replay_config(PROD, '/abs/traj.dcd', 'real', slabs=20, outname='out')
+        cfg = build_replay_config(PROD, '/abs/traj.dcd', slabs=20, outname='out',
+                                  ewald_grid=(10, 10, 10))
         assert 'coorfile open dcd /abs/traj.dcd' in cfg
         assert 'run 0' in cfg
         assert 'coorfile close' in cfg
 
     def test_stride_skips_between_reads(self):
-        cfg = build_replay_config(PROD, 't.dcd', 'real', slabs=20, outname='out', stride=5)
+        cfg = _cfg(stride=5)
         assert 'coorfile skip' in cfg
         assert '$i < 5' in cfg
 
     def test_stride_one_emits_no_skip(self):
-        cfg = build_replay_config(PROD, 't.dcd', 'real', slabs=20, outname='out', stride=1)
-        assert 'coorfile skip' not in cfg
+        assert 'coorfile skip' not in _cfg(stride=1)
 
-    def test_both_passes_get_the_same_slab_count(self):
-        # summing profiles gridded differently would be meaningless
-        a = build_replay_config(PROD, 't.dcd', 'real', slabs=17, outname='o')
-        b = build_replay_config(PROD, 't.dcd', 'ewald', slabs=17, outname='o')
-        assert 'pressureProfileSlabs    17' in a
-        assert 'pressureProfileSlabs    17' in b
-
-    def test_rejects_an_unknown_mode(self):
-        with pytest.raises(ValueError, match="'real' or 'ewald'"):
-            build_replay_config(PROD, 't.dcd', 'reciprocal', slabs=20, outname='o')
+    def test_slab_count_is_the_one_given(self):
+        assert 'pressureProfileSlabs    17' in _cfg(slabs=17)
 
 
-def _log(records, thickness=2.0, pressures=None, frames=None):
-    """A minimal NAMD log carrying the lines the parser looks for."""
+class TestFullElectFrequency:
+    def test_default_is_one(self):
+        assert full_elect_frequency(PROD) == 1
+
+    def test_last_setting_wins_case_insensitively(self):
+        assert full_elect_frequency(['fullElectFrequency 1', 'FULLELECTFREQUENCY 2 # mts']) == 2
+
+
+def _log(records, thickness=2.0, frames=None):
+    """A minimal replay log carrying the lines the parser looks for."""
     out = ['Info: PRESSURE PROFILE CALCULATIONS ACTIVE',
            f'Info:       SLAB THICKNESS: {thickness}']
-    if pressures is not None:
-        out.append('ETITLE:      TS           BOND            TEMP       PRESSURE')
-        for i, (rec, p) in enumerate(zip(records, pressures)):
-            out.append(f'ENERGY:       0           0.0           300.0       {p}')
-            out.append('PRESSUREPROFILE: 0 ' + ' '.join(str(v) for v in rec))
-    else:
-        for rec in records:
-            out.append('PRESSUREPROFILE: 0 ' + ' '.join(str(v) for v in rec))
+    for rec in records:
+        out.append('PRESSUREPROFILE: 0 ' + ' '.join(str(v) for v in rec))
     if frames is not None:
         out.append(f'TCL: PPREPLAY_FRAMES {frames}')
+    return '\n'.join(out) + '\n'
+
+
+def _prodlog(steps, profiles, pressavg=None, thickness=2.0):
+    """A minimal production log: a step-numbered profile record, and optionally PRESSAVG, per step."""
+    out = [f'Info:       SLAB THICKNESS: {thickness}']
+    for i, st in enumerate(steps):
+        out.append(f'PRESSUREPROFILE: {st} ' + ' '.join(str(v) for v in np.ravel(profiles[i])))
+        if pressavg is not None:
+            xx, yy, zz = pressavg[i]
+            out.append(f'PRESSAVG: {st} {xx} 0 0 0 {yy} 0 0 0 {zz}')
     return '\n'.join(out) + '\n'
 
 
@@ -188,17 +201,11 @@ class TestParseProfiles:
 
     def test_records_are_kept_in_file_order(self, tmp_path):
         # every frame is evaluated at timestep 0, so the step column carries no frame identity and
-        # order is the only thing aligning the two passes
+        # order is the only thing aligning the replay with the frames it read
         p = tmp_path / 'r.log'
         p.write_text(_log([[1, 1, 1], [2, 2, 2], [3, 3, 3]]))
         got = parse_profiles(str(p), 'real')
         assert [row[0][0] for row in got.profiles] == [1.0, 2.0, 3.0]
-
-    def test_energy_pressure_column_is_captured(self, tmp_path):
-        p = tmp_path / 'r.log'
-        p.write_text(_log([[1, 1, 1], [2, 2, 2]], pressures=[-100.5, 250.25]))
-        got = parse_profiles(str(p), 'real')
-        assert np.allclose(got.total_pressure, [-100.5, 250.25])
 
     def test_no_records_raises_rather_than_returning_empty(self, tmp_path):
         p = tmp_path / 'r.log'
@@ -224,10 +231,41 @@ class TestParseProfiles:
         assert parse_profiles(str(p), 'real').slab_thickness is None
 
 
-def _pass(mode, arr, thickness=2.0, pressures=None):
-    return ProfilePass(mode=mode, profiles=np.asarray(arr, dtype=float),
-                       slab_thickness=thickness,
-                       total_pressure=None if pressures is None else np.asarray(pressures))
+def _pass(mode, arr, thickness=2.0):
+    return ProfilePass(mode=mode, profiles=np.asarray(arr, dtype=float), slab_thickness=thickness)
+
+
+class TestAlignProduction:
+    """The production profile is matched to trajectory frames by MD step, never by position."""
+
+    def test_records_are_matched_by_step(self, tmp_path):
+        steps = [0, 100, 200, 300]
+        prof = [np.full((2, 3), s) for s in steps]
+        p = tmp_path / 'prod.log'
+        p.write_text(_prodlog(steps, prof))
+        # a DCD's first frame is firsttimestep + dcdfreq, so step 0 is never a frame
+        real, tensor = align_production(str(p), np.array([100, 300]))
+        assert [r[0, 0] for r in real.profiles] == [100.0, 300.0]
+        assert tensor is None
+
+    def test_a_frame_with_no_profile_record_raises(self, tmp_path):
+        p = tmp_path / 'prod.log'
+        p.write_text(_prodlog([0, 100], [np.zeros((2, 3))] * 2))
+        with pytest.raises(RuntimeError, match='no production'):
+            align_production(str(p), np.array([100, 150]))
+
+    def test_pressavg_diagonal_is_captured(self, tmp_path):
+        p = tmp_path / 'prod.log'
+        p.write_text(_prodlog([100, 200], [np.zeros((1, 3))] * 2,
+                              pressavg=[(1, 2, 3), (4, 5, 6)]))
+        _, tensor = align_production(str(p), np.array([100, 200]))
+        assert np.allclose(tensor, [[1, 2, 3], [4, 5, 6]])
+
+    def test_a_log_without_profiles_says_what_it_needs(self, tmp_path):
+        p = tmp_path / 'prod.log'
+        p.write_text('ENERGY: 0 1 2 3\n')
+        with pytest.raises(RuntimeError, match='pressureProfile on'):
+            align_production(str(p), np.array([100]))
 
 
 class TestCombine:
@@ -237,8 +275,8 @@ class TestCombine:
         assert np.allclose(combine(a, b), [[[11, 22, 33], [44, 55, 66]]])
 
     def test_mismatched_frame_counts_raise(self):
-        # positional alignment is the only alignment there is, so this is the one chance to catch
-        # two passes that did not read the same frames
+        # the replay's records carry no step, so its frame count is the one chance to catch a
+        # replay that did not read the frames the production records were matched to
         a = _pass('real', np.zeros((3, 2, 3)))
         b = _pass('ewald', np.zeros((2, 2, 3)))
         with pytest.raises(RuntimeError, match='frame counts differ'):
@@ -251,43 +289,32 @@ class TestCombine:
             combine(a, b)
 
 
-class TestReplayResult:
-    def _result(self, real, ewald, thickness=2.0, pressures=None):
-        r, e = _pass('real', real, thickness, pressures), _pass('ewald', ewald, thickness)
-        return ReplayResult(real=r, ewald=e, total=combine(r, e))
+def _result(real, ewald, thickness=2.0, tensor=None):
+    r, e = _pass('real', real, thickness), _pass('ewald', ewald, thickness)
+    return ReplayResult(real=r, ewald=e, total=combine(r, e),
+                        tensor=None if tensor is None else np.asarray(tensor, dtype=float))
 
+
+class TestReplayResult:
     def test_slab_centers_are_offset_by_half_a_slab(self):
-        res = self._result(np.zeros((1, 3, 3)), np.zeros((1, 3, 3)), thickness=10.0)
+        res = _result(np.zeros((1, 3, 3)), np.zeros((1, 3, 3)), thickness=10.0)
         assert np.allclose(res.slab_centers(), [5.0, 15.0, 25.0])
 
     def test_slab_centers_fall_back_to_index_without_thickness(self):
-        res = self._result(np.zeros((1, 3, 3)), np.zeros((1, 3, 3)), thickness=None)
+        res = _result(np.zeros((1, 3, 3)), np.zeros((1, 3, 3)), thickness=None)
         assert np.allclose(res.slab_centers(), [0, 1, 2])
 
     def test_sem_is_zero_for_a_single_frame(self):
-        res = self._result(np.ones((1, 2, 3)), np.ones((1, 2, 3)))
+        res = _result(np.ones((1, 2, 3)), np.ones((1, 2, 3)))
         assert np.allclose(res.sem_profile(), 0.0)
 
     def test_mean_profile_averages_over_frames(self):
         real = np.array([[[0, 0, 0]], [[2, 2, 2]]], dtype=float)
-        res = self._result(real, np.zeros_like(real))
+        res = _result(real, np.zeros_like(real))
         assert np.allclose(res.mean_profile(), [[1, 1, 1]])
 
-    def test_validation_prefers_the_reconstruction_when_the_sum_is_right(self):
-        # one slab, so the slab average is the value itself; NAMD's pressure equals real+ewald
-        real = np.array([[[100.0, 100.0, 100.0]]])
-        ewald = np.array([[[50.0, 50.0, 50.0]]])
-        res = self._result(real, ewald, pressures=[150.0])
-        check = validate_against_total_pressure(res)
-        assert check['reconstructed_deviation'] == pytest.approx(0.0)
-        assert check['real_only_deviation'] == pytest.approx(50.0)
-
-    def test_validation_returns_none_without_energy_lines(self):
-        res = self._result(np.zeros((1, 1, 3)), np.zeros((1, 1, 3)))
-        assert validate_against_total_pressure(res) is None
-
     def test_csv_has_one_row_per_slab(self, tmp_path):
-        res = self._result(np.ones((2, 4, 3)), np.zeros((2, 4, 3)))
+        res = _result(np.ones((2, 4, 3)), np.zeros((2, 4, 3)))
         out = tmp_path / 'p.csv'
         write_csv(res, str(out))
         lines = out.read_text().strip().splitlines()
@@ -295,53 +322,91 @@ class TestReplayResult:
         assert lines[0].startswith('z,real_xx')
 
 
-class TestProfileWarnings:
-    """The subcommand must flag a profile that disagrees with NAMD's PRESSURE in absolute terms.
+class TestClosureCheck:
+    """Per component, against the production run's own PRESSAVG -- not the trace.
 
-    The case that motivated it: a NAMD build whose per-slab profile is wrong while its energies and
-    PRESSURE are right.  Both passes then carry the same large error, the reconstruction still
-    agrees slightly *better* than the real-space half, and a relative test alone passes it.  These
-    numbers are that shape: slab trace/3 near -8000 bar against a reported pressure of 150.
+    The shape that motivated it (2026-11-05): at fullElectFrequency 2 the sum missed PRESSAVG by
+    -86 / -94 / -71 bar, an anisotropic error worth +14.5 mN/m, which is a surface tension's own
+    currency.  A check on the trace alone weighs that error by its mean and sees nothing of its
+    anisotropy; this one names each component.
     """
 
-    def _run(self, tmp_path, monkeypatch, caplog, real, ewald, pressure):
+    def test_a_closed_profile_passes(self):
+        real = np.full((4, 2, 3), 100.0)
+        ewald = np.full((4, 2, 3), -98.0)
+        res = _result(real, ewald, tensor=np.full((4, 3), 2.5))
+        check = check_against_tensor(res)
+        assert np.allclose(check['deviation'], -0.5)
+        assert np.allclose(check['real_only_deviation'], 97.5)
+        assert closure_warnings(check) == []
+
+    def test_an_anisotropic_miss_is_flagged_even_with_a_small_trace_error(self):
+        real = np.zeros((4, 1, 3))
+        ewald = np.tile(np.array([[[+40.0, +40.0, -80.0]]]), (4, 1, 1))  # trace error 0
+        res = _result(real, ewald, tensor=np.zeros((4, 3)))
+        warnings = closure_warnings(check_against_tensor(res))
+        assert len(warnings) == 1 and 'Ewald grid' in warnings[0]
+
+    def test_the_tolerance_is_what_the_message_names(self):
+        assert f'{CLOSURE_TOLERANCE_BAR:.0f}' in closure_warnings(
+            {'deviation': np.array([0, 0, 1e3]), 'sem': np.zeros(3)})[0]
+
+    def test_no_tensor_means_no_check_not_a_pass(self):
+        res = _result(np.zeros((2, 1, 3)), np.zeros((2, 1, 3)))
+        assert check_against_tensor(res) is None
+
+
+class TestMultipleTimeSteppingIsRefused:
+    def test_replay_refuses_before_running_namd(self, tmp_path, monkeypatch):
+        from pestifer.util import ppewald
+        cfg = tmp_path / 'prod.namd'
+        cfg.write_text('\n'.join(PROD + ['fullElectFrequency 2']))
+        ran = []
+        monkeypatch.setattr(ppewald, 'run_namd', lambda *a, **k: ran.append(a))
+        with pytest.raises(RuntimeError, match='counts it twice'):
+            replay(str(cfg), str(tmp_path / 'x.dcd'), str(tmp_path / 'x.log'))
+        assert ran == []
+
+
+class TestSubcommandWarnings:
+    """The subcommand reports the closure check and warns when there is none to report."""
+
+    def _run(self, tmp_path, monkeypatch, caplog, res):
         import argparse
         import logging
         from pestifer.subcommands import pressure_profile_ewald as sub
-        r = _pass('real', real, 2.0, [pressure])
-        e = _pass('ewald', ewald, 2.0)
-        monkeypatch.setattr(sub, 'replay',
-                            lambda *a, **k: ReplayResult(real=r, ewald=e, total=combine(r, e)))
-        for name in ('prod.namd', 'prod.dcd'):
+        monkeypatch.setattr(sub, 'replay', lambda *a, **k: res)
+        for name in ('prod.namd', 'prod.log', 'prod.dcd'):
             (tmp_path / name).write_text('')
         args = argparse.Namespace(
-            namd_config=str(tmp_path / 'prod.namd'), dcd=str(tmp_path / 'prod.dcd'),
-            workdir=str(tmp_path), slabs=1, ewald_grid=[10, 10, 10], stride=1, temperature=300,
-            namd='namd3', np=1, prefix='t', title=None, figsize=[6, 2])
+            namd_config=str(tmp_path / 'prod.namd'), log=str(tmp_path / 'prod.log'),
+            dcd=str(tmp_path / 'prod.dcd'), workdir=str(tmp_path), slabs=None, ewald_grid=None,
+            stride=1, temperature=300, namd='namd3', np=1, prefix='t', title=None,
+            figsize=[6, 2], accept_mts=False)
         with caplog.at_level(logging.WARNING):
             sub.PressureProfileEwaldSubcommand.func(args)
         return [rec.getMessage() for rec in caplog.records if rec.levelno >= logging.WARNING]
 
-    def test_a_uniformly_wrong_profile_is_flagged(self, tmp_path, monkeypatch, caplog):
-        real = np.full((1, 1, 3), -8200.0)
-        ewald = np.full((1, 1, 3), 200.0)
-        check = validate_against_total_pressure(
-            ReplayResult(real=_pass('real', real, 2.0, [150.0]), ewald=_pass('ewald', ewald),
-                         total=real + ewald))
-        # the relative test alone passes this profile
-        assert check['reconstructed_deviation'] < check['real_only_deviation']
-        warnings = self._run(tmp_path, monkeypatch, caplog, real, ewald, 150.0)
-        assert any('different NAMD build' in w for w in warnings), warnings
+    def test_a_profile_that_misses_the_tensor_is_flagged(self, tmp_path, monkeypatch, caplog):
+        res = _result(np.full((3, 1, 3), -8200.0), np.full((3, 1, 3), 200.0),
+                      tensor=np.full((3, 3), 150.0))
+        warnings = self._run(tmp_path, monkeypatch, caplog, res)
+        assert any('does not reproduce' in w for w in warnings), warnings
 
     def test_a_sound_profile_is_not_flagged(self, tmp_path, monkeypatch, caplog):
-        real = np.full((1, 1, 3), 100.0)
-        ewald = np.full((1, 1, 3), 50.5)
-        assert self._run(tmp_path, monkeypatch, caplog, real, ewald, 150.0) == []
+        res = _result(np.full((3, 1, 3), 100.0), np.full((3, 1, 3), 50.5),
+                      tensor=np.full((3, 3), 150.0))
+        assert self._run(tmp_path, monkeypatch, caplog, res) == []
+
+    def test_no_tensor_is_said_out_loud(self, tmp_path, monkeypatch, caplog):
+        res = _result(np.full((3, 1, 3), 100.0), np.full((3, 1, 3), 50.5))
+        warnings = self._run(tmp_path, monkeypatch, caplog, res)
+        assert any('NOT checked' in w for w in warnings), warnings
 
 
 @pytest.mark.needs_tools
 class TestReplayEndToEnd:
-    """Drive real NAMD over a real trajectory and check the reconstruction against NAMD itself.
+    """Drive real NAMD: a production run with a profile and a pressure tensor, then the replay.
 
     The trajectory is generated here rather than committed: ``*.dcd`` is ignored repo-wide (they
     are build output), and this test needs NAMD anyway, so making its own input costs a couple of
@@ -350,39 +415,35 @@ class TestReplayEndToEnd:
 
     DATA = os.path.join(os.path.dirname(__file__), 'test_ppewald')
 
-    def _make_trajectory(self, tmp_path):
-        """Run 60 steps of the fixture water box, writing a 3-frame DCD into tmp_path."""
+    def _make_run(self, tmp_path):
+        """Run the fixture water box for 200 steps with profile, tensor and DCD every 20."""
         from pestifer.util.ppewald import run_namd
         cfg = tmp_path / 'gen.namd'
         body = [ln for ln in open(os.path.join(self.DATA, 'prod.namd')).read().splitlines()
-                if not ln.strip().lower().startswith(('run', 'outputname', 'pressureprofile'))]
+                if not ln.strip().lower().startswith(('run', 'outputname'))]
         cfg.write_text('\n'.join([f'cwd {self.DATA}', *body,
                                   f'outputName {tmp_path / "gen"}',
-                                  'run 60', '']))
+                                  'outputPressure 20', 'outputEnergies 20', 'run 200', '']))
         run_namd(str(cfg), str(tmp_path / 'gen.log'), self.DATA, nprocs=2)
         dcd = tmp_path / 'gen.dcd'
         assert dcd.exists(), f'NAMD wrote no trajectory; see {tmp_path / "gen.log"}'
-        return dcd
+        return cfg, tmp_path / 'gen.log', dcd
 
-    def test_reconstruction_beats_real_space_alone(self, tmp_path):
-        from pestifer.util.ppewald import replay
-        dcd = self._make_trajectory(tmp_path)
-        res = replay(os.path.join(self.DATA, 'prod.namd'), str(dcd),
-                     workdir=str(tmp_path), slabs=10, nprocs=2)
-        assert res.nframes > 0
-        assert res.nslabs == 10
-        # the two passes must be genuinely different quantities, not the same one twice
-        assert not np.allclose(res.real.profiles, res.ewald.profiles)
-        check = validate_against_total_pressure(res)
+    def test_the_complete_profile_closes_on_the_pressure_tensor(self, tmp_path):
+        cfg, log, dcd = self._make_run(tmp_path)
+        res = replay(str(cfg), str(dcd), str(log), workdir=str(tmp_path), nprocs=2)
+        assert res.nframes == 10 and res.nslabs == 10
+        assert list(res.steps) == list(range(20, 201, 20))
+        check = check_against_tensor(res)
         assert check is not None
-        # the whole point: the sum agrees with NAMD's own pressure and the real-space half does not
-        assert check['reconstructed_deviation'] < check['real_only_deviation'] / 10
+        # the real-space half misses by hundreds of bar on every component; the sum closes
+        assert np.all(np.abs(check['real_only_deviation']) > 100)
+        assert closure_warnings(check) == [], check
 
     def test_outputs_are_written(self, tmp_path):
-        from pestifer.util.ppewald import plot, replay
-        dcd = self._make_trajectory(tmp_path)
-        res = replay(os.path.join(self.DATA, 'prod.namd'), str(dcd),
-                     workdir=str(tmp_path), slabs=10, nprocs=2)
+        from pestifer.util.ppewald import plot
+        cfg, log, dcd = self._make_run(tmp_path)
+        res = replay(str(cfg), str(dcd), str(log), workdir=str(tmp_path), nprocs=2)
         csv, png = tmp_path / 'p.csv', tmp_path / 'p.png'
         write_csv(res, str(csv))
         plot(res, str(png))

@@ -2,7 +2,7 @@
 """Unit tests for the decisions ``make_membrane_system`` makes around the toolchain calls.
 
 A companion to ``test_make_membrane_system.py``, which covers the physics helpers
-(``_per_leaflet_tension``, the area-convergence checks, ``_npatch``, ``_grid_half_mid_zgap``,
+(``_leaflet_stress_summary``, the area-convergence checks, ``_npatch``, ``_grid_half_mid_zgap``,
 ``_orientation_align``, the phase warnings) and runs the real end-to-end builds behind
 ``--runslow``.  This file takes the routing and setup logic between those two: what the task
 decides *before* it places a lipid and *after* the relaxation returns.
@@ -21,7 +21,7 @@ import unittest
 from types import SimpleNamespace
 from unittest import mock
 
-import pandas as pd
+import numpy as np
 
 from pestifer.core.errors import PestiferBuildError
 from pestifer.tasks.make_membrane_system import (
@@ -47,21 +47,6 @@ def _task(**attrs):
     for k, v in attrs.items():
         setattr(t, k, v)
     return t
-
-
-def _profile(nslabs=4, nframes=24, pxx=0.0, pyy=0.0, pzz=0.0, first_ts_zero=True):
-    """A NAMD pressureprofile dataframe with constant per-slab components."""
-    def per_slab(v):
-        return list(v) if hasattr(v, '__len__') else [v] * nslabs
-    xs, ys, zs = per_slab(pxx), per_slab(pyy), per_slab(pzz)
-    ts = list(range(0 if first_ts_zero else 100,
-                    100 * nframes + (0 if first_ts_zero else 100), 100))
-    data = {'TS': ts}
-    for i in range(nslabs):
-        data[f'x_{i}'] = [xs[i]] * nframes
-        data[f'y_{i}'] = [ys[i]] * nframes
-        data[f'z_{i}'] = [zs[i]] * nframes
-    return pd.DataFrame(data)
 
 
 class TestEmbedRequested(unittest.TestCase):
@@ -800,85 +785,101 @@ class TestAsymmetricStressFreeCounts(unittest.TestCase):
         t.diagnose_differential_stress.assert_called_once()
 
 
+def _frames(lower, upper, nframes=24, check='closed'):
+    """What ``_leaflet_stress_frames`` returns: per-frame leaflet tensions (mN/m) and the check.
+
+    ``lower``/``upper`` are scalars (constant over frames) or per-frame sequences.
+    """
+    lo = np.asarray(lower, dtype=float) * np.ones(nframes) if np.ndim(lower) == 0 \
+        else np.asarray(lower, dtype=float)
+    up = np.asarray(upper, dtype=float) * np.ones(nframes) if np.ndim(upper) == 0 \
+        else np.asarray(upper, dtype=float)
+    if check == 'closed':
+        check = {'deviation': np.array([0.5, -0.4, 0.3]), 'sem': np.zeros(3), 'nframes': nframes,
+                 'real_only_deviation': np.array([190.0, 190.0, 150.0])}
+    elif check == 'open':
+        check = {'deviation': np.array([-86.0, -94.0, -71.0]), 'sem': np.zeros(3),
+                 'nframes': nframes, 'real_only_deviation': np.zeros(3)}
+    return dict(lower=lo, upper=up, check=check, nslabs=40, trough_offset=0.25)
+
+
 class TestDifferentialStressDiagnostic(unittest.TestCase):
     """Diagnostic only: the membrane is never rebuilt, so what matters is that the advice it
-    prints is arithmetically right."""
+    prints is arithmetically right, and that it prints none from a profile it cannot trust."""
 
-    def _run(self, pp_df, n_upper=100, n_lower=100, c_z=100.0, processor='cpu', energy_df=None,
-             **diag):
+    def _run(self, frames, n_upper=100, n_lower=100, processor='cpu', **diag):
         t = _task(provisions={'processor-type': processor})
         t.equilibrate_bilayer = mock.Mock()
-        mdplot = mock.Mock()
-        mdplot.dataframes = {'pressureprofile': pp_df} if pp_df is not None else {}
-        if energy_df is not None:
-            mdplot.dataframes['energy'] = energy_df
-        t.subcontroller = mock.Mock(tasks=[mdplot])
+        t.subcontroller = mock.Mock(tasks=[])
+        t._leaflet_stress_frames = mock.Mock(return_value=frames)
         membrane = mock.Mock()
-        membrane.box = [[0, 0, 0], [0, 0, 0], [0, 0, c_z]]
+        membrane.box = [[0, 0, 0], [0, 0, 0], [0, 0, 100.0]]
         t.diagnose_differential_stress(membrane, n_upper, n_lower, diag)
         return t, membrane
 
     def test_the_diagnostic_is_skipped_on_a_gpu_build(self):
         """CUDA NAMD does not support pressureProfile; running it anyway would waste the pass."""
         with self.assertLogs(LOGGER, level='WARNING') as cm:
-            t, _m = self._run(_profile(), processor='gpu')
+            t, _m = self._run(_frames(0, 0), processor='gpu')
         self.assertIn('pressureProfile', ''.join(cm.output))
         t.equilibrate_bilayer.assert_not_called()
 
+    def test_the_pass_writes_what_the_analysis_reads(self):
+        """Aimed at the call site: the replay needs a DCD with the cell, the closure check needs
+        PRESSAVG on the profile's cadence, and both need them in the pass the md task runs."""
+        t, _m = self._run(_frames(0, 0), freq=250)
+        npt = t.equilibrate_bilayer.call_args.kwargs['relaxation_protocol'][-1]['md']
+        self.assertEqual(npt['dcdfreq'], 250)
+        other = npt['other_parameters']
+        self.assertEqual(other['pressureProfileFreq'], 250)
+        self.assertEqual(other['outputPressure'], 250)
+        self.assertEqual(other['DCDUnitCell'], 'yes')
+
     def test_a_missing_profile_is_reported_rather_than_silently_skipped(self):
+        t = _task(provisions={'processor-type': 'cpu'})
         with self.assertLogs(LOGGER, level='WARNING') as cm:
-            self._run(None)
+            self.assertIsNone(t._leaflet_stress_frames(None, True))
         self.assertIn('no usable pressure profile', ''.join(cm.output))
 
-    @staticmethod
-    def _energy(pp_df, pressure):
-        """NAMD energy records at the profile's timesteps, reporting ``pressure``."""
-        return pd.DataFrame({'TS': pp_df['TS'], 'PRESSURE': [pressure] * len(pp_df)})
-
-    def test_a_profile_far_from_namd_pressure_gets_no_advice(self):
-        """The faulty-build shape: every slab near -8000 bar while PRESSURE reads 150.  Its Dgamma
+    def test_a_profile_that_does_not_close_gets_no_advice(self):
+        """The fullElectFrequency-2 shape: -86 / -94 / -71 bar off NAMD's own tensor.  Its Dgamma
         is meaningless, so no lipid-count advice may be printed from it."""
-        pp = _profile(pxx=-8000.0, pyy=-8000.0, pzz=-7000.0)
         with self.assertLogs(LOGGER, level='INFO') as cm:
-            _t, membrane = self._run(pp, energy_df=self._energy(pp, 150.0))
+            _t, membrane = self._run(_frames(0, 200, check='open'))
         out = ''.join(cm.output)
-        self.assertIn('not believable', out)
-        self.assertNotIn('Dgamma', out)
+        self.assertIn('does not reproduce', out)
+        self.assertNotIn('Dgamma (upper-lower)', out)
         self.assertNotIsInstance(membrane.dgamma, float)
 
-    def test_a_profile_near_namd_pressure_is_reported(self):
-        # trace/3 = -100 against PRESSURE 150: the few-hundred-bar gap of a real-space-only profile
-        pp = _profile(pxx=-150.0, pyy=-150.0, pzz=0.0)
-        with self.assertNoLogs(LOGGER, level='WARNING'):
-            _t, membrane = self._run(pp, energy_df=self._energy(pp, 150.0))
-        self.assertIsInstance(membrane.dgamma, float)
+    def test_an_unchecked_profile_gets_no_advice(self):
+        with self.assertLogs(LOGGER, level='WARNING') as cm:
+            _t, membrane = self._run(_frames(0, 200, check=None))
+        self.assertIn('could not be checked', ''.join(cm.output))
+        self.assertNotIsInstance(membrane.dgamma, float)
 
-    def test_the_total_is_not_advertised_as_a_zero_check(self):
-        """The pass runs pressureProfile alone, so its profile omits the PME reciprocal term -- on
-        a DMPC bilayer +26.50 mN/m against a real-space -16.63.  Calling the total a "~0 sanity
-        check" invited reading a correct run as broken."""
-        pp = _profile(pxx=-150.0, pyy=-150.0, pzz=0.0)
+    def test_the_total_is_a_zero_check_once_the_profile_is_complete(self):
         with self.assertLogs(LOGGER, level='INFO') as cm:
-            self._run(pp, energy_df=self._energy(pp, 150.0))
+            self._run(_frames(-1.0, 1.0))
         out = ''.join(cm.output)
-        self.assertIn('gamma_total', out)
-        self.assertNotIn('~0 for a tensionless run', out)
-        self.assertIn('real-space only', out)
+        self.assertIn('gamma_total          = +0.000', out)
+        self.assertIn('target ~0', out)
+        self.assertIn('methyl trough', out)
 
-    def test_a_profile_without_pressure_records_is_still_reported(self):
-        pp = _profile(pxx=-150.0, pyy=-150.0, pzz=0.0)
+    def test_without_the_reciprocal_term_nothing_is_advised(self):
         with self.assertLogs(LOGGER, level='INFO') as cm:
-            _t, membrane = self._run(pp)
-        self.assertIn('not cross-checked', ''.join(cm.output))
-        self.assertIsInstance(membrane.dgamma, float)
+            _t, membrane = self._run(_frames(0, 200, check=None), reciprocal=False)
+        out = ''.join(cm.output)
+        self.assertIn('real-space only', out)
+        self.assertIn('No leaflet-count change', out)
+        self.assertNotIn('move ~', out)
 
     def test_the_measured_difference_is_recorded_on_the_membrane(self):
-        _t, membrane = self._run(_profile(nslabs=4, pzz=[0, 0, 20, 20]))
-        self.assertNotEqual(membrane.dgamma, 0.0)
+        _t, membrane = self._run(_frames(0, 20))
+        self.assertAlmostEqual(membrane.dgamma, 20.0)
 
     def test_balanced_leaflets_are_reported_as_balanced(self):
         with self.assertLogs(LOGGER, level='INFO') as cm:
-            self._run(_profile(pxx=100.0, pyy=100.0, pzz=100.0))
+            self._run(_frames(5, 5))
         self.assertIn('look balanced', ''.join(cm.output))
 
     def test_an_imbalance_names_a_direction_and_a_count(self):
@@ -890,7 +891,7 @@ class TestDifferentialStressDiagnostic(unittest.TestCase):
         move lipids from the lower to the upper.
         """
         with self.assertLogs(LOGGER, level='INFO') as cm:
-            self._run(_profile(nslabs=4, pzz=[0, 0, 400, 400]), n_upper=100, n_lower=100)
+            self._run(_frames(0, 200), n_upper=100, n_lower=100)
         out = ''.join(cm.output)
         self.assertIn('gamma_upper          = +200.000', out)
         self.assertIn('move ~', out)
@@ -900,14 +901,11 @@ class TestDifferentialStressDiagnostic(unittest.TestCase):
         """The 3.30.0 ex17 replicas gave Dgamma +24.4, +17.3 and +1.6 mN/m, each printed with a
         lipid-count fix and no uncertainty.  A difference that the frames themselves cannot tell
         from zero must not turn into a rebuild recommendation."""
-        pp = _profile(nslabs=4, nframes=41, pzz=[0, 0, 0, 0])
-        # alternate the upper leaflet's Pzz by +/-4000 bar around a +40 bar offset: a mean Dgamma
-        # of +20 mN/m buried in block-to-block scatter of thousands
-        sampled = pp.index[pp['TS'] > 0]
-        for k, i in enumerate(sampled):
-            pp.loc[i, ['z_2', 'z_3']] = 40.0 + (4000.0 if (k // 4) % 2 else -4000.0)
+        # the sampled (second) half: a +20 mN/m mean buried in block-to-block scatter of 1000
+        up = np.zeros(40)
+        up[20:] = [20.0 + (1000.0 if (k // 4) % 2 else -1000.0) for k in range(20)]
         with self.assertLogs(LOGGER, level='INFO') as cm:
-            self._run(pp)
+            self._run(_frames(0, up, nframes=40))
         out = ''.join(cm.output)
         self.assertIn('block SE', out)
         self.assertIn('within two standard errors', out)
@@ -916,17 +914,14 @@ class TestDifferentialStressDiagnostic(unittest.TestCase):
 
     def test_too_few_frames_for_an_uncertainty_gets_no_advice(self):
         with self.assertLogs(LOGGER, level='WARNING') as cm:
-            self._run(_profile(nslabs=4, nframes=8, pzz=[0, 0, 400, 400]))
+            self._run(_frames(0, 200, nframes=8))
         self.assertIn('Too few profile frames', ''.join(cm.output))
 
     def test_a_significant_dgamma_still_gets_advice(self):
         """Negative control for the two above: the gate must not swallow a real imbalance."""
-        pp = _profile(nslabs=4, nframes=41, pzz=[0, 0, 400, 400])
-        sampled = pp.index[pp['TS'] > 0]
-        for k, i in enumerate(sampled):
-            pp.loc[i, ['z_2', 'z_3']] = 400.0 + (10.0 if k % 2 else -10.0)
+        up = np.array([200.0 + (1.0 if k % 2 else -1.0) for k in range(40)])
         with self.assertLogs(LOGGER, level='INFO') as cm:
-            self._run(pp)
+            self._run(_frames(0, up, nframes=40))
         self.assertIn('move ~', ''.join(cm.output))
 
     def test_the_suggested_count_follows_the_area_modulus(self):
@@ -934,7 +929,7 @@ class TestDifferentialStressDiagnostic(unittest.TestCase):
         moved for the same tension difference."""
         def suggested(K_A):
             with self.assertLogs(LOGGER, level='INFO') as cm:
-                self._run(_profile(nslabs=4, pzz=[0, 0, 400, 400]), area_modulus=K_A)
+                self._run(_frames(0, 200), area_modulus=K_A)
             line = next(l for l in cm.output if 'move ~' in l)
             return float(line.split('move ~')[1].split(' ')[0])
         stiff = suggested(_DEFAULT_AREA_MODULUS * 2)

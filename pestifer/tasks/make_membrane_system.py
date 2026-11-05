@@ -7,6 +7,7 @@ Usage is described in the :ref:`subs_buildtasks_make_membrane_system` documentat
 
 import copy
 import logging
+import os
 import numpy as np
 from pathlib import Path
 
@@ -25,6 +26,8 @@ from ..psfutil.psfcontents import get_toppar_from_psf
 
 from ..scripters import PsfgenScripter, VMDScripter
 
+from ..util import leafletstress, ppewald
+from ..util.dcd import read_header
 from ..util.density_convergence import membrane_leaflet_geometry, psf_contains_water
 from ..util.util import cell_to_xsc,cell_from_xsc, protect_str_arg
 from ..util.units import _UNITS_
@@ -122,95 +125,51 @@ def _cell_or_raise(xsc, what: str):
 
 
 
-_PROFILE_PRESSURE_GAP_LIMIT = 2000.0
-"""Largest believable gap, in bar, between a profile's slab-averaged trace/3 and NAMD's PRESSURE.
-The diagnostic's profile omits the PME reciprocal-space term, so a sound one misses PRESSURE by a
-few hundred bar (212 on the DMPC example).  A NAMD build that writes a wrong per-slab profile while
-getting PRESSURE right misses by thousands (~8,600 bar observed), and nothing else in its log shows
-it.  See the pressure-profile-ewald docs."""
+def _leaflet_stress_summary(lower, upper):
+    """Second-half means of per-frame leaflet tensions, and the block standard error of Dgamma.
 
-
-def _sampled_profile_frames(pp_df):
-    """The pressure-profile frames the diagnostic averages: dynamics only (the step-0 frame is
-    dropped), second half (equilibration discarded).  ``None`` if there are none."""
-    if pp_df is None or len(pp_df) == 0:
+    ``lower`` and ``upper`` are per-frame leaflet tensions in mN/m, in time order (see
+    :func:`pestifer.util.leafletstress.leaflet_tensions`).  The first half is discarded as
+    equilibration.  Returns ``dict(total, lower, upper, dgamma, dgamma_se, nframes)``, or ``None``
+    with no frames; ``dgamma_se`` is ``None`` when there are too few frames for the blocks.
+    """
+    lower, upper = np.asarray(lower, dtype=float), np.asarray(upper, dtype=float)
+    n = len(lower)
+    if n == 0:
         return None
-    frames = pp_df
-    if 'TS' in pp_df.columns:                       # drop the step-0 (pre-dynamics) frame
-        frames = pp_df[pp_df['TS'] > 0]
-    frames = frames.iloc[len(frames) // 2:]         # average the equilibrated second half
-    return frames if len(frames) > 0 else None
-
-
-def _profile_pressure_gap(pp_df, energy_df):
-    """Mean slab-averaged ``(Pxx+Pyy+Pzz)/3`` of the sampled profile frames minus the mean NAMD
-    ``PRESSURE`` at the same timesteps, in bar.  ``None`` when the two cannot be matched up."""
-    frames = _sampled_profile_frames(pp_df)
-    if frames is None or 'TS' not in frames.columns or energy_df is None \
-            or len(energy_df) == 0 or not {'TS', 'PRESSURE'} <= set(energy_df.columns):
-        return None
-    nslabs = sum(1 for col in frames.columns if str(col).startswith('z_'))
-    if nslabs == 0:
-        return None
-    # a minimize stage ahead of the sampling run can repeat early step numbers; keep the later row
-    energy = energy_df.drop_duplicates(subset='TS', keep='last')
-    matched = energy[energy['TS'].isin(frames['TS'])]
-    frames = frames[frames['TS'].isin(matched['TS'])]
-    if len(frames) == 0:
-        return None
-    trace = sum(frames[[f'{c}_{i}' for i in range(nslabs)]].to_numpy().mean(axis=1)
-                for c in 'xyz') / 3.0
-    return float(trace.mean() - matched['PRESSURE'].astype(float).mean())
-
-
-def _per_leaflet_tension(pp_df, c_z, midplane_slab=None):
-    """Per-leaflet surface tension from a NAMD total pressure-profile trajectory.
-
-    ``pp_df`` is the ``pressureprofile`` dataframe produced by the NAMD log parser: a row
-    per output step with columns ``x_<i>``, ``y_<i>``, ``z_<i>`` giving the lateral/normal
-    pressure components (bar) of z-slab ``i`` (slab 0 lowest).  The kinetic contribution is
-    isotropic on average and cancels in ``Pzz - (Pxx+Pyy)/2``, so the total profile suffices.
-
-    The trajectory's second half is averaged (discarding equilibration).  The bilayer is
-    assumed centred in the cell, so the midplane is the central slab unless ``midplane_slab``
-    is given.  Per-slab tension ``gamma = 0.01 * [Pzz - (Pxx+Pyy)/2] * dz`` (mN/m, with
-    ``dz`` in A); leaflet tensions are the slab sums below/above the midplane.
-
-    Returns ``dict(total, lower, upper, dgamma, nslabs, nframes)`` (tensions in mN/m,
-    ``dgamma = upper - lower``), or ``None`` if the profile is unavailable/degenerate."""
-    if pp_df is None or len(pp_df) == 0:
-        return None
-    nslabs = sum(1 for col in pp_df.columns if str(col).startswith('z_'))
-    if nslabs == 0:
-        return None
-    frames = _sampled_profile_frames(pp_df)
-    if frames is None:
-        return None
-    dz = float(c_z) / nslabs
-    if midplane_slab is None:
-        midplane_slab = nslabs // 2
-
-    def leaflets(rows):
-        pxx = np.array([rows[f'x_{i}'].mean() for i in range(nslabs)])
-        pyy = np.array([rows[f'y_{i}'].mean() for i in range(nslabs)])
-        pzz = np.array([rows[f'z_{i}'].mean() for i in range(nslabs)])
-        gamma_slab = 0.01 * (pzz - 0.5 * (pxx + pyy)) * dz   # mN/m per slab
-        return (float(gamma_slab[:midplane_slab].sum()), float(gamma_slab[midplane_slab:].sum()),
-                float(gamma_slab.sum()))
-
-    lower, upper, total = leaflets(frames)
+    lo, up = lower[n // 2:], upper[n // 2:]
+    dg = up - lo
     # Standard error of Dgamma from contiguous block means.  Without it a single Dgamma cannot be
     # told from noise: ex17's 3.30.0 replicas gave +24.4, +17.3 and +1.6 mN/m from 100k-step
     # passes, and nothing in the report said whether that spread was the membrane or the sampling.
     # Blocks this short are still correlated, so this is a floor on the uncertainty, not a bound.
     dgamma_se = None
-    if len(frames) >= 2 * _DGAMMA_BLOCKS:
-        blocks = np.array_split(np.arange(len(frames)), _DGAMMA_BLOCKS)
-        per_block = [leaflets(frames.iloc[b]) for b in blocks]
-        dgammas = np.array([u - l for l, u, _ in per_block])
-        dgamma_se = float(dgammas.std(ddof=1) / np.sqrt(len(dgammas)))
-    return dict(total=total, lower=lower, upper=upper, dgamma=upper - lower,
-                dgamma_se=dgamma_se, nslabs=nslabs, nframes=int(len(frames)))
+    if len(dg) >= 2 * _DGAMMA_BLOCKS:
+        blocks = [dg[b].mean() for b in np.array_split(np.arange(len(dg)), _DGAMMA_BLOCKS)]
+        dgamma_se = float(np.std(blocks, ddof=1) / np.sqrt(_DGAMMA_BLOCKS))
+    return dict(total=float((lo + up).mean()), lower=float(lo.mean()), upper=float(up.mean()),
+                dgamma=float(dg.mean()), dgamma_se=dgamma_se, nframes=int(len(dg)))
+
+
+def _profile_pass_files(tasks):
+    """The NAMD config, log, DCD, xst and PSF of the last md stage in ``tasks`` that wrote a
+    pressure profile, or ``None``.  Every md stage writes ``{basename}.namd/.log/.dcd/.xst`` in
+    the working directory."""
+    for t in reversed(list(tasks)):
+        base = getattr(t, 'basename', None)
+        if not isinstance(base, str) or not os.path.exists(f'{base}.namd'):
+            continue
+        with open(f'{base}.namd') as f:
+            if not any(ln.split()[:1] and ln.split()[0].lower() == 'pressureprofile' for ln in f):
+                continue
+        state = t.get_current_artifact('state') if hasattr(t, 'get_current_artifact') else None
+        psf = getattr(getattr(state, 'psf', None), 'name', None)
+        files = dict(namd=f'{base}.namd', log=f'{base}.log', dcd=f'{base}.dcd', xst=f'{base}.xst',
+                     psf=psf)
+        if psf and all(os.path.exists(v) for v in files.values()):
+            return files
+        return None
+    return None
 
 
 #: Step count for the minimize spliced in to relax a just-rotated structure, used only when
@@ -1247,12 +1206,20 @@ class MakeMembraneSystemTask(BaseTask):
         # going straight to NPT dynamics off the PDB triggers RATTLE blow-ups.  Pin xstfreq
         # to the profile frequency so the cell-vector and pressure-profile samples share
         # timesteps (mdplot merges them by matching TS).
+        # The pass writes a DCD with the cell, and the pressure tensor, on the profile's own
+        # cadence: the DCD is what the reciprocal term is replayed from and the midplane measured
+        # in, and PRESSAVG averaged over the same window as each profile record is what the
+        # complete profile is checked against.  fullElectFrequency is forced to 1 by the NAMD
+        # scripter for any stage that writes a profile.
         pp_protocol = [
             {'md': dict(ensemble='minimize', nsteps=500)},
-            {'md': dict(ensemble='NPT', nsteps=nsteps, xstfreq=freq, temperature=temperature,
+            {'md': dict(ensemble='NPT', nsteps=nsteps, temperature=temperature,
+                        xstfreq=freq, dcdfreq=freq,
                         other_parameters=dict(pressureProfile=True,
                                               pressureProfileSlabs=slabs,
                                               pressureProfileFreq=freq,
+                                              outputPressure=freq,
+                                              DCDUnitCell='yes',
                                               surfaceTensionTarget=0.0))}]
         # the pressure-profile pass is a fixed-length sampling run on the already-equilibrated membrane
         # (which no longer condenses appreciably), so it runs as written -- no restart staging.
@@ -1265,49 +1232,58 @@ class MakeMembraneSystemTask(BaseTask):
         # state that actually reaches the embed step.
         self.equilibrate_bilayer(membrane, bilayer_name='quilt', relaxation_protocol=pp_protocol,
                                  preserve_state=True)
-        mdplot_task = self.subcontroller.tasks[-1]
-        dataframes = getattr(mdplot_task, 'dataframes', {})
-        pp_df = dataframes.get('pressureprofile')
-        # final cell depth is a good approximation of dz*nslabs for the averaged tail
-        c_z = membrane.box[2][2]
-        res = _per_leaflet_tension(pp_df, c_z)
+        reciprocal = bool(diag_specs.get('reciprocal', True))
+        frames = self._leaflet_stress_frames(_profile_pass_files(self.subcontroller.tasks),
+                                             reciprocal)
+        if frames is None:
+            return
+        res = _leaflet_stress_summary(frames['lower'], frames['upper'])
         if res is None:
             logger.warning('Differential-stress diagnostic: no usable pressure profile was '
                            'produced; cannot report per-leaflet tensions.')
             return
-        gap = _profile_pressure_gap(pp_df, dataframes.get('energy'))
-        if gap is None:
-            logger.info('Differential-stress diagnostic: could not match profile frames to NAMD '
-                        'PRESSURE records, so the profile was not cross-checked.')
-        elif abs(gap) > _PROFILE_PRESSURE_GAP_LIMIT:
-            logger.warning(
-                f'Differential-stress diagnostic: the pressure profile\'s slab average differs '
-                f'from NAMD\'s own PRESSURE by {gap:+.0f} bar (a sound profile is within a few '
-                f'hundred; more than {_PROFILE_PRESSURE_GAP_LIMIT:.0f} is not believable).  The '
-                'NAMD binary likely writes wrong pressure profiles even though its energies and '
-                'PRESSURE are right.  No per-leaflet tensions or lipid-count advice are reported; '
-                're-run with a different NAMD build, such as the official UIUC release.')
-            return
+        check = frames['check']
+        if reciprocal:
+            if check is None:
+                logger.warning('Differential-stress diagnostic: the pass wrote no pressure tensor, '
+                               'so the complete profile could not be checked.  No per-leaflet '
+                               'tensions or lipid-count advice are reported.')
+                return
+            dev = ' / '.join(f'{v:+.1f}' for v in check['deviation'])
+            logger.info(f'Differential-stress diagnostic: complete profile vs NAMD\'s own pressure '
+                        f'tensor, xx / yy / zz: {dev} bar')
+            reasons = ppewald.closure_warnings(check)
+            if reasons:
+                for reason in reasons:
+                    logger.warning(f'Differential-stress diagnostic: {reason}')
+                logger.warning('Differential-stress diagnostic: no per-leaflet tensions or '
+                               'lipid-count advice are reported from a profile that does not '
+                               'close.')
+                return
         membrane.dgamma = res['dgamma']
         logger.info(f'Differential stress (averaged over {res["nframes"]} frames, '
-                    f'{res["nslabs"]} slabs):')
+                    f'{frames["nslabs"]} slabs; split at the lipid methyl trough, '
+                    f'{frames["trough_offset"]:+.2f} A from the lipid center of mass):')
         logger.info(f'  gamma_upper          = {res["upper"]:+.3f} mN/m')
         logger.info(f'  gamma_lower          = {res["lower"]:+.3f} mN/m')
-        # NOT "~0 for a tensionless run", which this line used to claim: the pass runs with
-        # pressureProfile alone, so the profile omits the PME reciprocal-space term, and that term
-        # is not small -- on a DMPC bilayer it is +26.50 mN/m against a real-space -16.63, enough
-        # to flip the sign of the total.  Only `pestifer pressure-profile-ewald` reconstructs a
-        # complete profile.  Dgamma is the difference of two leaflet sums, so the omission cancels
-        # there to the extent it is symmetric about the midplane -- which is why the diagnostic
-        # reports a difference rather than an absolute tension in the first place.
-        logger.info(f'  gamma_total          = {res["total"]:+.3f} mN/m '
-                    f'(real-space only; the PME reciprocal term is absent from this profile, so '
-                    f'this is not expected to vanish even at zero applied tension)')
         se = res['dgamma_se']
         se_text = f' +/- {se:.3f} (block SE, {_DGAMMA_BLOCKS} blocks)' if se is not None else ''
-        logger.info(f'  Dgamma (upper-lower) = {res["dgamma"]:+.3f}{se_text} mN/m '
-                    f'(target ~0 for a stress-free membrane; the absent reciprocal term cancels '
-                    f'here only insofar as it is symmetric about the midplane)')
+        if reciprocal:
+            logger.info(f'  gamma_total          = {res["total"]:+.3f} mN/m (target ~0: the pass '
+                        f'runs at zero applied surface tension)')
+            logger.info(f'  Dgamma (upper-lower) = {res["dgamma"]:+.3f}{se_text} mN/m '
+                        f'(target ~0 for a stress-free membrane)')
+        else:
+            # Measured on ex17 (2026-11-05): the reciprocal term alone contributes -2.8 to -13.2
+            # mN/m to Dgamma across replicas, so a real-space-only Dgamma is not a measurement of
+            # the leaflet imbalance and must not drive a rebuild.
+            logger.info(f'  gamma_total          = {res["total"]:+.3f} mN/m (real-space only)')
+            logger.info(f'  Dgamma (upper-lower) = {res["dgamma"]:+.3f}{se_text} mN/m '
+                        f'(real-space only)')
+            logger.warning('  diagnose_differential_stress.reciprocal is off, so the PME '
+                           'reciprocal term is missing; it differs between the leaflets by up to '
+                           '~13 mN/m on example 17.  No leaflet-count change is suggested.')
+            return
         if se is None:
             logger.warning(f'  Too few profile frames ({res["nframes"]}) to estimate the '
                            f'uncertainty of Dgamma; no leaflet-count change is suggested.  '
@@ -1331,6 +1307,49 @@ class MakeMembraneSystemTask(BaseTask):
             logger.info(f'  To reduce Dgamma, move ~{abs(dm):.1f} lipid(s) from the {src} '
                         f'to the {dst} leaflet (assuming K_A = {K_A:.0f} mN/m): rebuild with '
                         f'n_{src} lowered and n_{dst} raised by that count.')
+
+    def _leaflet_stress_frames(self, files, reciprocal: bool):
+        """Per-frame leaflet tensions from the diagnostic pass, split at the measured midplane.
+
+        Returns ``dict(lower, upper, check, nslabs, trough_offset)`` or ``None`` (after saying
+        why).  With ``reciprocal`` the production profile is completed by replaying the PME
+        reciprocal term over the pass's DCD (:func:`pestifer.util.ppewald.replay`), and ``check``
+        compares the result with the pass's own PRESSAVG tensor, per component.
+        """
+        if files is None:
+            logger.warning('Differential-stress diagnostic: no usable pressure profile was '
+                           'produced (no md stage left a profile, a DCD and an xst); cannot '
+                           'report per-leaflet tensions.')
+            return None
+        steps = read_header(files['dcd']).steps()
+        check = None
+        if reciprocal:
+            na = self.get_scripter('namd')
+            nprocs = int(getattr(na, 'local_ncpus', None) or getattr(na, 'ncpus', None) or 1)
+            result = ppewald.replay(files['namd'], files['dcd'], files['log'],
+                                    workdir=f'{self.basename}-reciprocal', namd=na.namd,
+                                    nprocs=nprocs)
+            profiles, steps = result.total, result.steps
+            check = ppewald.check_against_tensor(result)
+        else:
+            real, _ = ppewald.align_production(files['log'], steps)
+            profiles = real.profiles
+        cell = leafletstress.read_xst(files['xst'])
+        missing = [int(s) for s in steps if int(s) not in cell]
+        if missing:
+            logger.warning(f'Differential-stress diagnostic: {len(missing)} profile frames have no '
+                           f'cell record in {files["xst"]} (first: {missing[:3]}); cannot place the '
+                           'slabs.')
+            return None
+        c_z = np.array([cell[int(s)][0] for s in steps])
+        o_z = np.array([cell[int(s)][1] for s in steps])
+        idx, masses = leafletstress.lipid_atoms(files['psf'])
+        # every DCD frame is a profile frame here (the replay runs at stride 1)
+        midplane, _com, offset = leafletstress.bilayer_midplanes(files['dcd'], idx, masses)
+        gamma = leafletstress.slab_tensions(profiles, c_z)
+        lower, upper = leafletstress.leaflet_tensions(gamma, midplane, o_z, c_z)
+        return dict(lower=lower, upper=upper, check=check, nslabs=int(profiles.shape[1]),
+                    trough_offset=offset)
 
     def register_tops_streams_from_psfgen(self, filelist):
         self.register([CharmmffTopFileArtifact(x) for x in filelist if x.endswith('rtf')], key='charmmff_topfiles', artifact_type=CharmmffTopFileArtifacts)

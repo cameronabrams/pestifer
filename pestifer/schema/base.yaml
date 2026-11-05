@@ -1442,20 +1442,30 @@ attributes:
               that would null it. Diagnostic only: the membrane is neither rebuilt nor
               advanced -- the state that goes on to be embedded is the convergence-gated one
               this pass measured, not the pass's own final frame. Requires a
-              CPU (non-CUDA) NAMD build. The profile is first checked against NAMD's own
-              PRESSURE; if its slab average is more than 2000 bar away, as happens with a NAMD
-              build that writes wrong pressure profiles, nothing is reported from it.
-              Dgamma is reported with a block standard error (five contiguous blocks of the
-              sampled frames, a floor on the true uncertainty), and no leaflet-count change is
-              suggested unless Dgamma exceeds two standard errors. The pass runs with
-              fullElectFrequency 1: under multiple time stepping NAMD's profile carries part
-              of the PME reciprocal term, a part that differs between the leaflets.
+              CPU (non-CUDA) NAMD build. The pass runs with fullElectFrequency 1 and writes a
+              DCD and its pressure tensor; the PME reciprocal term, which NAMD leaves out of the
+              ordinary profile, is then replayed from the DCD and added frame by frame, and the
+              complete profile must reproduce the pass's own pressure tensor in every component
+              or nothing is reported from it. The leaflets are split at the bilayer midplane
+              measured from the lipid coordinates in each frame (the methyl trough), and each
+              leaflet is integrated out to the middle of the water. Dgamma is reported with a
+              block standard error (five contiguous blocks of the sampled frames, a floor on the
+              true uncertainty), and no leaflet-count change is suggested unless Dgamma exceeds
+              two standard errors.
             type: dict
             attributes:
               - name: enabled
                 text: turn on the differential-stress diagnostic for asymmetric builds
                 type: bool
                 default: False
+              - name: reciprocal
+                text: >-
+                  add the PME reciprocal-space term by replaying the pass's trajectory with
+                  pressureProfileEwald; it differs between the leaflets by up to ~13 mN/m on
+                  example 17, so with this off the tensions are reported real-space only and no
+                  leaflet-count change is suggested
+                type: bool
+                default: True
               - name: nsteps
                 text: number of MD steps in the tensionless pressure-profile pass
                 type: int

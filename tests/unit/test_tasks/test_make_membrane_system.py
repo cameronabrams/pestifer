@@ -16,7 +16,7 @@ from pestifer.scripters import PsfgenScripter
 
 from pestifer.scripters.vmd import VMDScripter
 from pestifer.tasks.make_membrane_system import (
-    MakeMembraneSystemTask, _AREA_CONVERGENCE_TOL, _per_leaflet_tension,
+    MakeMembraneSystemTask, _AREA_CONVERGENCE_TOL, _leaflet_stress_summary,
     _MIN_GRID_HALF_MID_ZGAP)
 
 from pestifer.tasks.validate import ValidateTask
@@ -170,79 +170,31 @@ class TestRelaxedAreaDrift(unittest.TestCase):
         self.assertLess(abs(drift), _AREA_CONVERGENCE_TOL)
 
 
-def _pp_df_from_dp(dp, nframes=4, c_z_unused=None):
-    """Build a pressureprofile-style dataframe whose Pzz-(Pxx+Pyy)/2 equals dp per slab.
+class TestLeafletStressSummary(unittest.TestCase):
+    """Second-half means of per-frame leaflet tensions, and the block SE of Dgamma (no NAMD)."""
 
-    Pxx=Pyy=0, Pzz=dp, repeated over nframes dynamics frames plus a junk TS=0 frame
-    (which the parser must discard)."""
-    nslabs = len(dp)
-    cols = {'TS': [0] + [1000 * (k + 1) for k in range(nframes)]}
-    for i in range(nslabs):
-        cols[f'x_{i}'] = [0.0] * (nframes + 1)
-        cols[f'y_{i}'] = [0.0] * (nframes + 1)
-        # TS=0 frame gets a wildly wrong value to prove it is dropped
-        cols[f'z_{i}'] = [1e6] + [float(dp[i])] * nframes
-    return pd.DataFrame(cols)
-
-
-class TestPerLeafletTension(unittest.TestCase):
-    """Unit tests for the differential-stress (per-leaflet tension) parser (no NAMD)."""
-
-    def test_symmetric_profile_zero_dgamma(self):
-        # profile symmetric about the midplane -> upper and lower tensions equal
-        nslabs = 40
-        idx = np.arange(nslabs)
-        dp = (idx - (nslabs - 1) / 2.0) ** 2          # symmetric about the central boundary
-        res = _per_leaflet_tension(_pp_df_from_dp(dp), c_z=80.0)
-        self.assertIsNotNone(res)
-        self.assertEqual(res['nslabs'], nslabs)
-        self.assertAlmostEqual(res['upper'], res['lower'], places=6)
-        self.assertAlmostEqual(res['dgamma'], 0.0, places=6)
-
-    def test_asymmetric_profile_signed_dgamma(self):
-        # make the upper half more tensile than the lower -> nonzero, positive dgamma
-        nslabs = 40
-        dp = np.ones(nslabs)
-        dp[nslabs // 2:] *= 3.0
-        res = _per_leaflet_tension(_pp_df_from_dp(dp), c_z=80.0)
-        self.assertIsNotNone(res)
-        self.assertGreater(res['dgamma'], 0.0)
-        # quantitative: gamma = 0.01 * dp * dz, dz = 80/40 = 2
-        dz = 80.0 / nslabs
-        self.assertAlmostEqual(res['lower'], 0.01 * (nslabs // 2) * 1.0 * dz, places=6)
-        self.assertAlmostEqual(res['upper'], 0.01 * (nslabs // 2) * 3.0 * dz, places=6)
-
-    def test_drops_pre_dynamics_frame(self):
-        # the TS=0 frame holds 1e6; if it were not dropped the tensions would explode
-        dp = np.ones(20)
-        res = _per_leaflet_tension(_pp_df_from_dp(dp, nframes=6), c_z=60.0)
-        self.assertIsNotNone(res)
-        self.assertLess(abs(res['total']), 10.0)      # sane magnitude, not ~1e6
+    def test_only_the_second_half_is_averaged(self):
+        lower = np.r_[np.full(10, 1e6), np.zeros(10)]     # an absurd first half must not count
+        upper = np.r_[np.full(10, 1e6), np.full(10, 3.0)]
+        res = _leaflet_stress_summary(lower, upper)
+        self.assertEqual(res['nframes'], 10)
+        self.assertAlmostEqual(res['dgamma'], 3.0)
+        self.assertAlmostEqual(res['total'], 3.0)
 
     def test_dgamma_standard_error_from_blocks(self):
-        # constant profile: every block agrees, SE 0
-        res = _per_leaflet_tension(_pp_df_from_dp(np.ones(20), nframes=40), c_z=60.0)
+        res = _leaflet_stress_summary(np.zeros(40), np.ones(40))
         self.assertEqual(res['dgamma_se'], 0.0)
         # too few sampled frames for 5 blocks of 2: no SE rather than a fabricated one
-        res = _per_leaflet_tension(_pp_df_from_dp(np.ones(20), nframes=6), c_z=60.0)
-        self.assertIsNone(res['dgamma_se'])
+        self.assertIsNone(_leaflet_stress_summary(np.zeros(12), np.ones(12))['dgamma_se'])
 
     def test_dgamma_standard_error_tracks_block_scatter(self):
-        nslabs, nframes = 4, 40
-        pp = _pp_df_from_dp(np.zeros(nslabs), nframes=nframes)
-        # sampled frames are the last 20; give the upper slabs block means 0,10,20,30,40 (bar)
-        rows = pp.index[pp['TS'] > 0][nframes // 2:]
-        for k, i in enumerate(rows):
-            pp.loc[i, ['z_2', 'z_3']] = 10.0 * (k // 4)
-        res = _per_leaflet_tension(pp, c_z=40.0)
-        dz = 40.0 / nslabs
-        block_dg = 0.01 * 2 * dz * 10.0 * np.arange(5)
-        self.assertAlmostEqual(res['dgamma_se'], block_dg.std(ddof=1) / np.sqrt(5), places=9)
+        upper = np.r_[np.zeros(20), np.repeat(10.0 * np.arange(5), 4)]
+        res = _leaflet_stress_summary(np.zeros(40), upper)
+        block = 10.0 * np.arange(5)
+        self.assertAlmostEqual(res['dgamma_se'], block.std(ddof=1) / np.sqrt(5), places=9)
 
-    def test_degenerate_inputs_return_none(self):
-        self.assertIsNone(_per_leaflet_tension(None, c_z=80.0))
-        self.assertIsNone(_per_leaflet_tension(pd.DataFrame(), c_z=80.0))
-        self.assertIsNone(_per_leaflet_tension(pd.DataFrame({'TS': [1000]}), c_z=80.0))
+    def test_no_frames_returns_none(self):
+        self.assertIsNone(_leaflet_stress_summary([], []))
 
 
 class TestGridHalfMidZgap(unittest.TestCase):
