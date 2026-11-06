@@ -1067,8 +1067,8 @@ class MakeMembraneSystemTask(BaseTask):
                   'mis-sized membrane that typically fails later and elsewhere (a RATTLE '
                   'failure in the quilt melt, far from this cause).\nRemedy: lengthen '
                   'bilayer.relaxation_protocols.patch -- raise its max_steps, and keep '
-                  'area_plateau_tol at 0.005 so the stage stops on the plateau rather than on '
-                  'a local slope.')
+                  'area_plateau_tol at 0.005 and area_rate_tol at 1.0 so the stage stops on the '
+                  'plateau rather than on a local slope.')
         # Replace either calibrated APL with one the user supplied.  This runs AFTER the
         # convergence gate above, deliberately: an override must not be able to suppress the
         # report that the calibration it is replacing had not settled.
@@ -1719,16 +1719,20 @@ class MakeMembraneSystemTask(BaseTask):
         bilayer.area_drift = self._relaxed_area_drift(subcontroller.tasks, last_task, bilayer_name)
         # The independent signal, reported but NOT gated on -- see MembraneEquilibrateTask.area_rate
         # for why the gate's own statistic cannot answer "has the area stopped moving".
-        bilayer.area_rate = next((t.area_rate() for t in reversed(subcontroller.tasks)
-                                  if callable(getattr(t, 'area_rate', None))), None)
+        rate_task = next((t for t in reversed(subcontroller.tasks)
+                          if callable(getattr(t, 'area_rate', None))), None)
+        bilayer.area_rate = rate_task.area_rate() if rate_task is not None else None
+        rate_tol = getattr(rate_task, '_area_rate_tol', 0.0)
+        rate_gated = isinstance(rate_tol, (int, float)) and rate_tol > 0.0
         # Only a real number counts -- the same lesson `_divisor` above already carries: a
         # stand-in object answers `getattr` with something that is not None and not a number,
         # and formatting it raises from inside the build.
         if isinstance(bilayer.area_rate, (int, float)) and not isinstance(bilayer.area_rate, bool):
+            how = (f'gated: area_rate_tol {rate_tol:.2f}' if rate_gated else
+                   'reported, not gated: the convergence verdict uses a window-difference metric '
+                   'that scales with run length; set area_rate_tol to gate on this')
             logger.info(f'{bilayer_name} lateral area is changing {bilayer.area_rate:+.2f}% per '
-                        f'100k steps over the late half of the tensionless stage '
-                        f'(reported, not gated: the convergence verdict uses a window-difference '
-                        f'metric that scales with run length)')
+                        f'100k steps over the late half of the tensionless stage ({how})')
         if bilayer.area_drift is not None:
             pct = 100.0 * bilayer.area_drift
             if abs(bilayer.area_drift) > _AREA_CONVERGENCE_TOL:

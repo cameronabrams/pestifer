@@ -98,6 +98,15 @@ tasks:
                 temperature: 310
                 pressure: 1.0
                 area_plateau_tol: 0.005
+                # The plateau gate alone is not enough here.  Its quarter-over-quarter drift reads
+                # flatter the sooner a run stops, and in the 3.30.0 sweep it certified this raft
+                # patch at 55k-65k tensionless steps in two replicas, still shrinking 2-2.6% per
+                # 100k, at APLs of 46.7 and 47.6 against a plateau of 43.3 (fit to the third, which
+                # ran 650k).  The upper-leaflet count then varied 292-319 between replicas.  The
+                # rate gate holds the stage until the late-half slope is under 1% per 100k at 95%
+                # confidence: about 510k tensionless steps for this patch, within 0.3% of its
+                # plateau.
+                area_rate_tol: 1.0
                 # This patch is the slowest-converging stage in the example and the one with the
                 # widest spread between replicas: the 3.22.8 sweep took 236,870 / 372,360 steps in
                 # two replicas and hit the 1,200,000 ceiling in the third (plateau quarter-drift

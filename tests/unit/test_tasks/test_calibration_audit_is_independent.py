@@ -97,12 +97,30 @@ class TestTheIndependentRateIsReportedNotGated(unittest.TestCase):
         self.assertIn('apl_lower_area_rate', src)
 
     def test_the_gate_still_tests_the_DRIFT_not_the_rate(self):
-        """Deliberate. Gating on the rate would fail most membrane builds -- a decision about the
-        protocol, not a bug fix. Pinned so it is a choice rather than a drift."""
+        """This downstream audit still tests the drift.  The rate IS now gated, but upstream, where
+        the stage decides when to stop: ``membrane_equilibrate.area_rate_tol``, on by default for
+        calibration patches since the plateau gate certified example 17's raft patch mid-descent
+        (2026-11-06).  Keeping this audit on the drift keeps it independent of the stage's own gate.
+
+        Code only: the remedy message names ``area_rate_tol``, and message text is not a gate.  A
+        string that is a bare identifier is kept -- ``getattr(patch, 'area_drift', None)`` is how
+        the drift is read.
+        """
+        import io
+        import tokenize
         src = inspect.getsource(MakeMembraneSystemTask.build_grid_membrane_asymmetric)
         gate = src[src.index('unconverged = []'):src.index('if self.embedding:')]
-        self.assertIn('area_drift', gate)
-        self.assertNotIn('area_rate', gate)
+        def keep(tok):
+            if tok.type == tokenize.NAME:
+                return tok.string
+            if tok.type == tokenize.STRING and tok.string.strip('\'"').isidentifier():
+                return tok.string.strip('\'"')
+            return ''
+        code = ' '.join(keep(tok) for tok in
+                        tokenize.generate_tokens(io.StringIO(inspect.cleandoc(
+                            'if True:\n' + gate)).readline))
+        self.assertIn('area_drift', code)
+        self.assertNotIn('area_rate', code)
 
 
 class TestTheRateIsAdvisoryAndCannotBreakARun(unittest.TestCase):

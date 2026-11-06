@@ -84,7 +84,7 @@ LOOSE = dict(drift_tol=1.0, precision_p=0.01, drift_conf=0.0, burn_in=0,
              window_frac=1.0, autocorr_reliability=0.0, area_min_steps=0)
 
 
-def _machine(two_stage=True, n_consecutive=1, user_other=None):
+def _machine(two_stage=True, n_consecutive=1, user_other=None, plateau_tol=0.0, rate_tol=0.0):
     """A MembraneEquilibrateTask with the post-_setup state built by hand (no file IO)."""
     t = MembraneEquilibrateTask.__new__(MembraneEquilibrateTask)
     t.taskname = 'membrane_equilibrate'
@@ -102,8 +102,10 @@ def _machine(two_stage=True, n_consecutive=1, user_other=None):
     t._all_t, t._all_d, t._all_a = [], [], []
     t._rows = []
     t._phase2_start_step = None
-    t._area_plateau_tol = float(t.specs.get('area_plateau_tol') or 0.0)
+    t._area_plateau_tol = plateau_tol
     t._last_plateau_drift = None
+    t._area_rate_tol = rate_tol
+    t._last_rate_bound = None
     t._user_other = dict(t.specs.get('other_parameters', {}))
     t._two_stage = two_stage
     t._phase = 1 if two_stage else 2
@@ -460,6 +462,10 @@ class TestSetupProtocolResolution(unittest.TestCase):
         self.assertAlmostEqual(_setup_task(dict(area_plateau_tol=0.005),
                                            geom=_GEOM)._area_plateau_tol, 0.005)
 
+    def test_rate_gate_is_off_unless_asked_for(self):
+        self.assertEqual(_setup_task(geom=_GEOM)._area_rate_tol, 0.0)
+        self.assertAlmostEqual(_setup_task(dict(area_rate_tol=1.0), geom=_GEOM)._area_rate_tol, 1.0)
+
 
 class TestSetupGeometryDegradation(unittest.TestCase):
     """Measuring leaflet geometry is allowed to fail; claiming a protein correction that was never
@@ -485,3 +491,65 @@ class TestSetupGeometryDegradation(unittest.TestCase):
                         geom_raises=RuntimeError('boom'))
         lo, up = t._apl_pair(4200.0)
         self.assertEqual((lo, up), (60.0, 60.0), 'without geometry APL is area/lipids_per_leaflet')
+
+
+def _decay_chunk(t, start_step, a_inf=4300.0, amp=0.05, tau=154_000.0, n=30, step=100, seed=0):
+    """One chunk of an ex17-patchA-like area: a_inf * (1 + amp * exp(-t/tau)), with small noise."""
+    ts = np.arange(start_step, start_step + n * step, step, dtype=float)
+    rng = np.random.default_rng(seed + start_step)
+    areas = a_inf * (1.0 + amp * np.exp(-ts / tau)) * (1.0 + 2e-4 * rng.standard_normal(n))
+    vols = np.full(n, 1.0e6) * (1.0 + 1e-6 * np.sin(np.arange(n)))
+    with mock.patch.object(me_mod, 'xst_cell_volumes', return_value=(ts, vols)), \
+         mock.patch.object(me_mod, 'xst_cell_areas', return_value=(ts, areas)):
+        return t._ingest_chunk('ignored.xst', int(ts[-1]), n * step, len(t._rows) + 1)
+
+
+def _first_convergence(t, max_steps, chunk=3000, **kw):
+    for start in range(0, max_steps, chunk):
+        _blowup, converged = _decay_chunk(t, start, **kw)
+        if converged:
+            return start + chunk
+    return None
+
+
+class TestTheRateGateHoldsASlowDescent(unittest.TestCase):
+    """Example 17's raft patch (2026-11-06): the quarter-drift plateau gate certified it at 55k-65k
+    tensionless steps while it was still shrinking 2-2.6% per 100k, at APLs of 46.7-47.6 against a
+    plateau of 43.3, and the upper-leaflet count then varied 292-319 across replicas.  The quarter
+    drift is a difference of adjacent-window means, so it reads flatter the sooner the run stops; a
+    rate does not.  Driven through ``_ingest_chunk``, the call site, not the helper."""
+
+    def test_the_plateau_gate_alone_certifies_mid_descent(self):
+        """The defect, reproduced: the quarter drift passes long before the area stops moving."""
+        t = _machine(two_stage=False, plateau_tol=0.005)
+        stop = _first_convergence(t, 1_500_000)
+        self.assertIsNotNone(stop)
+        self.assertLess(stop, 154_000, f'plateau gate certified at {stop}; expected well under tau')
+        self.assertGreater(abs(t.area_rate()), 1.0, 'it certified while moving > 1%/100k')
+
+    def test_the_rate_gate_holds_it_until_the_area_has_stopped(self):
+        t = _machine(two_stage=False, plateau_tol=0.005, rate_tol=1.0)
+        stop = _first_convergence(t, 1_500_000)
+        self.assertIsNotNone(stop, 'the rate gate never certified a decay that does settle')
+        self.assertGreater(stop, 2 * 154_000)
+        rate, se, tcrit = t._last_rate_bound
+        self.assertLess(abs(rate) + tcrit * se, 1.0)
+        a_last = float(np.mean(t._all_a[-30:]))
+        self.assertLess(a_last / 4300.0 - 1.0, 0.005, 'certified within 0.5% of the plateau')
+
+    def test_a_flat_area_passes(self):
+        t = _machine(two_stage=False, rate_tol=1.0)
+        stop = _first_convergence(t, 300_000, amp=0.0)
+        self.assertIsNotNone(stop)
+
+    def test_too_few_samples_is_not_a_pass(self):
+        t = _machine(two_stage=False, rate_tol=1.0)
+        _blowup, converged = _decay_chunk(t, 0, amp=0.0, n=10)
+        self.assertFalse(converged, 'ten samples cannot bound a rate; the gate must wait')
+        self.assertIsNone(t._last_rate_bound)
+
+    def test_the_stop_reasons_report_the_rate(self):
+        t = _machine(two_stage=False, rate_tol=1.0)
+        _first_convergence(t, 300_000, amp=0.0)
+        self.assertIn('area rate', t._converged_stop_reason(300_000))
+        self.assertIn('need < 1.00', t._ceiling_stop_reason(300_000, 300_000))

@@ -4,6 +4,18 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+### Fixed
+
+- **A calibration patch no longer certifies its area per lipid mid-descent.** `membrane_equilibrate`
+  gains `area_rate_tol` (percent of area per 100k steps), on by default at 1.0 for
+  `relaxation_protocols.patch`: convergence waits until the late-half area slope is below it at 95%
+  confidence. The existing quarter-over-quarter plateau gate reads flatter the sooner a run stops; in
+  the 3.30.0 sweep it certified example 17's raft patch at 55k-65k tensionless steps in two replicas
+  while it was still shrinking 2-2.6% per 100k, at APLs of 46.7 and 47.6 against a plateau of 43.3,
+  and the upper-leaflet count varied 292-319 between replicas. With the rate gate that patch certifies
+  at about 510k tensionless steps, within 0.3% of its plateau, so calibration patches of
+  cholesterol-rich leaflets now run longer. Example 17 sets it explicitly.
+
 ## [3.31.0] - 2026-11-06
 
 ### Changed

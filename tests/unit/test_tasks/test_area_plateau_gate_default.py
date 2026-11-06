@@ -72,6 +72,13 @@ class TestTheDefaults(unittest.TestCase):
     def test_the_patch_stage_gates_on_the_plateau_by_default(self):
         self.assertEqual(_attr_of_stage('patch', 'area_plateau_tol')['default'], _DOWNSTREAM_TOL)
 
+    def test_the_patch_stage_gates_on_the_area_rate_by_default(self):
+        """The plateau gate alone certified example 17's raft patch mid-descent (2026-11-06)."""
+        self.assertEqual(_attr_of_stage('patch', 'area_rate_tol')['default'], 1.0)
+
+    def test_the_quilt_stage_does_not_gate_on_the_rate_either(self):
+        self.assertEqual(_attr_of_stage('quilt', 'area_rate_tol')['default'], 0.0)
+
     def test_the_quilt_stage_does_not(self):
         """Deliberate, not an oversight -- nothing downstream is sized from the quilt's area."""
         self.assertEqual(_attr_of_stage('quilt', 'area_plateau_tol')['default'], 0.0)
@@ -125,3 +132,28 @@ class TestTheGateIsStrictlyStricter(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestTheRateDefaultReachesTheStage(unittest.TestCase):
+    """The schema declaring a default is not the stage receiving it -- ycleptic has to WALK to the
+    stage for the default to be filled in (see this repo's CLAUDE.md on a wrong-but-valid `type:`
+    disabling a whole subtree).  So walk a config whose patch and quilt stages name no tolerance."""
+
+    def _walk(self):
+        from ycleptic.walkers import dwalk
+        stage = {'membrane_equilibrate': {'temperature': 310}}
+        cfg = {'tasks': [{'make_membrane_system': {'bilayer': {'relaxation_protocols': {
+            'patch': [{'md': {'ensemble': 'minimize', 'nsteps': 100}}, dict(stage)],
+            'quilt': [{'md': {'ensemble': 'minimize', 'nsteps': 100}},
+                      {'membrane_equilibrate': {'temperature': 310}}]}}}}]}
+        dwalk(_SPEC, cfg)
+        rp = cfg['tasks'][0]['make_membrane_system']['bilayer']['relaxation_protocols']
+        return rp['patch'][1]['membrane_equilibrate'], rp['quilt'][1]['membrane_equilibrate']
+
+    def test_a_patch_stage_that_names_no_tolerance_is_rate_gated(self):
+        patch, _quilt = self._walk()
+        self.assertEqual(patch.get('area_rate_tol'), 1.0)
+
+    def test_a_quilt_stage_that_names_no_tolerance_is_not(self):
+        _patch, quilt = self._walk()
+        self.assertEqual(quilt.get('area_rate_tol'), 0.0)

@@ -1922,6 +1922,20 @@ attributes:
                               the grid from an APL several percent high. 0 disables the extra gate.
                             type: float
                             default: 0.005
+                          - name: area_rate_tol
+                            text: >-
+                              area-rate gate (percent of area per 100,000 steps): also hold convergence
+                              until the slope of the stage-2 area over its late half is below this at 95%
+                              confidence. ON by default here (1.0) because area_plateau_tol alone does not
+                              hold a slowly condensing patch: its quarter-over-quarter drift shrinks when
+                              the run stops early, and example 17's cholesterol-rich raft patch passed it
+                              at 55,000-65,000 tensionless steps while still shrinking 2-2.6% per 100k,
+                              certifying APLs of 46.7-47.6 against a plateau of 43.3 and leaving the
+                              upper-leaflet count varying 292-319 across replicas. At 1.0 the same patch
+                              certifies at about 510,000 tensionless steps within 0.3% of its plateau. 0
+                              disables the gate.
+                            type: float
+                            default: 1.0
                           - name: addl_paramfiles
                             type: list
                             text: additional parameter files for the NAMD run
@@ -2070,6 +2084,14 @@ attributes:
                               area, so a slightly early stop costs a little extra relaxation later,
                               not a mis-sized system. Set 0.005 if you want the quilt held to the
                               same standard.
+                            type: float
+                            default: 0.0
+                          - name: area_rate_tol
+                            text: >-
+                              area-rate gate (percent of area per 100,000 steps); when > 0, also hold
+                              convergence until the late-half slope of the stage-2 area is below this at
+                              95% confidence. 0 (default) disables it here, for the same reason
+                              area_plateau_tol is off: nothing downstream is sized from the quilt's area.
                             type: float
                             default: 0.0
                           - name: addl_paramfiles
@@ -2586,6 +2608,16 @@ attributes:
               judge a calibration patch's preferred APL reliable (_AREA_CONVERGENCE_TOL), so set it (e.g.
               0.005) on calibration patches to make "run until the creep flattens" the actual gate for a
               slowly-condensing (e.g. cholesterol-rich) leaflet. 0 (default) disables the extra gate.
+            type: float
+            default: 0.0
+          - name: area_rate_tol
+            text: >-
+              optional area-rate gate (percent of area per 100,000 steps). When > 0, convergence also
+              requires the slope of the stage-2 lateral area over its late half, regressed on block means,
+              to be below this at 95% confidence (the magnitude of the rate plus t * SE). Unlike area_plateau_tol, a rate does
+              not shrink when a run is stopped early, so a slow, steady descent cannot pass it by stopping
+              sooner. make_membrane_system turns it on (1.0) for calibration patches. 0 (default) disables
+              the gate.
             type: float
             default: 0.0
           - name: addl_paramfiles

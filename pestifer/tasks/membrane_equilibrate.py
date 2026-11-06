@@ -155,6 +155,14 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         # rejects). Used for calibration patches, which size the whole grid; unset elsewhere.
         self._area_plateau_tol = float(specs.get('area_plateau_tol') or 0.0)
         self._last_plateau_drift = None
+        # Opt-in *rate* gate (area_rate_tol > 0, percent of area per 100k steps): hold convergence
+        # until the late-half area slope is bounded below this at 95% confidence.  Unlike the
+        # quarter-drift above, a rate does not shrink when the run is stopped early -- see
+        # area_rate().  Example 17's raft patch passed the quarter-drift test at 55k-65k tensionless
+        # steps while still shrinking 2-2.6%/100k, certifying APLs of 46.7-47.6 against a plateau of
+        # 43.3, and the upper-leaflet count then varied 292-319 across replicas (2026-11-06).
+        self._area_rate_tol = float(specs.get('area_rate_tol') or 0.0)
+        self._last_rate_bound = None
 
         # Two-stage protocol (default on): stage 1 settles density at *constant lateral area* so the
         # under-dense box loses its excess volume from z only; stage 2 then relaxes the lateral area at
@@ -247,6 +255,16 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
                 logger.info(f'{self.taskname}: local gates pass but area not yet plateaued '
                             f'(cumulative quarter-drift {_fmt(pd)} >= {self._area_plateau_tol:.4f}); '
                             f'continuing')
+        if converged and self._phase == 2 and self._area_rate_tol > 0.0:
+            rb = self._area_rate_bound()
+            self._last_rate_bound = rb
+            if rb is None or abs(rb[0]) + rb[2] * rb[1] >= self._area_rate_tol:
+                converged = False
+                txt = ('not yet measurable' if rb is None else
+                       f'{rb[0]:+.2f} +/- {rb[1]:.2f} %/100k steps, 95% bound '
+                       f'{abs(rb[0]) + rb[2] * rb[1]:.2f}')
+                logger.info(f'{self.taskname}: local gates pass but the area is still moving '
+                            f'({txt} >= {self._area_rate_tol:.2f}); continuing')
         return jr.blowup, converged
 
     def _measure_thickness(self, total_steps):
@@ -367,10 +385,58 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         slope = float(np.polyfit(tt, aa, 1)[0])          # area units per step
         return 100.0 * 1.0e5 * slope / float(aa.mean())  # percent of area per 100k steps
 
+    #: the rate gate's tolerance and its last measurement; class defaults so a task built without
+    #: ``_setup`` (as several tests build one) reads the gate as off rather than raising
+    _area_rate_tol = 0.0
+    _last_rate_bound = None
+    #: blocks the late half of the stage-2 area series is cut into for the rate gate's slope and its
+    #: standard error; block means, not raw xst frames, so correlated samples do not shrink the error
+    _RATE_BLOCKS = 8
+
+    def _area_rate_bound(self):
+        """``(rate, se, tcrit)`` for the rate gate, or ``None`` until there are enough samples.
+
+        ``rate`` is the late-half area slope in percent of area per 100k steps, as
+        :meth:`area_rate` reports it, but regressed over ``_RATE_BLOCKS`` block means so that its
+        standard error ``se`` does not pretend xst frames are independent.  ``tcrit`` is the
+        two-sided 95% Student-t quantile for that regression, so the gate passes only when
+        ``|rate| + tcrit * se`` is below ``area_rate_tol``: a short, noisy window cannot pass by
+        chance.  Never raises.
+        """
+        try:
+            import numpy as np
+            from scipy.stats import t as student_t
+            t = np.asarray(self._all_t, dtype=float)
+            a = np.asarray(self._all_a, dtype=float)
+            if self._phase2_start_step is not None and t.size:
+                keep = t >= self._phase2_start_step
+                t, a = t[keep], a[keep]
+            h = a.size // 2
+            tt, aa = t[h:], a[h:]
+            nb = self._RATE_BLOCKS
+            if tt.size < 2 * nb or not float(aa.mean()):
+                return None
+            groups = np.array_split(np.arange(tt.size), nb)
+            bt = np.array([tt[g].mean() for g in groups])
+            ba = np.array([aa[g].mean() for g in groups])
+            if float(np.ptp(bt)) <= 0.0:
+                return None
+            coef, cov = np.polyfit(bt, ba, 1, cov=True)
+            scale = 100.0 * 1.0e5 / float(aa.mean())
+            return (float(coef[0] * scale), float(np.sqrt(cov[0, 0]) * scale),
+                    float(student_t.ppf(0.975, nb - 2)))
+        except Exception as e:
+            logger.debug(f'{self.taskname}: area rate bound unavailable ({e})')
+            return None
+
     def _converged_stop_reason(self, total_steps):
         extra = ('' if self._area_plateau_tol <= 0.0
                  else f' (area plateaued: cumulative quarter-drift {_fmt(self._last_plateau_drift)} < '
                       f'{self._area_plateau_tol:.4f})')
+        rb = self._last_rate_bound
+        if self._area_rate_tol > 0.0 and rb is not None:
+            extra += (f' (area rate {rb[0]:+.2f} +/- {rb[1]:.2f} %/100k steps, 95% bound '
+                      f'{abs(rb[0]) + rb[2] * rb[1]:.2f} < {self._area_rate_tol:.2f})')
         return (f'CONVERGED at step {total_steps}: density + lateral area both stationary for '
                 f'{self._rows[-1][3].passes} consecutive checks{extra}')
 
@@ -386,6 +452,11 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
         if self._area_plateau_tol > 0.0:
             bits.append(f'area plateau quarter-drift {_fmt(self._last_plateau_drift)} '
                         f'(need < {self._area_plateau_tol:.4f})')
+        if self._area_rate_tol > 0.0:
+            rb = self._area_rate_bound()          # fresh: the gate only computes it on a local pass
+            bits.append('area rate n/a' if rb is None else
+                        f'area rate {rb[0]:+.2f} +/- {rb[1]:.2f} %/100k steps (95% bound '
+                        f'{abs(rb[0]) + rb[2] * rb[1]:.2f}, need < {self._area_rate_tol:.2f})')
         return (f'CEILING: reached max_steps ({max_steps}) without joint convergence; '
                 f'{"; ".join(bits) or "n/a"} -- system may not have settled')
 
@@ -449,7 +520,11 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
                 f.write('# protocol: single-stage tensionless NPgT (density+area jointly)\n')
             f.write(f'# stop: {stop_reason}\n')
             _rate = self.area_rate()
-            if _rate is not None:
+            if _rate is not None and self._area_rate_tol > 0.0:
+                f.write(f'# lateral area rate: {_rate:+.3f} % per 100k steps over the late half of\n'
+                        f'#   the tensionless stage -- GATED (area_rate_tol {self._area_rate_tol:.2f},\n'
+                        f'#   on a 95% bound from block means; see the stop line above).\n')
+            elif _rate is not None:
                 f.write(f'# lateral area rate: {_rate:+.3f} % per 100k steps over the late half of\n'
                         f'#   the tensionless stage -- REPORTED, NOT GATED.  The convergence verdict\n'
                         f'#   above uses a difference of adjacent-window means, which scales with how\n'

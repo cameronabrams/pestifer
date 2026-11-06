@@ -136,6 +136,21 @@ quarter vs. the preceding quarter) to fall below it.  This is exactly the metric
 ``0.005``) makes "run until the creep flattens" the actual stopping rule, and the downstream
 reliability check then agrees with the task's own verdict.
 
+That gate has a blind spot, and ``area_rate_tol`` closes it.  A difference of adjacent-window means
+scales with the window: stop a steady descent sooner and it reads flatter.  In the 3.30.0 sweep it
+certified example 17's raft patch at 55,000-65,000 tensionless steps in two replicas, while the area was
+still shrinking 2-2.6 % per 100,000 steps, at APLs of 46.7 and 47.6 Å² against a plateau of 43.3 (fit
+to the third replica, which ran 650,000).  The upper-leaflet count then varied from 292 to 319 lipids
+between replicas.
+
+When ``area_rate_tol`` is greater than zero, convergence also requires the **rate** at which the area is
+still changing to be small: the slope of the late half of the stage-2 area series, in percent of the
+area per 100,000 steps, regressed on eight block means, must have a magnitude plus *t*·SE below the
+tolerance, with *t* the 95 % Student-*t* quantile.  A rate does not shrink when a run is stopped early,
+and the bound keeps a short, noisy window from passing by chance.  ``make_membrane_system`` turns it on
+(1.0) for calibration patches; at that setting example 17's raft patch certifies at about 510,000
+tensionless steps, within 0.3 % of its plateau.
+
 Outputs
 =======
 
