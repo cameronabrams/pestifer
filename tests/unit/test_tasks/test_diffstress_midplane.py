@@ -58,7 +58,8 @@ def test_the_split_is_at_the_measured_midplane(tmp_path):
     files = _write(tmp_path)
     task = MakeMembraneSystemTask.__new__(MakeMembraneSystemTask)
     frames = task._leaflet_stress_frames(files, reciprocal=False)
-    res = _leaflet_stress_summary(frames['lower'], frames['upper'])
+    res = _leaflet_stress_summary(frames['lower'], frames['upper'], frames['frame_ps'])
+    assert abs(frames['frame_ps'] - 0.5) < 1e-12       # dcdfreq 500 x NAMD's default 1 fs
     slab_tension = 0.01 * 100.0 * (C / NSLABS)       # 6 mN/m
     assert abs(res['upper'] - slab_tension) < 1e-6
     assert abs(res['lower']) < 1e-6

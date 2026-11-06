@@ -10,6 +10,7 @@ import logging
 import os
 import numpy as np
 from pathlib import Path
+from scipy.stats import t as student_t
 
 from .basetask import BaseTask
 # from .terminate import TerminateTask
@@ -56,9 +57,14 @@ def _as_float(v):
 # measured residual differential stress into a suggested leaflet-count adjustment.  A
 # representative value for fluid lipid monolayers; the suggestion is a guide, not a fit.
 _DEFAULT_AREA_MODULUS = 250.0
-#: Contiguous blocks the differential-stress diagnostic splits its sampled frames into to
-#: estimate the standard error of Dgamma.
-_DGAMMA_BLOCKS = 5
+#: Shortest block (ps) the differential-stress diagnostic averages Dgamma over to estimate its
+#: standard error, and the fewest such blocks it will estimate one from.  Dgamma wanders slowly:
+#: on a 2 ns symmetric DMPC patch (2026-11-06) its 100-ps window means scattered by 21 mN/m while
+#: five 20-ps blocks of each window gave a median SE of 9, so the old rule (five blocks of
+#: whatever was sampled, |Dgamma| > 2 SE) advised moving lipids in 30% of windows of a bilayer
+#: with no differential stress.  Blocks of >= 100 ps with a Student-t threshold did so in 3%.
+_DGAMMA_BLOCK_PS = 100.0
+_DGAMMA_MIN_BLOCKS = 5
 
 # Schema defaults for the two relaxation-stage task types, mirrored here so a protocol stage that
 # names no temperature can still be told what it ran at.  THEY DIFFER, and that is the point:
@@ -125,13 +131,19 @@ def _cell_or_raise(xsc, what: str):
 
 
 
-def _leaflet_stress_summary(lower, upper):
+def _leaflet_stress_summary(lower, upper, frame_ps):
     """Second-half means of per-frame leaflet tensions, and the block standard error of Dgamma.
 
     ``lower`` and ``upper`` are per-frame leaflet tensions in mN/m, in time order (see
-    :func:`pestifer.util.leafletstress.leaflet_tensions`).  The first half is discarded as
-    equilibration.  Returns ``dict(total, lower, upper, dgamma, dgamma_se, nframes)``, or ``None``
-    with no frames; ``dgamma_se`` is ``None`` when there are too few frames for the blocks.
+    :func:`pestifer.util.leafletstress.leaflet_tensions`), sampled every ``frame_ps`` ps.  The first
+    half is discarded as equilibration.  Returns ``dict(total, lower, upper, dgamma, dgamma_se,
+    nblocks, block_ps, tcrit, analyzed_ps, nframes)``, or ``None`` with no frames.
+
+    The standard error comes from contiguous blocks at least ``_DGAMMA_BLOCK_PS`` long, and only
+    when there are at least ``_DGAMMA_MIN_BLOCKS`` of them; otherwise ``dgamma_se`` is ``None``.
+    Short blocks are correlated and understate it (see ``_DGAMMA_BLOCK_PS``).  ``tcrit`` is the
+    two-sided 95% Student-t quantile for that many blocks, the threshold a Dgamma must exceed, in
+    standard errors, to be told from zero.
     """
     lower, upper = np.asarray(lower, dtype=float), np.asarray(upper, dtype=float)
     n = len(lower)
@@ -139,16 +151,18 @@ def _leaflet_stress_summary(lower, upper):
         return None
     lo, up = lower[n // 2:], upper[n // 2:]
     dg = up - lo
-    # Standard error of Dgamma from contiguous block means.  Without it a single Dgamma cannot be
-    # told from noise: ex17's 3.30.0 replicas gave +24.4, +17.3 and +1.6 mN/m from 100k-step
-    # passes, and nothing in the report said whether that spread was the membrane or the sampling.
-    # Blocks this short are still correlated, so this is a floor on the uncertainty, not a bound.
-    dgamma_se = None
-    if len(dg) >= 2 * _DGAMMA_BLOCKS:
-        blocks = [dg[b].mean() for b in np.array_split(np.arange(len(dg)), _DGAMMA_BLOCKS)]
-        dgamma_se = float(np.std(blocks, ddof=1) / np.sqrt(_DGAMMA_BLOCKS))
+    blen = max(1, int(np.ceil(_DGAMMA_BLOCK_PS / frame_ps - 1e-9)))
+    nblocks = len(dg) // blen
+    dgamma_se = tcrit = None
+    if nblocks >= _DGAMMA_MIN_BLOCKS:
+        tail = dg[len(dg) - nblocks * blen:]            # drop the earliest remainder
+        blocks = tail.reshape(nblocks, blen).mean(axis=1)
+        dgamma_se = float(np.std(blocks, ddof=1) / np.sqrt(nblocks))
+        tcrit = float(student_t.ppf(0.975, nblocks - 1))
     return dict(total=float((lo + up).mean()), lower=float(lo.mean()), upper=float(up.mean()),
-                dgamma=float(dg.mean()), dgamma_se=dgamma_se, nframes=int(len(dg)))
+                dgamma=float(dg.mean()), dgamma_se=dgamma_se, nblocks=int(nblocks),
+                block_ps=float(blen * frame_ps), tcrit=tcrit,
+                analyzed_ps=float(len(dg) * frame_ps), nframes=int(len(dg)))
 
 
 def _profile_pass_files(tasks):
@@ -1237,7 +1251,7 @@ class MakeMembraneSystemTask(BaseTask):
                                              reciprocal)
         if frames is None:
             return
-        res = _leaflet_stress_summary(frames['lower'], frames['upper'])
+        res = _leaflet_stress_summary(frames['lower'], frames['upper'], frames['frame_ps'])
         if res is None:
             logger.warning('Differential-stress diagnostic: no usable pressure profile was '
                            'produced; cannot report per-leaflet tensions.')
@@ -1267,7 +1281,8 @@ class MakeMembraneSystemTask(BaseTask):
         logger.info(f'  gamma_upper          = {res["upper"]:+.3f} mN/m')
         logger.info(f'  gamma_lower          = {res["lower"]:+.3f} mN/m')
         se = res['dgamma_se']
-        se_text = f' +/- {se:.3f} (block SE, {_DGAMMA_BLOCKS} blocks)' if se is not None else ''
+        se_text = (f' +/- {se:.3f} (SE from {res["nblocks"]} blocks of {res["block_ps"]:.0f} ps)'
+                   if se is not None else '')
         if reciprocal:
             logger.info(f'  gamma_total          = {res["total"]:+.3f} mN/m (target ~0: the pass '
                         f'runs at zero applied surface tension)')
@@ -1285,15 +1300,24 @@ class MakeMembraneSystemTask(BaseTask):
                            '~13 mN/m on example 17.  No leaflet-count change is suggested.')
             return
         if se is None:
-            logger.warning(f'  Too few profile frames ({res["nframes"]}) to estimate the '
-                           f'uncertainty of Dgamma; no leaflet-count change is suggested.  '
-                           f'Raise diagnose_differential_stress.nsteps.')
+            # Dgamma wanders on a ~100 ps scale with frame-to-frame swings of ~60 mN/m, so a short
+            # pass gives a number with no honest error bar; see _DGAMMA_BLOCK_PS.
+            need_ps = 2.0 * _DGAMMA_MIN_BLOCKS * _DGAMMA_BLOCK_PS
+            need_steps = int(np.ceil(nsteps * need_ps / (2.0 * res['analyzed_ps'])))
+            logger.warning(f'  The pass analyzed {res["analyzed_ps"]:.0f} ps (its second half); an '
+                           f'error bar on Dgamma needs at least {_DGAMMA_MIN_BLOCKS} blocks of '
+                           f'{_DGAMMA_BLOCK_PS:.0f} ps.  Too short to act on: on a symmetric '
+                           f'bilayer, Dgamma from 100 ps windows scatters by ~20 mN/m.  No '
+                           f'leaflet-count change is suggested; set '
+                           f'diagnose_differential_stress.nsteps to at least {need_steps} '
+                           f'({need_ps:.0f} ps) for one.')
             return
-        if abs(res['dgamma']) < 2.0 * se:
-            logger.info(f'  Dgamma is within two standard errors of zero: not distinguishable '
-                        f'from a stress-free membrane at this sampling length, so no '
-                        f'leaflet-count change is suggested.  A longer pass '
-                        f'(diagnose_differential_stress.nsteps) narrows it.')
+        if abs(res['dgamma']) < res['tcrit'] * se:
+            logger.info(f'  Dgamma is within the 95% interval of zero ({res["tcrit"]:.2f} standard '
+                        f'errors for {res["nblocks"]} blocks): not distinguishable from a '
+                        f'stress-free membrane at this sampling length, so no leaflet-count change '
+                        f'is suggested.  A longer pass (diagnose_differential_stress.nsteps) '
+                        f'narrows it.')
             return
         # gamma_leaflet ~ K_A*(A/A0 - 1); moving dm lipids from upper to lower changes
         # Dgamma by K_A*dm*(1/n_upper + 1/n_lower), so dm = -Dgamma / [K_A*(...)]
@@ -1311,7 +1335,7 @@ class MakeMembraneSystemTask(BaseTask):
     def _leaflet_stress_frames(self, files, reciprocal: bool):
         """Per-frame leaflet tensions from the diagnostic pass, split at the measured midplane.
 
-        Returns ``dict(lower, upper, check, nslabs, trough_offset)`` or ``None`` (after saying
+        Returns ``dict(lower, upper, check, nslabs, trough_offset, frame_ps)`` or ``None`` (after saying
         why).  With ``reciprocal`` the production profile is completed by replaying the PME
         reciprocal term over the pass's DCD (:func:`pestifer.util.ppewald.replay`), and ``check``
         compares the result with the pass's own PRESSAVG tensor, per component.
@@ -1321,7 +1345,10 @@ class MakeMembraneSystemTask(BaseTask):
                            'produced (no md stage left a profile, a DCD and an xst); cannot '
                            'report per-leaflet tensions.')
             return None
-        steps = read_header(files['dcd']).steps()
+        header = read_header(files['dcd'])
+        steps = header.steps()
+        timestep = ppewald.config_value(ppewald.read_config_lines(files['namd']), 'timestep')
+        frame_ps = header.nsavc * (float(timestep) if timestep is not None else 1.0) / 1000.0
         check = None
         if reciprocal:
             na = self.get_scripter('namd')
@@ -1349,7 +1376,7 @@ class MakeMembraneSystemTask(BaseTask):
         gamma = leafletstress.slab_tensions(profiles, c_z)
         lower, upper = leafletstress.leaflet_tensions(gamma, midplane, o_z, c_z)
         return dict(lower=lower, upper=upper, check=check, nslabs=int(profiles.shape[1]),
-                    trough_offset=offset)
+                    trough_offset=offset, frame_ps=frame_ps)
 
     def register_tops_streams_from_psfgen(self, filelist):
         self.register([CharmmffTopFileArtifact(x) for x in filelist if x.endswith('rtf')], key='charmmff_topfiles', artifact_type=CharmmffTopFileArtifacts)

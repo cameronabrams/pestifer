@@ -1448,10 +1448,14 @@ attributes:
               complete profile must reproduce the pass's own pressure tensor in every component
               or nothing is reported from it. The leaflets are split at the bilayer midplane
               measured from the lipid coordinates in each frame (the methyl trough), and each
-              leaflet is integrated out to the middle of the water. Dgamma is reported with a
-              block standard error (five contiguous blocks of the sampled frames, a floor on the
-              true uncertainty), and no leaflet-count change is suggested unless Dgamma exceeds
-              two standard errors.
+              leaflet is integrated out to the middle of the water. Dgamma is averaged over the
+              pass's second half and reported with a standard error from contiguous blocks of at
+              least 100 ps; with fewer than five such blocks it gets no error bar, and no
+              leaflet-count change is suggested unless Dgamma lies outside the 95% Student-t
+              interval of zero. Dgamma wanders slowly -- on a symmetric DMPC patch its 100-ps
+              averages scattered by about 20 mN/m -- so the default pass is long enough to measure
+              the tensions but too short to act on: advice needs nsteps of at least 1 ns
+              (500000 steps at 2 fs), and resolving a Dgamma below about 10 mN/m takes several.
             type: dict
             attributes:
               - name: enabled
@@ -1467,7 +1471,10 @@ attributes:
                 type: bool
                 default: True
               - name: nsteps
-                text: number of MD steps in the tensionless pressure-profile pass
+                text: >-
+                  number of MD steps in the tensionless pressure-profile pass; the default
+                  reports the tensions but is too short for a lipid-count suggestion, which
+                  needs at least 1 ns
                 type: int
                 default: 100000
               - name: slabs

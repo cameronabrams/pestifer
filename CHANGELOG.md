@@ -31,6 +31,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   at the central slab: one slab of misplacement moved example 17's Dgamma by 8-15 mN/m. On example
   17 the reciprocal term alone contributed -2.8 to -13.2 mN/m to Dgamma, so with `reciprocal: false`
   the tensions are reported as real-space only and no leaflet-count change is suggested.
+- **The differential-stress diagnostic's error bar is honest, and it no longer advises on noise.**
+  On a 2 ns symmetric DMPC patch, Dgamma averaged over 100-ps windows scattered by 21 mN/m while
+  the old error bar (five blocks of whatever was sampled) read 9, so the old rule (|Dgamma| > 2 SE)
+  suggested moving lipids in 30% of windows of a bilayer with no differential stress. The error
+  bar now comes from blocks of at least 100 ps, needs at least five of them, and advice needs
+  Dgamma outside the 95% Student-t interval; on the same data that fires in about 2% of 1 ns
+  passes. The default 100,000-step pass is therefore reported without advice and says how long a
+  pass would be needed. Example 17's earlier Dgamma values (+24.4, +17.3, +1.6 mN/m from such
+  passes) are within the noise of zero.
 - Examples 16 and 17 write `outputPressure` with their profiles, and their comments describe the
   replay as it now works.
 

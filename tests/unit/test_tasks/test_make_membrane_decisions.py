@@ -785,10 +785,11 @@ class TestAsymmetricStressFreeCounts(unittest.TestCase):
         t.diagnose_differential_stress.assert_called_once()
 
 
-def _frames(lower, upper, nframes=24, check='closed'):
+def _frames(lower, upper, nframes=24, check='closed', frame_ps=50.0):
     """What ``_leaflet_stress_frames`` returns: per-frame leaflet tensions (mN/m) and the check.
 
-    ``lower``/``upper`` are scalars (constant over frames) or per-frame sequences.
+    ``lower``/``upper`` are scalars (constant over frames) or per-frame sequences.  The default
+    ``frame_ps`` makes each 100-ps error-bar block two frames, so 24 frames give 6 blocks.
     """
     lo = np.asarray(lower, dtype=float) * np.ones(nframes) if np.ndim(lower) == 0 \
         else np.asarray(lower, dtype=float)
@@ -800,7 +801,8 @@ def _frames(lower, upper, nframes=24, check='closed'):
     elif check == 'open':
         check = {'deviation': np.array([-86.0, -94.0, -71.0]), 'sem': np.zeros(3),
                  'nframes': nframes, 'real_only_deviation': np.zeros(3)}
-    return dict(lower=lo, upper=up, check=check, nslabs=40, trough_offset=0.25)
+    return dict(lower=lo, upper=up, check=check, nslabs=40, trough_offset=0.25,
+                frame_ps=frame_ps)
 
 
 class TestDifferentialStressDiagnostic(unittest.TestCase):
@@ -907,15 +909,42 @@ class TestDifferentialStressDiagnostic(unittest.TestCase):
         with self.assertLogs(LOGGER, level='INFO') as cm:
             self._run(_frames(0, up, nframes=40))
         out = ''.join(cm.output)
-        self.assertIn('block SE', out)
-        self.assertIn('within two standard errors', out)
+        self.assertIn('SE from 10 blocks of 100 ps', out)
+        self.assertIn('within the 95% interval', out)
         self.assertNotIn('move ~', out)
         self.assertNotIn('look balanced', out)
 
     def test_too_few_frames_for_an_uncertainty_gets_no_advice(self):
         with self.assertLogs(LOGGER, level='WARNING') as cm:
             self._run(_frames(0, 200, nframes=8))
-        self.assertIn('Too few profile frames', ''.join(cm.output))
+        self.assertIn('Too short to act on', ''.join(cm.output))
+
+    def test_a_short_pass_gets_no_advice_however_many_frames_it_has(self):
+        """Measured on a 2 ns symmetric DMPC patch (2026-11-06): Dgamma's 100-ps window means
+        scatter by ~21 mN/m, and blocks cut from inside one such window understate that by about
+        half, so the old rule advised moving lipids in 30% of windows of an unstressed bilayer.
+        Here 200 frames at 1 ps -- 100 ps analyzed, with a clean +200 that the old five-block
+        rule would have acted on -- must get no advice, and must say how long a pass is needed."""
+        with self.assertLogs(LOGGER, level='INFO') as cm:
+            _t, membrane = self._run(_frames(0, 200, nframes=200, frame_ps=1.0), nsteps=100000)
+        out = ''.join(cm.output)
+        self.assertIn('Too short to act on', out)
+        self.assertIn('nsteps to at least 500000 (1000 ps)', out)
+        self.assertNotIn('move ~', out)
+        self.assertAlmostEqual(membrane.dgamma, 200.0)    # still measured and recorded
+
+    def test_the_threshold_is_students_t_not_two(self):
+        """Five blocks give 4 degrees of freedom: 95% is 2.78 standard errors, not 2.  A Dgamma
+        at 2.24 SE is inside it."""
+        blocks = 1.0 + np.array([1.0, -1.0, 1.0, -1.0, 0.0])
+        ratio = blocks.mean() / (blocks.std(ddof=1) / np.sqrt(5))
+        self.assertTrue(2.0 < ratio < 2.776, ratio)
+        up = np.r_[np.zeros(5), blocks]                     # 100-ps frames: one per block
+        with self.assertLogs(LOGGER, level='INFO') as cm:
+            self._run(_frames(0, up, nframes=10, frame_ps=100.0))
+        out = ''.join(cm.output)
+        self.assertIn('2.78 standard errors for 5 blocks', out)
+        self.assertNotIn('move ~', out)
 
     def test_a_significant_dgamma_still_gets_advice(self):
         """Negative control for the two above: the gate must not swallow a real imbalance."""

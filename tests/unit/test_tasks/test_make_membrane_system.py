@@ -176,25 +176,35 @@ class TestLeafletStressSummary(unittest.TestCase):
     def test_only_the_second_half_is_averaged(self):
         lower = np.r_[np.full(10, 1e6), np.zeros(10)]     # an absurd first half must not count
         upper = np.r_[np.full(10, 1e6), np.full(10, 3.0)]
-        res = _leaflet_stress_summary(lower, upper)
+        res = _leaflet_stress_summary(lower, upper, frame_ps=1.0)
         self.assertEqual(res['nframes'], 10)
         self.assertAlmostEqual(res['dgamma'], 3.0)
         self.assertAlmostEqual(res['total'], 3.0)
+        self.assertAlmostEqual(res['analyzed_ps'], 10.0)
 
-    def test_dgamma_standard_error_from_blocks(self):
-        res = _leaflet_stress_summary(np.zeros(40), np.ones(40))
+    def test_blocks_are_at_least_100_ps_whatever_the_frame_spacing(self):
+        res = _leaflet_stress_summary(np.zeros(2000), np.ones(2000), frame_ps=1.0)
+        self.assertEqual((res['nblocks'], res['block_ps']), (10, 100.0))
         self.assertEqual(res['dgamma_se'], 0.0)
-        # too few sampled frames for 5 blocks of 2: no SE rather than a fabricated one
-        self.assertIsNone(_leaflet_stress_summary(np.zeros(12), np.ones(12))['dgamma_se'])
+        res = _leaflet_stress_summary(np.zeros(40), np.ones(40), frame_ps=30.0)
+        self.assertEqual((res['nblocks'], res['block_ps']), (5, 120.0))   # 4 frames of 30 ps
+
+    def test_fewer_than_five_blocks_gives_no_standard_error(self):
+        # 800 frames at 1 ps: 400 ps analyzed is four 100-ps blocks -- no SE rather than a weak one
+        res = _leaflet_stress_summary(np.zeros(800), np.ones(800), frame_ps=1.0)
+        self.assertEqual(res['nblocks'], 4)
+        self.assertIsNone(res['dgamma_se'])
+        self.assertIsNone(res['tcrit'])
 
     def test_dgamma_standard_error_tracks_block_scatter(self):
         upper = np.r_[np.zeros(20), np.repeat(10.0 * np.arange(5), 4)]
-        res = _leaflet_stress_summary(np.zeros(40), upper)
+        res = _leaflet_stress_summary(np.zeros(40), upper, frame_ps=25.0)
         block = 10.0 * np.arange(5)
         self.assertAlmostEqual(res['dgamma_se'], block.std(ddof=1) / np.sqrt(5), places=9)
+        self.assertAlmostEqual(res['tcrit'], 2.7764451, places=6)
 
     def test_no_frames_returns_none(self):
-        self.assertIsNone(_leaflet_stress_summary([], []))
+        self.assertIsNone(_leaflet_stress_summary([], [], frame_ps=1.0))
 
 
 class TestGridHalfMidZgap(unittest.TestCase):
