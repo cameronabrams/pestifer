@@ -4,6 +4,8 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ## [Unreleased]
 
+## [3.31.0] - 2026-11-06
+
 ### Changed
 
 - **`pestifer pressure-profile-ewald` now completes the production run's own profile, and
