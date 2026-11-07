@@ -428,6 +428,12 @@ class MakeMembraneSystemTask(BaseTask):
             self.embedding = True
             logger.debug(f'Using psf {protein_state.psf.name} and pdb {protein_state.pdb.name} as inputs')
 
+        scale = self._leaflet_ratio_scale()     # validates it before anything expensive runs
+        if self.using_prebuilt_bilayer and scale != 1.0:
+            raise PestiferBuildError(
+                f'bilayer.leaflet_ratio_scale is {scale:g}, but this build uses a prebuilt '
+                f'bilayer, whose leaflet counts are already fixed.  Remove it, or build the '
+                f'bilayer here.')
         if not self.using_prebuilt_bilayer:
             self._refuse_settings_the_route_ignores()
         if self.embedding:
@@ -474,6 +480,40 @@ class MakeMembraneSystemTask(BaseTask):
         if method == 'auto':
             return 'grid' if getattr(self, 'patch', None) is not None else 'tile'
         return method
+
+    #: Outside this range a leaflet_ratio_scale is not a correction but a mistake (a percentage
+    #: typed as a number, or the reciprocal of what was meant); example 17 needs about 0.90.
+    _RATIO_SCALE_RANGE = (0.5, 2.0)
+
+    def _leaflet_ratio_scale(self) -> float:
+        """``bilayer.leaflet_ratio_scale``: the leaflet count ratio n_upper/n_lower as a multiple of
+        the one the build would otherwise use (1.0, the default, changes nothing).
+
+        It exists because the stress-free ratio is taken from symmetric patches, and a leaflet does
+        not pack in an asymmetric bilayer as it did in its own patch: example 17's rep-02, whose
+        calibration had converged, measured Dgamma = -26.5 mN/m.  The differential-stress
+        diagnostic prints the value to set.  Every route honors it -- the tiler trims to it, the
+        grids size from it -- so it is never accepted and then ignored.
+        """
+        v = (self.bilayer_specs or {}).get('leaflet_ratio_scale')
+        if v is None:
+            return 1.0
+        v = float(v)
+        lo, hi = self._RATIO_SCALE_RANGE
+        if not lo <= v <= hi:
+            raise PestiferBuildError(
+                f'bilayer.leaflet_ratio_scale is {v:g}; it multiplies the leaflet count ratio, so '
+                f'values near 1 are corrections (example 17 uses about 0.90) and anything outside '
+                f'{lo:g}-{hi:g} is almost certainly a typo.')
+        return v
+
+    @staticmethod
+    def _scaled_apls(apl_upper, apl_lower, scale):
+        """The two APLs a grid is sized from so that n_upper/n_lower comes out ``scale`` times
+        apl_lower/apl_upper.  The shift is split evenly (sqrt each way), so the membrane's area
+        stays about where the calibrated APLs put it."""
+        r = float(np.sqrt(scale))
+        return apl_upper / r, apl_lower * r
 
     def _refuse_settings_the_route_ignores(self):
         """Stop before any patch is built if the config sets something the chosen route ignores.
@@ -801,15 +841,19 @@ class MakeMembraneSystemTask(BaseTask):
         # seam removals and the gap leave lateral room the relaxation closes, so the box is
         # enlarged once to compensate: the membrane relaxes to about the size asked for -- the box
         # that clears the protein, or npatch tiles (a one-patch box filled to 86% without this)
-        q = build_quilt(P_up, P_lo, Lx, Ly, gap, expand=True)
+        scale = self._leaflet_ratio_scale()
+        q = build_quilt(P_up, P_lo, Lx, Ly, gap, expand=True, ratio_scale=scale)
         why = {}
         for leaflet, resname, reason, _detail in q.removed:
             why[reason] = why.get(reason, 0) + 1
         logger.info(
             f'Tiled membrane: box {q.Lx:.1f} x {q.Ly:.1f} A (seams in x: {q.seams[0]}, y: '
             f'{q.seams[1]}; gap {gap} A); upper {q.n_upper} lipids from {sources["upper"][1]}, '
-            f'lower {q.n_lower} from {sources["lower"][1]}; each leaflet at {100 * q.fill:.1f}% of '
-            f'its stress-free count')
+            f'lower {q.n_lower} from {sources["lower"][1]}; ' + (
+                f'each leaflet at {100 * q.fill:.1f}% of its stress-free count' if scale == 1.0 else
+                f'upper at {100 * q.n_upper / q.stress_free["upper"]:.1f}% and lower at '
+                f'{100 * q.n_lower / q.stress_free["lower"]:.1f}% of their stress-free counts '
+                f'(bilayer.leaflet_ratio_scale {scale:g})'))
         if q.removed:
             logger.info(
                 f'Tiled membrane: removed {len(q.removed)} lipid(s) -- '
@@ -823,7 +867,7 @@ class MakeMembraneSystemTask(BaseTask):
             quilt_method='tile', n_upper=int(q.n_upper), n_lower=int(q.n_lower),
             embedding=bool(self.embedding), quilt_box=[float(q.Lx), float(q.Ly), float(q.Lz)],
             quilt_seams=[bool(q.seams[0]), bool(q.seams[1])], quilt_seam_gap=gap,
-            quilt_fill=float(q.fill), quilt_removed=why,
+            quilt_fill=float(q.fill), quilt_removed=why, leaflet_ratio_scale=scale,
             apl_upper=float(1.0 / P_up.density()), apl_lower=float(1.0 / P_lo.density()),
             apl_upper_source=sources['upper'][1], apl_lower_source=sources['lower'][1],
             apl_upper_drift=_as_float(getattr(sources['upper'][0], 'area_drift', None)),
@@ -912,8 +956,15 @@ class MakeMembraneSystemTask(BaseTask):
             npatch = self._npatch()
             n_target = int(round(patch_nlipids['upper'] * npatch[0] * npatch[1]))
             aspect = bs.get('xy_aspect_ratio', 1.0)
-        logger.debug(f'build_grid_membrane: {n_target} lipids per leaflet (aspect {aspect:.2f})')
-        self._grid_membrane(dict(upper=n_target, lower=n_target), SAPL, aspect)
+        # a symmetric bilayer has one composition, so its stress-free ratio is 1; a
+        # leaflet_ratio_scale moves it, split evenly so the total stays n_target per leaflet
+        scale = self._leaflet_ratio_scale()
+        r = float(np.sqrt(scale))
+        counts = dict(upper=int(round(n_target * r)), lower=int(round(n_target / r)))
+        logger.debug(f'build_grid_membrane: {counts} lipids per leaflet (aspect {aspect:.2f}, '
+                     f'leaflet_ratio_scale {scale:g})')
+        self.record_outcome(leaflet_ratio_scale=scale)   # the counts: _grid_membrane
+        self._grid_membrane(counts, SAPL, aspect)
 
     @staticmethod
     def _apply_leaflet_apl_override(bs, apl_upper, apl_lower):
@@ -1073,22 +1124,26 @@ class MakeMembraneSystemTask(BaseTask):
         # convergence gate above, deliberately: an override must not be able to suppress the
         # report that the calibration it is replacing had not settled.
         apl_upper, apl_lower, apl_source = self._apply_leaflet_apl_override(bs, apl_upper, apl_lower)
+        # The APLs that SIZE the grid.  They differ from the preferred APLs above only under a
+        # bilayer.leaflet_ratio_scale, and only the preferred ones are logged and recorded as APLs.
+        scale = self._leaflet_ratio_scale()
+        size_upper, size_lower = self._scaled_apls(apl_upper, apl_lower, scale)
         if self.embedding:
             # size the common box to the protein footprint and place each leaflet at its own
             # preferred APL there; this keeps the stress-free ratio n_upper/n_lower = apl_lo/apl_up
             Lx, Ly = self._protein_box_dims()
             target_area = Lx * Ly
             aspect = Ly / Lx
-            n_upper = int(round(target_area / apl_upper))
-            n_lower = int(round(target_area / apl_lower))
+            n_upper = int(round(target_area / size_upper))
+            n_lower = int(round(target_area / size_lower))
         else:
             aspect = bs.get('xy_aspect_ratio', 1.0)
             # the REQUESTED count, deliberately not the measured one: this sizes the system
             # the user asked for (patch_nlipids x npatch).  Only the APL divisor above cares
             # what ring_check deleted.
             n_upper = int(round(patch_nlipids['upper'] * npatch[0] * npatch[1]))
-            n_lower = int(round(n_upper * apl_upper / apl_lower)) # stress-free count ratio
-            target_area = n_upper * apl_upper                     # target equilibrium box area
+            n_lower = int(round(n_upper * size_upper / size_lower)) # stress-free count ratio
+            target_area = n_upper * size_upper                      # target equilibrium box area
         # Grid the quilt AT the calibrated stress-free box area (target_area) -- where both leaflets
         # sit at their own preferred APL -- with only a token clearance, NOT ~15% loose.  The old 15%
         # slack existed so the SQUARE lattice's tight diagonal/jitter contacts did not clash at
@@ -1111,8 +1166,10 @@ class MakeMembraneSystemTask(BaseTask):
         _src = (f"upper {apl_upper:.2f} ({apl_source['upper']}), "
                 f"lower {apl_lower:.2f} ({apl_source['lower']})")
         logger.info(f'Preferred APL: {_src} {sA2_}')
+        _scaled = '' if scale == 1.0 else f'; bilayer.leaflet_ratio_scale {scale:g}'
         logger.info(f'Stress-free leaflet counts: upper {n_upper}, lower {n_lower} '
-                    f'(target equilibrium box area {target_area:.0f} A^2); gridding at SAPL {box_SAPL:.1f}')
+                    f'(target equilibrium box area {target_area:.0f} A^2{_scaled}); gridding at '
+                    f'SAPL {box_SAPL:.1f}')
         # The numbers that size the whole membrane are decided here at run time and appear
         # nowhere in the config, so without this they survive only in the log -- which is one
         # `tail` away from gone.  `record_outcome` appeared ZERO times in this task before
@@ -1128,7 +1185,7 @@ class MakeMembraneSystemTask(BaseTask):
             apl_upper_area_rate=_as_float(getattr(self.patchA, 'area_rate', None)),
             apl_lower_area_rate=_as_float(getattr(self.patchB, 'area_rate', None)),
             area_convergence_tol=_AREA_CONVERGENCE_TOL,
-            target_area=float(target_area),
+            target_area=float(target_area), leaflet_ratio_scale=scale,
             # The two numbers that decide how big the membrane actually is.  They were printed
             # above and recorded nowhere, which is the same gap the APLs had until 2026-10-13:
             # `n_lower` in particular is DERIVED (stress-free ratio, or the protein footprint
@@ -1328,9 +1385,20 @@ class MakeMembraneSystemTask(BaseTask):
                         f'assuming K_A = {K_A:.0f} mN/m).')
         else:
             src, dst = ('upper', 'lower') if dm > 0 else ('lower', 'upper')
+            # The advice used to end "rebuild with n_upper lowered and n_lower raised", and no
+            # route had a setting for either count: a tiled membrane takes its counts from the
+            # patches.  So say what to set.  The scale is cumulative -- it multiplies the ratio
+            # the build would otherwise use -- so the new value is this build's times the move.
+            old = self._leaflet_ratio_scale()
+            if n_upper - dm > 0 and n_lower + dm > 0:
+                new = old * ((n_upper - dm) / (n_lower + dm)) / (n_upper / n_lower)
+                how = (f'rebuild with bilayer.leaflet_ratio_scale: {new:.3f} (this build used '
+                       f'{old:g}).')
+                self.record_outcome(suggested_leaflet_ratio_scale=float(round(new, 3)))
+            else:
+                how = 'the move exceeds a leaflet, so no ratio scale is suggested.'
             logger.info(f'  To reduce Dgamma, move ~{abs(dm):.1f} lipid(s) from the {src} '
-                        f'to the {dst} leaflet (assuming K_A = {K_A:.0f} mN/m): rebuild with '
-                        f'n_{src} lowered and n_{dst} raised by that count.')
+                        f'to the {dst} leaflet (assuming K_A = {K_A:.0f} mN/m): {how}')
 
     def _leaflet_stress_frames(self, files, reciprocal: bool):
         """Per-frame leaflet tensions from the diagnostic pass, split at the measured midplane.

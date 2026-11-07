@@ -434,7 +434,8 @@ class Quilt:
     seams: tuple                # (x, y): whether each direction has a crop seam
     removed: list               # (leaflet, resname, reason, detail) of each removed copy
     stress_free: dict           # leaflet -> lipids the box holds at that leaflet's patch density
-    fill: float                 # fraction of its stress-free count each leaflet carries
+    fill: float                 # fraction of its target count each leaflet carries (the
+                                # stress-free count, shifted by any ratio_scale)
     n_upper: int
     n_lower: int
 
@@ -447,7 +448,7 @@ class Quilt:
         return np.array([0.5 * self.Lx, 0.5 * self.Ly, self.zcenter])
 
 
-def _assemble(upper, lower, Lx, Ly, gap, clash_distance):
+def _assemble(upper, lower, Lx, Ly, gap, clash_distance, ratio_scale=1.0):
     seams = seams_of([upper, lower], Lx, Ly)
     copies = tile_leaflet(upper, 'upper', Lx, Ly, gap, seams) + \
         tile_leaflet(lower, 'lower', Lx, Ly, gap, seams)
@@ -464,11 +465,22 @@ def _assemble(upper, lower, Lx, Ly, gap, clash_distance):
     # avoid.  So the leaflet that came out fuller is trimmed, nearest the box edges first, to the
     # other's fraction.  The ratio is then the patches' stress-free ratio to within one lipid.
     sf = {'upper': upper.density() * Lx * Ly, 'lower': lower.density() * Lx * Ly}
+    # ``ratio_scale`` (bilayer.leaflet_ratio_scale) moves the target off the patches' ratio, to
+    # n_upper/n_lower = ratio_scale x theirs: the patches are symmetric, and a leaflet does not
+    # pack in an asymmetric bilayer as it did in its own patch, so even a converged calibration
+    # can leave a measured differential stress (example 17: -26.5 mN/m).  Only the leaflet that
+    # must lose lipids has its target lowered, because tiling can only remove: the box expansion
+    # in build_quilt then refills the area, which is what turns a trim into a move.
+    target = dict(sf)
+    if ratio_scale < 1.0:
+        target['upper'] = ratio_scale * sf['upper']
+    elif ratio_scale > 1.0:
+        target['lower'] = sf['lower'] / ratio_scale
     alive = {lf: [k for k, c in enumerate(copies) if c.leaflet == lf and k not in gone]
              for lf in ('upper', 'lower')}
-    fill = min(1.0, min(len(alive[lf]) / sf[lf] for lf in alive))
+    fill = min(1.0, min(len(alive[lf]) / target[lf] for lf in alive))
     for lf, ks in alive.items():
-        excess = len(ks) - int(round(fill * sf[lf]))
+        excess = len(ks) - int(round(fill * target[lf]))
         if excess > 0:
             ks = sorted(ks, key=lambda k: _edge_distance(copies[k], Lx, Ly, seams))
             for k in ks[:excess]:
@@ -480,8 +492,14 @@ def _assemble(upper, lower, Lx, Ly, gap, clash_distance):
     return kept, seams, removed, sf, fill
 
 
+def _mean_fraction(kept, sf):
+    """Mean over the two leaflets of (lipids kept / stress-free count)."""
+    return 0.5 * sum(sum(1 for c in kept if c.leaflet == lf) / sf[lf] for lf in ('upper', 'lower'))
+
+
 def build_quilt(upper: Patch, lower: Patch, Lx: float, Ly: float, gap: float,
-                clash_distance: float = CLASH_DISTANCE, expand: bool = False):
+                clash_distance: float = CLASH_DISTANCE, expand: bool = False,
+                ratio_scale: float = 1.0):
     """Tile ``upper``'s upper leaflet and ``lower``'s lower leaflet over ``Lx x Ly``, clear every
     seam conflict by removal, equalize the leaflets' fill, and return the :class:`Quilt`.  Both
     patches must be registered.
@@ -491,15 +509,27 @@ def build_quilt(upper: Patch, lower: Patch, Lx: float, Ly: float, gap: float,
     ``1/sqrt(fill)`` and the quilt rebuilt, so that it relaxes to about ``Lx x Ly`` -- for an
     embedding, where the box was sized to clear a protein.
 
+    ``ratio_scale`` sets the leaflet ratio to that multiple of the patches' stress-free ratio
+    (``bilayer.leaflet_ratio_scale``); ``fill`` is then measured against those shifted targets,
+    while ``stress_free`` stays the patches' own counts.
+
     The box height is the mean of the two patches' heights, centered so that the upper chamber
     is half of ``upper``'s height and the lower half of ``lower``'s: the water each leaflet's
     patch carried per lipid, which is what the solvation step will refill.
     """
-    kept, seams, removed, sf, fill = _assemble(upper, lower, Lx, Ly, gap, clash_distance)
-    if expand and fill < 1.0:
-        s = 1.0 / np.sqrt(fill)
+    kept, seams, removed, sf, fill = _assemble(upper, lower, Lx, Ly, gap, clash_distance,
+                                                ratio_scale)
+    # The area the quilt relaxes to, as a fraction of the box.  With the patches' own ratio both
+    # leaflets sit at ``fill``.  A ratio_scale trims one leaflet further, and the relaxed area then
+    # lies between the two leaflets' fractions, so expand on their mean -- expanding on ``fill``
+    # alone would leave the trim a removal (the membrane shrinking by the trimmed area) rather
+    # than the move the scale is meant to make.
+    relax = fill if ratio_scale == 1.0 else _mean_fraction(kept, sf)
+    if expand and relax < 1.0:
+        s = 1.0 / np.sqrt(relax)
         Lx, Ly = s * Lx, s * Ly
-        kept, seams, removed, sf, fill = _assemble(upper, lower, Lx, Ly, gap, clash_distance)
+        kept, seams, removed, sf, fill = _assemble(upper, lower, Lx, Ly, gap, clash_distance,
+                                                ratio_scale)
     hu, hl = upper.cell[2], lower.cell[2]
     return Quilt(copies=kept, Lx=Lx, Ly=Ly, Lz=0.5 * (hu + hl), zcenter=0.25 * (hu - hl),
                  seams=seams, removed=removed, stress_free=sf, fill=fill,

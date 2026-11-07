@@ -1267,3 +1267,150 @@ class TestEmbedZdistReachesTheScript(unittest.TestCase):
         from importlib.resources import files as pkg_files
         tcl = (pkg_files('pestifer.resources') / 'tcl' / 'scripts' / 'bilayer_embed.tcl').read_text()
         self.assertIn('"-zdist"', tcl)
+
+
+class TestLeafletRatioScale(unittest.TestCase):
+    """``bilayer.leaflet_ratio_scale`` on every route, aimed at the call sites.
+
+    The diagnostic used to end its advice "rebuild with n_upper lowered and n_lower raised", and
+    a tiled membrane -- every asymmetric build by default -- had no setting for either count.
+    Example 17's converged build measured Dgamma -26.5 mN/m with nothing to turn.  A key that one
+    route ignored would repeat that, so each route is tested where it consumes the value.
+    """
+
+    def test_unset_is_one(self):
+        self.assertEqual(_task()._leaflet_ratio_scale(), 1.0)
+        self.assertEqual(_task(bilayer_specs={'leaflet_ratio_scale': 0.9})._leaflet_ratio_scale(),
+                         0.9)
+
+    def test_a_value_far_from_one_is_refused(self):
+        """10 (a percentage) or 0.1 (a fraction of the wrong thing) is a typo, not a correction."""
+        for v in (10.0, 0.1, 0.0, -0.9):
+            with self.subTest(v=v):
+                with self.assertRaises(PestiferBuildError):
+                    _task(bilayer_specs={'leaflet_ratio_scale': v})._leaflet_ratio_scale()
+
+    def test_a_prebuilt_bilayer_refuses_it_before_doing_anything(self):
+        t = _task(using_prebuilt_bilayer=True, patch=None,
+                  bilayer_specs={'leaflet_ratio_scale': 0.9})
+        called = []
+        for name in TestDo.STEPS:
+            setattr(t, name, (lambda n=name: called.append(n)))
+        t.get_current_artifact = lambda k: None
+        t.pipeline = mock.Mock()
+        with self.assertRaises(PestiferBuildError) as cm:
+            t.do()
+        self.assertIn('prebuilt', str(cm.exception))
+        self.assertEqual(called, [])
+
+    def test_the_tiled_route_hands_it_to_the_tiler(self):
+        """The call site, not the tiler: quilt.py's own tests pin what the tiler does with it."""
+        class _Stop(Exception):
+            pass
+        seen = {}
+
+        def fake_build_quilt(*args, **kwargs):
+            seen.update(kwargs)
+            raise _Stop
+
+        patch_obj = mock.Mock(midplane_ambiguous=[], cell=[60.0, 60.0, 90.0])
+        reader = mock.Mock(return_value=mock.Mock(register=mock.Mock(return_value=patch_obj)))
+        for specs, want in (({}, 1.0), ({'leaflet_ratio_scale': 0.9}, 0.9)):
+            with self.subTest(specs=specs):
+                seen.clear()
+                t = _task(bilayer_specs=specs, patch=None, embedding=True,
+                          patchA=mock.Mock(area_drift=0.0), patchB=mock.Mock(area_drift=0.0))
+                t._protein_box_dims = lambda: (100.0, 100.0)
+                t.get_current_artifact = lambda k: mock.Mock()
+                with mock.patch.object(MMS, 'read_patch', reader), \
+                        mock.patch.object(MMS, 'build_quilt', fake_build_quilt):
+                    with self.assertRaises(_Stop):
+                        t.build_tiled_membrane()
+                self.assertEqual(seen.get('ratio_scale'), want)
+
+    def test_the_asymmetric_grid_sizes_from_it(self):
+        """60/75 A^2 and 100 upper: the stress-free lower count is 80; at 0.9 the ratio
+        100/n_lower must be 0.9 x 1.25 = 1.125, so n_lower = 89."""
+        t, got = TestAsymmetricStressFreeCounts._build(self, apl_upper=60.0, apl_lower=75.0,
+                                                       leaflet_ratio_scale=0.9)
+        self.assertEqual(got['counts'], {'upper': 100, 'lower': 89})
+        self.assertEqual(t.outcome['leaflet_ratio_scale'], 0.9)
+        # the recorded APLs stay the preferred ones; only the sizing is shifted
+        self.assertAlmostEqual(t.outcome['apl_upper'], 60.0)
+
+    def test_the_asymmetric_embedding_grid_sizes_from_it(self):
+        t, got = TestAsymmetricStressFreeCounts._build(self, apl_upper=60.0, apl_lower=75.0,
+                                                       embedding=True, protein_xy=(120.0, 60.0),
+                                                       leaflet_ratio_scale=0.9)
+        ratio = got['counts']['upper'] / got['counts']['lower']
+        self.assertAlmostEqual(ratio, 0.9 * 75.0 / 60.0, delta=0.02)
+
+    def test_the_symmetric_grid_sizes_from_it(self):
+        t = _task(bilayer_specs={'SAPL': 75.0, 'patch_nlipids': {'upper': 100, 'lower': 100},
+                                 'npatch': [2, 3], 'leaflet_ratio_scale': 0.81},
+                  embedding=False)
+        got = {}
+        t._grid_membrane = lambda counts, sapl, aspect: got.update(counts=counts)
+        t.build_grid_membrane()
+        self.assertEqual(got['counts'], {'upper': 540, 'lower': 667})
+
+    def _advice(self, lower, upper, n_upper, n_lower, scale=None):
+        bs = {} if scale is None else {'leaflet_ratio_scale': scale}
+        t = _task(provisions={'processor-type': 'cpu'}, bilayer_specs=bs)
+        t.equilibrate_bilayer = mock.Mock()
+        t.subcontroller = mock.Mock(tasks=[])
+        t._leaflet_stress_frames = mock.Mock(return_value=_frames(lower, upper))
+        membrane = mock.Mock()
+        membrane.box = [[0, 0, 0], [0, 0, 0], [0, 0, 100.0]]
+        with self.assertLogs(LOGGER, level='INFO') as cm:
+            t.diagnose_differential_stress(membrane, n_upper, n_lower, {})
+        line = next(l for l in cm.output if 'move ~' in l)
+        return t, line
+
+    def test_the_advice_names_the_setting_example_17_needs(self):
+        """rep-02: 319 / 283 lipids, Dgamma -26.5 mN/m -> ~16 lipids upper to lower -> 0.900."""
+        t, line = self._advice(13.25, -13.25, 319, 283)
+        self.assertIn('from the upper to the lower', line)
+        self.assertIn('bilayer.leaflet_ratio_scale: 0.900', line)
+        self.assertEqual(t.outcome['suggested_leaflet_ratio_scale'], 0.9)
+        self.assertNotIn('n_upper lowered', line)
+
+    def test_the_advice_compounds_the_scale_the_build_used(self):
+        """A second correction multiplies the first; reporting the move alone would undo it."""
+        _t, line = self._advice(13.25, -13.25, 319, 283, scale=0.9)
+        self.assertIn('bilayer.leaflet_ratio_scale: 0.810', line)
+        self.assertIn('this build used 0.9', line)
+
+    def test_the_advice_in_the_other_direction_raises_the_scale(self):
+        _t, line = self._advice(0, 26.5, 300, 300)
+        self.assertIn('from the lower to the upper', line)
+        new = float(line.split('leaflet_ratio_scale: ')[1].split(' ')[0])
+        self.assertGreater(new, 1.0)
+
+
+class TestLeafletRatioScaleReachesTheTask(unittest.TestCase):
+    """Walk the real schema: example 17's config must arrive with its 0.90, and a config that
+    names nothing with 1.0 -- the task reads `bilayer_specs`, so a key the walk dropped or
+    retyped would leave every build at the default without a word."""
+
+    @staticmethod
+    def _walk(cfg):
+        import yaml
+        from importlib.resources import files as pkg_files
+        from ycleptic.walkers import dwalk
+        spec = yaml.safe_load(open(str(pkg_files('pestifer.schema').joinpath('base.yaml'))))
+        dwalk(spec, cfg)
+        mms = next(t['make_membrane_system'] for t in cfg['tasks'] if 'make_membrane_system' in t)
+        return mms['bilayer']
+
+    def test_example_17_arrives_with_its_scale(self):
+        import yaml
+        from importlib.resources import files as pkg_files
+        path = pkg_files('pestifer.resources').joinpath(
+            'examples/17/inputs/hiv-mpertm3-membrane2.yaml')
+        cfg = yaml.safe_load(open(str(path)))
+        self.assertEqual(self._walk(cfg)['leaflet_ratio_scale'], 0.9)
+
+    def test_a_config_that_names_none_gets_one(self):
+        cfg = {'tasks': [{'make_membrane_system': {'bilayer': {}}}]}
+        self.assertEqual(self._walk(cfg)['leaflet_ratio_scale'], 1.0)

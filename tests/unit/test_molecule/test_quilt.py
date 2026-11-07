@@ -243,6 +243,68 @@ class TestTiling(unittest.TestCase):
         self.assertAlmostEqual(bottom, -0.5 * B.cell[2])
 
 
+class TestLeafletRatioScale(unittest.TestCase):
+    """``bilayer.leaflet_ratio_scale``: the tiler's target ratio n_upper/n_lower is that multiple
+    of the patches' stress-free ratio.  Example 17's converged build over-filled its upper leaflet
+    by ~16 lipids (Dgamma -26.5 mN/m), and the tiled route had no setting to say so."""
+
+    A = staticmethod(lambda: _random_patch(n=100, L=60.0, seed=4).register())   # denser upper
+    B = staticmethod(lambda: _random_patch(n=100, L=66.0, seed=5).register())
+
+    def _ratio(self, q):
+        return (q.n_upper / q.n_lower) / (q.stress_free['upper'] / q.stress_free['lower'])
+
+    def test_a_scale_of_one_changes_nothing(self):
+        A, B = self.A(), self.B()
+        for expand in (False, True):
+            with self.subTest(expand=expand):
+                q0 = build_quilt(A, B, 150.0, 130.0, gap=2.0, expand=expand)
+                q1 = build_quilt(A, B, 150.0, 130.0, gap=2.0, expand=expand, ratio_scale=1.0)
+                self.assertEqual((q0.n_upper, q0.n_lower, q0.Lx), (q1.n_upper, q1.n_lower, q1.Lx))
+
+    def test_the_ratio_is_the_scale_times_the_patches(self):
+        """Within a lipid of the target, either direction, for several boxes."""
+        A, B = self.A(), self.B()
+        for scale in (0.9, 0.95, 1.08):
+            for Lx, Ly in ((150.0, 130.0), (121.0, 97.0)):
+                with self.subTest(scale=scale, box=(Lx, Ly)):
+                    q = build_quilt(A, B, Lx, Ly, gap=2.0, ratio_scale=scale)
+                    want_upper = scale * q.n_lower * q.stress_free['upper'] / q.stress_free['lower']
+                    self.assertLessEqual(abs(q.n_upper - want_upper), 1.0 + 1e-9)
+
+    def test_below_one_the_upper_leaflet_is_the_one_trimmed(self):
+        """Direction is the easy thing to get backwards.  Below 1 the ratio falls and it is the
+        UPPER leaflet that loses lipids to the ratio trim; above 1, the lower."""
+        A, B = self.A(), self.B()
+
+        def trimmed(q, leaflet):
+            return sum(1 for lf, _r, why, _d in q.removed if lf == leaflet and why == 'ratio')
+
+        q0 = build_quilt(A, B, 150.0, 130.0, gap=2.0)
+        lo = build_quilt(A, B, 150.0, 130.0, gap=2.0, ratio_scale=0.9)
+        hi = build_quilt(A, B, 150.0, 130.0, gap=2.0, ratio_scale=1.1)
+        self.assertLess(lo.n_upper / lo.n_lower, q0.n_upper / q0.n_lower)
+        self.assertGreater(hi.n_upper / hi.n_lower, q0.n_upper / q0.n_lower)
+        self.assertGreater(trimmed(lo, 'upper'), trimmed(q0, 'upper'))
+        self.assertGreater(trimmed(hi, 'lower'), trimmed(q0, 'lower'))
+
+    def test_with_expansion_a_trim_becomes_a_move(self):
+        """The embedding route expands the box to make up for removals.  If it expanded on the
+        equalized fill alone, a scale would just delete upper lipids and the membrane would shrink
+        by their area; the other leaflet has to gain, and the area has to stay near the box."""
+        A, B = self.A(), self.B()
+        Lx, Ly = 150.0, 130.0
+        q0 = build_quilt(A, B, Lx, Ly, gap=2.0, expand=True)
+        q = build_quilt(A, B, Lx, Ly, gap=2.0, expand=True, ratio_scale=0.9)
+        self.assertGreater(q.n_lower, q0.n_lower)
+        self.assertLess(q.n_upper, q0.n_upper)
+        self.assertAlmostEqual(self._ratio(q), 0.9, delta=0.01)
+        # 1.006 here; expanding on the equalized fill alone gives ~0.95, inside a 0.05 tolerance,
+        # which is why this one is tighter than test_expand_relaxes_to_about_the_requested_area's
+        relaxed = 0.5 * (q.n_upper / q.stress_free['upper'] + q.n_lower / q.stress_free['lower'])
+        self.assertAlmostEqual(relaxed * q.Lx * q.Ly / (Lx * Ly), 1.0, delta=0.025)
+
+
 class TestWriteQuiltPdb(unittest.TestCase):
 
     def test_layout_matches_the_grid_packer(self):
