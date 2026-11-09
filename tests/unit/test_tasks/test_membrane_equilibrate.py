@@ -287,6 +287,11 @@ def _reporting_task(specs=None, geom=None, rows=None, two_stage=False, plateau_t
     t._area_plateau_tol = plateau_tol
     t._last_plateau_drift = 0.0012
     t._rows = rows if rows is not None else [(1, 5000, 5000, _joint(), 1)]
+    t._mon_d = mock.Mock(params=mock.Mock(drift_tol=2e-3))
+    t._mon_a = mock.Mock(params=mock.Mock(drift_tol=2e-3))
+    t._phase = 2
+    t._all_t, t._all_a = [], []
+    t._area_rate_tol = 0.0
     t.register = mock.Mock()
     return t
 
@@ -319,6 +324,28 @@ class TestStopReasons(unittest.TestCase):
                  _joint(converged=False, area=_report(mean=4200.0, precision_met=False)), 2)]
         r = _reporting_task(rows=rows)._ceiling_stop_reason(90_000, 90_000)
         self.assertIn('UNMET', r, 'a ceilinged run must say which precision gate failed')
+
+    def test_a_ceiling_line_cannot_read_as_all_passed(self):
+        """Example 17's rep-02 (2026-11-08): the area failed its drift TOLERANCE on every one of
+        its last 407 chunks, at about -0.022 against 2e-3, while its precision was met; and the
+        plateau the gate had stored dated from step 448k.  The old line printed "precision met"
+        and that stale -0.0046 (< 0.005), so every criterion it showed read as passing."""
+        area = _report(mean=4278.0, drift=-0.0224, precision_met=True)
+        rows = [(507, 2_500_000, 5000,
+                 _joint(converged=False, passes=0, area=area, reason='waiting on area'), 2)]
+        t = _reporting_task(rows=rows, plateau_tol=0.005, phase2_start=0)
+        t._last_plateau_drift = -0.0046                   # stale, from an early local pass
+        steps = np.arange(0, 2_000_000, 5000.0)
+        t._all_t = steps.tolist()
+        t._all_a = (4280.0 + 600.0 * np.exp(-steps / 800_000.0)).tolist()
+        fresh = t._area_plateau_drift()
+        self.assertGreater(abs(fresh), 0.005, 'the fixture must have an unplateaued tail')
+        r = t._ceiling_stop_reason(2_500_000, 2_500_000)
+        self.assertIn('area drift -0.0224 (tolerance 2.0e-03 UNMET; precision met)', r)
+        self.assertIn('joint gate: waiting on area', r)
+        self.assertIn(f'area plateau quarter-drift {fresh:.4f}', r)
+        self.assertNotIn('-0.0046', r, 'printed the stored plateau, not a fresh one')
+        self.assertIn('need < 0.0050: UNMET', r)
 
     def test_ceiling_reason_survives_having_no_rows(self):
         # a run that ceilings before any chunk completes must still produce a reason

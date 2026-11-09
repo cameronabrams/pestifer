@@ -19,6 +19,12 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Fixed
 
+- **A `membrane_equilibrate` CEILING line no longer reads as all-passed.** It printed each
+  observable's drift beside "precision met", omitting the drift tolerance, which is the test that
+  was failing, and it printed the plateau value the gate had stored, which is computed only when the
+  local gates pass and can be millions of steps stale. Example 17's rep-02 hit its 2.5M ceiling with
+  every printed criterion reading as met. The line now gives each test an explicit met/UNMET, the
+  joint gate's own reason, and a plateau value recomputed at the ceiling.
 - **A calibration patch no longer certifies its area per lipid mid-descent.** `membrane_equilibrate`
   gains `area_rate_tol` (percent of area per 100k steps), on by default at 1.0 for
   `relaxation_protocols.patch`: convergence waits until the late-half area slope is below it at 95%

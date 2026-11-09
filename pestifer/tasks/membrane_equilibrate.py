@@ -441,22 +441,47 @@ class MembraneEquilibrateTask(ChunkedEquilibrateTask):
                 f'{self._rows[-1][3].passes} consecutive checks{extra}')
 
     def _ceiling_stop_reason(self, total_steps, max_steps):
+        """Every criterion's state at the LAST check, each with an explicit met/UNMET.
+
+        Written so a CEILING line cannot read as all-passed.  It used to print each monitor's
+        drift beside "precision met" -- precision is only one of a monitor's two tests, and the
+        other, the drift tolerance, was the one failing -- and the plateau value the gate had
+        stored, which is computed only on a chunk where the local gates pass, so it could be ~2M
+        steps stale.  Example 17's rep-02 (2026-11-08) printed every criterion as met after
+        failing the area drift tolerance on every one of its last 407 chunks.
+        """
+        def verdict(ok):
+            return 'met' if ok else 'UNMET'
+
         jr = self._rows[-1][3] if self._rows else None
         bits = []
         if jr:
+            monitors = {'density': getattr(self, '_mon_d', None), 'area': getattr(self, '_mon_a', None)}
             for name in ('density', 'area'):
                 r = jr.reports.get(name)
                 if r:
-                    bits.append(f'{name} drift {_fmt(r.signed_drift)} (precision '
-                                f'{"met" if r.precision_met else "UNMET"})')
+                    m = monitors[name]
+                    tol = m.params.drift_tol if m is not None else None
+                    hi = r.drift_hi if r.drift_hi is not None else r.drift
+                    tol_txt = ('tolerance n/a' if tol is None else
+                               f'tolerance {tol:.1e} {verdict(hi is not None and hi < tol)}')
+                    bits.append(f'{name} drift {_fmt(r.signed_drift)} ({tol_txt}; precision '
+                                f'{verdict(r.precision_met)})')
+            bits.append(f'joint gate: {jr.reason}')
         if self._area_plateau_tol > 0.0:
-            bits.append(f'area plateau quarter-drift {_fmt(self._last_plateau_drift)} '
-                        f'(need < {self._area_plateau_tol:.4f})')
+            pd = self._area_plateau_drift() if getattr(self, '_phase', 2) == 2 else None  # fresh
+            ok = pd is not None and abs(pd) < self._area_plateau_tol
+            bits.append(f'area plateau quarter-drift {_fmt(pd)} (need < '
+                        f'{self._area_plateau_tol:.4f}: {verdict(ok)})')
         if self._area_rate_tol > 0.0:
             rb = self._area_rate_bound()          # fresh: the gate only computes it on a local pass
-            bits.append('area rate n/a' if rb is None else
-                        f'area rate {rb[0]:+.2f} +/- {rb[1]:.2f} %/100k steps (95% bound '
-                        f'{abs(rb[0]) + rb[2] * rb[1]:.2f}, need < {self._area_rate_tol:.2f})')
+            if rb is None:
+                bits.append('area rate n/a (UNMET)')
+            else:
+                bound = abs(rb[0]) + rb[2] * rb[1]
+                bits.append(f'area rate {rb[0]:+.2f} +/- {rb[1]:.2f} %/100k steps (95% bound '
+                            f'{bound:.2f}, need < {self._area_rate_tol:.2f}: '
+                            f'{verdict(bound < self._area_rate_tol)})')
         return (f'CEILING: reached max_steps ({max_steps}) without joint convergence; '
                 f'{"; ".join(bits) or "n/a"} -- system may not have settled')
 
