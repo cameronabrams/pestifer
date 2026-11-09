@@ -352,6 +352,16 @@ calibration patch — "still descending", read as nearly fixed — is the one th
 | patchB | 1,357,350 | 598,710 | 468,220 |
 | quilt | 1,455,700 | 704,400 | 600,080 |
 
+**Correction (2026-11-09): the patchB and quilt rows are NOT those stages' own step counts.** NAMD's
+counter carries across the stages of one `make_membrane_system`: patchB starts at the step patchA
+ended on, and the quilt at patchB's. `max_steps` counts a stage's own steps. Subtracting, rep-01's
+patchB ran about 150k steps of its own and its quilt about 95k; neither was near its ceiling, and the
+"3% headroom" below did not exist. Only patchA's row, whose counter starts fresh, is its own. Measured
+own steps on afd96d1d (three seeds): patchB 381,040 / 314,520 / 164,520; quilt 497,220 / 489,190 /
+670,040; patchA 337k to convergence once and the 2.5M ceiling twice. Example 17 now caps the patch
+protocol at 1,200,000, a deliberate cap rather than a budget to converge in; see
+`tests/unit/test_tasks/test_equilibrate_ceilings.py`.
+
 Two things to take from it, neither of which was visible at 800,000:
 
 - **The spread between replicas is the finding, not the mean.** patchA spans more than 5x. A budget

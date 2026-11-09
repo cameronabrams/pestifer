@@ -116,16 +116,17 @@ tasks:
                 # ceiling, still shrinking 0.1-0.2% per 100k.  That is why the leaflet counts come
                 # from leaflet_ratio above, not from this patch.
                 area_rate_tol: 1.0
-                # This patch is the slowest-converging stage in the example and the one with the
-                # widest spread between replicas: the 3.22.8 sweep took 236,870 / 372,360 steps in
-                # two replicas and hit the 1,200,000 ceiling in the third (plateau quarter-drift
-                # -0.0057 against the 0.0050 tolerance -- still descending).  A calibration patch
-                # is area-fluctuation-limited, so a slow replica is the case to budget for, not the
-                # median one.  Sized at roughly twice what the slowest stage of that replica needed
-                # (its quilt converged at 1,455,700).  Do not meet this by loosening
-                # area_plateau_tol: the grid is sized from the APL this stage certifies, and 0.005
-                # is the same number make_membrane_system's own reliability check uses.
-                max_steps: 2500000
+                # A deliberate cap, not a budget to converge in.  The upper (raft) patch does not
+                # settle on any affordable run: on the 2026-11-09 seeds its APL was still falling
+                # at 2.1-2.4M tensionless steps (to 42.8 and 42.1).  Stopped at 1.2M it read 2.0-2.2%
+                # above that, at 600k about 4.5%.  The lower patch certifies in ~0.3M either way.
+                # On the tiled route with leaflet_ratio set, this patch's APL only sets how many
+                # lipids fill the box -- the ratio is fixed above, and the quilt's tensionless
+                # relaxation absorbs a ~2% packing error -- so the extra 1.3M steps (about four
+                # hours on 24 cores) bought nothing.  Expect a CEILING line for patchA: the tiler
+                # reports an unconverged patch and tiles it anyway.  Do not meet the cap by
+                # loosening area_plateau_tol, which would certify the patch early and silently.
+                max_steps: 1200000
                 # the calibration patch has no protein and no preferred aspect; on the orthohexagonal
                 # (non-square) box, locking Lx:Ly makes the tensionless stage over-condense along the
                 # short axis instead of settling.  Let the flexible cell relax x and y independently.
@@ -146,11 +147,12 @@ tasks:
                 temperature: 310
             - membrane_equilibrate:
                 temperature: 310
-                # At 800000 (3.22.1) this stage was still drifting -0.033 in area against a 0.012
-                # tolerance and looked the furthest from settling.  It converged in every replica of
-                # the 3.22.8 sweep -- but the slowest took 1,455,700 of the 1,500,000 it had been
-                # given, 3% headroom, which is luck rather than budget.  Matched to the patch above
-                # so neither is the one that runs out.
+                # At 800000 (3.22.1) this stage hit its ceiling.  It has converged in every replica
+                # since, in 489k-670k steps of its own (2026-11-09).  A log's "CONVERGED at step N"
+                # here counts from the start of patchA, because NAMD's step counter carries across
+                # the stages; the 3.22.8 figure of 1,455,700, once read as 3% headroom, was about
+                # 95k of its own.  Left at 2,500,000: a ceiling binds only on a run that has not
+                # converged, so the room costs nothing on a healthy build.
                 max_steps: 2500000
       embed:
         xydist: 40

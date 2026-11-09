@@ -17,8 +17,23 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   fitted to Dgamma at four ratios. A value more than 25% from the patches' ratio is warned about;
   values outside 0.5-2.0, or any value with a prebuilt bilayer, stop the build.
 
+### Changed
+
+- **Example 17 caps its calibration patches at 1,200,000 steps, down from 2,500,000.** The upper
+  (raft) patch does not converge on any affordable run; its APL was still falling at 2.1-2.4M steps,
+  and stopping at 1.2M leaves it 2.0-2.2% above that. With `bilayer.leaflet_ratio` set, that APL only
+  sets how many lipids fill the box, and the quilt's tensionless relaxation absorbs the difference,
+  so the extra 1.3M steps (about four hours on 24 cores) bought nothing. The lower patch converges
+  in under 0.4M steps either way. Expect a CEILING line for patchA; the tiler reports it and tiles
+  the patch anyway.
+
 ### Fixed
 
+- **The ceiling tests read each stage's own steps.** NAMD's step counter carries across the stages
+  of one `make_membrane_system`, so a "CONVERGED at step N" line for patchB or the quilt counts
+  from the start of patchA. The 3.22.8 figures used to size example 17's budgets were read that
+  way: "patchB converged at 1,357,350" was about 150k steps of its own, and "the quilt converged at
+  1,455,700 with 3% headroom" about 95k. Neither stage has come near its ceiling.
 - **A `membrane_equilibrate` CEILING line no longer reads as all-passed.** It printed each
   observable's drift beside "precision met", omitting the drift tolerance, which is the test that
   was failing, and it printed the plateau value the gate had stored, which is computed only when the

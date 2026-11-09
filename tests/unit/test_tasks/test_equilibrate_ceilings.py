@@ -20,37 +20,31 @@ EXAMPLES = os.path.join(os.path.dirname(pestifer.__file__), 'resources', 'exampl
 #: Longest converging density_equilibrate run in the 3.22.1 sweep, in steps (ex24/rep-03, acetone).
 SLOWEST_OBSERVED_CONVERGENCE = 227000
 
-#: Longest converging pre-embed membrane_equilibrate stage, in steps: ex17/rep-01's quilt in the
-#: 3.22.8 sweep, which finished at 1,455,700 of the 1,500,000 it had been given -- 3% headroom.
-#: Its sibling replicas took 704,400 and 600,080, so the budget has to cover the outlier.
-SLOWEST_OBSERVED_MEMBRANE_CONVERGENCE = 1455700
-
-#: ex17 has THREE pre-embed stages from TWO budgets: the `patch` protocol is applied to both
-#: calibration patches (patchA and patchB), and the `quilt` protocol once.  patchB is not spare
-#: capacity -- rep-01's converged at 1,357,350, also past the 1,200,000 ceiling patchA died on --
-#: so raising the `patch` budget has to cover two stages that both run long, not one.
-SLOWEST_OBSERVED_PATCHB_CONVERGENCE = 1357350
-
-#: DO NOT LOWER THESE CEILINGS ON THE STRENGTH OF A FAST SWEEP.  A probe of ex17 at 3.23.1
-#: (2026-09-24, 3 replicas) converged patchA at 196,870 / 252,360 / 236,870 and patchB at
-#: 348,220 / 342,350 / 393,220 -- five to seven times below the numbers above.  That is not
-#: evidence the budgets are oversized.  It is evidence the SLOW MODE IS RARE, which is the
-#: same thing these ceilings exist for.
+#: READ A STAGE'S OWN STEPS, NOT THE NUMBER IN ITS LOG LINE.  NAMD's step counter carries across
+#: the stages of one make_membrane_system: patchB's first chunk starts at the step patchA ended on,
+#: and the quilt's at patchB's (e.g. "patchB: NPgT chunk 1 ... (firsttimestep 2512000)" right after
+#: patchA's CEILING at 2,500,000).  ``max_steps`` counts the stage's OWN steps, so "CONVERGED at
+#: step N" for patchB or the quilt is not comparable to a ceiling.  Until 2026-11-09 the figures
+#: here were read straight off those lines: 3.22.8 rep-01's "patchB converged at 1,357,350, past
+#: the ceiling patchA died on" was about 150k steps of its own, and its "quilt at 1,455,700 of
+#: 1,500,000, 3% headroom" about 95k.  Neither stage was ever near its budget.
 #:
-#: The slow mode is not a property of a seed.  Same seed (27021972), same NAMD build, same
-#: config: 3.22.8's rep-01 hit the 1,200,000 ceiling and the probe's rep-01 converged at
-#: 196,870, a 6x difference.  Multicore NAMD is not bitwise reproducible, and the adaptive
-#: NPgT chunk length is rounded to 10 steps -- usually the rounding absorbs the FP noise
-#: (rep-03 reproduced 500/330/490/730 exactly and converged to the same step both times), but
-#: rep-01 crossed a boundary at chunk 2 (320 vs 330), inside the first 500 steps, and never
-#: rejoined.  So a replica is a draw from a distribution, not a re-run.
-#:
-#: Tally so far: the tail appeared in 1 of 6 observed ex17 patchA runs.  n=3 cannot resolve a
-#: 1-in-6 event either way, so "2,500,000 clears the slow mode" is CONSISTENT WITH the data and
-#: NOT ESTABLISHED BY IT.  Settling it needs many more replicas or a way to induce the slow mode
-#: directly.  Until then the budget is sized for the tail that was observed, not the median that
-#: keeps being re-observed.
-SLOW_MODE_OBSERVED_IN_N_OF_M = (1, 6)
+#: Own steps, ex17 on afd96d1d, three seeds (2026-11-09; firsttimestep subtracted from the
+#: CONVERGED step, each read from the build log):
+#:   patchB  381,040 / 314,520 / 164,520
+#:   quilt   497,220 / 489,190 / 670,040
+SLOWEST_OBSERVED_PATCHB_CONVERGENCE = 381040
+SLOWEST_OBSERVED_QUILT_CONVERGENCE = 670040
+
+#: patchA (the upper, Lo raft patch) is the one stage that does not settle.  Its counter starts
+#: fresh (firsttimestep 6000), so its numbers were always its own: it converged at 337k tensionless
+#: steps in one seed and hit the 2,500,000 ceiling in the other two, its APL still falling 0.1-0.2%
+#: per 100k.  Its `patch` budget is therefore a deliberate CAP (1,200,000), not a budget to converge
+#: in -- which is safe only because the leaflet counts come from `bilayer.leaflet_ratio` rather
+#: than from this patch's APL.  Stopped at 1.2M the APL read 2.0-2.2% above its 2.1-2.4M value.
+#: The earlier advice here -- never lower these ceilings on the strength of a fast sweep -- still
+#: holds for a budget meant to be converged in; it does not apply to a cap that the build is
+#: designed to hit.
 
 
 def _find(node, name, type_='dict'):
@@ -132,33 +126,48 @@ class TestExampleCeilings(unittest.TestCase):
         self.assertGreater(ceilings[0][1], 2 * SLOWEST_OBSERVED_CONVERGENCE)
 
     def test_the_asymmetric_membrane_pre_embed_stages_clear_the_slowest_replica(self):
-        """Both pre-embed budgets must have room for ex17's slow replica, not its median one.
+        """The quilt budget must clear its slowest replica; the patch cap must clear patchB's.
 
-        3.22.1: both hit 800000.  3.22.8 raised them to 1,200,000 (patch) and 1,500,000 (quilt) and
-        the prediction inverted -- the quilt, thought furthest from settling, converged at
-        1,455,700, while the patch, thought nearly fixed, hit its new ceiling.  Across replicas that
-        patch spans 236,870 / 372,360 / >1,200,000, so a budget sized on the median is a budget that
-        fails one build in three.
-
-        The `patch` budget governs TWO stages, not one: patchA and patchB both run the `patch`
-        protocol, and rep-01's patchB converged at 1,357,350 -- itself past the ceiling patchA died
-        on.
-
-        The 3.23.1 probe (2026-09-24) did not settle whether 2,500,000 clears the slow mode: all
-        three replicas converged fast and none entered it.  See SLOW_MODE_OBSERVED_IN_N_OF_M -- the
-        budget stays sized for the tail, and a fast sweep is not a reason to trim it.
+        Both measured in each stage's OWN steps -- see the note at the top of this module for why
+        the log's "CONVERGED at step N" is not that number.  The `patch` protocol runs twice,
+        patchA then patchB, so its cap must still leave patchB, which does converge, room to.
         """
         cfg = self._example('17', 'hiv-mpertm3-membrane2.yaml')
         ceilings = self._ceilings(cfg, 'membrane_equilibrate')
-        pre_embed = self._pre_embed(ceilings)
-        self.assertEqual(len(pre_embed), 2,
+        pre_embed = dict((p.split('relaxation_protocols/')[1].split('[')[0], v)
+                         for p, v in self._pre_embed(ceilings))
+        self.assertEqual(set(pre_embed), {'patch', 'quilt'},
                          f'expected the patch and quilt budgets, got {pre_embed}')
-        for path, c in pre_embed:
-            self.assertGreater(c, 1.5 * SLOWEST_OBSERVED_MEMBRANE_CONVERGENCE, path)
-            self.assertGreater(c, 1.5 * SLOWEST_OBSERVED_PATCHB_CONVERGENCE, path)
-        self.assertEqual(pre_embed[0][1], pre_embed[1][1],
-                         'the patch and quilt budgets are matched so neither is the one that runs '
-                         f'out first: {pre_embed}')
+        self.assertGreater(pre_embed['quilt'], 1.5 * SLOWEST_OBSERVED_QUILT_CONVERGENCE)
+        self.assertGreater(pre_embed['patch'], 2 * SLOWEST_OBSERVED_PATCHB_CONVERGENCE)
+
+    def test_a_patch_cap_below_patchA_tail_needs_leaflet_ratio(self):
+        """patchA does not converge within 2.5M steps, so a patch budget below that is a cap the
+        build hits -- and an uncertified patchA may set the leaflet COUNTS only if nothing
+        else does.  With `bilayer.leaflet_ratio` unset the tiled route takes the ratio from the
+        patches, and a capped patchA would hand it a ratio that depends on where it stopped:
+        exactly the irreproducibility leaflet_ratio was added to remove."""
+        cfg = self._example('17', 'hiv-mpertm3-membrane2.yaml')
+        ceilings = self._ceilings(cfg, 'membrane_equilibrate')
+        patch = [v for p, v in self._pre_embed(ceilings) if 'relaxation_protocols/patch' in p]
+        self.assertEqual(len(patch), 1, ceilings)
+        if patch[0] < 2500000:
+            ratios = []
+
+            def walk(node):
+                if isinstance(node, dict):
+                    if 'relaxation_protocols' in node:
+                        ratios.append(node.get('leaflet_ratio'))
+                    for v in node.values():
+                        walk(v)
+                elif isinstance(node, list):
+                    for v in node:
+                        walk(v)
+            walk(cfg)
+            self.assertEqual(len(ratios), 1, 'expected one bilayer block')
+            self.assertIsInstance(ratios[0], float,
+                                  f'patch budget {patch[0]} caps patchA below its observed tail, '
+                                  'so bilayer.leaflet_ratio must be set')
 
     def test_the_pre_embed_budgets_are_not_merely_the_largest_two(self):
         """The selection above must key on where a budget sits, not on how big it is.
