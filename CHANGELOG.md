@@ -6,16 +6,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Added
 
-- **`bilayer.leaflet_ratio_scale` corrects a measured differential stress.** It multiplies the
-  leaflet count ratio n_upper/n_lower the build would otherwise use (default 1.0). The stress-free
-  ratio comes from symmetric patches, and a leaflet does not pack in an asymmetric bilayer as it did
-  in its own patch: example 17's converged replica measured Dgamma = -26.5 mN/m with the upper
-  leaflet over-filled by about 16 lipids. A tiled membrane trims the leaflet that must lose lipids
-  and enlarges the box so the other gains; a gridded one sizes each leaflet from an APL shifted by
-  sqrt(scale). `diagnose_differential_stress` now prints the value to set, compounded with any scale
-  the measured build used, where it used to say "rebuild with n_upper lowered", a count no tiled
-  build had a setting for. Example 17 sets 0.90. Values outside 0.5-2.0, or any value other than 1
-  with a prebuilt bilayer, stop the build.
+- **`bilayer.leaflet_ratio` sets the leaflet count ratio n_upper/n_lower outright**, in place of
+  the stress-free ratio the symmetric calibration patches imply. A leaflet does not pack in an
+  asymmetric bilayer as it did in its own patch: example 17 measured Dgamma = -26.5 mN/m at 319/283.
+  And a slow-ordering leaflet's patch does not reproduce: three seeds built 0.98, 1.03 and 1.06 from
+  one relative setting, so the ratio is absolute. A tiled membrane trims the leaflet that must lose
+  lipids and enlarges the box so the other gains; a gridded one sizes each leaflet so the counts come
+  out in the ratio. `diagnose_differential_stress` now prints the value to set, where it used to say
+  "rebuild with n_upper lowered", a count no tiled build had a setting for. Example 17 sets 1.056,
+  fitted to Dgamma at four ratios. A value more than 25% from the patches' ratio is warned about;
+  values outside 0.5-2.0, or any value with a prebuilt bilayer, stop the build.
 
 ### Fixed
 
@@ -25,9 +25,11 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   confidence. The existing quarter-over-quarter plateau gate reads flatter the sooner a run stops; in
   the 3.30.0 sweep it certified example 17's raft patch at 55k-65k tensionless steps in two replicas
   while it was still shrinking 2-2.6% per 100k, at APLs of 46.7 and 47.6 against a plateau of 43.3,
-  and the upper-leaflet count varied 292-319 between replicas. With the rate gate that patch certifies
-  at about 510k tensionless steps, within 0.3% of its plateau, so calibration patches of
-  cholesterol-rich leaflets now run longer. Example 17 sets it explicitly.
+  and the upper-leaflet count varied 292-319 between replicas. With the rate gate that patch
+  certified once at 337k tensionless steps and ran to its 2.5M ceiling twice in three seeds: the gate
+  stops the premature certification, and calibration patches of cholesterol-rich leaflets now run
+  longer, but it cannot make one converge (hence `bilayer.leaflet_ratio`). Example 17 sets it
+  explicitly.
 - The `leaflet_apl` schema text cited a patch "CONVERGED at 88,210 steps" certifying 50.53 against a
   truth near 43, a comparison of a gate-off step number and the other leaflet's APL that the code's
   own docstring had already retracted. It now gives the like-for-like numbers.

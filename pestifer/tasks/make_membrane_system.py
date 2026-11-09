@@ -428,10 +428,10 @@ class MakeMembraneSystemTask(BaseTask):
             self.embedding = True
             logger.debug(f'Using psf {protein_state.psf.name} and pdb {protein_state.pdb.name} as inputs')
 
-        scale = self._leaflet_ratio_scale()     # validates it before anything expensive runs
-        if self.using_prebuilt_bilayer and scale != 1.0:
+        ratio = self._leaflet_ratio()     # validates it before anything expensive runs
+        if self.using_prebuilt_bilayer and ratio is not None:
             raise PestiferBuildError(
-                f'bilayer.leaflet_ratio_scale is {scale:g}, but this build uses a prebuilt '
+                f'bilayer.leaflet_ratio is {ratio:g}, but this build uses a prebuilt '
                 f'bilayer, whose leaflet counts are already fixed.  Remove it, or build the '
                 f'bilayer here.')
         if not self.using_prebuilt_bilayer:
@@ -481,31 +481,48 @@ class MakeMembraneSystemTask(BaseTask):
             return 'grid' if getattr(self, 'patch', None) is not None else 'tile'
         return method
 
-    #: Outside this range a leaflet_ratio_scale is not a correction but a mistake (a percentage
-    #: typed as a number, or the reciprocal of what was meant); example 17 needs about 0.90.
-    _RATIO_SCALE_RANGE = (0.5, 2.0)
+    #: Outside this range a leaflet_ratio is not a lipid count ratio but a mistake (a percentage
+    #: typed as a number, or lower/upper where upper/lower was meant); example 17 uses 1.056.
+    _RATIO_RANGE = (0.5, 2.0)
 
-    def _leaflet_ratio_scale(self) -> float:
-        """``bilayer.leaflet_ratio_scale``: the leaflet count ratio n_upper/n_lower as a multiple of
-        the one the build would otherwise use (1.0, the default, changes nothing).
+    #: A requested ratio this far (as a factor) from the patches' own stress-free ratio is logged,
+    #: since it means one leaflet is built well away from its calibrated packing.
+    _RATIO_FAR = 1.25
+
+    def _leaflet_ratio(self) -> float | None:
+        """``bilayer.leaflet_ratio``: the leaflet count ratio n_upper/n_lower to build, in place of
+        the stress-free ratio the calibration patches imply.  ``None`` (unset) keeps theirs.
 
         It exists because the stress-free ratio is taken from symmetric patches, and a leaflet does
         not pack in an asymmetric bilayer as it did in its own patch: example 17's rep-02, whose
-        calibration had converged, measured Dgamma = -26.5 mN/m.  The differential-stress
-        diagnostic prints the value to set.  Every route honors it -- the tiler trims to it, the
-        grids size from it -- so it is never accepted and then ignored.
+        calibration had converged, measured Dgamma = -26.5 mN/m.  It is absolute, not a multiple
+        of the patches' ratio, because that ratio is not reproducible for a slow-ordering leaflet:
+        a relative setting (``leaflet_ratio_scale``, never released) built 0.98, 1.03 and 1.06 on
+        three ex17 seeds.  The differential-stress diagnostic prints the value to set.  Every
+        route honors it -- the tiler trims to it, the grids size from it -- so it is never
+        accepted and then ignored.
         """
-        v = (self.bilayer_specs or {}).get('leaflet_ratio_scale')
+        v = (self.bilayer_specs or {}).get('leaflet_ratio')
         if v is None:
-            return 1.0
+            return None
         v = float(v)
-        lo, hi = self._RATIO_SCALE_RANGE
+        lo, hi = self._RATIO_RANGE
         if not lo <= v <= hi:
             raise PestiferBuildError(
-                f'bilayer.leaflet_ratio_scale is {v:g}; it multiplies the leaflet count ratio, so '
-                f'values near 1 are corrections (example 17 uses about 0.90) and anything outside '
+                f'bilayer.leaflet_ratio is {v:g}; it is n_upper/n_lower, the ratio of the two '
+                f'leaflets\' lipid counts (example 17 uses 1.056), and anything outside '
                 f'{lo:g}-{hi:g} is almost certainly a typo.')
         return v
+
+    def _warn_if_ratio_far(self, ratio, stress_free_ratio, route):
+        if ratio is None or not stress_free_ratio:
+            return
+        f = ratio / stress_free_ratio
+        if max(f, 1.0 / f) > self._RATIO_FAR:
+            logger.warning(f'bilayer.leaflet_ratio {ratio:g} is {f:.2f}x the stress-free ratio '
+                           f'{stress_free_ratio:.3f} the {route} implies: one leaflet is built well '
+                           f'away from its calibrated packing.  Check it against a measured '
+                           f'differential stress.')
 
     @staticmethod
     def _scaled_apls(apl_upper, apl_lower, scale):
@@ -841,8 +858,9 @@ class MakeMembraneSystemTask(BaseTask):
         # seam removals and the gap leave lateral room the relaxation closes, so the box is
         # enlarged once to compensate: the membrane relaxes to about the size asked for -- the box
         # that clears the protein, or npatch tiles (a one-patch box filled to 86% without this)
-        scale = self._leaflet_ratio_scale()
-        q = build_quilt(P_up, P_lo, Lx, Ly, gap, expand=True, ratio_scale=scale)
+        ratio = self._leaflet_ratio()
+        q = build_quilt(P_up, P_lo, Lx, Ly, gap, expand=True, ratio=ratio)
+        self._warn_if_ratio_far(ratio, q.stress_free['upper'] / q.stress_free['lower'], 'patches')
         why = {}
         for leaflet, resname, reason, _detail in q.removed:
             why[reason] = why.get(reason, 0) + 1
@@ -850,10 +868,11 @@ class MakeMembraneSystemTask(BaseTask):
             f'Tiled membrane: box {q.Lx:.1f} x {q.Ly:.1f} A (seams in x: {q.seams[0]}, y: '
             f'{q.seams[1]}; gap {gap} A); upper {q.n_upper} lipids from {sources["upper"][1]}, '
             f'lower {q.n_lower} from {sources["lower"][1]}; ' + (
-                f'each leaflet at {100 * q.fill:.1f}% of its stress-free count' if scale == 1.0 else
+                f'each leaflet at {100 * q.fill:.1f}% of its stress-free count' if ratio is None else
                 f'upper at {100 * q.n_upper / q.stress_free["upper"]:.1f}% and lower at '
                 f'{100 * q.n_lower / q.stress_free["lower"]:.1f}% of their stress-free counts '
-                f'(bilayer.leaflet_ratio_scale {scale:g})'))
+                f'(bilayer.leaflet_ratio {ratio:g}; the patches imply '
+                f'{q.stress_free["upper"] / q.stress_free["lower"]:.3f})'))
         if q.removed:
             logger.info(
                 f'Tiled membrane: removed {len(q.removed)} lipid(s) -- '
@@ -867,7 +886,7 @@ class MakeMembraneSystemTask(BaseTask):
             quilt_method='tile', n_upper=int(q.n_upper), n_lower=int(q.n_lower),
             embedding=bool(self.embedding), quilt_box=[float(q.Lx), float(q.Ly), float(q.Lz)],
             quilt_seams=[bool(q.seams[0]), bool(q.seams[1])], quilt_seam_gap=gap,
-            quilt_fill=float(q.fill), quilt_removed=why, leaflet_ratio_scale=scale,
+            quilt_fill=float(q.fill), quilt_removed=why, leaflet_ratio=ratio,
             apl_upper=float(1.0 / P_up.density()), apl_lower=float(1.0 / P_lo.density()),
             apl_upper_source=sources['upper'][1], apl_lower_source=sources['lower'][1],
             apl_upper_drift=_as_float(getattr(sources['upper'][0], 'area_drift', None)),
@@ -957,13 +976,14 @@ class MakeMembraneSystemTask(BaseTask):
             n_target = int(round(patch_nlipids['upper'] * npatch[0] * npatch[1]))
             aspect = bs.get('xy_aspect_ratio', 1.0)
         # a symmetric bilayer has one composition, so its stress-free ratio is 1; a
-        # leaflet_ratio_scale moves it, split evenly so the total stays n_target per leaflet
-        scale = self._leaflet_ratio_scale()
-        r = float(np.sqrt(scale))
+        # leaflet_ratio replaces it, split evenly so the geometric mean stays n_target
+        ratio = self._leaflet_ratio()
+        self._warn_if_ratio_far(ratio, 1.0, 'symmetric composition')
+        r = float(np.sqrt(1.0 if ratio is None else ratio))
         counts = dict(upper=int(round(n_target * r)), lower=int(round(n_target / r)))
         logger.debug(f'build_grid_membrane: {counts} lipids per leaflet (aspect {aspect:.2f}, '
-                     f'leaflet_ratio_scale {scale:g})')
-        self.record_outcome(leaflet_ratio_scale=scale)   # the counts: _grid_membrane
+                     f'leaflet_ratio {ratio})')
+        self.record_outcome(leaflet_ratio=ratio)   # the counts: _grid_membrane
         self._grid_membrane(counts, SAPL, aspect)
 
     @staticmethod
@@ -1125,8 +1145,11 @@ class MakeMembraneSystemTask(BaseTask):
         # report that the calibration it is replacing had not settled.
         apl_upper, apl_lower, apl_source = self._apply_leaflet_apl_override(bs, apl_upper, apl_lower)
         # The APLs that SIZE the grid.  They differ from the preferred APLs above only under a
-        # bilayer.leaflet_ratio_scale, and only the preferred ones are logged and recorded as APLs.
-        scale = self._leaflet_ratio_scale()
+        # bilayer.leaflet_ratio, and only the preferred ones are logged and recorded as APLs.
+        # The stress-free ratio is apl_lower/apl_upper; the scale takes it to the requested one.
+        ratio = self._leaflet_ratio()
+        self._warn_if_ratio_far(ratio, apl_lower / apl_upper, 'calibrated APLs')
+        scale = 1.0 if ratio is None else ratio * apl_upper / apl_lower
         size_upper, size_lower = self._scaled_apls(apl_upper, apl_lower, scale)
         if self.embedding:
             # size the common box to the protein footprint and place each leaflet at its own
@@ -1166,7 +1189,7 @@ class MakeMembraneSystemTask(BaseTask):
         _src = (f"upper {apl_upper:.2f} ({apl_source['upper']}), "
                 f"lower {apl_lower:.2f} ({apl_source['lower']})")
         logger.info(f'Preferred APL: {_src} {sA2_}')
-        _scaled = '' if scale == 1.0 else f'; bilayer.leaflet_ratio_scale {scale:g}'
+        _scaled = '' if ratio is None else f'; bilayer.leaflet_ratio {ratio:g}'
         logger.info(f'Stress-free leaflet counts: upper {n_upper}, lower {n_lower} '
                     f'(target equilibrium box area {target_area:.0f} A^2{_scaled}); gridding at '
                     f'SAPL {box_SAPL:.1f}')
@@ -1185,7 +1208,7 @@ class MakeMembraneSystemTask(BaseTask):
             apl_upper_area_rate=_as_float(getattr(self.patchA, 'area_rate', None)),
             apl_lower_area_rate=_as_float(getattr(self.patchB, 'area_rate', None)),
             area_convergence_tol=_AREA_CONVERGENCE_TOL,
-            target_area=float(target_area), leaflet_ratio_scale=scale,
+            target_area=float(target_area), leaflet_ratio=ratio,
             # The two numbers that decide how big the membrane actually is.  They were printed
             # above and recorded nowhere, which is the same gap the APLs had until 2026-10-13:
             # `n_lower` in particular is DERIVED (stress-free ratio, or the protein footprint
@@ -1387,16 +1410,15 @@ class MakeMembraneSystemTask(BaseTask):
             src, dst = ('upper', 'lower') if dm > 0 else ('lower', 'upper')
             # The advice used to end "rebuild with n_upper lowered and n_lower raised", and no
             # route had a setting for either count: a tiled membrane takes its counts from the
-            # patches.  So say what to set.  The scale is cumulative -- it multiplies the ratio
-            # the build would otherwise use -- so the new value is this build's times the move.
-            old = self._leaflet_ratio_scale()
+            # patches.  So say what to set.  The ratio is absolute -- the counts after the move --
+            # so it does not compound and does not depend on what this build's patches certified.
             if n_upper - dm > 0 and n_lower + dm > 0:
-                new = old * ((n_upper - dm) / (n_lower + dm)) / (n_upper / n_lower)
-                how = (f'rebuild with bilayer.leaflet_ratio_scale: {new:.3f} (this build used '
-                       f'{old:g}).')
-                self.record_outcome(suggested_leaflet_ratio_scale=float(round(new, 3)))
+                new = (n_upper - dm) / (n_lower + dm)
+                how = (f'rebuild with bilayer.leaflet_ratio: {new:.3f} (this build: '
+                       f'{n_upper}/{n_lower} = {n_upper / n_lower:.3f}).')
+                self.record_outcome(suggested_leaflet_ratio=float(round(new, 3)))
             else:
-                how = 'the move exceeds a leaflet, so no ratio scale is suggested.'
+                how = 'the move exceeds a leaflet, so no leaflet ratio is suggested.'
             logger.info(f'  To reduce Dgamma, move ~{abs(dm):.1f} lipid(s) from the {src} '
                         f'to the {dst} leaflet (assuming K_A = {K_A:.0f} mN/m): {how}')
 

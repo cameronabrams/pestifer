@@ -67,12 +67,13 @@ tasks:
         # replicas start from different placements; a fixed seed here would give every replica
         # the same one (until 3.29.6 this file pinned 270272, and every ex17 replica stopped on
         # the same doubly threaded cholesterol in its calibration patch).
-        # The symmetric patches' ratio over-fills the upper leaflet.  Measured 2026-11-06 on the
-        # one 3.30.x replica whose upper patch had converged (319 upper / 283 lower): Dgamma
-        # -26.5 mN/m over 1.8 ns at fullElectFrequency 1.  The diagnostic's move of ~16 lipids
-        # (at its assumed K_A of 250 mN/m) is this scale; the cholesterol-rich leaflets are
-        # likely stiffer than that, so 0.90 may overshoot -- re-measure before trusting it.
-        leaflet_ratio_scale: 0.90
+        # The leaflet count ratio, set outright rather than taken from the calibration patches,
+        # whose upper-leaflet (Lo) patch orders too slowly to give the same ratio twice: three
+        # seeds built 0.98, 1.03 and 1.06 from one setting (2026-11-09).  1.056 zeroes a fit of
+        # Dgamma = a - K_A ln(n_upper/n_lower) to four measured builds, fullElectFrequency 1,
+        # 1M-step passes: 1.127 -> -26.5, 0.981 -> +27.4, 1.033 -> +1.0, 1.058 -> +8.3 mN/m
+        # (fitted K_A ~370 mN/m).  The residuals, up to 9 mN/m, are the measurement's own scatter.
+        leaflet_ratio: 1.056
         relaxation_protocols:
           # asymmetric grid: the patch protocol relaxes the two symmetric calibration patches (one per
           # leaflet composition), the quilt protocol relaxes the gridded membrane. The barostatted
@@ -110,8 +111,10 @@ tasks:
                 # 100k, at APLs of 46.7 and 47.6 against a plateau of 43.3 (fit to the third, which
                 # ran 650k).  The upper-leaflet count then varied 292-319 between replicas.  The
                 # rate gate holds the stage until the late-half slope is under 1% per 100k at 95%
-                # confidence: about 510k tensionless steps for this patch, within 0.3% of its
-                # plateau.
+                # confidence.  It does not make the patch converge: on three seeds (2026-11-09) it
+                # certified one at 337k tensionless steps and held the other two to the 2.5M
+                # ceiling, still shrinking 0.1-0.2% per 100k.  That is why the leaflet counts come
+                # from leaflet_ratio above, not from this patch.
                 area_rate_tol: 1.0
                 # This patch is the slowest-converging stage in the example and the one with the
                 # widest spread between replicas: the 3.22.8 sweep took 236,870 / 372,360 steps in

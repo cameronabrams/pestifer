@@ -243,46 +243,57 @@ class TestTiling(unittest.TestCase):
         self.assertAlmostEqual(bottom, -0.5 * B.cell[2])
 
 
-class TestLeafletRatioScale(unittest.TestCase):
-    """``bilayer.leaflet_ratio_scale``: the tiler's target ratio n_upper/n_lower is that multiple
-    of the patches' stress-free ratio.  Example 17's converged build over-filled its upper leaflet
-    by ~16 lipids (Dgamma -26.5 mN/m), and the tiled route had no setting to say so."""
+class TestLeafletRatio(unittest.TestCase):
+    """``bilayer.leaflet_ratio``: the tiler builds n_upper/n_lower = the requested ratio, whatever
+    the patches' stress-free ratio is.  It replaced a relative setting (``leaflet_ratio_scale``)
+    after three example-17 seeds built 0.98, 1.03 and 1.06 from one value of it, because the
+    patches it multiplied did not reproduce."""
 
     A = staticmethod(lambda: _random_patch(n=100, L=60.0, seed=4).register())   # denser upper
     B = staticmethod(lambda: _random_patch(n=100, L=66.0, seed=5).register())
 
-    def _ratio(self, q):
-        return (q.n_upper / q.n_lower) / (q.stress_free['upper'] / q.stress_free['lower'])
+    def _sfr(self, q):
+        return q.stress_free['upper'] / q.stress_free['lower']
 
-    def test_a_scale_of_one_changes_nothing(self):
+    def test_unset_keeps_the_patches_ratio(self):
         A, B = self.A(), self.B()
         for expand in (False, True):
             with self.subTest(expand=expand):
                 q0 = build_quilt(A, B, 150.0, 130.0, gap=2.0, expand=expand)
-                q1 = build_quilt(A, B, 150.0, 130.0, gap=2.0, expand=expand, ratio_scale=1.0)
+                q1 = build_quilt(A, B, 150.0, 130.0, gap=2.0, expand=expand, ratio=None)
                 self.assertEqual((q0.n_upper, q0.n_lower, q0.Lx), (q1.n_upper, q1.n_lower, q1.Lx))
 
-    def test_the_ratio_is_the_scale_times_the_patches(self):
-        """Within a lipid of the target, either direction, for several boxes."""
+    def test_the_built_ratio_is_the_requested_one(self):
+        """Within a lipid of the target, either side of the patches' ratio, for several boxes."""
         A, B = self.A(), self.B()
-        for scale in (0.9, 0.95, 1.08):
+        sfr = (A.density() / B.density())
+        for f in (0.9, 0.95, 1.08):
             for Lx, Ly in ((150.0, 130.0), (121.0, 97.0)):
-                with self.subTest(scale=scale, box=(Lx, Ly)):
-                    q = build_quilt(A, B, Lx, Ly, gap=2.0, ratio_scale=scale)
-                    want_upper = scale * q.n_lower * q.stress_free['upper'] / q.stress_free['lower']
-                    self.assertLessEqual(abs(q.n_upper - want_upper), 1.0 + 1e-9)
+                with self.subTest(f=f, box=(Lx, Ly)):
+                    q = build_quilt(A, B, Lx, Ly, gap=2.0, ratio=f * sfr)
+                    self.assertLessEqual(abs(q.n_upper - f * sfr * q.n_lower), 1.0 + 1e-9)
 
-    def test_below_one_the_upper_leaflet_is_the_one_trimmed(self):
-        """Direction is the easy thing to get backwards.  Below 1 the ratio falls and it is the
-        UPPER leaflet that loses lipids to the ratio trim; above 1, the lower."""
+    def test_the_ratio_does_not_depend_on_the_patches(self):
+        """The property the relative setting lacked.  Two lower patches at different densities
+        -- two seeds' calibrations disagreeing -- build the same ratio when it is requested."""
+        A = self.A()
+        for B in (_random_patch(n=100, L=66.0, seed=5).register(),
+                  _random_patch(n=100, L=63.0, seed=6).register()):
+            with self.subTest(L=B.cell[0]):
+                q = build_quilt(A, B, 150.0, 130.0, gap=2.0, expand=True, ratio=1.1)
+                self.assertLessEqual(abs(q.n_upper - 1.1 * q.n_lower), 1.0 + 1e-9)
+
+    def test_below_the_patches_ratio_the_upper_leaflet_is_the_one_trimmed(self):
+        """Direction is the easy thing to get backwards.  Below the patches' ratio it is the
+        UPPER leaflet that loses lipids to the ratio trim; above it, the lower."""
         A, B = self.A(), self.B()
 
         def trimmed(q, leaflet):
             return sum(1 for lf, _r, why, _d in q.removed if lf == leaflet and why == 'ratio')
 
         q0 = build_quilt(A, B, 150.0, 130.0, gap=2.0)
-        lo = build_quilt(A, B, 150.0, 130.0, gap=2.0, ratio_scale=0.9)
-        hi = build_quilt(A, B, 150.0, 130.0, gap=2.0, ratio_scale=1.1)
+        lo = build_quilt(A, B, 150.0, 130.0, gap=2.0, ratio=0.9 * self._sfr(q0))
+        hi = build_quilt(A, B, 150.0, 130.0, gap=2.0, ratio=1.1 * self._sfr(q0))
         self.assertLess(lo.n_upper / lo.n_lower, q0.n_upper / q0.n_lower)
         self.assertGreater(hi.n_upper / hi.n_lower, q0.n_upper / q0.n_lower)
         self.assertGreater(trimmed(lo, 'upper'), trimmed(q0, 'upper'))
@@ -290,15 +301,16 @@ class TestLeafletRatioScale(unittest.TestCase):
 
     def test_with_expansion_a_trim_becomes_a_move(self):
         """The embedding route expands the box to make up for removals.  If it expanded on the
-        equalized fill alone, a scale would just delete upper lipids and the membrane would shrink
+        equalized fill alone, a ratio would just delete upper lipids and the membrane would shrink
         by their area; the other leaflet has to gain, and the area has to stay near the box."""
         A, B = self.A(), self.B()
         Lx, Ly = 150.0, 130.0
         q0 = build_quilt(A, B, Lx, Ly, gap=2.0, expand=True)
-        q = build_quilt(A, B, Lx, Ly, gap=2.0, expand=True, ratio_scale=0.9)
+        want = 0.9 * self._sfr(q0)
+        q = build_quilt(A, B, Lx, Ly, gap=2.0, expand=True, ratio=want)
         self.assertGreater(q.n_lower, q0.n_lower)
         self.assertLess(q.n_upper, q0.n_upper)
-        self.assertAlmostEqual(self._ratio(q), 0.9, delta=0.01)
+        self.assertAlmostEqual(q.n_upper / q.n_lower / want, 1.0, delta=0.01)
         # 1.006 here; expanding on the equalized fill alone gives ~0.95, inside a 0.05 tolerance,
         # which is why this one is tighter than test_expand_relaxes_to_about_the_requested_area's
         relaxed = 0.5 * (q.n_upper / q.stress_free['upper'] + q.n_lower / q.stress_free['lower'])

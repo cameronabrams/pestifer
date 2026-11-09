@@ -148,8 +148,11 @@ still changing to be small: the slope of the late half of the stage-2 area serie
 area per 100,000 steps, regressed on eight block means, must have a magnitude plus *t*·SE below the
 tolerance, with *t* the 95 % Student-*t* quantile.  A rate does not shrink when a run is stopped early,
 and the bound keeps a short, noisy window from passing by chance.  ``make_membrane_system`` turns it on
-(1.0) for calibration patches; at that setting example 17's raft patch certifies at about 510,000
-tensionless steps, within 0.3 % of its plateau.
+(1.0) for calibration patches.  It stops a premature certification; it does not make a slow patch
+converge.  On three seeds, example 17's cholesterol-rich raft patch certified once at 337,000
+tensionless steps and ran to its 2.5M-step ceiling twice, still shrinking 0.1-0.2 % per 100,000 steps.
+For a leaflet like that, set ``bilayer.leaflet_ratio`` from a measured differential stress rather than
+relying on the calibration for the leaflet counts.
 
 Outputs
 =======

@@ -318,16 +318,18 @@ available.
    full asymmetric build and carries the complete reference list.
 
 **Correcting a measured differential stress.**  When ``diagnose_differential_stress`` finds one,
-its advice names a lipid move and the value of ``bilayer.leaflet_ratio_scale`` that makes it.  The
-scale multiplies the leaflet count ratio :math:`n_\text{upper}/n_\text{lower}` the build would
-otherwise use: below 1 the upper leaflet loses lipids relative to the lower.  A tiled membrane
-trims the leaflet that must lose lipids and then enlarges the box so the other gains, so the
-membrane stays near the requested size; a gridded one sizes each leaflet from an APL shifted by
-:math:`\sqrt{\text{scale}}`.  The value is a property of the composition, not of one replica or box
-size, so it is measured once and written into the config.  Example 17 sets 0.90: with its
-calibration converged the upper leaflet was over-filled by about 16 lipids (Dgamma -26.5 mN/m).
-That count rests on an *assumed* area modulus, so re-measure after applying a scale; two
-measurements at different scales give the membrane's actual response.
+its advice names a lipid move and the value of ``bilayer.leaflet_ratio`` that makes it: the
+leaflet count ratio :math:`n_\text{upper}/n_\text{lower}` after the move.  Set, it replaces the ratio
+the calibration patches imply.  A tiled membrane trims the leaflet that must lose lipids and then
+enlarges the box so the other gains, so the membrane stays near the requested size; a gridded one
+sizes each leaflet from an APL shifted so the counts come out in that ratio.  The value is a property
+of the composition, not of one replica or box size, so it is measured once and written into the
+config, and it is absolute so that it gives the same counts whatever a given build's patches
+certify -- for a leaflet that orders slowly, they certify something different on every seed.  The
+suggested move rests on an *assumed* area modulus (``area_modulus``, 250 mN/m), so re-measure after
+applying it; measurements at two or more ratios give the membrane's actual response.  Example 17
+sets 1.056, fitted to :math:`\Delta\gamma` measured at four ratios (0.98-1.13), which gave an
+effective modulus of about 370 mN/m -- stiffer than assumed, as cholesterol-rich leaflets are.
 
 Either way, the membrane's lipids are built into a PSF and the water chambers are then filled by the ``solvate`` step described above, so the membrane enters its ``quilt`` relaxation already at liquid density.  ("Quilt" names the full-size membrane and its relaxation; a build's ``*-quilt`` artifacts are the whole membrane.)
 

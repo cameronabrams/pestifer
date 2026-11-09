@@ -1635,7 +1635,7 @@ attributes:
                   leaflet from its patch, cropped to the box, so the membrane starts at the relaxed
                   patches' packing. Lipids that thread a ring or overlap across a crop seam are
                   removed, and the fuller leaflet is trimmed so both sit at the same fraction of
-                  their stress-free counts (or so the ratio is leaflet_ratio_scale times theirs).
+                  their stress-free counts (or to the count ratio leaflet_ratio sets).
                   'grid' places the whole membrane on a lattice, as
                   before 3.30: a symmetric bilayer directly at SAPL, an asymmetric one at the
                   patches' measured area per lipid. leaflet_apl and quilt_grid_slack apply only to
@@ -1693,23 +1693,22 @@ attributes:
                   - name: lower
                     text: area per lipid of the lower leaflet, in square Angstroms
                     type: float
-              - name: leaflet_ratio_scale
+              - name: leaflet_ratio
                 text: >-
-                  Multiplies the leaflet count ratio n_upper/n_lower that the build would otherwise
-                  use; 1.0, the default, changes nothing. The stress-free ratio comes from
-                  symmetric calibration patches, and a leaflet does not pack in an asymmetric
-                  bilayer as it did in its own patch, so even a converged calibration can leave a
-                  differential stress: example 17 measured Dgamma = -26.5 mN/m with the upper
-                  leaflet over-filled, and needs about 0.90. Below 1 the upper leaflet loses
-                  lipids relative to the lower; above 1 it gains them. A tiled membrane trims the
-                  leaflet that must lose lipids and then enlarges the box so the other gains,
-                  keeping the membrane near the requested area; a gridded one sizes the two
-                  leaflets from APLs shifted by sqrt(scale) each way. diagnose_differential_stress
-                  prints the value to set, already multiplied by any scale the measured build
-                  used. Values outside 0.5-2.0 stop the build, and so does any value other than 1
-                  with a prebuilt bilayer, whose counts are fixed.
+                  The leaflet count ratio n_upper/n_lower to build, in place of the stress-free
+                  ratio the calibration patches imply; unset (the default) keeps theirs. A leaflet
+                  does not pack in an asymmetric bilayer as it did in its own symmetric patch, so
+                  even a converged calibration can leave a differential stress (example 17
+                  measured Dgamma = -26.5 mN/m at 319/283), and a slow-ordering leaflet's
+                  calibration varies from seed to seed. Setting the ratio outright makes the counts
+                  reproducible. A tiled membrane trims the leaflet that must lose lipids and then
+                  enlarges the box so the other gains, keeping the membrane near the requested
+                  area; a gridded one sizes the two leaflets from APLs shifted so the counts come
+                  out in this ratio. diagnose_differential_stress prints the value to set. Example
+                  17 uses 1.056, fitted to Dgamma measured at four ratios. A value more than 25%
+                  from the patches' ratio is logged as a warning; values outside 0.5-2.0 stop the
+                  build, and so does any value with a prebuilt bilayer, whose counts are fixed.
                 type: float
-                default: 1.0
               - name: seed
                 text: >-
                   RNG seed for lipid placement (grid jitter and conformer choice) in every patch
@@ -1949,9 +1948,11 @@ attributes:
                               the run stops early, and example 17's cholesterol-rich raft patch passed it
                               at 55,000-65,000 tensionless steps while still shrinking 2-2.6% per 100k,
                               certifying APLs of 46.7-47.6 against a plateau of 43.3 and leaving the
-                              upper-leaflet count varying 292-319 across replicas. At 1.0 the same patch
-                              certifies at about 510,000 tensionless steps within 0.3% of its plateau. 0
-                              disables the gate.
+                              upper-leaflet count varying 292-319 across replicas. At 1.0 that patch
+                              certified once at 337,000 tensionless steps and ran to the 2.5M ceiling
+                              twice in three seeds: the gate stops a premature certification but cannot
+                              make a slow patch converge (see bilayer.leaflet_ratio). 0 disables the
+                              gate.
                             type: float
                             default: 1.0
                           - name: addl_paramfiles
