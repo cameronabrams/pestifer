@@ -24,7 +24,7 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   and stopping at 1.2M leaves it 2.0-2.2% above that. With `bilayer.leaflet_ratio` set, that APL only
   sets how many lipids fill the box, and the quilt's tensionless relaxation absorbs the difference,
   so the extra 1.3M steps (about four hours on 24 cores) bought nothing. The lower patch converges
-  in under 0.4M steps either way. Expect a CEILING line for patchA; the tiler reports it and tiles
+  in 0.16-0.68M steps of its own (six seeds). Expect a CEILING line for patchA; the tiler reports it and tiles
   the patch anyway.
 
 ### Fixed

@@ -33,7 +33,12 @@ SLOWEST_OBSERVED_CONVERGENCE = 227000
 #: CONVERGED step, each read from the build log):
 #:   patchB  381,040 / 314,520 / 164,520
 #:   quilt   497,220 / 489,190 / 670,040
-SLOWEST_OBSERVED_PATCHB_CONVERGENCE = 381040
+#: and on 0c750119 (leaflet_ratio 1.056, patch cap 1.2M), the same three seeds (2026-11-11):
+#:   patchB  475,040 / 675,300 / 600,790
+#:   quilt   413,610 / 484,550 / 212,510
+#: patchB's slowest nearly doubled between two sweeps of the same seeds, so its margin below is
+#: 1.5x, not 2x: 2x of 675,300 would exceed the 1.2M cap the patchA note below explains.
+SLOWEST_OBSERVED_PATCHB_CONVERGENCE = 675300
 SLOWEST_OBSERVED_QUILT_CONVERGENCE = 670040
 
 #: patchA (the upper, Lo raft patch) is the one stage that does not settle.  Its counter starts
@@ -139,7 +144,7 @@ class TestExampleCeilings(unittest.TestCase):
         self.assertEqual(set(pre_embed), {'patch', 'quilt'},
                          f'expected the patch and quilt budgets, got {pre_embed}')
         self.assertGreater(pre_embed['quilt'], 1.5 * SLOWEST_OBSERVED_QUILT_CONVERGENCE)
-        self.assertGreater(pre_embed['patch'], 2 * SLOWEST_OBSERVED_PATCHB_CONVERGENCE)
+        self.assertGreater(pre_embed['patch'], 1.5 * SLOWEST_OBSERVED_PATCHB_CONVERGENCE)
 
     def test_a_patch_cap_below_patchA_tail_needs_leaflet_ratio(self):
         """patchA does not converge within 2.5M steps, so a patch budget below that is a cap the

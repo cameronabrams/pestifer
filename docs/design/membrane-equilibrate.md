@@ -358,7 +358,8 @@ ended on, and the quilt at patchB's. `max_steps` counts a stage's own steps. Sub
 patchB ran about 150k steps of its own and its quilt about 95k; neither was near its ceiling, and the
 "3% headroom" below did not exist. Only patchA's row, whose counter starts fresh, is its own. Measured
 own steps on afd96d1d (three seeds): patchB 381,040 / 314,520 / 164,520; quilt 497,220 / 489,190 /
-670,040; patchA 337k to convergence once and the 2.5M ceiling twice. Example 17 now caps the patch
+670,040; patchA 337k to convergence once and the 2.5M ceiling twice. The same seeds on 0c750119
+(2026-11-11): patchB 475,040 / 675,300 / 600,790; quilt 413,610 / 484,550 / 212,510. Example 17 now caps the patch
 protocol at 1,200,000, a deliberate cap rather than a budget to converge in; see
 `tests/unit/test_tasks/test_equilibrate_ceilings.py`.
 

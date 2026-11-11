@@ -119,7 +119,7 @@ tasks:
                 # A deliberate cap, not a budget to converge in.  The upper (raft) patch does not
                 # settle on any affordable run: on the 2026-11-09 seeds its APL was still falling
                 # at 2.1-2.4M tensionless steps (to 42.8 and 42.1).  Stopped at 1.2M it read 2.0-2.2%
-                # above that, at 600k about 4.5%.  The lower patch certifies in ~0.3M either way.
+                # above that, at 600k about 4.5%.  The lower patch certified in 0.16-0.68M (six seeds).
                 # On the tiled route with leaflet_ratio set, this patch's APL only sets how many
                 # lipids fill the box -- the ratio is fixed above, and the quilt's tensionless
                 # relaxation absorbs a ~2% packing error -- so the extra 1.3M steps (about four
