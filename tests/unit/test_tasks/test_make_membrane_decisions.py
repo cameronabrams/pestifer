@@ -1424,7 +1424,7 @@ class TestLeafletRatio(unittest.TestCase):
 
 
 class TestLeafletRatioReachesTheTask(unittest.TestCase):
-    """Walk the real schema: example 17's config must arrive with its 1.056, and a config that
+    """Walk the real schema: example 17's config must arrive with its 0.986, and a config that
     names nothing with no ratio at all -- the task reads `bilayer_specs`, so a key the walk dropped
     or retyped would leave every build at the patches' ratio without a word."""
 
@@ -1444,7 +1444,7 @@ class TestLeafletRatioReachesTheTask(unittest.TestCase):
         path = pkg_files('pestifer.resources').joinpath(
             'examples/17/inputs/hiv-mpertm3-membrane2.yaml')
         cfg = yaml.safe_load(open(str(path)))
-        self.assertEqual(self._walk(cfg)['leaflet_ratio'], 1.056)
+        self.assertEqual(self._walk(cfg)['leaflet_ratio'], 0.986)
 
     def test_a_config_that_names_none_keeps_the_patches_ratio(self):
         cfg = {'tasks': [{'make_membrane_system': {'bilayer': {}}}]}

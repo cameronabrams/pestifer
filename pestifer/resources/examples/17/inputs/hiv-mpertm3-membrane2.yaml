@@ -69,11 +69,20 @@ tasks:
         # the same doubly threaded cholesterol in its calibration patch).
         # The leaflet count ratio, set outright rather than taken from the calibration patches,
         # whose upper-leaflet (Lo) patch orders too slowly to give the same ratio twice: three
-        # seeds built 0.98, 1.03 and 1.06 from one setting (2026-11-09).  1.056 zeroes a fit of
-        # Dgamma = a - K_A ln(n_upper/n_lower) to four measured builds, fullElectFrequency 1,
-        # 1M-step passes: 1.127 -> -26.5, 0.981 -> +27.4, 1.033 -> +1.0, 1.058 -> +8.3 mN/m
-        # (fitted K_A ~370 mN/m).  The residuals, up to 9 mN/m, are the measurement's own scatter.
-        leaflet_ratio: 1.056
+        # seeds built 0.98, 1.03 and 1.06 from one setting (2026-11-09).
+        #
+        # 0.986 is measured on RELAXED membranes.  The previous value, 1.056, zeroed a fit of
+        # Dgamma = a - K_A ln(n_upper/n_lower) to four builds (1.127 -> -26.5, 0.981 -> +27.4,
+        # 1.033 -> +1.0, 1.058 -> +8.3 mN/m; K_A ~370), but every one of those Dgammas was taken
+        # straight after the quilt, whose tensionless stage certifies after ~0.1 ns while the
+        # area is still relaxing with tau ~3 ns.  Three 1.056 builds (seeds 27021972-74) run a
+        # further 20 ns on a V100, then a 2 ns pressure-profile pass with the PME term replayed,
+        # read -29.7, -36.4 and -10.3 mN/m (second halves), against +6.2, -15.0 and +34.2 from
+        # the same builds unrelaxed: mean -25.5 +/- 7.8 (2026-11-18).  Shifting by that mean
+        # along the fit's K_A gives 1.056 * exp(-25.5/370) = 0.986, uncertain by about +/- 0.02
+        # from the seed spread alone, and K_A itself was fitted to the unrelaxed data.  Re-measure
+        # on relaxed builds before treating the third digit as real.
+        leaflet_ratio: 0.986
         relaxation_protocols:
           # asymmetric grid: the patch protocol relaxes the two symmetric calibration patches (one per
           # leaflet composition), the quilt protocol relaxes the gridded membrane. The barostatted

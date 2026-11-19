@@ -327,9 +327,14 @@ of the composition, not of one replica or box size, so it is measured once and w
 config, and it is absolute so that it gives the same counts whatever a given build's patches
 certify -- for a leaflet that orders slowly, they certify something different on every seed.  The
 suggested move rests on an *assumed* area modulus (``area_modulus``, 250 mN/m), so re-measure after
-applying it; measurements at two or more ratios give the membrane's actual response.  Example 17
-sets 1.056, fitted to :math:`\Delta\gamma` measured at four ratios (0.98-1.13), which gave an
-effective modulus of about 370 mN/m -- stiffer than assumed, as cholesterol-rich leaflets are.
+applying it; measurements at two or more ratios give the membrane's actual response.  Fitting
+:math:`\Delta\gamma` measured at four ratios (0.98-1.13) on example 17 gave an effective modulus
+of about 370 mN/m -- stiffer than assumed, as cholesterol-rich leaflets are.
+
+Measure :math:`\Delta\gamma` on a *relaxed* membrane.  Example 17's quilt certifies its tensionless
+stage after about 0.1 ns while its area keeps relaxing with a time constant near 3 ns, and three
+of its builds read 20-45 mN/m more positive straight after the quilt than after a further 20 ns.
+Example 17 sets 0.986, derived from the relaxed values (mean -25.5 +/- 7.8 mN/m at 1.056).
 
 Either way, the membrane's lipids are built into a PSF and the water chambers are then filled by the ``solvate`` step described above, so the membrane enters its ``quilt`` relaxation already at liquid density.  ("Quilt" names the full-size membrane and its relaxation; a build's ``*-quilt`` artifacts are the whole membrane.)
 

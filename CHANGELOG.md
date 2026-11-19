@@ -19,6 +19,12 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Changed
 
+- **Example 17's `leaflet_ratio` is now 0.986, down from 1.056.** 1.056 was fitted to Dgamma read
+  straight after the quilt, whose tensionless stage certifies after about 0.1 ns while the area is
+  still relaxing with tau near 3 ns. Three 1.056 builds relaxed a further 20 ns read -29.7, -36.4 and
+  -10.3 mN/m (mean -25.5 +/- 7.8), against +6.2, -15.0 and +34.2 unrelaxed. Shifting by the mean
+  along the fit's K_A of ~370 mN/m gives 0.986, uncertain by about +/- 0.02.
+
 - **Example 17 caps its calibration patches at 1,200,000 steps, down from 2,500,000.** The upper
   (raft) patch does not converge on any affordable run; its APL was still falling at 2.1-2.4M steps,
   and stopping at 1.2M leaves it 2.0-2.2% above that. With `bilayer.leaflet_ratio` set, that APL only

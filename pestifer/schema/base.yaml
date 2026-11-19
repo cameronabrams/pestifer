@@ -1705,7 +1705,9 @@ attributes:
                   enlarges the box so the other gains, keeping the membrane near the requested
                   area; a gridded one sizes the two leaflets from APLs shifted so the counts come
                   out in this ratio. diagnose_differential_stress prints the value to set. Example
-                  17 uses 1.056, fitted to Dgamma measured at four ratios. A value more than 25%
+                  17 uses 0.986, from Dgamma measured on three builds relaxed 20 ns past the
+                  quilt; a Dgamma taken straight after the quilt reads 20-45 mN/m too positive
+                  there, because the quilt stops while its area is still relaxing. A value more than 25%
                   from the patches' ratio is logged as a warning; values outside 0.5-2.0 stop the
                   build, and so does any value with a prebuilt bilayer, whose counts are fixed.
                 type: float
