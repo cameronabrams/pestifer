@@ -6,6 +6,15 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Added
 
+- **`diagnose_differential_stress` will not advise from a membrane that is still relaxing.** It
+  measures the lateral-area drift over its own pass. When the 95% bound reaches
+  `area_rate_tol` (new, default 0.75 %/ns), it reports the tensions but suggests no leaflet-count
+  change and gives no "balanced" verdict. On example 17 the area straight after the quilt drifted with
+  bounds of 1.08-2.25 %/ns, and 20 ns later 0.16-0.60; the unrelaxed Dgammas read 20-45 mN/m more
+  positive. Example 17's config documents how to hold its quilt until relaxed (`area_rate_tol: 0.05`,
+  13-17 ns of tensionless steps), and what that costs. The schema's claim that nothing downstream
+  depends on the quilt's area is corrected: the diagnostic measures it.
+
 - **`bilayer.leaflet_ratio` sets the leaflet count ratio n_upper/n_lower outright**, in place of
   the stress-free ratio the symmetric calibration patches imply. A leaflet does not pack in an
   asymmetric bilayer as it did in its own patch: example 17 measured Dgamma = -26.5 mN/m at 319/283.

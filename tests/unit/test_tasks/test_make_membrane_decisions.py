@@ -785,11 +785,19 @@ class TestAsymmetricStressFreeCounts(unittest.TestCase):
         t.diagnose_differential_stress.assert_called_once()
 
 
-def _frames(lower, upper, nframes=24, check='closed', frame_ps=50.0):
+#: a pass whose area had stopped moving: example 17 rep-01's relaxed pass, (rate, se, tcrit)
+_RELAXED_AREA = (-0.054, 0.048, 2.306)
+#: and one still relaxing: rep-01 straight after its quilt (the first 2 ns of its 20 ns run)
+_RELAXING_AREA = (-1.95, 0.13, 2.306)
+
+
+def _frames(lower, upper, nframes=24, check='closed', frame_ps=50.0, area_rate=_RELAXED_AREA):
     """What ``_leaflet_stress_frames`` returns: per-frame leaflet tensions (mN/m) and the check.
 
     ``lower``/``upper`` are scalars (constant over frames) or per-frame sequences.  The default
-    ``frame_ps`` makes each 100-ps error-bar block two frames, so 24 frames give 6 blocks.
+    ``frame_ps`` makes each 100-ps error-bar block two frames, so 24 frames give 6 blocks.  The
+    default ``area_rate`` is a relaxed pass, so the drift gate stays out of tests about other
+    things.
     """
     lo = np.asarray(lower, dtype=float) * np.ones(nframes) if np.ndim(lower) == 0 \
         else np.asarray(lower, dtype=float)
@@ -802,7 +810,7 @@ def _frames(lower, upper, nframes=24, check='closed', frame_ps=50.0):
         check = {'deviation': np.array([-86.0, -94.0, -71.0]), 'sem': np.zeros(3),
                  'nframes': nframes, 'real_only_deviation': np.zeros(3)}
     return dict(lower=lo, upper=up, check=check, nslabs=40, trough_offset=0.25,
-                frame_ps=frame_ps)
+                frame_ps=frame_ps, area_rate=area_rate)
 
 
 class TestDifferentialStressDiagnostic(unittest.TestCase):
@@ -873,6 +881,42 @@ class TestDifferentialStressDiagnostic(unittest.TestCase):
         out = ''.join(cm.output)
         self.assertIn('real-space only', out)
         self.assertIn('No leaflet-count change', out)
+        self.assertNotIn('move ~', out)
+
+    def test_a_pass_whose_area_is_still_relaxing_gets_no_advice(self):
+        """Example 17's quilt certifies ~0.1 ns into a ~3 ns area relaxation, and Dgammas read
+        there ran 20-45 mN/m more positive than relaxed ones.  The tensions are still reported;
+        the move, the suggested ratio and the 'balanced' verdict are not."""
+        with self.assertLogs(LOGGER, level='INFO') as cm:
+            t, membrane = self._run(_frames(0, 200, area_rate=_RELAXING_AREA))
+        out = ''.join(cm.output)
+        self.assertIn('Dgamma (upper-lower)', out)
+        self.assertIn('still relaxing', out)
+        self.assertNotIn('move ~', out)
+        self.assertNotIn('suggested_leaflet_ratio', t.outcome)
+        self.assertAlmostEqual(t.outcome['dgamma_pass_area_rate_bound'], 1.95 + 2.306 * 0.13)
+        with self.assertLogs(LOGGER, level='INFO') as cm:
+            self._run(_frames(0, 0.01, area_rate=_RELAXING_AREA))
+        self.assertNotIn('within the 95% interval of zero', ''.join(cm.output))
+
+    def test_the_same_stress_on_a_relaxed_pass_is_advised(self):
+        """The negative control for the test above: only the area drift differs."""
+        with self.assertLogs(LOGGER, level='INFO') as cm:
+            t, _m = self._run(_frames(0, 200, area_rate=_RELAXED_AREA))
+        self.assertIn('move ~', ''.join(cm.output))
+        self.assertIn('suggested_leaflet_ratio', t.outcome)
+
+    def test_the_drift_gate_can_be_switched_off(self):
+        with self.assertLogs(LOGGER, level='INFO') as cm:
+            self._run(_frames(0, 200, area_rate=_RELAXING_AREA), area_rate_tol=0.0)
+        self.assertIn('move ~', ''.join(cm.output))
+
+    def test_an_unmeasurable_drift_gets_no_advice(self):
+        """Positive evidence the membrane stopped moving, not the absence of evidence it did not."""
+        with self.assertLogs(LOGGER, level='INFO') as cm:
+            self._run(_frames(0, 200, area_rate=None))
+        out = ''.join(cm.output)
+        self.assertIn('could not be measured', out)
         self.assertNotIn('move ~', out)
 
     def test_the_measured_difference_is_recorded_on_the_membrane(self):
@@ -1451,3 +1495,43 @@ class TestLeafletRatioReachesTheTask(unittest.TestCase):
         bs = self._walk(cfg)
         self.assertIsNone(bs.get('leaflet_ratio'))
         self.assertIsNone(_task(bilayer_specs=bs)._leaflet_ratio())
+
+
+class TestPassAreaRate(unittest.TestCase):
+    """The drift the differential-stress gate reads, from an xst like NAMD's."""
+
+    def _xst(self, areas, steps_per_frame=500, tilt=0.0):
+        import tempfile
+        fd, path = tempfile.mkstemp(suffix='.xst')
+        os.close(fd)
+        self.addCleanup(os.remove, path)
+        with open(path, 'w') as f:
+            f.write('# NAMD extended system trajectory file\n#$LABELS step a_x a_y a_z b_x b_y b_z\n')
+            for i, a in enumerate(areas):
+                L = float(np.sqrt(a))
+                f.write(f'{i * steps_per_frame} {L} 0 0 {tilt} {L} 0 0 0 80 0 0 0\n')
+        return path
+
+    def test_a_shrinking_area_reads_its_rate_in_percent_per_ns(self):
+        """2000 frames of 500 steps at 2 fs is 2 ns; 1% of 13000 A^2 lost over it is -0.5 %/ns."""
+        from pestifer.tasks.make_membrane_system import _pass_area_rate
+        n = 2000
+        areas = 13000.0 * (1.0 - 0.01 * np.arange(n) / (n - 1))
+        rate, se, tcrit = _pass_area_rate(self._xst(areas), 2.0)
+        self.assertAlmostEqual(rate, -0.5, delta=0.01)
+        self.assertLess(se, 0.01)
+        self.assertAlmostEqual(tcrit, 2.306, places=3)
+
+    def test_the_area_is_the_cross_product_not_a_x_times_b_y(self):
+        """b_x does not change the area of a parallelogram with a along x."""
+        from pestifer.tasks.make_membrane_system import _pass_area_rate
+        areas = np.full(100, 13000.0)
+        flat = _pass_area_rate(self._xst(areas), 2.0)
+        tilted = _pass_area_rate(self._xst(areas, tilt=30.0), 2.0)
+        self.assertAlmostEqual(flat[0], 0.0, places=6)
+        self.assertAlmostEqual(tilted[0], 0.0, places=6)
+
+    def test_too_few_frames_or_no_file_is_none(self):
+        from pestifer.tasks.make_membrane_system import _pass_area_rate
+        self.assertIsNone(_pass_area_rate(self._xst([13000.0] * 5), 2.0))
+        self.assertIsNone(_pass_area_rate('/nonexistent.xst', 2.0))

@@ -335,6 +335,13 @@ Measure :math:`\Delta\gamma` on a *relaxed* membrane.  Example 17's quilt certif
 stage after about 0.1 ns while its area keeps relaxing with a time constant near 3 ns, and three
 of its builds read 20-45 mN/m more positive straight after the quilt than after a further 20 ns.
 Example 17 sets 0.986, derived from the relaxed values (mean -25.5 +/- 7.8 mN/m at 1.056).
+The diagnostic checks this itself: it measures the lateral-area drift over its own pass and, when
+the 95% bound on that drift is at or above ``area_rate_tol`` (0.75 %/ns by default), it still
+prints the tensions but suggests no leaflet-count change and gives no "balanced" verdict.  To
+build a membrane relaxed enough to pass, hold the quilt's tensionless stage with its own
+``area_rate_tol``; example 17's config explains the setting (0.05 %/100k steps, 13-17 ns there)
+and what it costs.  A ``--gpu`` build skips the diagnostic, since CUDA NAMD writes no pressure
+profile.
 
 Either way, the membrane's lipids are built into a PSF and the water chambers are then filled by the ``solvate`` step described above, so the membrane enters its ``quilt`` relaxation already at liquid density.  ("Quilt" names the full-size membrane and its relaxation; a build's ``*-quilt`` artifacts are the whole membrane.)
 

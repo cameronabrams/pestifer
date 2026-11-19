@@ -163,6 +163,19 @@ tasks:
                 # 95k of its own.  Left at 2,500,000: a ceiling binds only on a run that has not
                 # converged, so the room costs nothing on a healthy build.
                 max_steps: 2500000
+                # "Converged" here means density and the windowed area gate, and it is NOT a
+                # relaxed membrane.  This stage certifies ~0.1 ns into its tensionless phase while
+                # the area keeps relaxing with tau ~3 ns, 12-16% further in all, plateauing by
+                # ~12 ns (three seeds, 20 ns on a V100, 2026-11-12/16).  That is fine for an
+                # embed, and wrong for a differential-stress measurement: Dgamma read straight
+                # after this stage was 20-45 mN/m too positive.  To build a RELAXED membrane, add
+                #     area_rate_tol: 0.05
+                #     max_steps: 10000000
+                # Replayed over the three 20 ns traces, that gate released each 13-17 ns in,
+                # within 1% of the plateau; 1.0 (the patches' value) released at 0.5 ns, 6-7%
+                # above it.  Budget about 4-7 days per build on 24 CPU cores, or about 5 h on one
+                # V100 with --gpu -- but a --gpu build skips diagnose_differential_stress (CUDA
+                # NAMD writes no pressure profile), so then measure Dgamma with a separate CPU pass.
       embed:
         xydist: 40
         zdist: 10

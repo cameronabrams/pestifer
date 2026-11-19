@@ -1489,6 +1489,16 @@ attributes:
                 text: assumed per-leaflet area-compressibility modulus K_A (mN/m), used to convert the residual differential stress into a suggested leaflet-count change
                 type: float
                 default: 250.0
+              - name: area_rate_tol
+                text: >-
+                  Largest lateral-area drift (percent per ns, 95% upper bound over the whole pass)
+                  at which the pass's Dgamma is acted on. Above it the membrane was still relaxing,
+                  so neither a leaflet-count change nor a "balanced" verdict is reported; the
+                  tensions are still printed. On example 17 the area straight after the quilt
+                  drifted with bounds of 1.08-2.25 %/ns, and 20 ns later 0.16-0.60; the unrelaxed
+                  Dgammas read 20-45 mN/m more positive. 0 disables the check.
+                type: float
+                default: 0.75
               - name: temperature
                 text: >-
                   Temperature (K) for the pressure-profile pass. Leave unset to inherit the
@@ -2100,19 +2110,23 @@ attributes:
                               cumulative area-plateau gate (fraction); when > 0, also require the stage-2
                               area's quarter-over-quarter drift below this before converging -- the same
                               metric make_membrane_system uses to judge a calibration patch's preferred
-                              APL reliable. 0 (default) disables it. Deliberately OFF here while it is
-                              ON for the patch stage: nothing downstream is sized from the quilt's
-                              area, so a slightly early stop costs a little extra relaxation later,
-                              not a mis-sized system. Set 0.005 if you want the quilt held to the
-                              same standard.
+                              APL reliable. 0 (default) disables it. A quarter-over-quarter drift
+                              reads flatter the sooner a run stops, so for holding the quilt until
+                              its area has relaxed, use area_rate_tol instead.
                             type: float
                             default: 0.0
                           - name: area_rate_tol
                             text: >-
                               area-rate gate (percent of area per 100,000 steps); when > 0, also hold
                               convergence until the late-half slope of the stage-2 area is below this at
-                              95% confidence. 0 (default) disables it here, for the same reason
-                              area_plateau_tol is off: nothing downstream is sized from the quilt's area.
+                              95% confidence. 0 (default) disables it here. Nothing is SIZED from the
+                              quilt's area, but diagnose_differential_stress MEASURES the quilt, and
+                              a quilt that stopped early gives a Dgamma that is not the relaxed
+                              membrane's (that diagnostic refuses advice when its own area is still
+                              drifting). A slow-relaxing area has a small slope: on example 17
+                              (tau ~3 ns) 1.0 releases the stage 6-7% above its plateau, and only
+                              0.05 held all three replicas within 1%, after 13-17 ns of tensionless
+                              steps. Raise max_steps to match.
                             type: float
                             default: 0.0
                           - name: addl_paramfiles

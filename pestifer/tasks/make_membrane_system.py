@@ -65,6 +65,14 @@ _DEFAULT_AREA_MODULUS = 250.0
 #: with no differential stress.  Blocks of >= 100 ps with a Student-t threshold did so in 3%.
 _DGAMMA_BLOCK_PS = 100.0
 _DGAMMA_MIN_BLOCKS = 5
+#: Default for ``diagnose_differential_stress.area_rate_tol``, in percent of lateral area per ns:
+#: the 95% bound on the pass's area slope above which its Dgamma is not acted on.  Measured on
+#: example 17 (2026-11-19, 2 ns windows, ten block means): straight after the quilt the area was
+#: still falling 0.65-1.95 %/ns (bounds 1.08-2.25) in three replicas, and 20 ns later the same
+#: three bounded at 0.16-0.60.  The unrelaxed windows read Dgamma 20-45 mN/m too positive.
+_DEFAULT_PASS_AREA_RATE_TOL = 0.75
+#: Blocks the pass's area series is cut into for that slope and its standard error.
+_PASS_AREA_RATE_BLOCKS = 10
 
 # Schema defaults for the two relaxation-stage task types, mirrored here so a protocol stage that
 # names no temperature can still be told what it ran at.  THEY DIFFER, and that is the point:
@@ -163,6 +171,35 @@ def _leaflet_stress_summary(lower, upper, frame_ps):
                 dgamma=float(dg.mean()), dgamma_se=dgamma_se, nblocks=int(nblocks),
                 block_ps=float(blen * frame_ps), tcrit=tcrit,
                 analyzed_ps=float(len(dg) * frame_ps), nframes=int(len(dg)))
+
+
+def _pass_area_rate(xst: str, timestep_fs: float, nblocks: int = _PASS_AREA_RATE_BLOCKS):
+    """``(rate, se, tcrit)`` of a pass's lateral area, or ``None`` when it cannot be measured.
+
+    ``rate`` is the slope of the lateral cell area, ``|a x b|_z``, in percent of the mean area per
+    ns, regressed over ``nblocks`` contiguous block means of the WHOLE pass so that correlated xst
+    frames do not shrink ``se``.  ``tcrit`` is the two-sided 95% Student-t quantile for that
+    regression.  A membrane still relaxing when the pass starts reads a Dgamma that belongs to
+    neither the built state nor the relaxed one, and this is how the diagnostic tells.
+    """
+    try:
+        rows = [ln.split() for ln in open(xst) if ln.strip() and not ln.startswith('#')]
+        if len(rows) < 2 * nblocks:
+            return None
+        v = np.array([[float(x) for x in r[:7]] for r in rows])
+        steps = v[:, 0]
+        area = np.abs(v[:, 1] * v[:, 5] - v[:, 2] * v[:, 4])
+        groups = np.array_split(np.arange(len(steps)), nblocks)
+        bt = np.array([steps[g].mean() for g in groups]) * float(timestep_fs) * 1.0e-6   # ns
+        ba = np.array([area[g].mean() for g in groups])
+        if float(np.ptp(bt)) <= 0.0 or not float(ba.mean()):
+            return None
+        coef, cov = np.polyfit(bt, ba, 1, cov=True)
+        scale = 100.0 / float(ba.mean())
+        return (float(coef[0] * scale), float(np.sqrt(cov[0, 0]) * scale),
+                float(student_t.ppf(0.975, nblocks - 2)))
+    except (OSError, ValueError, IndexError, np.linalg.LinAlgError):
+        return None
 
 
 def _profile_pass_files(tasks):
@@ -1392,6 +1429,37 @@ class MakeMembraneSystemTask(BaseTask):
                            f'diagnose_differential_stress.nsteps to at least {need_steps} '
                            f'({need_ps:.0f} ps) for one.')
             return
+        # A Dgamma read while the membrane is still relaxing is not the relaxed membrane's, and
+        # on example 17 it was not even close: three builds read +6.2, -15.0 and +34.2 mN/m
+        # straight after the quilt, and -29.7, -36.4 and -10.3 after a further 20 ns
+        # (2026-11-18).  The quilt's tensionless stage certifies in ~0.1 ns while that area
+        # relaxes with tau ~3 ns, so the pass inherits the relaxation.  Gate the advice -- and the
+        # "balanced" verdict, which is advice too -- on the pass's own area having stopped moving.
+        rate_tol = float(diag_specs.get('area_rate_tol', _DEFAULT_PASS_AREA_RATE_TOL) or 0.0)
+        ar = frames.get('area_rate')
+        if ar is not None:
+            bound = abs(ar[0]) + ar[2] * ar[1]
+            self.record_outcome(dgamma_pass_area_rate=float(ar[0]),
+                                dgamma_pass_area_rate_bound=float(bound))
+            logger.info(f'  lateral area drift   = {ar[0]:+.2f} +/- {ar[1]:.2f} %/ns over the '
+                        f'pass (95% bound {bound:.2f})')
+        if rate_tol > 0.0:
+            if ar is None:
+                logger.warning('  The pass\'s lateral area drift could not be measured, so '
+                               'whether the membrane had stopped relaxing is unknown.  No '
+                               'leaflet-count change is suggested.')
+                return
+            if bound >= rate_tol:
+                logger.warning(f'  The membrane was still relaxing during the pass: its lateral '
+                               f'area drifted {ar[0]:+.2f} +/- {ar[1]:.2f} %/ns (95% bound '
+                               f'{bound:.2f}, need < {rate_tol:.2f}; '
+                               f'diagnose_differential_stress.area_rate_tol).  This Dgamma is '
+                               f'not the relaxed membrane\'s -- on example 17 such readings ran '
+                               f'20-45 mN/m more positive than after a further 20 ns -- so no '
+                               f'leaflet-count change is suggested.  Relax the quilt longer '
+                               f'(its membrane_equilibrate area_rate_tol; see example 17) and '
+                               f'measure again.')
+                return
         if abs(res['dgamma']) < res['tcrit'] * se:
             logger.info(f'  Dgamma is within the 95% interval of zero ({res["tcrit"]:.2f} standard '
                         f'errors for {res["nblocks"]} blocks): not distinguishable from a '
@@ -1465,8 +1533,10 @@ class MakeMembraneSystemTask(BaseTask):
         midplane, _com, offset = leafletstress.bilayer_midplanes(files['dcd'], idx, masses)
         gamma = leafletstress.slab_tensions(profiles, c_z)
         lower, upper = leafletstress.leaflet_tensions(gamma, midplane, o_z, c_z)
+        area_rate = _pass_area_rate(files['xst'],
+                                    float(timestep) if timestep is not None else 1.0)
         return dict(lower=lower, upper=upper, check=check, nslabs=int(profiles.shape[1]),
-                    trough_offset=offset, frame_ps=frame_ps)
+                    trough_offset=offset, frame_ps=frame_ps, area_rate=area_rate)
 
     def register_tops_streams_from_psfgen(self, filelist):
         self.register([CharmmffTopFileArtifact(x) for x in filelist if x.endswith('rtf')], key='charmmff_topfiles', artifact_type=CharmmffTopFileArtifacts)
