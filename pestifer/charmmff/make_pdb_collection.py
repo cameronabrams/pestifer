@@ -517,11 +517,15 @@ def _sample_and_write_mc_conformers(resid: str, psf_file: str, pdb_file: str,
                 return _mean_z_extent(probed[bias][0])
             used_bias = largest_uncollapsed_bias(_extent_at, unbiased_extent, used_bias)
             samples, order = probed[used_bias]
+            # "Out of reach" here means not bracketed by the two bounds, and a bound that folds
+            # can read LOW (DSPS: bias 40 folded below target while bias 5 reached 0.312), so
+            # the fallback may well meet the target.  Say which.
+            verdict = ('meets the target' if order >= target_order - order_tol
+                       else 'is LESS ordered than the phase asks for')
             logger.warning(
-                f'MC {resid}: chain-order target {target_order:.3f} is out of reach and the '
-                f'strongest trans bias folds the chains; using the largest bias that does not '
-                f'(bias {used_bias:.2f}, order {order:.3f}). This ensemble is LESS ordered than '
-                f'the phase asks for.')
+                f'MC {resid}: the strongest trans bias folds the chains without bracketing the '
+                f'chain-order target {target_order:.3f}; using the largest bias that does not fold '
+                f'them (bias {used_bias:.2f}, order {order:.3f}), which {verdict}.')
             break
         logger.warning(
             f'MC {resid}: the tuned ensemble COLLAPSED -- mean head-to-tail z-extent '

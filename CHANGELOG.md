@@ -37,6 +37,12 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
   same composition. `test_lipid_collection_isomers.py` checks every shipped conformer against its
   IC-built reference.
 
+- **The lipid conformer collection is regenerated** with the three sampler fixes below, replaying
+  each entry's recorded settings: all 269 sampled entries (the eight sterols are not sampled and are
+  byte-identical). Every conformer now keeps its CHARMM double-bond isomers (was 178 entries with a
+  flipped one), with no duplicate conformers and no folded chains. Membranes built from unsaturated
+  lipids will differ from those built with earlier releases, including example 17.
+
 - **The sampler's overlap test no longer counts pairs a pivot cannot change.** A pivot is rigid on its
   moving side, and the docstring said only straddling pairs were tested, but moved-moved pairs were too.
   A cis double bond holds its neighbors at 1-5 contact, so every pivot upstream of one was rejected:
