@@ -12,7 +12,7 @@ from pestifer.charmmff.athermal_mc import (
     MoleculeMC, RotatableBond, run_mc, radial_distances, build_exclusions, moving_set,
     build_lipid_mc, cylinder_radius_for_apl,
     tail_carbon_indices, chain_order_parameter, ensemble_chain_order,
-    _dihedral, _trans_penalty,
+    _dihedral, _trans_penalty, _has_overlap,
 )
 
 
@@ -477,3 +477,27 @@ class TestTransBias:
         a = run_mc(mol, torsion_bias=0.0, **kw)
         b = run_mc(mol, **kw)   # default torsion_bias
         assert all(np.array_equal(x, y) for x, y in zip(a, b))
+
+
+class TestOverlapCheckOnlyCountsPairsTheMoveCanChange:
+    """A pivot is rigid on its moving side, so only a pair with ONE moved atom can newly clash.
+
+    The check used to test moved-moved pairs as well.  A cis double bond holds the carbons either
+    side of it at 1-5 contact, so a polyene's start carries overlaps no torsion can relieve, and
+    every pivot upstream of one was rejected: PDOPC's DHA chain never moved (2026-11-20).
+    """
+
+    @staticmethod
+    def _line(n=6):
+        coords = np.array([[0.0, 0.0, 2.0 * k] for k in range(n)])
+        return coords, np.full(n, 0.6)
+
+    def test_an_overlap_wholly_inside_the_moving_side_does_not_block(self):
+        coords, radii = self._line()
+        coords[5] = coords[3] + (0.5, 0.0, 0.0)          # 3 and 5 overlap, both on the moving side
+        assert not _has_overlap(coords, radii, np.array([2, 3, 4, 5]), exclusions=set())
+
+    def test_an_overlap_across_the_pivot_still_blocks(self):
+        coords, radii = self._line()
+        coords[5] = coords[1] + (0.5, 0.0, 0.0)          # 5 moved, 1 stationary
+        assert _has_overlap(coords, radii, np.array([2, 3, 4, 5]), exclusions=set())

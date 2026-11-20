@@ -30,7 +30,7 @@ import unittest
 
 import numpy as np
 
-from pestifer.charmmff.make_pdb_collection import (_MAX_CHAINS_WITHOUT_STRETCH,
+from pestifer.charmmff.make_pdb_collection import (_MAX_CHAINS_WITHOUT_STRETCH, _MIN_UNSATURATIONS_TO_STRETCH,
                                                    _MIN_IC_END_TO_END, _TRANS_CC_RISE, do_psfgen,
                                                    min_end_to_end_over_contour,
                                                    stretch_before_sampling)
@@ -62,14 +62,33 @@ class TestWhoGetsStretched(unittest.TestCase):
         self.assertFalse(stretch_before_sampling('mc', 4, CL1))
         self.assertFalse(stretch_before_sampling('mc', 4, PMCL2_EE))
 
-    def test_a_coiled_TWO_chain_lipid_is_NOT_stretched(self):
-        """A coiled start alone was the other candidate rule, and it over-selects.
+    def test_a_coiled_TWO_chain_lipid_is_NOT_stretched_for_its_coil(self):
+        """A coiled start alone was the other candidate rule, and it is still not the rule.
 
-        Twelve two-chain entries are built just as coiled as the cardiolipins -- DDOPC, SDPC,
-        PDOPE and the rest -- and the sampler opens every one of them unaided (worst-arm medians
-        0.48 to 0.83). Stretching them would be churn on working entries.
+        What used to justify this -- "the sampler opens DDOPC, SDPC, PDOPE unaided" -- was false:
+        it opened them by rotating their double bonds to trans.  Those entries are now stretched
+        for their unsaturation (below), not for being coiled.
         """
         self.assertFalse(stretch_before_sampling('mc', 2, COILED_TWO))
+        self.assertFalse(stretch_before_sampling('mc', 2, COILED_TWO, 1))
+
+    def test_a_polyunsaturated_two_chain_lipid_IS_stretched(self):
+        """Arachidonoyl (4 C=C) and DHA (6) chains, coiled or not: DAPC was not coiled and failed."""
+        self.assertEqual(_MIN_UNSATURATIONS_TO_STRETCH, 4)
+        self.assertTrue(stretch_before_sampling('mc', 2, COILED_TWO, 6))
+        self.assertTrue(stretch_before_sampling('mc', 2, 0.9, 4))
+        self.assertTrue(stretch_before_sampling('mc', 1, 0.9, 6))
+
+    def test_linoleoyl_and_linolenoyl_are_NOT_stretched(self):
+        """They generated and moved unaided with double bonds held rigid; leave them alone."""
+        self.assertFalse(stretch_before_sampling('mc', 2, 0.9, 2))
+        self.assertFalse(stretch_before_sampling('mc', 2, COILED_TWO, 3))
+
+    def test_the_cardiolipin_rule_ignores_unsaturation(self):
+        """A crowded molecule is still decided by its coil alone: TLCL2's arms carry 2 C=C each,
+        and CL1 entries were made WORSE by stretching."""
+        self.assertFalse(stretch_before_sampling('mc', 4, CL1, 6))
+        self.assertTrue(stretch_before_sampling('mc', 4, CL2, 0))
 
     def test_three_chains_already_counts_as_crowded(self):
         """The boundary is 'more than two', not 'four'.
@@ -145,6 +164,8 @@ class TestTheCallSiteUsesIt(unittest.TestCase):
         line = next(ln for ln in self.src.splitlines() if 'stretch_before_sampling(' in ln)
         self.assertIn('chain_info', line, f'no chain count in the decision: {line.strip()!r}')
         self.assertIn('ic_min_ee', line, f'no coiled-ness measurement: {line.strip()!r}')
+        self.assertIn('max_uns', line, f'no unsaturation count in the decision: {line.strip()!r}')
+        self.assertIn("c.get('unsaturations'", self.src, 'the unsaturation count is not read from chain_info')
 
     def test_the_measurement_is_taken_from_the_IC_BUILD(self):
         """Not from the minimized or oriented structure.

@@ -119,7 +119,28 @@ the CL1 entries at 0.44 are not -- stretching those made them WORSE, PMCL2 so mu
 stopped generating at all."""
 
 
-def stretch_before_sampling(sampler: str, n_chains: int, min_end_to_end: float) -> bool:
+_MAX_FALLBACK_BIAS_ITERS = 5
+"""Bisection steps for the largest non-collapsing trans bias, used only when the order target is
+out of reach and the bias bound folds the chains.  Five halvings of (0, 40) resolve 1.25."""
+
+_MIN_UNSATURATIONS_TO_STRETCH = 4
+"""A two-chain lipid with a chain carrying at least this many C=C bonds is stretched before MC.
+
+An all-cis polyene's IC-built chain is curled, and the curl is held by contacts across its cis
+bonds that no torsion can relieve, so from that start most pivots of the chain overlap something.
+Measured 2026-11-20 on the regeneration with double bonds held rigid: PDOPC's DHA chain moved
+0.03 A (tip-to-attachment SD over 40 draws) and failed the fold guard in all 40; SDPC 0/40;
+the arachidonoyl DAPC/DAPE/DAPG fell short of ten in five draws.  Stretched first, all four kept
+their double bonds cis and gave 36-40 of 40 passing draws with chains spreading 6.5-9.1 A, as
+POPC's do (6.5-7.1).  Linoleoyl (2) and linolenoyl (3) entries generated and moved unaided, so
+the cut sits at 4: arachidonoyl and above.
+
+The comment that kept these entries unstretched -- "the sampler opens every one of them unaided"
+-- was true only because the sampler was turning their double bonds trans to do it."""
+
+
+def stretch_before_sampling(sampler: str, n_chains: int, min_end_to_end: float,
+                            max_unsaturations: int = 0) -> bool:
     """Should the colvar-driven stretch run before this molecule is sampled?
 
     Always for the vacuum-MD sampler, whose ensemble comes out of the stretched state.
@@ -135,14 +156,18 @@ def stretch_before_sampling(sampler: str, n_chains: int, min_end_to_end: float) 
       CL1 entries, which were already healthy, and stops PMCL1/PMCL2 generating entirely --
       12 improved against 8 worse or failing.
     * A coiled start alone also catches twelve two-chain entries (DDOPC, SDPC, PDOPE and
-      friends) that are just as coiled and that the sampler opens perfectly well by itself.
+      friends).  That rule was rejected because the sampler appeared to open them unaided -- but
+      it did so by rotating their double bonds to trans, which it no longer may.
 
-    Together they select exactly the entries where a chain starts closed and the sampler
-    cannot open it.
+    Separately, a lipid with at most two chains is stretched when any chain carries
+    :data:`_MIN_UNSATURATIONS_TO_STRETCH` or more C=C bonds (``max_unsaturations``); that is
+    what those polyunsaturated entries need now.  The crowded-and-coiled rule is unchanged.
     """
     if sampler != 'mc':
         return True
-    return n_chains > _MAX_CHAINS_WITHOUT_STRETCH and min_end_to_end < _MIN_IC_END_TO_END
+    if n_chains > _MAX_CHAINS_WITHOUT_STRETCH:
+        return min_end_to_end < _MIN_IC_END_TO_END
+    return max_unsaturations >= _MIN_UNSATURATIONS_TO_STRETCH
 
 
 def _read_pdb_names_coords(path):
@@ -270,6 +295,25 @@ def all_chains_saturated(chain_info) -> bool:
     if not chain_info:
         return False
     return all(int(c.get('unsaturations', 0)) == 0 for c in chain_info)
+
+
+def largest_uncollapsed_bias(extent_at, unbiased_extent: float, collapsed_bias: float,
+                             iters: int = _MAX_FALLBACK_BIAS_ITERS) -> float:
+    """Largest trans bias in ``[0, collapsed_bias)`` whose ensemble does not collapse.
+
+    ``extent_at(bias)`` returns that ensemble's mean head-to-tail z-extent.  Bias 0 is the
+    unbiased control and never collapses against itself, so the answer is at worst 0.  Assumes
+    collapse sets in above some bias, which is what the probes show; bisection returns the last
+    bias seen extended.
+    """
+    lo, hi = 0.0, float(collapsed_bias)
+    for _ in range(iters):
+        mid = 0.5 * (lo + hi)
+        if ensemble_collapsed(extent_at(mid), unbiased_extent):
+            hi = mid
+        else:
+            lo = mid
+    return lo
 
 
 def _bisect_to_order(order_of, target, bounds, tol=0.02, max_iters=6):
@@ -459,6 +503,25 @@ def _sample_and_write_mc_conformers(resid: str, psf_file: str, pdb_file: str,
         # cannot object to one that comes back to just under the head plane.
         ordered_extent, unbiased_extent = _mean_z_extent(samples), _mean_z_extent(probed[0.0][0])
         if not ensemble_collapsed(ordered_extent, unbiased_extent):
+            break
+        if not bracketed:
+            # The target is out of reach AND the strongest field folds the chains.  Reseeding
+            # cannot help -- the target was unreachable at this seed and will be at the next --
+            # so take the most ordered ensemble that is still extended: bisect the bias between
+            # 0 (the unbiased control, extended by definition) and the bound that collapsed.
+            # Found 2026-11-20 on CER220__Lo, which reached 0.311 only while the sampler could
+            # rotate its sphingosine C4=C5; with that bond rigid it folds at bias 40, every seed.
+            def _extent_at(bias):
+                if bias not in probed:
+                    order_of(bias)
+                return _mean_z_extent(probed[bias][0])
+            used_bias = largest_uncollapsed_bias(_extent_at, unbiased_extent, used_bias)
+            samples, order = probed[used_bias]
+            logger.warning(
+                f'MC {resid}: chain-order target {target_order:.3f} is out of reach and the '
+                f'strongest trans bias folds the chains; using the largest bias that does not '
+                f'(bias {used_bias:.2f}, order {order:.3f}). This ensemble is LESS ordered than '
+                f'the phase asks for.')
             break
         logger.warning(
             f'MC {resid}: the tuned ensemble COLLAPSED -- mean head-to-tail z-extent '
@@ -773,9 +836,11 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
     if pending_stretch is not None:
         ic_names, ic_coords = _read_pdb_names_coords(f'{resid}-init.pdb')
         ic_min_ee = min_end_to_end_over_contour(ic_coords, acyl_chain_rows(ic_names))
-        if stretch_before_sampling(sampler, len(chain_info), ic_min_ee):
-            logger.info(f'{resid}: stretching before MC -- {len(chain_info)} chains, and a chain '
-                        f'built at {ic_min_ee:.2f} of its contour end to end')
+        max_uns = max((int(c.get('unsaturations', 0)) for c in chain_info), default=0)
+        if stretch_before_sampling(sampler, len(chain_info), ic_min_ee, max_uns):
+            logger.info(f'{resid}: stretching before MC -- {len(chain_info)} chains, a chain '
+                        f'built at {ic_min_ee:.2f} of its contour end to end, and up to '
+                        f'{max_uns} C=C in one chain')
             spliced = list(userspecs['tasks'])
             at = next((i for i, t in enumerate(spliced) if 'manipulate' in t), len(spliced))
             spliced.insert(at, pending_stretch)

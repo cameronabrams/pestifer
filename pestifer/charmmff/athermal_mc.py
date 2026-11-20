@@ -232,16 +232,24 @@ def _has_overlap(coords: np.ndarray, radii: np.ndarray, moving: np.ndarray,
                  exclusions: set) -> bool:
     """True if any non-excluded pair involving a moved atom is within hard-sphere contact.
 
-    Only pairs with at least one moved atom can newly clash: the moving subtree is rigid, so
-    moved-moved separations are unchanged from the (valid) pre-move state, and stationary-
-    stationary pairs did not move at all.  We therefore query the full structure once and keep
-    only candidate pairs that touch the moved set.
+    Only a pair with exactly ONE moved atom can newly clash: the moving subtree is rigid, so
+    moved-moved separations are unchanged by the pivot, and stationary-stationary pairs did not
+    move at all.  We therefore query the full structure once and keep only pairs that straddle
+    the moved set.
+
+    Until 2026-11-20 this docstring said the same thing and the code skipped only stationary-
+    stationary pairs, so a moved-moved pair was checked anyway.  That is harmless only when the
+    start is overlap-free, and it is not: a cis double bond holds the carbons either side of it
+    at 1-5 contact (DHA's ``C218``-``C222``, 3.13 A), which no torsion can change.  Every pivot
+    upstream of such a contact moves both atoms, so every one was rejected and PDOPC's sn-2 chain
+    sat frozen in its IC-built curl for all draws.  The sampler used to escape by rotating the
+    double bond itself to trans -- the defect that ``_is_multiple_bond`` now forbids.
     """
     rmax = radii.max()
     tree = cKDTree(coords)
     moved = set(int(i) for i in moving)
     for i, j in tree.query_pairs(2.0 * rmax):
-        if i not in moved and j not in moved:
+        if (i in moved) == (j in moved):
             continue
         if frozenset((i, j)) in exclusions:
             continue

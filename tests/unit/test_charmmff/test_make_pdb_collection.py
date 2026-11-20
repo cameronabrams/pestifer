@@ -547,3 +547,26 @@ class TestMakePdbCollection(_Sandbox):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestLargestUncollapsedBias:
+    """When the Lo order target is out of reach and the bias bound folds the chains, take the most
+    ordered ensemble that is still extended (CER220__Lo, 2026-11-20) instead of failing."""
+
+    def test_finds_the_onset_of_collapse_from_below(self):
+        from pestifer.charmmff.make_pdb_collection import largest_uncollapsed_bias
+        extent = lambda b: 10.0 if b < 22.0 else 2.0          # noqa: E731  collapse above 22
+        got = largest_uncollapsed_bias(extent, 10.0, 40.0, iters=8)
+        assert 20.0 < got < 22.0
+        assert extent(got) == 10.0
+
+    def test_falls_back_to_the_unbiased_ensemble_when_every_bias_collapses(self):
+        from pestifer.charmmff.make_pdb_collection import largest_uncollapsed_bias
+        assert largest_uncollapsed_bias(lambda b: 0.1 if b > 0 else 10.0, 10.0, 40.0) == 0.0
+
+    def test_the_sampler_uses_it_on_an_unbracketed_collapse(self):
+        import inspect
+        from pestifer.charmmff import make_pdb_collection as M
+        src = inspect.getsource(M._sample_and_write_mc_conformers)
+        code = '\n'.join(ln.split('#', 1)[0] for ln in src.splitlines())
+        assert 'largest_uncollapsed_bias(' in code
