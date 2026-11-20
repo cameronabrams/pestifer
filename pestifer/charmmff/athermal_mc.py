@@ -528,6 +528,8 @@ def build_lipid_mc(coords, elements, masses, bonds, head_indices, tail_indices,
     rotatable: list[RotatableBond] = []
     tail_atoms: set[int] = set()
     for i, j in nx.bridges(heavy):
+        if _is_multiple_bond(full, elements, i, j):
+            continue        # a C=C is not a torsion: pivoting it would turn cis into trans
         g = heavy.copy()
         g.remove_edge(i, j)
         comp_i = nx.node_connected_component(g, i)
@@ -565,7 +567,7 @@ def build_lipid_mc(coords, elements, masses, bonds, head_indices, tail_indices,
         already |= {(b, a) for a, b in already}
         nheavy = heavy.number_of_nodes()
         for i, j in nx.bridges(heavy):
-            if (i, j) in already:
+            if (i, j) in already or _is_multiple_bond(full, elements, i, j):
                 continue
             g = heavy.copy()
             g.remove_edge(i, j)
@@ -640,6 +642,32 @@ def build_exclusions(graph, order: int = 2) -> set:
             if i < j and 1 <= d <= order:
                 excl.add(frozenset((i, j)))
     return excl
+
+
+def _is_multiple_bond(graph, elements, a: int, b: int) -> bool:
+    """True when ``a-b`` joins two under-coordinated carbons, i.e. is a C=C (or C#C) bond.
+
+    A carbon with fewer than four bonded neighbors (hydrogens included) is unsaturated, so a
+    bond between two of them is a double or triple bond, about which there is no torsion to
+    sample.  Before 2026-11-20 every tail bridge was pivoted, double bonds included; a random
+    pivot leaves a cis double bond at any angle, minimization drops it into the nearest CHARMM
+    well, and ``X CEL1 CEL1 X`` has multiplicity 2, so trans is a minimum too and no MD restores
+    cis.  The shipped collection had flipped double bonds in 180 of 196 unsaturated entries.
+
+    The test is topological on purpose: it needs no bond orders or atom types, which the PSF
+    does not carry.  It also excludes the single bond in the middle of a conjugated diene
+    (both ends are sp2), which loses one legitimate degree of freedom; no shipped lipid has one,
+    and losing a torsion is the safe direction of error.
+
+    Coordination means something only when hydrogens are explicit, so a graph with no hydrogen
+    at all (a united-atom or synthetic test molecule) reports no multiple bonds.  Every CHARMM
+    lipid the collection is built from is all-atom; the collection-wide isomer test
+    (``test_lipid_collection_isomers.py``) is what guards the shipped result.
+    """
+    if not any(e == 'H' for e in elements):
+        return False
+    return (elements[a] == 'C' and elements[b] == 'C'
+            and graph.degree(a) < 4 and graph.degree(b) < 4)
 
 
 def _pick_neighbor(graph, elements, node, exclude=(), require_in=None) -> int:
