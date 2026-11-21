@@ -28,6 +28,16 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Fixed
 
+- **A conformer pin `conf: N` now selects the file `<RESI>-NN.pdb`.** A conformer's ID is its
+  position in the entry's `info.yaml` list, and that list was written in `glob` order, so
+  `conf: 0` named an arbitrary file and a different one after each regeneration (the October
+  collection's POPC conformer 0 was `POPC-04.pdb`). The reader now sorts the list by file number,
+  which fixes collections already shipped or cached, and `make_pdb_collection` writes it sorted.
+  Configs that pin `conf` may get a different conformer than before. Found when
+  `test_makemembranesystem_popc_pope`, pinned to conformer 0, went from a curled conformer
+  (P-P 33.5 A) to an extended one (47.4 A) and its patch collapsed under NPT. That test now draws
+  from the whole ensemble.
+
 - **The MC conformer sampler no longer rotates about carbon-carbon double bonds.** It pivoted every
   all-carbon tail bond, the C=C included, so a sampled conformer could leave a cis double bond at any
   angle. Minimization then settled it as trans as readily as cis, and no MD restores it, since CHARMM's

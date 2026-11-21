@@ -150,9 +150,18 @@ class TestPDBRepository(unittest.TestCase):
         # padded with copies of the final draw.  Regenerated it is 10 of 10, and the three new
         # values (13.40, 14.35, 14.75) displace three of those four duplicates.  So this is a
         # draw that padding used to swallow, not the sampler moving somewhere new.
+        #
+        # 14.348 -> 14.802 and 21.377 -> 21.977 on 2026-11-21, when the collection was regenerated
+        # with C=C bonds held rigid in the sampler.  WHICH way and why: PSM-00 is a new draw, not
+        # the old conformer repaired -- removing the C=C pivots changes every Markov chain -- so
+        # no single cause owns the 0.45 A.  What differs in kind: the old PSM-00 had its
+        # sphingosine C3S-C4S=C5S-C6S twisted to -92 deg, halfway between isomers, which the
+        # sampler can no longer produce; the new one holds CHARMM's trans (175 deg), and a trans
+        # double bond is the straighter chain.  Since the same date (pdbrepository._order_conformers)
+        # conformer ID N IS PSM-0N, so pinning by name and by position now agree.
         psm00 = next(e for e in c.info['conformers'] if e['pdb'] == 'PSM-00.pdb')
-        self.assertAlmostEqual(psm00['head-tail-length'], 14.348, places=3)
-        self.assertAlmostEqual(psm00['max-internal-length'], 21.377, places=3)
+        self.assertAlmostEqual(psm00['head-tail-length'], 14.802, places=3)
+        self.assertAlmostEqual(psm00['max-internal-length'], 21.977, places=3)
 
     def test_pdbrepository_checkout_tip3(self):
         c = self.pdbrepo.checkout('TIP3')

@@ -126,9 +126,11 @@ class TestCharmmffContent(unittest.TestCase):
         # history and the reason this is pinned BY NAME rather than at conformers[0] (that list
         # is in glob order, so position 0 is whatever the filesystem hands back).
         # A change here is a prompt to ask WHICH way and why, not to re-pin on sight.
+        # 14.348/21.377 -> 14.802/21.977 on 2026-11-21 (collection regenerated with C=C rigid);
+        # the why is with the twin pin.  (The list is sorted by file number since that date.)
         psm00 = next(e for e in c.info['conformers'] if e['pdb'] == 'PSM-00.pdb')
-        self.assertAlmostEqual(psm00['head-tail-length'],14.348,places=2)
-        self.assertAlmostEqual(psm00['max-internal-length'],21.377,places=2)
+        self.assertAlmostEqual(psm00['head-tail-length'],14.802,places=2)
+        self.assertAlmostEqual(psm00['max-internal-length'],21.977,places=2)
         c.get_pdb(0)
         self.assertTrue(os.path.exists('PSM-00.pdb'))
         os.remove('PSM-00.pdb')

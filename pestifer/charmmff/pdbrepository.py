@@ -255,6 +255,32 @@ class PDBInputDict(UserDict[str, PDBInput]):
     """ A dictionary mapping residue names to their corresponding PDBInput objects. """
     pass
 
+def _conformer_number(conformer: dict):
+    """Sort key for an ``info.yaml`` conformer record: the integer after the last ``-`` in its
+    pdb filename (``POPC-07.pdb`` -> 7), so ``conf: 7`` means that file."""
+    stem = os.path.splitext(os.path.basename(conformer.get('pdb', '')))[0]
+    tail = stem.rsplit('-', 1)[-1]
+    return (0, int(tail), stem) if tail.isdigit() else (1, 0, stem)
+
+
+def _order_conformers(info: dict) -> dict:
+    """Put ``info['conformers']`` in file-number order, in place, and return ``info``.
+
+    A conformer's ID -- what a config's ``conf: N`` selects, and what ``get_conformer_data(N)``
+    reads -- is its position in this list.  ``make_pdb_collection`` wrote the list in ``glob``
+    order, which is whatever order the filesystem returned, so ``conf: 0`` named an arbitrary file
+    and a different one after every regeneration.  Found 2026-11-21: the 2026-10-08 collection's
+    POPC "conformer 0" was ``POPC-04.pdb``, a curled conformer whose 49-copy patch came out at
+    P-P 33.5 A; regenerated, position 0 held an extended one (P-P 47.4 A) and the patch that
+    ``test_makemembranesystem_popc_pope`` builds collapsed under NPT.  Sorting here, where every
+    collection is read, fixes collections already shipped or cached as well as new ones.
+    """
+    confs = info.get('conformers')
+    if confs:
+        confs.sort(key=_conformer_number)
+    return info
+
+
 def _wanted(entry: str, resnames) -> bool:
     """Whether a collection entry should be kept under a ``resnames`` filter.
 
@@ -332,7 +358,7 @@ class PDBCollection:
                         continue
                     sd_member = info_search[0]
                     with pdbrepo_fs.open(sd_member['name'], 'r') as f:
-                        info[resname] = yaml.safe_load(f)
+                        info[resname] = _order_conformers(yaml.safe_load(f))
                     if info[resname].get('kind', 'molecule') == 'box':
                         # a pre-equilibrated solvent box: one psf + one pdb, no conformers
                         with pdbrepo_fs.open(os.path.join(subdir, info[resname]['pdb']), 'r') as f:
@@ -369,7 +395,7 @@ class PDBCollection:
                 if _wanted(resname, resnames):
                     if os.path.exists(os.path.join(subdir, 'info.yaml')):
                         with open(os.path.join(subdir, 'info.yaml'), 'r') as f:
-                            info[resname] = yaml.safe_load(f)
+                            info[resname] = _order_conformers(yaml.safe_load(f))
                     if info[resname].get('kind', 'molecule') == 'box':
                         with open(os.path.join(subdir, info[resname]['pdb']), 'r') as f:
                             box_pdb = f.read()

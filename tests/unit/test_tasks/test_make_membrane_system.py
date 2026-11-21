@@ -478,9 +478,15 @@ class TestMakeMembraneSystem(unittest.TestCase):
                         'lower': 49
                     },
                     'npatch': [1, 1],
+                    # No 'conf' pin: each lipid draws from the whole conformer ensemble, as a real
+                    # build does.  Pinned to conf 0, this test built every lipid from ONE
+                    # conformer, and which one was an accident of glob order until 2026-11-21
+                    # (pdbrepository._order_conformers): a curled POPC-04 passed at P-P 33.5 A,
+                    # and the regenerated collection's extended conformer made a 47.4 A patch that
+                    # collapsed under NPT at SAPL 75 ("Periodic cell has become too small").
                     'composition': {
-                        'upper_leaflet': [{'name': 'POPC', 'frac': 1.0, 'conf': 0}],
-                        'lower_leaflet': [{'name': 'POPE', 'frac': 1.0, 'conf': 0}]
+                        'upper_leaflet': [{'name': 'POPC', 'frac': 1.0}],
+                        'lower_leaflet': [{'name': 'POPE', 'frac': 1.0}]
                     },
                     'relaxation_protocols':{
                         'patch': self.common_patch_relaxation_protocols,

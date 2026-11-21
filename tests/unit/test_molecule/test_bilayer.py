@@ -445,7 +445,20 @@ class TestBilayer(unittest.TestCase):
         #     test_a_sterol_is_not_placed_coplanar_with_the_phosphates.
         # Built P-P on a 50:50 POPC:CHL1 patch goes 46.75 -> 39.88 A across the pair, against
         # ~38 A measured for POPC, so this watermark moving down is the error getting smaller.
-        assert test_bilayer.patch_ur_corner[2]==pytest.approx(74.92, rel=1e-2)
+        #
+        # 74.92 -> 77.14 on 2026-11-21, from two changes.  This test PINS conformers ('3:4//7:2'),
+        # so the box z is set by the pinned conformers' z-extents, not the collection's tallest
+        # (CHL1 has one conformer, so its pins 4 and 2 are out of range: get_z_extent gives 0 and
+        # the placer falls back to the single file -- a separate oddity, not this change).
+        # WHICH way and why:
+        #   - Conformer IDs now mean file numbers (pdbrepository._order_conformers).  Before, ID N
+        #     was position N in glob order: POPE's 7 was POPE-02.pdb.  It is now POPE-07.pdb.
+        #     On the old collection that swap alone is 21.56 -> 22.15 A of lower-leaflet extent.
+        #   - The collection was regenerated with C=C bonds rigid in the sampler, so every
+        #     conformer is a new draw: POPC-03 26.56 -> 27.73 A, POPE-07 22.15 -> 22.64 A.
+        # +1.17 (upper) + 1.08 (lower) = 2.25, against 2.22 measured.  Nothing about box sizing
+        # changed; the files the pins name did.
+        assert test_bilayer.patch_ur_corner[2]==pytest.approx(77.14, rel=1e-2)
         self.RM.charmmff_content.clean_local_charmmff_files()
 
         os.chdir('..')

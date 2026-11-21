@@ -1000,7 +1000,9 @@ def do_psfgen(resid: str, DB: CHARMMFFContent, RM: ResourceManager = None,
         }
 
     q = '?' * digits
-    pdbs = [os.path.basename(x) for x in glob.glob(f'{resid}-{q}.pdb')]
+    # sorted: a conformer's position in info['conformers'] is its conf ID (see
+    # pdbrepository._order_conformers); glob order is the filesystem's, not the file numbers'
+    pdbs = sorted(os.path.basename(x) for x in glob.glob(f'{resid}-{q}.pdb'))
     logger.debug(f'found {len(pdbs)} pdbs: {pdbs}')
     for pdb in pdbs:
         entry = {}
