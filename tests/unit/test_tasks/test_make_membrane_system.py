@@ -501,12 +501,17 @@ class TestMakeMembraneSystem(unittest.TestCase):
                         # carries what its patch's density puts in the box -- within 10% of the
                         # request, not equal to it (48 and 50 on two runs of the same commit).
                         # _assert_leaflet_sizing below holds it to that 10%; this is a ceiling.
+                        # 53 -> 56 on 2026-11-21, when the test stopped pinning one conformer:
+                        # drawing from the ensemble widens the calibration patches' spread, and
+                        # three runs of one commit gave 55, (passed), 52.  The patches' NPT is
+                        # parallel NAMD, so it does not reproduce.  The leaflet-sizing check
+                        # below is the strict one; this only catches a wildly oversized leaflet.
                         'residue_test': {
                             'name': 'Count of POPC residues',
                             'selection': 'resname POPC',
                             'measure': 'residue_count',
                             'relation': '<=',
-                            'value': 53
+                            'value': 56
                         }
                     },
                     {
