@@ -1275,12 +1275,13 @@ class PsfgenTask(LoopClosureMixin, VMDTask):
         atoms).  A bond whose *both* sides carry a root (e.g. an internal backbone bond of a loop
         anchored at both ends) is not rotatable and is skipped."""
         bonds, movers = [], []
+        explicit_h = any(a.isH() for a in g)   # coordination means nothing without hydrogens
         for ai, aj in list(nx.bridges(g)):
             if (ai.isH() or aj.isH()) or ai.is_pep(aj):
                 continue
             # never turn a double bond: it would flip its isomer (util/bondrules.py).  Degree is
             # read from `ligands`, the atom's full PSF bonding, since `g` is cut at the roots.
-            if is_multiple_bond(element_of_mass(ai.atomicwt), len(ai.ligands),
+            if explicit_h and is_multiple_bond(element_of_mass(ai.atomicwt), len(ai.ligands),
                                 element_of_mass(aj.atomicwt), len(aj.ligands)):
                 continue
             g.remove_edge(ai, aj)

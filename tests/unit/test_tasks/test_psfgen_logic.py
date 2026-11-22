@@ -42,6 +42,9 @@ class _Atom:
         self.name = name
         self.element = element if element is not None else name[0]
         self.is_root = is_root
+        # _rotatable_bonds reads mass and full bonding to keep double bonds rigid
+        self.atomicwt = {'H': 1.008, 'C': 12.011, 'N': 14.007, 'O': 15.999}.get(self.element, 0.0)
+        self.ligands = []
 
     def isH(self):
         return self.element == 'H'
