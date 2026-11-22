@@ -33,6 +33,7 @@ from ..psfutil.psfatom import PSFAtomList
 from ..psfutil.psfcontents import PSFContents
 from ..scripters import VMDScripter, PsfgenScripter
 from ..util.util import write_residue_map
+from ..util.bondrules import element_of_mass, is_multiple_bond
 
 logger = logging.getLogger(__name__)
 
@@ -1276,6 +1277,11 @@ class PsfgenTask(LoopClosureMixin, VMDTask):
         bonds, movers = [], []
         for ai, aj in list(nx.bridges(g)):
             if (ai.isH() or aj.isH()) or ai.is_pep(aj):
+                continue
+            # never turn a double bond: it would flip its isomer (util/bondrules.py).  Degree is
+            # read from `ligands`, the atom's full PSF bonding, since `g` is cut at the roots.
+            if is_multiple_bond(element_of_mass(ai.atomicwt), len(ai.ligands),
+                                element_of_mass(aj.atomicwt), len(aj.ligands)):
                 continue
             g.remove_edge(ai, aj)
             S = [g.subgraph(c).copy() for c in nx.connected_components(g)]

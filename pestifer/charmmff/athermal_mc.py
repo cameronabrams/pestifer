@@ -35,6 +35,8 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy.spatial import cKDTree
 
+from ..util.bondrules import element_of_mass, is_multiple_bond
+
 logger = logging.getLogger(__name__)
 
 # Rmin (the CHARMM pair-potential minimum separation) is 2**(1/6) * sigma, where sigma is the
@@ -464,13 +466,8 @@ def run_mc(mol: MoleculeMC, nsamples: int = 10, n_equil: int = 2000, n_decorr: i
     return samples[:nsamples]
 
 
-def _element_of_mass(mass: float) -> str:
-    """Coarse element symbol from atomic weight (enough to tell C/H/O/N/P/S apart in lipids)."""
-    for sym, m in (('H', 1.008), ('C', 12.011), ('N', 14.007), ('O', 15.999),
-                   ('P', 30.974), ('S', 32.06)):
-        if abs(mass - m) < 1.0:
-            return sym
-    return '?'
+# kept under its old private name: tests and callers import it from here
+_element_of_mass = element_of_mass
 
 
 def build_lipid_mc(coords, elements, masses, bonds, head_indices, tail_indices,
@@ -674,8 +671,8 @@ def _is_multiple_bond(graph, elements, a: int, b: int) -> bool:
     """
     if not any(e == 'H' for e in elements):
         return False
-    return (elements[a] == 'C' and elements[b] == 'C'
-            and graph.degree(a) < 4 and graph.degree(b) < 4)
+    # the rule itself is shared with the ring resolver and psfgen's declasher (util/bondrules.py)
+    return is_multiple_bond(elements[a], graph.degree(a), elements[b], graph.degree(b))
 
 
 def _pick_neighbor(graph, elements, node, exclude=(), require_in=None) -> int:

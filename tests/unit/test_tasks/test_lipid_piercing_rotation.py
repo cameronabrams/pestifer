@@ -256,7 +256,9 @@ class TestPendantAxesIsScopedToTheMOLECULE(unittest.TestCase):
         G.add_edges_from([(1, 2), (2, 3), (3, 4), (4, 5), (5, 6)])       # molecule A
         G.add_edges_from([(11, 12), (12, 13), (13, 14), (14, 15), (15, 16)])  # molecule B
         rc = mock.Mock(spec=RingChecker)
-        rc._atoms = [mock.Mock(serial=s, segname='L1') for s in list(G.nodes())]
+        # pendant_axes reads masses to keep double bonds out of its hinges; these chains carry
+        # no hydrogens, so coordination says nothing and every bridge stays a candidate
+        rc._atoms = [mock.Mock(serial=s, segname='L1', atomicwt=12.011) for s in list(G.nodes())]
         rc.topol = mock.Mock(G=G)
         rc._row_of_serial = {s: i for i, s in enumerate(sorted(G.nodes()))}
 

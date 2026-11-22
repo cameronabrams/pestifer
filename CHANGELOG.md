@@ -28,6 +28,14 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Fixed
 
+- **The ring-piercing resolver no longer flips double bonds.** It frees a threaded ring by
+  turning the piercing molecule's branch about a hinge, and it offered every bridge of the bond
+  graph as one -- C=C included -- so a membrane build could turn a cis oleoyl bond trans (or a
+  sphingosine bond cis) during a resolve pass, after which minimization and MD keep it. Example
+  17 rebuilt on the clean collection still had 14 trans oleoyl and 2 cis PSM bonds in one quilt.
+  psfgen's pendant declasher had the same shape. Both, and the conformer sampler, now share one
+  rule (`pestifer/util/bondrules.py`).
+
 - **A conformer pin `conf: N` now selects the file `<RESI>-NN.pdb`.** A conformer's ID is its
   position in the entry's `info.yaml` list, and that list was written in `glob` order, so
   `conf: 0` named an arbitrary file and a different one after each regeneration (the October

@@ -236,3 +236,84 @@ def test_every_conformer_keeps_its_reference_isomers(collection):
             report.append(f'{entry}: {len(bad)} flipped, e.g. {bad[0][0]} {bad[0][1][1]}={bad[0][1][2]}')
     assert n_unsat > 50, f'only {n_unsat} unsaturated entries found; is the detector running?'
     assert not report, f'{len(report)} entries with flipped double bonds:\n' + '\n'.join(report)
+
+
+# --- nothing else that rotates about a bond may pivot a double bond either ------------------
+#
+# Found 2026-11-22: with the collection clean, example 17's rebuilt quilts still had 14 trans
+# oleoyl and 2 cis sphingosine bonds.  The ring-piercing resolver frees a threaded ring by
+# turning the piercer's branch about a hinge from ``RingChecker.pendant_axes``, which offered
+# every bridge -- the double bond included.  psfgen's pendant declasher (``_rotatable_bonds``)
+# had the same shape.  Both are tested here on the real CHARMM-built lipids, at the function that
+# chooses the hinge, which is where the fix lives.
+
+def _hinge_names(psf, axes):
+    names = {a.serial: a.atomname for a in psf}
+    return {frozenset((names[ax['i_ser']], names[ax['j_ser']])) for ax in axes}
+
+
+def _ring_checker(collection, resi):
+    from pestifer.psfutil.psfring import RingChecker
+    _, init_psf, _ = entry_files(os.path.join(collection, resi))
+    rc = RingChecker(init_psf)
+    serial = {a.atomname: a.serial for a in rc._atoms}
+    return rc, serial
+
+
+class TestTheRingResolverKeepsDoubleBonds:
+
+    @pytest.mark.parametrize('resi, piercer, double, allylic', [
+        # a piercing deep in the oleoyl tail: every hinge between it and the head is a candidate
+        ('POPC', ('C216', 'C217'), ('C29', 'C210'), [('C28', 'C29'), ('C210', 'C211')]),
+        # the sphingosine chain, whose C4S=C5S is TRANS in CHARMM -- a flip makes it cis
+        ('PSM', ('C15S', 'C16S'), ('C4S', 'C5S'), [('C3S', 'C4S'), ('C5S', 'C6S')]),
+    ])
+    def test_the_double_bond_is_never_a_hinge(self, collection, resi, piercer, double, allylic):
+        rc, serial = _ring_checker(collection, resi)
+        seg = rc._atoms[0].segname
+        axes = rc.pendant_axes([serial[piercer[0]], serial[piercer[1]]], seg, max_axes=1000)
+        hinges = _hinge_names(rc._atoms, axes)
+        assert frozenset(double) not in hinges
+        # the single bonds on either side are still hinges -- the chain is not frozen, and the
+        # search did reach past the double bond (so its absence above means something)
+        for bond in allylic:
+            assert frozenset(bond) in hinges, (bond, sorted(map(sorted, hinges)))
+
+    def test_a_turn_about_every_offered_hinge_keeps_the_cis_bond(self, collection):
+        """End to end at the geometry: turn the pendant 180 degrees about each hinge the resolver
+        may use, as ``try_glycan_pendant`` does, and require the oleoyl bond to stay cis."""
+        rc, serial = _ring_checker(collection, 'POPC')
+        init_pdb, _, _ = entry_files(os.path.join(collection, 'POPC'))
+        names, xyz = read_pdb(init_pdb)
+        q = ('C28', 'C29', 'C210', 'C211')
+        assert not is_trans(q, names, xyz)
+        axes = rc.pendant_axes([serial['C216'], serial['C217']], rc._atoms[0].segname, max_axes=1000)
+        assert axes
+        for ax in axes:
+            p0 = xyz[ax['i_row']]
+            u = xyz[ax['j_row']] - p0
+            u /= np.linalg.norm(u)
+            R = 2 * np.outer(u, u) - np.eye(3)
+            turned = xyz.copy()
+            turned[ax['prows']] = (xyz[ax['prows']] - p0) @ R.T + p0
+            assert not is_trans(q, names, turned), (names[ax['i_row']], names[ax['j_row']])
+
+
+class TestThePsfgenDeclasherKeepsDoubleBonds:
+
+    def test_the_double_bond_is_not_a_rotatable_bond(self, collection):
+        from pestifer.psfutil.psfcontents import PSFContents
+        from pestifer.psfutil.psfatom import PSFAtomList
+        from pestifer.tasks.psfgen import PsfgenTask
+        _, init_psf, _ = entry_files(os.path.join(collection, 'POPC'))
+        psf = PSFContents(init_psf, parse_topology=['bonds'])
+        atoms = PSFAtomList(list(psf.atoms.data))
+        g = atoms.graph()
+        for a in g:
+            a.is_root = (a.atomname == 'P')      # anchored at the phosphate, as a pendant is
+        bonds, _ = PsfgenTask._rotatable_bonds(g)
+        name = {a.serial - 1: a.atomname for a in g}
+        pivots = {frozenset((name[i], name[j])) for i, j in bonds}
+        assert frozenset(('C29', 'C210')) not in pivots
+        assert frozenset(('C28', 'C29')) in pivots
+        assert frozenset(('C210', 'C211')) in pivots

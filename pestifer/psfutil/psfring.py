@@ -17,6 +17,7 @@ from ..psfutil.psfbond import PSFBondList
 from ..psfutil.psfcontents import PSFContents
 from ..psfutil.psftopoelement import PSFTopoElementList,PSFTopoElement
 
+from ..util.bondrules import element_of_mass, is_multiple_bond
 from ..util.coord import coorddf_from_pdb, lawofcos
 from ..util.linkcell import Linkcell
 from ..util.util import countTime, cell_from_xsc
@@ -423,11 +424,21 @@ class RingChecker:
         # per piercing; scoped to the molecule it is milliseconds, and the answer is identical
         # because a hinge in another molecule can never move this piercing bond.
         Gg = Gg.subgraph(nx.node_connected_component(Gg, a)).copy()
-        N = Gg.number_of_nodes()
+        # A C=C is a bridge, and turning a branch about it flips the double bond's isomer
+        # (cis oleoyl -> trans, trans sphingosine -> cis); minimization keeps whichever well it
+        # lands in.  Until 2026-11-22 every bridge was offered here, and example 17's resolver
+        # passes left 14 trans oleoyl and 2 cis PSM bonds in one quilt.  Same rule as the
+        # conformer sampler (util/bondrules.py).  Coordination counts hydrogens, so it is read
+        # on the full bond graph, and a hydrogen-free molecule has no multiple bonds to protect.
+        el = {s: element_of_mass(self._atoms[self._row_of_serial[s]].atomicwt) for s in Gg}
+        explicit_h = any(e == 'H' for e in el.values())
+        G_full = self.topol.G
         axes = []
         for u, v in nx.bridges(Gg):
             if {u, v} == {a, b}:
                 continue  # the piercing bond itself is a useless hinge
+            if explicit_h and is_multiple_bond(el[u], G_full.degree(u), el[v], G_full.degree(v)):
+                continue  # never turn a double bond
             H = Gg.copy()
             H.remove_edge(u, v)
             cu = nx.node_connected_component(H, u)
