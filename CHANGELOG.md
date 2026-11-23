@@ -28,6 +28,14 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Fixed
 
+- **`ring_check` now sees a piercing by a bond hanging outside the periodic box.** NAMD's
+  `wrapAll` keeps molecules whole, so a lipid straddling a box face has bonds outside the box.
+  The whole-system scan filed each bond in a link cell by its midpoint, clipped to the grid
+  instead of wrapped into it, so such a bond was never tested against the ring its periodic
+  image threads. Example 17's rep-02 stopped on two commits over one such piercing: present
+  from placement, invisible to both resolving passes, then seen by the verify-only pass after a
+  minimize had re-wrapped the lipid. The resolver's targeted re-check was already periodic.
+
 - **The ring-piercing resolver no longer flips double bonds.** It frees a threaded ring by
   turning the piercing molecule's branch about a hinge, and it offered every bridge of the bond
   graph as one -- C=C included -- so a membrane build could turn a cis oleoyl bond trans (or a

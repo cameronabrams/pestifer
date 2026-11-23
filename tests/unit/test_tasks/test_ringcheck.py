@@ -7,6 +7,7 @@ import tempfile
 import types
 import logging
 import pytest
+import numpy as np
 logger=logging.getLogger(__name__)
 
 
@@ -209,6 +210,62 @@ class TestRingCheck(unittest.TestCase):
         self.assertEqual(p['piercee']['segname'],'S1')
         self.assertEqual(p['piercer']['resid'],354)
         self.assertEqual(p['piercer']['segname'],'S2')
+
+class TestScanSeesAPiercerHangingOutsideTheBox(unittest.TestCase):
+    """NAMD's ``wrapAll`` keeps each molecule whole, so a lipid straddling a box face leaves
+    bonds hanging outside the box -- by up to a molecule's length.  The whole-system scan
+    filed each bond in a link cell by its midpoint, CLIPPED to the grid rather than wrapped
+    into it, so an overhanging bond sat in the cell at the face it overhung and no ring beside
+    its periodic image ever tested it.
+
+    Found 2026-11-22 on example 17 rep-02's patchB: SOPE L1-191 ``C217-C218`` at y 71-72 A in
+    a 65.8 A box threaded CHL1 L1-101's C ring dead center from the raw placement on, through
+    both resolving passes, invisible to each; a minimize then re-wrapped the lipid, and the
+    verify-only pass -- which may not move anything -- saw it and stopped the build (twice, on
+    two commits, from the same seeded placement).  An independent ray-cast found it at every
+    stage.  The resolver's targeted re-check (``_check_fast``) was already periodic; only the
+    scan was not.
+
+    Here the fixture's one piercer is moved WHOLE by one box length, exactly what wrapAll does
+    to a molecule whose center crosses a face.  The physics is unchanged, so the answer must be.
+    """
+
+    DIR = '1'
+    PIERCER = ('POPE', 645)
+
+    def _shifted(self, axis, sign):
+        box, _ = cell_from_xsc(os.path.join(self.DIR, 'test.xsc'))
+        L = float(np.diagonal(box)[axis])
+        out = []
+        with open(os.path.join(self.DIR, 'S2.pdb')) as f:
+            for ln in f:
+                if ln.startswith(('ATOM', 'HETATM')) and ln[17:21].strip() == self.PIERCER[0] \
+                        and int(ln[22:26]) == self.PIERCER[1]:
+                    xyz = [float(ln[30:38]), float(ln[38:46]), float(ln[46:54])]
+                    xyz[axis] += sign * L
+                    ln = ln[:30] + ''.join(f'{v:8.3f}' for v in xyz) + ln[54:]
+                out.append(ln)
+        fd, path = tempfile.mkstemp(suffix='.pdb', dir='.')
+        with os.fdopen(fd, 'w') as f:
+            f.writelines(out)
+        self.addCleanup(os.unlink, path)
+        return path
+
+    def test_the_fixture_has_one_piercing_by_that_molecule(self):
+        r = ring_check(os.path.join(self.DIR, 'S2.psf'), os.path.join(self.DIR, 'S2.pdb'),
+                       os.path.join(self.DIR, 'test.xsc'), cutoff=4.0, segtypes=['lipid', 'glycan'])
+        self.assertEqual([(p['piercer']['resname'], p['piercer']['resid']) for p in r], [self.PIERCER])
+
+    def test_a_piercer_one_box_length_away_is_still_found(self):
+        for axis in range(3):
+            for sign in (+1, -1):
+                with self.subTest(axis='xyz'[axis], sign=sign):
+                    r = ring_check(os.path.join(self.DIR, 'S2.psf'), self._shifted(axis, sign),
+                                   os.path.join(self.DIR, 'test.xsc'), cutoff=4.0,
+                                   segtypes=['lipid', 'glycan'])
+                    self.assertEqual([(p['piercer']['resname'], p['piercer']['resid']) for p in r],
+                                     [self.PIERCER])
+
 
 class TestVerifyOnlyPass(unittest.TestCase):
     """``resolve: false`` -- the terminator of the rotate-then-minimize loop.

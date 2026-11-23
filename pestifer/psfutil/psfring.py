@@ -312,8 +312,19 @@ class RingChecker:
         if len(self._bonds) > 0:
             bond_mid = coords[self._bond_rows].mean(axis=1)
             nc = LC.cells_per_dim
-            C = np.floor((bond_mid - LC.lower_left_corner) / LC.celldim).astype(int)
-            C = np.clip(C, 0, nc - 1)
+            # WRAP the midpoint into the cell grid, as `cellndx_of_point` does for the ring
+            # center -- do not clip it.  NAMD's wrapAll keeps a molecule whole, so a lipid that
+            # straddles a box face leaves bonds hanging up to a molecule-length outside the box.
+            # Clipped, such a bond was filed in the cell at the face it overhangs, not beside
+            # the ring its periodic image threads, and no ring ever tested it.  Found
+            # 2026-11-22 on example 17 rep-02's patchB: SOPE L1-191 C217-C218 at y 71-72 A in a
+            # 65.8 A box threaded CHL1 L1-101's C ring dead center through two resolve passes,
+            # invisible to both, and was seen only after a minimize re-wrapped the lipid --
+            # by the verify-only pass, which then had to stop the build.
+            # (same rule as Linkcell.wrap_point)
+            rel = np.mod(bond_mid - LC.lower_left_corner, LC.sidelengths)
+            C = np.floor(rel / LC.celldim).astype(int)
+            C = np.clip(C, 0, nc - 1)   # only guards float rounding at the far face now
             bond_ldx = C[:, 2] * nc[0] * nc[1] + C[:, 1] * nc[0] + C[:, 0]
             for bi, ldx in enumerate(bond_ldx.tolist()):
                 bondlist_per_cell.setdefault(ldx, []).append(bi)
