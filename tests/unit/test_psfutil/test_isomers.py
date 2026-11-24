@@ -184,6 +184,11 @@ class TestTheTask(_TaskCase):
         assert not MDTask._double_bond_hold_default('npt')
         assert not MDTask._double_bond_hold_default('npgt'), 'a profile must not carry restraints'
 
+    def test_a_packaged_config_never_holds_by_default(self):
+        """terminate writes the production config through namdrun(script_only=True)."""
+        assert not MDTask._double_bond_hold_default('minimize', script_only=True)
+        assert not MDTask._double_bond_hold_default('nvt', script_only=True)
+
     def test_the_file_is_merged_after_a_prior_one(self, tmp_path, monkeypatch, collection, charmm):
         t, state, *_ = self.make(tmp_path, monkeypatch, collection, charmm)
         Path('prior.extrabonds').write_text('dihedral 0 1 2 3 100.0 -33.0\n')

@@ -115,11 +115,13 @@ class MDTask(VMDTask):
         return 'md' not in names[last + 1:]
 
     @staticmethod
-    def _double_bond_hold_default(ens: str) -> bool:
+    def _double_bond_hold_default(ens: str, script_only: bool = False) -> bool:
         """Whether ``double_bonds.hold`` is on when unset: for minimize and NVT, the stages that start
         from a crowded placement, and off for NPT and NPgT, where a pressure profile may be sampled and
-        must not carry restraints."""
-        return ens in ('minimize', 'nvt')
+        must not carry restraints.  Never for a config pestifer only writes (``script_only``:
+        terminate's package), which is a production run -- a restraint nobody asked for must not
+        ship in it.  The first version missed this, and the packaging tests caught it."""
+        return not script_only and ens in ('minimize', 'nvt')
 
     def record_md_run(self, ensemble: str, psf, csv_keys: list):
         """Append this NAMD run to the pipeline's chronological MD history.
@@ -339,12 +341,19 @@ class MDTask(VMDTask):
         dbl = specs.get('double_bonds', {}) or {}
         hold, why = dbl.get('hold'), ''
         if hold is None:
-            hold = self._double_bond_hold_default(ens)
+            hold = self._double_bond_hold_default(ens, script_only)
             why = ('on by default for minimize and NVT stages; double_bonds: {hold: false} on this md '
                    'task turns it off')
         if hold:
-            eb_file = self.make_double_bond_restraints_file(state, float(dbl.get('k', 100.0)),
-                                                            params.get('extraBondsFile'), why=why)
+            try:
+                eb_file = self.make_double_bond_restraints_file(state, float(dbl.get('k', 100.0)),
+                                                                params.get('extraBondsFile'), why=why)
+            except Exception as e:
+                # the check after the stage still guards the isomers; a hold that cannot be built
+                # must not be what kills a build
+                logger.warning(f'{self.taskname} ({self.basename}): could not hold the C=C double '
+                               f'bonds this stage ({type(e).__name__}: {e}); they are checked after it')
+                eb_file = None
             if eb_file:
                 params['extraBonds'] = 'on'
                 params['extraBondsFile'] = eb_file
