@@ -274,8 +274,10 @@ class TestTheBuildCallsIt(unittest.TestCase):
         from pestifer.tasks.mdtask import MDTask
         calls = []
         t = MDTask.__new__(MDTask)
+        t.specs = {}
         t.namdrun = lambda: 0
         t.track_stereochemistry = lambda **kw: calls.append(kw)
+        t.check_double_bonds = lambda **kw: None
         self.assertEqual(t.do(), 0)
         self.assertEqual(calls, [{}])
 

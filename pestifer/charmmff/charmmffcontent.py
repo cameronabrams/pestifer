@@ -785,6 +785,34 @@ class CHARMMFFContent(CacheableObject):
             if CHARMMFFContent.charmmff_filetype(f):
                 os.remove(f)
     
+    def read_resi(self, resname: str) -> CharmmResi | None:
+        """Parse residue ``resname`` straight from the topology file that defines it, WITHOUT
+        provisioning: :meth:`provision` with ``resnames`` replaces the exposed residue set, so a
+        reader that only needs one residue's definition must not call it (a membrane build's
+        content is narrowed to its lipids, and a continuation's is not provisioned at all).
+        Returns None for a name no topology file defines.  Cached per instance."""
+        cache = self.__dict__.setdefault('_read_resi_cache', {})
+        if resname in cache:
+            return cache[resname]
+        resi = None
+        shortname = self.get_topfile_of_resname(resname)
+        if shortname is not None:
+            try:
+                name_in_tarball = self.fs_resolver[shortname]
+                with self.toppar_fs.open(name_in_tarball) as f:
+                    contents = f.read().decode()
+            except KeyError:
+                with open(self.all_topology_files[shortname], 'r') as f:
+                    contents = f.read()
+            blocks = [b for b in extract_resi_pres_blocks(contents, keywords=('RESI',))
+                      if b.split()[1:2] == [resname]]
+            if blocks:
+                resi = CharmmResiDict.from_blockstring_list(
+                    blocks, metadata=dict(charmmfftopfile=shortname),
+                    resnames=[resname]).to_resi_pres()[0].get(resname)
+        cache[resname] = resi
+        return resi
+
     def get_resi(self, resname: str) -> CharmmResi | None:
         if not self.provisioned:
             raise RuntimeError('CHARMMFFContent must be provisioned before accessing residues or patches')

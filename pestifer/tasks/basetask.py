@@ -22,6 +22,8 @@ from abc import ABC, abstractmethod
 from time import perf_counter
 from typing import TYPE_CHECKING
 
+import numpy as np
+
 from ..core.artifacts import *
 from ..core.command import Command
 from ..core.errors import PestiferBuildError
@@ -798,6 +800,84 @@ class VMDTask(BaseTask, ABC):
         self.register(stem, key='stereo_extrabonds', artifact_type=NAMDExtraBondsFileArtifact)
         self._stereo_terms = (checker, terms)
         return f'{stem}.extrabonds'
+
+    def _double_bond_checker(self, state):
+        """The :class:`~pestifer.psfutil.isomers.DoubleBondChecker` for ``state``'s PSF, cached on
+        the pipeline (a membrane patch runs many md stages on one topology), with its CHARMM
+        reference read from whatever residues the force-field content already has provisioned."""
+        from ..psfutil.isomers import DoubleBondChecker, isomer_reference
+        psf = str(state.psf.path)
+        cache = getattr(self.pipeline, '_double_bond_checker', None)
+        if cache is None or cache[0] != psf:
+            cc = getattr(self.resource_manager, 'charmmff_content', None)
+            cache = (psf, DoubleBondChecker(psf, reference=lambda rn: isomer_reference(cc, rn)))
+            self.pipeline._double_bond_checker = cache
+        return cache[1]
+
+    def make_double_bond_restraints_file(self, state, k: float, prior: str | None = None,
+                                         why: str = '') -> str | None:
+        """
+        Write a NAMD ``extraBonds`` file holding every non-ring C=C at its CHARMM isomer
+        (:meth:`~pestifer.psfutil.isomers.DoubleBondChecker.restraint_terms`), appended to ``prior``
+        when this stage already has one (NAMD takes a single ``extraBondsFile``).  Returns its name,
+        or None when the system has no double bond to hold.  The terms are kept on the task for
+        :meth:`check_double_bonds`.
+        """
+        checker = self._double_bond_checker(state)
+        terms = checker.restraint_terms(checker.load_coords(state.pdb.name))
+        if not terms:
+            return None
+        stem = f'{self.basename}-isomers'
+        with open(f'{stem}.extrabonds', 'w') as f:
+            if prior:
+                f.write(Path(prior).read_text().rstrip('\n') + '\n')
+            f.write('\n'.join(f'dihedral {" ".join(str(i) for i in rows)} {k} {held}'
+                              for rows, held, *_ in terms) + '\n')
+        logger.info(f'{self.taskname} ({self.basename}): holding {len(terms)} C=C double bonds at their '
+                    f'isomers (k {k:g}) in {stem}.extrabonds' + (f' -- {why}' if why else ''))
+        self.register(stem, key='isomer_extrabonds', artifact_type=NAMDExtraBondsFileArtifact)
+        self._double_bond_terms = (checker, terms)
+        return f'{stem}.extrabonds'
+
+    def check_double_bonds(self, stop: bool = True):
+        """After an md stage: every C=C whose isomer is not CHARMM's stops the build (``stop``) or is
+        warned about.  A held stage also says how hard it had to hold.  A check that cannot run says
+        so at INFO and does not stop anything: a missing state is not a wrong isomer."""
+        who = f'{self.taskname} ({self.basename})'
+        try:
+            state = self.get_current_artifact('state')
+            checker = self._double_bond_checker(state)
+            if not checker.terms:
+                return
+            xyz = checker.load_coords(state.pdb.name)
+            wrong = checker.check_coords(xyz)
+        except Exception as e:
+            logger.info(f'{who}: double-bond isomer check skipped ({type(e).__name__}: {e})')
+            return
+        held = getattr(self, '_double_bond_terms', None)
+        if held:
+            dev = np.abs(held[0].term_strain(xyz, held[1]))
+            strained = int(np.sum(dev > self.STEREO_STRAIN_REPORT))
+            (logger.warning if strained else logger.info)(
+                f'{who}: {strained} of {len(held[1])} held C=C bonds ended more than '
+                f'{self.STEREO_STRAIN_REPORT:.0f} deg from their held isomer (largest {dev.max():.0f} deg)'
+                + ('; the placement around them is crowded' if strained else ''))
+        unref = len(checker.terms) - checker.nreferenced
+        if not wrong:
+            logger.info(f'{who}: all {checker.nreferenced} C=C double bonds with a CHARMM reference have '
+                        f'their CHARMM isomer' + (f' ({unref} more have no reference and were not '
+                                                   f'checked)' if unref else ''))
+            return
+        lines = [f'  {d.describe()}' for d in wrong[:20]]
+        if len(wrong) > 20:
+            lines.append(f'  ... and {len(wrong) - 20} more')
+        msg = (f'{who}: {len(wrong)} of {checker.nreferenced} C=C double bonds are not the isomer CHARMM '
+               f'defines; trans is a minimum of X CEL1 CEL1 X too, so no later MD restores them:\n'
+               + '\n'.join(lines))
+        if stop:
+            raise PestiferBuildError(msg + '\n(double_bonds: {check: warn} on this md task reports '
+                                           'instead of stopping)')
+        logger.warning(msg)
 
     #: a held term ending further than this from its held angle (deg) is reported by name
     STEREO_STRAIN_REPORT = 30.0

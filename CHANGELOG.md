@@ -28,6 +28,21 @@ Pestifer follows [Semantic Versioning](https://semver.org/) and documents change
 
 ### Fixed
 
+- **md stages hold every C=C double bond at its CHARMM isomer, and a build stops when one is
+  wrong.** After the sampler and the ring resolver were kept off double bonds, example 17's
+  rebuilt quilts still carried 13, 7 and 6 trans oleoyl bonds. They came from the first minimize
+  of a lower-leaflet calibration patch: the grid placement put other lipids' carbons 0.76-1.4 A
+  from a double bond (123 inter-lipid heavy-atom pairs under 1 A in that patch), and the minimizer
+  relieved the overlap by turning the bond. Trans is a minimum of `X CEL1 CEL1 X` too, so nothing
+  restored it, and tiling copied it. `md: double_bonds` (new) holds each non-ring C=C with NAMD
+  extraBonds, on by default for minimize and NVT stages and off for NPT/NPgT, where a pressure
+  profile may be sampled. After every md stage, a double bond that is not the isomer its residue's
+  CHARMM internal coordinates define stops the build (`check: warn` or `off` to relax that). On
+  the patch that flipped, the hold kept all 114 bonds within 28 deg; without it the same minimize
+  turned 2-3 trans, and the check named each one. The reference is read from the topology file
+  without provisioning (`CHARMMFFContent.read_resi`), because a continuation build provisions
+  nothing and the first end-to-end run of the check found no reference for any of its 114 bonds.
+
 - **`ring_check` now sees a piercing by a bond hanging outside the periodic box.** NAMD's
   `wrapAll` keeps molecules whole, so a lipid straddling a box face has bonds outside the box.
   The whole-system scan filed each bond in a link cell by its midpoint, clipped to the grid

@@ -152,9 +152,11 @@ class TestTheStrainReport(unittest.TestCase):
         calls = []
         for rc in (0, 1):
             t = MDTask.__new__(MDTask)
+            t.specs = {}
             t.namdrun = lambda rc=rc: rc
             t.report_stereo_strain = lambda: calls.append(rc)
             t.track_stereochemistry = lambda **kw: None
+            t.check_double_bonds = lambda **kw: None
             t.do()
         self.assertEqual(calls, [0])
 
